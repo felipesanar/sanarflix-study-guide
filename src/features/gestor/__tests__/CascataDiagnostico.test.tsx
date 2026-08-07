@@ -108,9 +108,9 @@ describe('CascataDiagnostico', () => {
 
   it('mostra os 3 grupos por nível com chips de área', () => {
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    expect(screen.getByText('Excelente desempenho')).toBeInTheDocument();
-    expect(screen.getByText('Desempenho mediano')).toBeInTheDocument();
-    expect(screen.getByText('Desempenho crítico')).toBeInTheDocument();
+    expect(screen.getByText('Excelente')).toBeInTheDocument();
+    expect(screen.getByText('Mediano')).toBeInTheDocument();
+    expect(screen.getByText('Crítico')).toBeInTheDocument();
     expect(screen.getByTestId('chip-ga-clinica')).toHaveTextContent('Clínica Médica');
   });
 
@@ -140,7 +140,7 @@ describe('CascataDiagnostico', () => {
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
     expect(mockUseDiagnostico).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     expect(mockUseDiagnostico).toHaveBeenCalledWith(
       { iesId: recorte.iesId, semestre: recorte.semestre, simulados: [] },
       null,
@@ -151,7 +151,7 @@ describe('CascataDiagnostico', () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     expect(screen.getByTestId('diagnostico-grid')).toHaveAttribute('data-dividido', 'true');
     expect(screen.getByTestId('cascata')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -160,7 +160,7 @@ describe('CascataDiagnostico', () => {
   it('expande a especialidade no lugar, é accordion exclusivo e o segundo clique recolhe', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
     await user.click(clinica);
@@ -181,7 +181,7 @@ describe('CascataDiagnostico', () => {
     const user = userEvent.setup();
     const onAbrirTemas = vi.fn();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={onAbrirTemas} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
 
     await user.click(screen.getByRole('button', { name: /Cardiologia/ }));
@@ -197,7 +197,7 @@ describe('CascataDiagnostico', () => {
     const user = userEvent.setup();
     const onAbrirTemas = vi.fn();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={onAbrirTemas} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     // Mesmo mock devolve os mesmos nós de especialidade para qualquer grande
     // área expandida (ver beforeEach) — o que muda é só `node` (o pai), então
@@ -215,7 +215,7 @@ describe('CascataDiagnostico', () => {
   it('marca cobertura parcial na pílula e mantém o n FORA dela, como metadado', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
 
     const cardio = screen.getByRole('button', { name: /Cardiologia/ });
@@ -241,7 +241,7 @@ describe('CascataDiagnostico', () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     const cascata = screen.getByTestId('cascata');
     expect(within(cascata).getByRole('button', { name: /Clínica Médica/ })).toBeInTheDocument();
     expect(within(cascata).getByRole('button', { name: /Cirurgia/ })).toBeInTheDocument();
@@ -252,7 +252,7 @@ describe('CascataDiagnostico', () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
 
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de excelente desempenho' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível excelente' }));
     const cascata = screen.getByTestId('cascata');
     expect(within(cascata).getByRole('button', { name: /Ginecologia/ })).toBeInTheDocument();
     expect(within(cascata).queryByRole('button', { name: /Clínica Médica/ })).not.toBeInTheDocument();
@@ -262,10 +262,10 @@ describe('CascataDiagnostico', () => {
   it('cada nó da cascata mostra o nível de desempenho, não apenas o percentual', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
-    expect(clinica).toHaveTextContent('Desempenho crítico');
+    expect(clinica).toHaveTextContent('Crítico');
     expect(clinica).toHaveTextContent('27%');
   });
 
@@ -277,7 +277,7 @@ describe('CascataDiagnostico', () => {
   it('troca o glifo do disclosure entre chevron_right e expand_more, sem rotação', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
     expect(clinica.querySelector('.icon-dende-icons-chevron_right-outlined')).not.toBeNull();
@@ -293,7 +293,7 @@ describe('CascataDiagnostico', () => {
   it('a linha de especialidade anuncia "Ver temas"; a de grande área, não', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
     expect(clinica).not.toHaveTextContent('Ver temas');
@@ -306,7 +306,7 @@ describe('CascataDiagnostico', () => {
   it('setas ↑ ↓ movem o foco entre os nós visíveis da árvore', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
     const cirurgia = screen.getByRole('button', { name: /Cirurgia/ });
@@ -326,7 +326,7 @@ describe('CascataDiagnostico', () => {
   it('as setas alcançam também os filhos do ramo aberto', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
     await user.click(clinica);
@@ -347,7 +347,7 @@ describe('CascataDiagnostico', () => {
       <CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
     expect(screen.getByTestId('filhos-ga-clinica')).toBeInTheDocument();
 
@@ -366,7 +366,7 @@ describe('CascataDiagnostico', () => {
   it('o cabeçalho da cascata traz a trilha do ramo aberto', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
 
     expect(screen.getByTestId('cascata-trilha')).not.toHaveTextContent('ga-clinica');
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
@@ -386,9 +386,9 @@ describe('CascataDiagnostico', () => {
       render(
         <CascataDiagnostico resumo={diagnosticoResumoSemCriticoFake} recorte={recorte} onAbrirTemas={vi.fn()} />,
       );
-      expect(screen.getByText('Excelente desempenho')).toBeInTheDocument();
-      expect(screen.getByText('Desempenho mediano')).toBeInTheDocument();
-      expect(screen.getByText('Desempenho crítico')).toBeInTheDocument();
+      expect(screen.getByText('Excelente')).toBeInTheDocument();
+      expect(screen.getByText('Mediano')).toBeInTheDocument();
+      expect(screen.getByText('Crítico')).toBeInTheDocument();
     });
 
     it('explica o que aconteceu usando o corte de regras.ts, não um número escrito na mão', () => {
@@ -428,7 +428,7 @@ describe('CascataDiagnostico', () => {
       render(
         <CascataDiagnostico resumo={diagnosticoResumoSemCriticoFake} recorte={recorte} onAbrirTemas={vi.fn()} />,
       );
-      await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+      await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
       expect(screen.getByTestId('cascata')).toBeInTheDocument();
     });
   });

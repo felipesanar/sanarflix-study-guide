@@ -59,12 +59,12 @@ const META: Meta = {
 };
 
 describe('BadgeStatus (spec §6.4)', () => {
-  it('cada status tem rótulo textual em português; previsto é "Previsto"', () => {
+  it('cada status tem rótulo textual em português; previsto é "A definir"', () => {
     const casos: Array<[Parameters<typeof BadgeStatus>[0]['status'], string]> = [
       ['realizado', 'Realizado'],
       ['agendado', 'Agendado'],
       ['reagendado', 'Reagendado'],
-      ['previsto', 'Previsto'],
+      ['previsto', 'A definir'],
       ['processing', 'Em processamento'],
     ];
     for (const [status, rotulo] of casos) {
@@ -78,9 +78,9 @@ describe('BadgeStatus (spec §6.4)', () => {
 describe('ChipNivel (spec §4.4)', () => {
   it('nunca comunica só por cor: sempre há rótulo textual', () => {
     const casos: Array<[Parameters<typeof ChipNivel>[0]['nivel'], string]> = [
-      ['excelente', 'Excelente desempenho'],
-      ['mediano', 'Desempenho mediano'],
-      ['critico', 'Desempenho crítico'],
+      ['excelente', 'Excelente'],
+      ['mediano', 'Mediano'],
+      ['critico', 'Crítico'],
     ];
     for (const [nivel, rotulo] of casos) {
       const { unmount } = render(<ChipNivel nivel={nivel} />);

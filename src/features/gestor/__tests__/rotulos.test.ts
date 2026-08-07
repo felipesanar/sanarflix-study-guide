@@ -3,9 +3,9 @@ import { TRACO, ROTULO_NIVEL, ROTULO_TENDENCIA, rotuloSituacao, rotuloGrupo } fr
 
 describe('ROTULO_NIVEL — rótulo pt-BR de NivelDesempenho (spec §4.4)', () => {
   it('cobre os três níveis, sem sigla nem tradução literal', () => {
-    expect(ROTULO_NIVEL.critico).toBe('Desempenho crítico');
-    expect(ROTULO_NIVEL.mediano).toBe('Desempenho mediano');
-    expect(ROTULO_NIVEL.excelente).toBe('Excelente desempenho');
+    expect(ROTULO_NIVEL.critico).toBe('Crítico');
+    expect(ROTULO_NIVEL.mediano).toBe('Mediano');
+    expect(ROTULO_NIVEL.excelente).toBe('Excelente');
   });
 });
 

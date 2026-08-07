@@ -78,9 +78,9 @@ describe('TagNivel', () => {
         <TagNivel nivel="critico" />
       </>,
     );
-    expect(screen.getByText('Excelente desempenho')).toBeInTheDocument();
-    expect(screen.getByText('Desempenho mediano')).toBeInTheDocument();
-    expect(screen.getByText('Desempenho crítico')).toBeInTheDocument();
+    expect(screen.getByText('Excelente')).toBeInTheDocument();
+    expect(screen.getByText('Mediano')).toBeInTheDocument();
+    expect(screen.getByText('Crítico')).toBeInTheDocument();
   });
 
   it('cada nível tem par on/surface próprio', () => {

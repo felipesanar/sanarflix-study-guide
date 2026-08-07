@@ -345,7 +345,7 @@ describe('rota VisaoGeral', () => {
       })) as unknown as typeof useDiagnostico);
 
     render(<VisaoGeralRoute />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
     await user.click(screen.getByRole('button', { name: /Cardiologia/ }));
 
@@ -395,7 +395,7 @@ describe('rota VisaoGeral', () => {
       })) as unknown as typeof useDiagnostico);
 
     render(<VisaoGeralRoute />);
-    await user.click(screen.getByRole('button', { name: 'Abrir cascata de desempenho crítico' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
     await user.click(screen.getByRole('button', { name: /Cardiologia/ }));
 

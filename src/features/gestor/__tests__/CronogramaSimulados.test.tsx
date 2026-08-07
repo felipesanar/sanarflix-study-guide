@@ -135,13 +135,13 @@ describe('CronogramaSimulados — os 5 status (spec §6.4)', () => {
     expect(screen.getByTestId('cronograma-item-s2')).toHaveTextContent('Em processamento');
     expect(screen.getByTestId('cronograma-item-s3')).toHaveTextContent('Agendado');
     expect(screen.getByTestId('cronograma-item-s4')).toHaveTextContent('Reagendado');
-    expect(screen.getByTestId('cronograma-item-s5')).toHaveTextContent('Previsto');
+    expect(screen.getByTestId('cronograma-item-s5')).toHaveTextContent('A definir');
   });
 
-  it('previsto exibe "Previsto" e nenhuma data', () => {
+  it('previsto exibe "A definir" e nenhuma data', () => {
     montar();
     const previsto = screen.getByTestId('cronograma-item-s5');
-    expect(previsto).toHaveTextContent('Previsto');
+    expect(previsto).toHaveTextContent('A definir');
     expect(previsto.textContent).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
   });
 

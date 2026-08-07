@@ -8,7 +8,7 @@ export const ROTULO_STATUS: Record<StatusSimulado, string> = {
   realizado: 'Realizado',
   agendado: 'Agendado',
   reagendado: 'Reagendado',
-  previsto: 'Previsto',
+  previsto: 'A definir',
   processing: 'Em processamento',
 };
 
