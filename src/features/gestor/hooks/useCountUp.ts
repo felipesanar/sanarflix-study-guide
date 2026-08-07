@@ -70,6 +70,16 @@ export function resolverCubicBezier(
 
   // Bissecção de segurança: só continua refinando se Newton não convergiu
   // dentro da tolerância (derivada quase nula ou passo saiu de [0,1]).
+  //
+  // O teto é 24, não o valor redondo seguinte (25 ou o próximo corte da
+  // régua de proficiência): o guard estático de `__tests__/regua-unica.test.ts`
+  // varre todo `src/features/gestor` por um operador de comparação colado a
+  // um dos cortes de nível (30, 45, 55, 60, 80), para pegar quem reimplementa
+  // classificação fora de `lib/regras.ts` — sem distinguir comentário de
+  // código. Este loop não tem nenhuma relação com corte de proficiência, é só
+  // o teto de segurança de uma bissecção numérica; mas arredondar o valor de
+  // volta para o próximo desses números faria a suíte quebrar por um motivo
+  // que nada tem a ver com este guard. Não arredondar sem entender isto.
   let lo = 0;
   let hi = 1;
   let candidato = u;
