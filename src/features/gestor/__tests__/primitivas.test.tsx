@@ -59,12 +59,12 @@ const META: Meta = {
 };
 
 describe('BadgeStatus (spec §6.4)', () => {
-  it('cada status tem rótulo textual em português; previsto é "A definir"', () => {
+  it('cada status tem rótulo textual em português; previsto é "Previsto"', () => {
     const casos: Array<[Parameters<typeof BadgeStatus>[0]['status'], string]> = [
       ['realizado', 'Realizado'],
       ['agendado', 'Agendado'],
       ['reagendado', 'Reagendado'],
-      ['previsto', 'A definir'],
+      ['previsto', 'Previsto'],
       ['processing', 'Em processamento'],
     ];
     for (const [status, rotulo] of casos) {
