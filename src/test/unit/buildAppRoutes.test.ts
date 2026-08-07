@@ -273,7 +273,14 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
 describe('experiences/buildAppRoutes — gestão', () => {
   const gestorRules = gestorRulesFixture;
 
-  it('expõe a rota-layout /gestor com os 5 módulos como filhas', () => {
+  // Task 64 (cleanup, 05/08): GA total no merge — todos os gestores de todas
+  // as IES recebem só o portal novo, sem piloto. A experiência legada (5
+  // módulos em `src/experiences/gestor/pages/**`) e o gate por feature
+  // (`gestao.portal_v2`) foram apagados; `/gestor` monta hoje só as 3 rotas
+  // do portal novo, direto — sem gate por rota, só o `ExperienceGuard` no
+  // topo (separa gestão de aluno/admin/CX, nunca decidiu entre versões do
+  // portal).
+  it('expõe a rota-layout /gestor com as 3 telas do portal novo — a experiência legada foi apagada, não há mais módulos antigos', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
@@ -281,8 +288,14 @@ describe('experiences/buildAppRoutes — gestão', () => {
     const childPaths = (gestorRoute?.children ?? []).map((c) =>
       c.index ? 'index' : c.path,
     );
+    // As 3 telas do portal novo, seguidas dos 5 redirects de compatibilidade
+    // das URLs do console legado (05/08): elas foram servidas em produção e
+    // continuam em favorito e e-mail de gestor, então caem no Início em vez
+    // de no 404 no dia do merge.
     expect(childPaths).toEqual([
       'index',
+      'visao-geral',
+      'detalhamento',
       'visao-institucional',
       'diagnostico-curricular',
       'alunos',
@@ -291,7 +304,20 @@ describe('experiences/buildAppRoutes — gestão', () => {
     ]);
   });
 
-  it('a index de /gestor resolve dinamicamente a primeira tela ligada (GestorIndexRedirect) — não é mais um redirect estático', () => {
+  it.each([
+    'visao-institucional',
+    'diagnostico-curricular',
+    'alunos',
+    'insights-pedagogicos',
+    'inteligencia-decisoria',
+  ])('a URL antiga /gestor/%s redireciona para o portal novo, nunca 404', (caminho) => {
+    const routes = routesForRoles(['gestor'], gestorRules);
+    const filha = (routes.get('/gestor')?.children ?? []).find((c) => c.path === caminho);
+    expect(filha, `/gestor/${caminho} sumiu da árvore de rotas`).toBeDefined();
+    expect(redirectTarget(filha)).toBe('/gestor');
+  });
+
+  it('a index de /gestor renderiza o Início do portal novo — não é um redirect', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const indexChild = (routes.get('/gestor')?.children ?? []).find((c) => c.index);
     expect(indexChild).toBeDefined();
@@ -313,7 +339,7 @@ describe('experiences/buildAppRoutes — gestão', () => {
 describe('experiences/buildAppRoutes — admin', () => {
   const adminRules = adminRulesFixture;
 
-  it('expõe a rota-layout /admin com as 11 seções como filhas (index = Command Center)', () => {
+  it('expõe a rota-layout /admin com as 12 seções como filhas (index = Command Center)', () => {
     const routes = routesForRoles(['admin'], adminRules);
     const adminRoute = routes.get('/admin');
     expect(adminRoute).toBeDefined();
@@ -327,6 +353,7 @@ describe('experiences/buildAppRoutes — admin', () => {
       'monitoramento',
       'usuarios',
       'ies',
+      'contratos',
       'guia',
       'avisos',
       'sanarclass',

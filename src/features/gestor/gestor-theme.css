@@ -1,0 +1,318 @@
+/* src/features/gestor/gestor-theme.css
+   Camada de tema do Portal do Gestor v2. Escopada em `.gestor-portal` — não
+   redefine NENHUMA variável de src/index.css, logo não afeta aluno nem admin.
+   Regras (spec §Tema escuro): mesmos nomes nos dois temas, elevação vem da COR
+   da superfície, hover no escuro CLAREIA, nunca `filter: invert()`,
+   nunca `#B81414` como cor de TEXTO sobre fundo escuro (use --gp-brand-on-dark). */
+
+.gestor-portal {
+  /* Superfícies e linhas — mapeadas nas variáveis do repo */
+  --gp-bg-app: hsl(var(--background));
+  --gp-surface-1: hsl(var(--card));
+  /* Item A2: literal próprio — hsl(var(--muted)) (#F3F4F6) e hsl(220 14% 93%)
+     (#EBECF0) não batem com o handoff (#F9FAFB / #F4F5F6). Par escuro abaixo. */
+  --gp-surface-2: hsl(210 20% 98%);
+  --gp-surface-3: hsl(210 10% 96.1%);
+  --gp-border-strong: hsl(var(--border));
+  --gp-border-subtle: hsl(var(--border) / 0.5);
+  /* Item A1: literal próprio — hsl(var(--input)) resolve para o MESMO valor
+     de --border em src/index.css, então este token colapsava com
+     --gp-border-strong (mesmo cinza #E5E7EB); o handoff quer #C3C6C6. Par
+     escuro abaixo. */
+  --gp-border-input: hsl(180 2.6% 77.1%);
+
+  /* Texto */
+  --gp-text-1: hsl(var(--foreground));
+  --gp-text-2: hsl(var(--foreground) / 0.78);
+  --gp-text-3: hsl(var(--muted-foreground));
+  --gp-text-inverse: hsl(var(--primary-foreground));
+
+  /* Marca */
+  --gp-brand: hsl(var(--primary));
+  --gp-brand-strong: hsl(var(--primary-dark, var(--primary)));
+  --gp-brand-on-dark: hsl(var(--primary));   /* no claro, texto de marca = a própria marca */
+  /* Item A4: literal opaco — alfa sobre --primary composto contra card branco
+     dava ≈#F6EEEE (o handoff pede #FCE3E3) e, por ser alfa, o tinte mudava de
+     cor conforme o fundo atrás. Par escuro abaixo. Não mexer em
+     --gp-brand-surface-soft (mais abaixo): continua alfa por decisão
+     separada, documentada onde é declarado. */
+  --gp-brand-surface: hsl(0 80.6% 93.9%);
+  --gp-brand-border: hsl(0 63.6% 87.1%);
+  --gp-on-brand: hsl(var(--primary-foreground));
+
+  /* Semânticos (único bloco literal — o repo não tem status tokens) */
+  --gp-success: hsl(145 76% 32%);
+  --gp-success-on: hsl(145 76% 20%);
+  --gp-success-surface: hsl(145 45% 93%);
+  --gp-warning: hsl(38 92% 43%);
+  --gp-warning-on: hsl(38 92% 26%);
+  --gp-warning-surface: hsl(38 75% 94%);
+  --gp-danger: hsl(0 74% 44%);
+  --gp-danger-on: hsl(0 74% 27%);
+  --gp-danger-surface: hsl(0 60% 94%);
+  --gp-info: hsl(200 95% 35%);
+  --gp-info-on: hsl(200 95% 21%);
+  --gp-info-surface: hsl(200 60% 94%);
+
+  /* Séries de gráfico — a paleta do repo já é calibrada nos dois temas */
+  --gp-serie-1: hsl(var(--chart-1));
+  --gp-serie-2: hsl(var(--chart-2));
+  --gp-serie-3: hsl(var(--chart-3));
+  --gp-serie-4: hsl(var(--chart-4));
+  --gp-serie-5: hsl(var(--chart-5));
+  --gp-grid: hsl(var(--border));
+  --gp-axis: hsl(var(--muted-foreground));
+
+  /* Forma */
+  --gp-radius-sm: calc(var(--radius) - 4px);
+  --gp-radius-md: var(--radius);
+  --gp-radius-lg: calc(var(--radius) + 4px);
+  --gp-radius-pill: 10em;
+
+  /* Elevação e foco */
+  --gp-shadow-card: 0 1px 2px hsl(var(--foreground) / 0.03), 0 14px 34px -22px hsl(var(--foreground) / 0.16);
+  --gp-shadow-panel: -12px 0 28px -20px hsl(var(--foreground) / 0.25);
+  --gp-shadow-drawer: -28px 0 64px -30px hsl(var(--foreground) / 0.42);
+  --gp-scrim: hsl(220 13% 6% / 0.42);
+  --gp-focus-ring: 0 0 0 3px hsl(var(--ring) / 0.35);
+
+  /* Skeleton — no claro, um degrau acima do card */
+  --gp-skeleton: hsl(var(--muted));
+  --gp-skeleton-brilho: hsl(var(--background));
+
+  /* Motion (handoff docs/07-motion.md e tokens/tokens.light.css).
+     Cinco degraus, e só eles: 80 para cor/tint, 140 para hover/foco/press,
+     200 para toggle e troca de valor, 320 para drawer e cascata, 560 para
+     desenho de gráfico e count-up. Não mudam entre os temas — tempo e curva
+     são a mesma física nos dois. */
+  --gp-motion-1: 80ms;
+  --gp-motion-2: 140ms;
+  --gp-motion-3: 200ms;
+  --gp-motion-4: 320ms;
+  --gp-motion-5: 560ms;
+  --gp-ease: cubic-bezier(0.2, 0, 0, 1);
+  --gp-ease-in: cubic-bezier(0, 0, 0, 1);
+  --gp-ease-out: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Tipografia. O mono é o do handoff: todo NÚMERO do portal é tabular. */
+  --gp-font-sans: 'Inter', system-ui, sans-serif;
+  --gp-font-mono: 'Roboto Mono', ui-monospace, monospace;
+
+  /* Superfície de marca mais suave — linha selecionada e card em foco.
+     Faltava, e o estado "selecionado" das tabelas (§6: fundo brand-surface-soft
+     + barra de 3px) não tinha token de origem. */
+  --gp-brand-surface-soft: hsl(var(--primary) / 0.04);
+
+  /* Item A6: tooltip de rastreabilidade. Superfície escura NOS DOIS TEMAS por
+     decisão de design (referência LIGHT.html, bloco "Tooltip do 'i' ·
+     rastreabilidade") — o par em `.dark .gestor-portal` repete os MESMOS
+     quatro valores de propósito (não é descuido: o guard de
+     `tema.test.tsx:52-69` exige par escuro para todo literal declarado aqui). */
+  --gp-tooltip-surface: hsl(180 2.6% 7.6%);
+  --gp-tooltip-label: hsl(180 3% 67.3%);
+  --gp-tooltip-value: hsl(210 20% 98%);
+  --gp-tooltip-shadow: 0 12px 32px -12px hsl(180 2.9% 6.9% / 0.5);
+}
+
+/* Camada escura. `.dark` é a classe do next-themes (attribute="class") —
+   NÃO usar [data-theme="dark"] do handoff: esse atributo não existe neste app. */
+.dark .gestor-portal {
+  /* Item A2: par escuro do degrau de superfície (handoff #1E2223 / #23282A). */
+  --gp-surface-2: hsl(192 7.7% 12.7%);
+  --gp-surface-3: hsl(197 9.1% 15.1%);
+
+  /* Item A1: par escuro de --gp-border-input (handoff #535959). */
+  --gp-border-input: hsl(180 3.5% 33.7%);
+
+  /* Item A5: par escuro de --gp-border-strong. No claro deriva de --border e
+     não precisa de literal próprio; no escuro, --border vale #1F2228 contra
+     o card #16181C (~1,2:1) — insuficiente para a linha que substitui a
+     sombra no tema escuro (ver cabeçalho do arquivo). */
+  --gp-border-strong: hsl(192 5.9% 16.7%);
+
+  /* Item A3: par escuro de --gp-brand-strong. No claro deriva de
+     --primary-dark (src/index.css só declara em :root, então hoje vale
+     #691616 nos dois temas); no escuro, iniciar o gradiente da linha de
+     evolução em L 25% sobre um card de L 10% apagava a ponta esquerda do
+     traço. */
+  --gp-brand-strong: hsl(0 75.5% 32%);
+
+  /* Nunca #B81414 como texto sobre escuro (2,73:1 — reprova AA).
+     Este token dá 7,08:1 sobre a superfície de card do escuro. */
+  --gp-brand-on-dark: hsl(2 76% 72%);
+  /* Item A4: literal opaco — par escuro (handoff #2C1517 / #5A2426). */
+  --gp-brand-surface: hsl(355 35.4% 12.7%);
+  --gp-brand-border: hsl(358 42.9% 24.7%);
+  /* No escuro a seleção precisa de mais corpo que os 4% do claro: sobre uma
+     superfície escura, um tinte tão baixo simplesmente não aparece. */
+  --gp-brand-surface-soft: hsl(var(--primary) / 0.10);
+
+  /* Item A6: tooltip de rastreabilidade — MESMOS valores do claro, de
+     propósito (ver comentário no bloco `.gestor-portal`): é escuro nos dois
+     temas por decisão de design, e o guard de literal-sem-par exige a
+     repetição mesmo sem diferença visual. */
+  --gp-tooltip-surface: hsl(180 2.6% 7.6%);
+  --gp-tooltip-label: hsl(180 3% 67.3%);
+  --gp-tooltip-value: hsl(210 20% 98%);
+  --gp-tooltip-shadow: 0 12px 32px -12px hsl(180 2.9% 6.9% / 0.5);
+
+  --gp-success: hsl(145 57% 47%);
+  --gp-success-on: hsl(145 55% 61%);
+  --gp-success-surface: hsl(150 48% 14%);
+  --gp-warning: hsl(38 76% 58%);
+  --gp-warning-on: hsl(38 74% 61%);
+  --gp-warning-surface: hsl(35 55% 13%);
+  --gp-danger: hsl(2 82% 62%);
+  --gp-danger-on: hsl(4 80% 72%);
+  --gp-danger-surface: hsl(356 52% 14%);
+  --gp-info: hsl(202 72% 56%);
+  --gp-info-on: hsl(202 68% 66%);
+  --gp-info-surface: hsl(203 59% 14%);
+
+  /* Elevação vem da COR da superfície: sombra quase desaparece no escuro */
+  --gp-shadow-card: 0 1px 2px hsl(0 0% 0% / 0.30), 0 14px 34px -22px hsl(0 0% 0% / 0.60);
+  --gp-shadow-panel: -12px 0 28px -20px hsl(0 0% 0% / 0.55);
+  --gp-shadow-drawer: -28px 0 64px -30px hsl(0 0% 0% / 0.75);
+  --gp-scrim: hsl(0 0% 0% / 0.60);
+  --gp-focus-ring: 0 0 0 3px hsl(2 76% 72% / 0.28);
+
+  /* Skeleton calibrado: 4 pontos de luz acima do card (220 13% 10%) — nunca clarão */
+  --gp-skeleton: hsl(220 13% 14%);
+  --gp-skeleton-brilho: hsl(220 13% 18%);
+}
+
+/* Hover: no claro ESCURECE de leve; no escuro CLAREIA — nunca o contrário. */
+.gestor-portal .gp-hover-surface { transition: background-color 140ms cubic-bezier(0.2, 0, 0, 1); }
+.gestor-portal .gp-hover-surface:hover { background-color: hsl(var(--accent)); }
+.dark .gestor-portal .gp-hover-surface:hover { background-color: hsl(220 13% 16%); }
+
+.gestor-portal .gp-skeleton {
+  background-color: var(--gp-skeleton);
+  border-radius: var(--gp-radius-sm);
+}
+.gestor-portal :focus-visible { outline: none; box-shadow: var(--gp-focus-ring); }
+
+/* Texto de status diretamente sobre a superfície do card (--gp-surface-1) —
+   NÃO é o mesmo caso de texto sobre --gp-*-surface (chip tintado), que já tem
+   contraste próprio calibrado com --gp-*-on naquele par. `--gp-danger-on` dá
+   11,09:1 no claro e 7,15:1 no escuro contra o card (medido: getComputedStyle
+   real + fórmula WCAG, ver contrasteKpi.test.tsx) — os dois folgados acima do
+   mínimo AA (4,5:1) e clareando no escuro (L 27%→72%), nunca escurecendo.
+   Substitui `text-destructive` (var(--destructive) de src/index.css) no delta
+   negativo do KpiCard: aquele token reprovava AA nos dois temas (3,78:1 claro,
+   3,48:1 escuro) e ESCURECIA no escuro (L 60%→50%) — o oposto da regra acima. */
+.gestor-portal .gp-text-danger { color: var(--gp-danger-on); }
+
+/* Item A7 — animação de entrada/saída do Sheet/Drawer (handoff
+   docs/07-motion.md): 320ms (--gp-motion-4), translateX(16px) + fade, curva
+   de entrada --gp-ease-in na abertura e --gp-ease-out no fechamento, com o
+   scrim escurecendo em paralelo na mesma duração. Hoje `sheetVariants` (cva,
+   `src/components/ui/sheet.tsx`) usa 500ms/300ms sem timing function
+   explícita e `slide-in-from-right`/`slide-out-to-right` sem valor (100% da
+   largura), sem `fade-in-0` no painel — nenhum dos quatro consumidores do
+   gestor (DrawerAluno, DrawerTemas, o Sheet de cronograma em
+   Detalhamento.tsx, Glossario — este é Dialog, não entra aqui) sobrescreve.
+
+   Seletor do painel: `[class*="duration-500"]`. `sheetVariants` grava a
+   classe `data-[state=open]:duration-500` na BASE do `cva` — não no variant
+   por `side` — então ela chega independente do lado. Entre os primitivos
+   Radix que o gestor monta dentro de si (Sheet, Dialog via `Glossario`,
+   Select via `SidebarIes`/`FiltroSemestre` — ver comentário mais abaixo),
+   SÓ o painel do Sheet carrega essa classe: `DialogContent`
+   (`src/components/ui/dialog.tsx`) usa `duration-200` sem variante de
+   estado, e `SelectContent` não declara duração nenhuma. Não usa `role`
+   nem `data-state` isolado porque Sheet e Dialog compartilham a mesma
+   primitiva Radix (`@radix-ui/react-dialog`) e por isso o MESMO
+   `role="dialog"` — `duration-500` é o único traço realmente exclusivo do
+   painel do Sheet no DOM.
+
+   Especificidade: o utilitário compilado do Tailwind para
+   `data-[state=open]:duration-500` é 1 classe + 1 atributo de estado = (0,2,0)
+   — mesmo peso para `ease-in-out`/`slide-in-from-right`/etc. na base do
+   `cva` (0,1,0 a 0,2,0). `.gestor-portal [class*="duration-500"][data-state]`
+   soma 1 classe (.gestor-portal) + 2 atributos ([class*=], [data-state]) =
+   (0,3,0): vence pela cascata em qualquer ordem de import entre este arquivo
+   e o Tailwind, sem precisar de `!important`. Isso é o que importa aqui: o
+   bloco de reduced-motion abaixo usa `!important` e precisa continuar
+   ganhando de TUDO nesta folha — se esta regra também usasse `!important`,
+   ela venceria o guard de acessibilidade e viraria regressão. */
+.gestor-portal [class*="duration-500"][data-state] {
+  animation-duration: var(--gp-motion-4);
+  --tw-enter-translate-x: 16px;
+  --tw-exit-translate-x: 16px;
+  --tw-enter-opacity: 0;
+  --tw-exit-opacity: 0;
+}
+.gestor-portal [class*="duration-500"][data-state="open"] {
+  animation-timing-function: var(--gp-ease-in);
+}
+.gestor-portal [class*="duration-500"][data-state="closed"] {
+  animation-timing-function: var(--gp-ease-out);
+}
+
+/* Scrim do Sheet escurecendo em paralelo, mesma duração. `SheetOverlay` e
+   `DialogOverlay` (Glossario) compartilham a MESMA string de classe
+   (`bg-black/80 ... fade-in-0`), então `[class*="bg-black/80"]` sozinho
+   pegaria os dois. `:has(+ [class*="duration-500"])` restringe ao overlay
+   cujo IRMÃO SEGUINTE é o painel do Sheet — é exatamente a estrutura que
+   `SheetPortal` renderiza (`<SheetOverlay /><SheetPrimitive.Content />` como
+   irmãos adjacentes, ver sheet.tsx) — sem afetar o overlay do Dialog. */
+.gestor-portal [class*="bg-black/80"]:has(+ [class*="duration-500"]) {
+  animation-duration: var(--gp-motion-4);
+}
+
+/* prefers-reduced-motion (Task 59b; handoff docs/07-motion.md e docs/06-data-viz.md
+   princípio 6). Zera QUALQUER animação/transição CSS em todo descendente do
+   portal: a transição de hover de `.gp-hover-surface` acima, o `animate-pulse`
+   (loop infinito) que `GestorSkeleton` aplica em todo carregamento, as classes
+   `animate-in`/`animate-out`/`fade-in-0`/`zoom-in-95`/`slide-in-from-*` que o
+   plugin tailwindcss-animate gera para `TooltipContent`
+   (`src/components/ui/tooltip.tsx`) — o único primitivo Radix do portal que
+   NUNCA embrulhou o conteúdo em `<Primitive.Portal>` — e, desde a Task 65
+   (ver parágrafo abaixo), também o conteúdo de Sheet/Dialog/Select: os quatro
+   primitivos Radix usados no portal ficam hoje DENTRO da subárvore
+   `.gestor-portal` e são alcançáveis por um seletor daqui.
+
+   `0.01ms`, nunca `0s`: duração zero pode não disparar `transitionend`/
+   `animationend` em alguns navegadores, e travar código que espera esse evento.
+   `!important` é obrigatório: `*` tem a MENOR especificidade possível do CSS, e
+   sem `!important` qualquer classe utilitária de duração (ex.: `duration-500` do
+   Tailwind, usada no Sheet) continuaria vencendo a cascata.
+
+   Sheet/Drawer (`DrawerAluno`, `DrawerTemas`, o Sheet de cronograma em
+   `Detalhamento.tsx`), Dialog (`Glossario`) e Select (`SidebarIes`,
+   `FiltroSemestre`) embrulham o conteúdo em `<Primitive.Portal>`, que por
+   padrão despacha para `document.body` — FORA de qualquer subárvore com a
+   classe `gestor-portal`, e por isso ficaram fora do alcance de qualquer
+   seletor CSS escopado neste arquivo, registrados em NAO_CORRIGIDOS no
+   relatório da Task 59b. CORRIGIDO na Task 65 (decisão do Felipe, 05/08): a
+   correção não foi CSS, foi dar a esse Portal um `container` apontando para o
+   nó raiz do próprio shell — prop opcional acrescentada em
+   `sheet.tsx`/`dialog.tsx`/`select.tsx` (`useGestorPortalContainer`, exportado
+   de `shell/GestorShell.tsx`). `sheet.tsx`/`dialog.tsx`/`select.tsx` são
+   compartilhados com aluno/admin: os dois nunca passam essa prop e por isso
+   continuam caindo em `document.body`, sem nenhuma mudança de comportamento —
+   só os seis usos do gestor listados acima (Drawer×2, o Sheet de cronograma,
+   Glossario, SidebarIes, FiltroSemestre) passam `container` e montam dentro
+   de `.gestor-portal`. Prova por relação de DOM (`closest('.gestor-portal')`
+   a partir do nó aberto de verdade, não por presença da prop) em
+   `__tests__/portalContainer.test.tsx`.
+
+   Sobre o Recharts, corrigindo o que este comentário dizia antes: os gráficos
+   NÃO precisam ser alcançados. São três, não quatro — `DistribuicaoAlternativas`
+   é `<ul>`/`<li>` com transição de largura em Tailwind, coberta pelo bloco
+   abaixo — e os três reais já trazem `isAnimationActive={false}` cravado desde
+   a Fase 4: nunca animaram para ninguém. Decisão do Felipe em 05/08: continuam
+   estáticos, porque animação que não existe não precisa ser suprimida e ligar
+   movimento novo na véspera do piloto seria estrear mudança visual não
+   validada. Travado em `__tests__/movimentoGraficos.test.tsx`. */
+@media (prefers-reduced-motion: reduce) {
+  .gestor-portal *,
+  .gestor-portal *::before,
+  .gestor-portal *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

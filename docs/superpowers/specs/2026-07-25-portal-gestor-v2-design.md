@@ -135,7 +135,13 @@ O Diagnóstico Curricular classifica em **excelente / mediano / crítico** (3 n�
 
 Critério: preserva as bordas da régua canônica e coincide com o exemplo dado na reunião de 24/07 (*"abaixo de 30% crítico, acima de 80% excelente"*). Nenhum corte novo é inventado.
 
-> **RISCO A VERIFICAR COM DADO REAL (Fase 0):** "mediano" absorve uma faixa de 50 pontos, e 30% de acerto é um piso muito baixo — na prática o grupo "crítico" pode nascer quase sempre vazio, esvaziando o valor diagnóstico da tela. A Fase 0 roda uma query de distribuição real de % de acerto por grande área nas IES com simulado, e se "crítico" ficar vazio na maioria dos recortes, a alternativa é subir o corte para `< 50` (Insuficiente + Regular). **Decisão baseada em evidência, não em preferência** — e é ajuste de uma constante em `regras.ts`, sem impacto de arquitetura.
+> **RISCO MEDIDO em 28/07 (Task 2 da Fase 0), corte MANTIDO em `< 30` por determinação de produto.** A ressalva era que "mediano" absorve 50 pontos de faixa e 30% seria um piso baixo demais, deixando o grupo "crítico" quase sempre vazio. **A medição confirmou a ressalva:** em **87,9% dos recortes** (IES × simulado) o corte de 30 não classifica **nenhuma** grande área como crítica — **100%** descontado o dado de teste. Percentis: mediana **56,3%**, p25 **45,8%**.
+>
+> Mesmo assim o corte permanece **30**: é o corte da régua canônica do projeto, e a decisão de 28/07 é não alterá-lo. **Consequência aceita:** a cascata do Diagnóstico Curricular vai exibir pouca ou nenhuma área crítica na prática — comportamento esperado, não defeito de implementação. Quem for construir a Fase 4 não deve tratar "nenhuma área crítica" como bug.
+>
+> Dado completo, com as queries e a verificação de robustez, em `docs/superpowers/notes/2026-07-25-auditoria-hierarquia-simulados.md` §2. Em vigor em `src/features/gestor/lib/regras.ts` (`NIVEL_CRITICO_MAX = 30`), coberto por teste.
+
+> **Achado informativo da mesma medição, que NÃO muda corte nesta fase:** `recortes_sem_excelente = 53` de 58 (**91,4%**). Só 14 das 320 linhas de área chegam a 80%+, e as que chegam concentram-se em gabarito de teste. O topo da régua praticamente não é exercitado. Não se baixa `NIVEL_EXCELENTE_MIN` aqui porque isso seria redesenhar a régua canônica, fora do escopo da Fase 0 — reavaliar no fim do piloto, com volume de uso real.
 
 Este mapeamento vale para **grande área, especialidade e tema** (as três usam % de acerto). Ele **não** substitui o corte de proficiente do aluno (§4.3), que é `>= 60` sobre proficiência — são métricas e propósitos diferentes.
 
@@ -537,13 +543,13 @@ Sem PII em nome de evento ou propriedade.
 
 | # | Pendência | Bloqueia | Responsável |
 |---|---|---|---|
-| 1 | ~~Réguas de desempenho~~ — **RESOLVIDA em 25/07**: régua canônica, mapeada em crítico `<30` / mediano `30–80` / excelente `>=80` (§4.4). Resta validar a distribuição com dado real na Fase 0 | Nada | — |
+| 1 | ~~Réguas de desempenho~~ — **FECHADA em 28/07**: régua canônica, mapeada em crítico `<30` / mediano `30–80` / excelente `>=80` (§4.4). A validação com dado real (Task 2) mediu `pct_sem_critico_corte30 = 87,9%`, confirmando que o grupo crítico nasce quase sempre vazio; o corte foi **mantido em 30 por determinação de produto**, com essa consequência aceita. Em vigor em `regras.ts`, coberto por teste | Nada | — |
 | 2 | Superfície de admin para contrato e datas de simulado (§6.3) | Fase 1 (Início) | a definir |
-| 3 | Auditoria de hierarquia nos simulados já cadastrados (§4.9, §7.6) | Piloto | João |
+| 3 | ~~Auditoria de hierarquia nos simulados já cadastrados (§4.9, §7.6)~~ — **RESOLVIDA em 28/07** (Task 1 da Fase 0): `HIERARQUIA_OK`. 4.402 questões em 43 simulados, **0** incompletas — a hierarquia de 3 níveis está integralmente preenchida. Nenhuma correção de dado é pré-condição do piloto. Achado não-bloqueante de whitespace tratado em §2 do arquivo de notes | Nada | — |
 | 4 | Spike de viabilidade do ponto projetado (§4.11) | Nada — degrada para tendência sem projeção | João |
 | 5 | Validar "desempenho" vs "proficiência" com o Leonardo (§4.6) | Nada — mudança de string | Felipe |
 | 6 | Levantar com o Diego Dias o estado das views de engajamento | Nada — visão futura | João |
-| 7 | Commitar os assets `public/sanarflix-academy-*` (hoje untracked) | Fase 0 | — |
+| 7 | ~~Commitar os assets `public/sanarflix-academy-*`~~ — **RESOLVIDA em 27/07** pelo commit `7428a531` (Task 3 da Fase 0) | Nada | — |
 | 8 | `score_proprio` vs `score_enamed`: são a mesma métrica de produto? (§4.1) | Drawer do aluno | João |
 
 ---
@@ -554,7 +560,7 @@ Sem PII em nome de evento ou propriedade.
 |---|---|---|---|
 Gráfico protagonista | toggle "Grande área \| Aluno", sem "Geral" | **3 modos: Geral \| Grande área \| Aluno** | 24/07 |
 Nomenclatura na visão por área | "% de acerto" | **"desempenho"** (a validar com o Léo) | 24/07 |
-Níveis de desempenho | proficiente > 60 como base | **régua canônica do projeto**: crítico `<30` / mediano `30–80` / excelente `>=80` | 24/07 + Felipe 25/07 |
+Níveis de desempenho | proficiente > 60 como base | **régua canônica do projeto**: crítico `<30` / mediano `30–80` / excelente `>=80` | 24/07 + Felipe 25/07; corte medido na Task 2 em 28/07 e mantido em 30 por produto |
 Linha de tendência | regressão no cliente | **backend, armazenada** + ponto projetado ponderado | 24/07 |
 Semestre na dispersão | seleção única | **seleção única** (multi descartado) | Felipe, 25/07 |
 Corte de proficiente | `> 60`, "60 não é proficiente" | **`>= 60`** — handoff está errado | banco + front

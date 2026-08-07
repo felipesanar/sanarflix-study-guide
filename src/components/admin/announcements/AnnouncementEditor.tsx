@@ -33,7 +33,19 @@ interface AnnouncementConfig {
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
+  // Opcional de propósito: o editor tolera um config sem o campo — renderiza
+  // nenhum público marcado e mostra o aviso. Quem garante que a coluna chega
+  // preenchida ao banco é a validação de `handleSave` em AnnouncementsTab.
+  publico_alvo?: string[];
 }
+
+// Personas oferecidas na interface. O CHECK do banco também aceita 'professor',
+// que hoje não tem tela nem RPC consumidora — por isso não aparece aqui, e o
+// toggle abaixo é escrito para não apagá-lo caso alguém o grave via SQL.
+const PUBLICOS_ALVO: ReadonlyArray<{ valor: string; rotulo: string; ajuda: string }> = [
+  { valor: 'aluno', rotulo: 'Aluno', ajuda: 'Aparece na home do aluno' },
+  { valor: 'gestor', rotulo: 'Gestor', ajuda: 'Aparece no portal do gestor' },
+];
 
 const colorPalettes = {
   flame: { from: 'from-red-600 dark:from-red-700', to: 'to-orange-500 dark:to-orange-600', badge: 'bg-white/10 text-white border-white/20' },
@@ -78,6 +90,19 @@ export const AnnouncementEditor: React.FC<Props> = ({
     } else {
       setConfig({ ...config, [key]: [...current, iesId] });
     }
+  };
+
+  const publicoAlvo = config.publico_alvo ?? [];
+
+  const togglePublicoAlvo = (valor: string) => {
+    // Mexe só no valor clicado, em vez de reconstruir o array a partir de
+    // PUBLICOS_ALVO: assim um 'professor' já gravado sobrevive à edição.
+    setConfig({
+      ...config,
+      publico_alvo: publicoAlvo.includes(valor)
+        ? publicoAlvo.filter((p) => p !== valor)
+        : [...publicoAlvo, valor],
+    });
   };
 
   const filteredIes = iesList.filter(ies =>
@@ -291,9 +316,37 @@ export const AnnouncementEditor: React.FC<Props> = ({
           {/* Visibilidade */}
           <Card>
             <CardHeader>
-              <CardTitle>Configurações de Visibilidade</CardTitle>
+              <CardTitle>Público e Visibilidade</CardTitle>
+              <CardDescription>Quem vê o aviso (persona) e em quais IES ele aparece</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Público-alvo</Label>
+                <div className="space-y-2">
+                  {PUBLICOS_ALVO.map(({ valor, rotulo, ajuda }) => (
+                    <div key={valor} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`publico-alvo-${valor}`}
+                        checked={publicoAlvo.includes(valor)}
+                        onCheckedChange={() => togglePublicoAlvo(valor)}
+                      />
+                      <Label htmlFor={`publico-alvo-${valor}`} className="cursor-pointer font-normal">
+                        {rotulo}
+                      </Label>
+                      <span className="text-xs text-muted-foreground">{ajuda}</span>
+                    </div>
+                  ))}
+                </div>
+                {publicoAlvo.length === 0 && (
+                  <p className="text-xs text-destructive">
+                    Escolha ao menos um público — um aviso sem público não aparece para ninguém.
+                  </p>
+                )}
+              </div>
+
+              <div className="h-px bg-border" />
+
+              <Label>IES</Label>
               <RadioGroup value={config.visibilidade} onValueChange={(v: any) => setConfig({ ...config, visibilidade: v })}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="todas" id="todas" />
