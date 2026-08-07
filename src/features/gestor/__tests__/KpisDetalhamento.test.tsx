@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@/test/utils';
+import { describe, it, expect, vi } from 'vitest';
+import { act, render, screen, within } from '@/test/utils';
 import { KpisDetalhamento } from '@/features/gestor/components/KpisDetalhamento';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import type { Meta, MetricasSimulado } from '@/features/gestor/api/types';
@@ -43,6 +43,33 @@ describe('KpisDetalhamento', () => {
     expect(within(screen.getByTestId('kpi-acerto-medio')).getByTestId('kpi-valor')).toHaveTextContent('61%');
     expect(within(screen.getByTestId('kpi-enamed')).getByTestId('kpi-valor')).toHaveTextContent('3/5');
     expect(within(screen.getByTestId('kpi-proficiencia-media')).getByTestId('kpi-valor')).toHaveTextContent('58');
+  });
+
+  /**
+   * Item B1 do passe de conformidade: prova que `KpisDetalhamento` (o caller
+   * real) de fato passa `valorNumerico`/`formatarValor` para o `KpiCard` do
+   * acerto médio — não só que `KpiCard` sabe animar (`KpiCard.test.tsx` já
+   * cobre isso isoladamente).
+   */
+  it('trocar o recorte (rerender com métricas diferentes) faz o acerto médio contar até o novo valor — fiação de valorNumerico/formatarValor', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<KpisDetalhamento metricas={[metrica({ acertoMedioPct: 60 })]} meta={META} />);
+    expect(within(screen.getByTestId('kpi-acerto-medio')).getByTestId('kpi-valor')).toHaveTextContent('60%');
+
+    rerender(<KpisDetalhamento metricas={[metrica({ acertoMedioPct: 90 })]} meta={META} />);
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    const meioCaminho = within(screen.getByTestId('kpi-acerto-medio')).getByTestId('kpi-valor').textContent;
+    expect(meioCaminho).not.toBe('90%');
+    expect(meioCaminho).not.toBe('60%');
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(within(screen.getByTestId('kpi-acerto-medio')).getByTestId('kpi-valor')).toHaveTextContent('90%');
+    vi.useRealTimers();
   });
 
   it('a proficiência média mostra a escala 0–100 em elemento próprio', () => {

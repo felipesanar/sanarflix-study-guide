@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, userEvent, within } from '@/test/utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, userEvent, within } from '@/test/utils';
 import { KpiCard } from '@/features/gestor/components/KpiCard';
+import { DURACAO_COUNT_UP_MS } from '@/features/gestor/hooks/useCountUp';
 import type { Meta, PontoSerie } from '@/features/gestor/api/types';
 
 const meta: Meta = {
@@ -273,5 +274,172 @@ describe('KpiCard', () => {
     const card = screen.getByTestId('kpi-enamed');
     expect(within(card).queryByTestId('kpi-valor')).toBeNull();
     expect(card).toHaveTextContent('Simulado 1: 3/5');
+  });
+
+  /**
+   * Item B1 do passe de conformidade — count-up de KPI (560ms, `--gp-ease`,
+   * handoff `docs/07-motion.md`). `useCountUp.test.ts` prova a matemática da
+   * curva e o hook isolado; aqui a prova é o TEXTO RENDERIZADO no `KpiCard`
+   * real, com as duas props novas (`valorNumerico`/`formatarValor`) que os
+   * consumidores passam de verdade.
+   */
+  describe('count-up (item B1)', () => {
+    const formatarPercentual = (v: number) => `${Math.round(v)}%`;
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('(a) ao término da animação (560ms) o valor final aparece — e não antes disso', () => {
+      vi.useFakeTimers();
+      const { rerender } = render(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="50%"
+          valorNumerico={50}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+      expect(screen.getByTestId('kpi-valor')).toHaveTextContent('50%');
+
+      rerender(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="80%"
+          valorNumerico={80}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+      // No meio do caminho, ainda não é o valor final.
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(screen.getByTestId('kpi-valor')).not.toHaveTextContent('80%');
+
+      // Passado o tempo total da animação (+ 1 quadro de sobra), é.
+      act(() => {
+        vi.advanceTimersByTime(DURACAO_COUNT_UP_MS);
+      });
+      expect(screen.getByTestId('kpi-valor')).toHaveTextContent('80%');
+    });
+
+    it('(b) sob prefers-reduced-motion, o valor final aparece direto — nunca um número intermediário', () => {
+      vi.mocked(window.matchMedia).mockImplementation(
+        (query: string) =>
+          ({
+            matches: query === '(prefers-reduced-motion: reduce)',
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+          }) as unknown as MediaQueryList,
+      );
+
+      const { rerender } = render(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="50%"
+          valorNumerico={50}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+
+      rerender(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="80%"
+          valorNumerico={80}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+      // Sem avançar timer nenhum: se tivesse agendado `requestAnimationFrame`,
+      // o texto ainda mostraria "50%" neste ponto.
+      expect(screen.getByTestId('kpi-valor')).toHaveTextContent('80%');
+
+      // Devolve o mock ao default do setup global, para não vazar para os
+      // testes seguintes deste arquivo.
+      vi.mocked(window.matchMedia).mockImplementation(
+        (query: string) =>
+          ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+          }) as unknown as MediaQueryList,
+      );
+    });
+
+    it('(c) uma nova mudança de valor NO MEIO da animação reinicia a contagem para o novo alvo', () => {
+      vi.useFakeTimers();
+      const { rerender } = render(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="0%"
+          valorNumerico={0}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+
+      rerender(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="100%"
+          valorNumerico={100}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(Math.round(DURACAO_COUNT_UP_MS / 2));
+      });
+      const textoNoMeio = screen.getByTestId('kpi-valor').textContent;
+      expect(textoNoMeio).not.toBe('0%');
+      expect(textoNoMeio).not.toBe('100%');
+
+      rerender(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="20%"
+          valorNumerico={20}
+          formatarValor={formatarPercentual}
+          meta={meta}
+        />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(DURACAO_COUNT_UP_MS);
+      });
+      expect(screen.getByTestId('kpi-valor')).toHaveTextContent('20%');
+    });
+
+    it('sem `valorNumerico`/`formatarValor`, cai no comportamento de hoje: imprime `valor` direto, sem animar', () => {
+      render(<KpiCard titulo="Percentual de acerto" valor="80%" meta={meta} />);
+      expect(screen.getByTestId('kpi-valor')).toHaveTextContent('80%');
+    });
+
+    it('estado `empty` continua imprimindo o traço, mesmo com `valorNumerico` informado — nunca anima', () => {
+      render(
+        <KpiCard
+          titulo="Percentual de acerto"
+          valor="—"
+          valorNumerico={80}
+          formatarValor={formatarPercentual}
+          meta={meta}
+          estado="empty"
+        />,
+      );
+      expect(screen.getByTestId('kpi-valor')).toHaveTextContent('—');
+    });
   });
 });

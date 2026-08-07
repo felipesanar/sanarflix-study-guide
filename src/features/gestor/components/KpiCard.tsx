@@ -6,6 +6,7 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Tag, TagDelta } from '@/features/gestor/components/Tag';
 import { TooltipRastreabilidade } from '@/features/gestor/components/TooltipRastreabilidade';
 import { TRACO, formatNumero } from '@/features/gestor/lib/formatters';
+import { useCountUp } from '@/features/gestor/hooks/useCountUp';
 import type { Meta, PontoSerie } from '@/features/gestor/api/types';
 
 export type EstadoKpi = 'ok' | 'loading' | 'empty' | 'error';
@@ -20,6 +21,24 @@ export interface KpiCardProps {
    */
   hint?: string;
   valor: string;
+  /**
+   * Valor numérico bruto por trás de `valor`, para o count-up (handoff
+   * `docs/07-motion.md`: 560ms, `--gp-motion-5`). **Opcional** — sem ele
+   * (o caso de quem só tem a string pronta, como `SeletorSimulados`'s
+   * comparativo por simulado) o cartão cai no comportamento de hoje:
+   * imprime `valor` direto, sem animar. `null` é "sem número para animar"
+   * (KPI vazio/sem dado), não dispara count-up.
+   */
+  valorNumerico?: number | null;
+  /**
+   * Formatador POR QUADRO da animação: recebe o número intermediário que
+   * `useCountUp` produz a cada frame e devolve a string que aparece —
+   * normalmente o mesmo formatador que produziu `valor` (ex.: `formatPct`).
+   * O count-up só liga com os DOIS presentes (`valorNumerico` e
+   * `formatarValor`); faltando um dos dois, o cartão imprime `valor` como
+   * sempre fez.
+   */
+  formatarValor?: (valor: number) => string;
   /**
    * Escala subordinada ao número, em elemento PRÓPRIO: "/ 5", "/ 7", "/ 100".
    * Nunca concatenada dentro de `valor` — a referência dá ao sufixo corpo e
@@ -80,6 +99,8 @@ export function KpiCard({
   titulo,
   hint,
   valor,
+  valorNumerico,
+  formatarValor,
   sufixo,
   densidadeSufixo = 'escala',
   meta,
@@ -95,6 +116,21 @@ export function KpiCard({
   onTentarNovamente,
   testId = 'kpi-card',
 }: KpiCardProps) {
+  // Hook incondicional (regra do React): o `null` abaixo é "sem número para
+  // animar", e é a própria `useCountUp` que decide não agendar frame nenhum
+  // nesse caso — ver seu cabeçalho.
+  const valorAnimado = useCountUp(typeof valorNumerico === 'number' ? valorNumerico : null);
+  /**
+   * Count-up só liga com os DOIS ingredientes presentes — o número bruto E o
+   * formatador de quadro. Um sem o outro cai no `valor` já formatado de
+   * sempre (item B1 do passe de conformidade: props novas são opcionais,
+   * consumidores que só têm a string pronta — ex.: o comparativo por
+   * simulado do Detalhamento quando `corpo` substitui a linha do número —
+   * continuam funcionando sem mudar nada).
+   */
+  const usaContagem = estado === 'ok' && typeof valorNumerico === 'number' && formatarValor !== undefined;
+  const textoValor = estado === 'empty' ? TRACO : usaContagem ? formatarValor!(valorAnimado) : valor;
+
   const mostrarRegua = estado === 'ok' && Array.isArray(serie) && serie.length >= 2;
   /**
    * Limitado a 100 desde 05/08, quando o numerador de "Simulados realizados"
@@ -162,7 +198,7 @@ export function KpiCard({
                     color: 'var(--gp-text-1)',
                   }}
                 >
-                  {estado === 'empty' ? TRACO : valor}
+                  {textoValor}
                 </span>
                 {estado === 'ok' && sufixo ? (
                   <span

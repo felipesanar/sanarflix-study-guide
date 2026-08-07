@@ -53,6 +53,10 @@ export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
    * a turma. É exatamente o peso que `mediaPonderadaPorParticipantes` usa como
    * denominador — o rodapé descreve a conta que o número acima dele representa.
    */
+  /** Mesmo arredondamento de `valor` abaixo — extraído para não duplicar a
+   *  conta entre a string exibida e o número bruto do count-up (item B1). */
+  const proficienciaArredondada = proficienciaMedia === null ? null : Math.round(proficienciaMedia * 10) / 10;
+
   const participacoes = metricas.reduce((soma, m) => soma + m.participantes, 0);
   const baseAcerto = multiSimulado
     ? `${base} · ${formatNumero(participacoes)} participações`
@@ -108,6 +112,8 @@ export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
           titulo="Percentual de acerto médio"
           hint="questões certas nos simulados do recorte"
           valor={formatPct(acertoMedio)}
+          valorNumerico={acertoMedio}
+          formatarValor={formatPct}
           meta={meta}
           criterio={CRITERIO_ACERTO}
           rodape={baseAcerto}
@@ -123,6 +129,8 @@ export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
              mesmo texto que o comparativo mostra por simulado, e separá-lo faria
              os dois modos do cartão falarem escalas diferentes. */
           valor={formatConceito(metricas[0]?.enamedProjetado ?? null)}
+          valorNumerico={metricas[0]?.enamedProjetado ?? null}
+          formatarValor={formatConceito}
           meta={meta}
           criterio={CRITERIO_ENAMED}
           corpo={
@@ -163,11 +171,9 @@ export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
           testId="kpi-proficiencia-media"
           titulo="Proficiência média"
           hint="média das proficiências dos participantes"
-          valor={
-            proficienciaMedia === null
-              ? formatNumero(null)
-              : formatNumero(Math.round(proficienciaMedia * 10) / 10)
-          }
+          valor={formatNumero(proficienciaArredondada)}
+          valorNumerico={proficienciaArredondada}
+          formatarValor={formatNumero}
           /* Sem escala quando não há número: "— / 100" afirmaria uma medição
              que não existe (§4.10). */
           sufixo={proficienciaMedia === null ? undefined : '/ 100'}

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@/test/utils';
+import { act, render, screen } from '@/test/utils';
 import { KpisVisaoGeral } from '@/features/gestor/components/KpisVisaoGeral';
 import { contarSimuladosComNotaReal, useVisaoGeral } from '@/features/gestor/api/queries';
 import type { FiltrosGestor, VisaoGeral } from '@/features/gestor/api/types';
@@ -48,6 +48,49 @@ describe('KpisVisaoGeral', () => {
     expect(valores).toEqual(['3', '62%', '57%', '3']);
     const sufixos = screen.getAllByTestId('kpi-sufixo').map((s) => s.textContent);
     expect(sufixos).toEqual(['/ 5', '/ 7']);
+  });
+
+  /**
+   * Item B1 do passe de conformidade: prova que `KpisVisaoGeral` (o caller
+   * real) de fato passa `valorNumerico`/`formatarValor` para `KpiCard` — não
+   * só que `KpiCard` sabe animar quando alguém passa as props certas
+   * (`KpiCard.test.tsx` já cobre isso isoladamente). Sem a fiação aqui, o
+   * hook existiria e nunca seria usado em produção.
+   */
+  it('muda o recorte (rerender com kpis diferentes) e os números fazem count-up — a fiação de valorNumerico/formatarValor está nos 4 cartões', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    expect(screen.getAllByTestId('kpi-valor').map((v) => v.textContent)).toEqual([
+      '3',
+      '62%',
+      '57%',
+      '3',
+    ]);
+
+    const kpisNovoRecorte: VisaoGeral['kpis'] = {
+      ...visaoGeralFake.kpis,
+      acertoPct: { ...visaoGeralFake.kpis.acertoPct, valor: 90 },
+    };
+    rerender(<KpisVisaoGeral kpis={kpisNovoRecorte} meta={metaFake} />);
+
+    // No meio do caminho, o 3º cartão (percentual de acerto) ainda não é 90%.
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    const meioCaminho = screen.getAllByTestId('kpi-valor')[2].textContent;
+    expect(meioCaminho).not.toBe('90%');
+    expect(meioCaminho).not.toBe('57%');
+
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(screen.getAllByTestId('kpi-valor').map((v) => v.textContent)).toEqual([
+      '3',
+      '62%',
+      '90%',
+      '3',
+    ]);
+    vi.useRealTimers();
   });
 
   it('cada cartão traz o seu critério VISÍVEL na linha de hint, sem exigir hover', () => {
