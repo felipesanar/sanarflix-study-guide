@@ -154,6 +154,9 @@ export function DistribuicaoAlternativas({
                   style={{ color: COR_TEXTO[papel], fontFamily: FONTE_MONO }}
                 >
                   {formatPct(alt.marcadaPct)}
+                  {/* Canal redundante à cor (mesma receita da primeira lista, `:88`):
+                      caractere literal, sem aria-hidden — é informação, não decoração. */}
+                  {alt.correta ? ' ✓' : ''}
                 </span>
               </li>
             );

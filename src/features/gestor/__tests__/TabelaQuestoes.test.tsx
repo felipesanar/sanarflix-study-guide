@@ -242,6 +242,24 @@ describe('TabelaQuestoes', () => {
     expect(pctA.className).not.toMatch(/\bfont-mono\b/);
   });
 
+  /**
+   * Na primeira lista (alternativa-A) a correta já se distingue por cor +
+   * o rótulo por extenso "· alternativa correta". Na segunda lista
+   * (distribuição), antes deste fix, a correta só tinha cor — o "✓" é o
+   * canal redundante que falta ali (LIGHT.html imprime "24% ✓").
+   */
+  it('o percentual da alternativa correta na distribuição leva "✓" (C2)', async () => {
+    const user = userEvent.setup();
+    render(<TabelaQuestoes {...props()} />);
+
+    await user.click(screen.getByRole('button', { name: /Ver detalhe da questão 1/i }));
+
+    const detalhe = screen.getByTestId('detalhe-questao-1');
+    expect(within(detalhe).getByTestId('distribuicao-A')).toHaveTextContent('42% ✓');
+    expect(within(detalhe).getByTestId('distribuicao-B')).toHaveTextContent('31%');
+    expect(within(detalhe).getByTestId('distribuicao-B')).not.toHaveTextContent('✓');
+  });
+
   it('a distribuição traz legenda por extenso e a frase de leitura do distrator', async () => {
     const user = userEvent.setup();
     render(<TabelaQuestoes {...props()} />);
