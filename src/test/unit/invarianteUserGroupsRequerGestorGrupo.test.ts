@@ -1,6 +1,6 @@
 /**
  * Testes estáticos da migration
- * `20260807040000_invariante_user_groups_requer_gestor_grupo.sql` (PR 1 —
+ * `20260807032000_invariante_user_groups_requer_gestor_grupo.sql` (PR 1 —
  * invariante de banco que fecha um furo de autorização pela raiz).
  *
  * O FURO, EM UMA FRASE: nove RLS policies, em seis tabelas, autorizam leitura
@@ -38,7 +38,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations');
-const FILE = '20260807040000_invariante_user_groups_requer_gestor_grupo.sql';
+const FILE = '20260807032000_invariante_user_groups_requer_gestor_grupo.sql';
 
 function readMigration(filename: string): string {
   // Normaliza CRLF -> LF: numa maquina com core.autocrlf=true, o checkout
@@ -66,7 +66,7 @@ function corpoDaFuncao(texto: string, nome: string): string {
   return texto.slice(inicio, fim + tag.length + 1);
 }
 
-describe('PR 1 — migration 20260807040000_invariante_user_groups_requer_gestor_grupo.sql', () => {
+describe('PR 1 — migration 20260807032000_invariante_user_groups_requer_gestor_grupo.sql', () => {
   it('cria as duas funcoes de trigger com CREATE OR REPLACE (nunca DROP FUNCTION)', () => {
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.enforce_user_groups_requer_gestor_grupo\(/);
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.limpa_user_groups_ao_perder_gestor_grupo\(/);

@@ -1,6 +1,6 @@
 /**
  * Testes estaticos da migration
- * `20260807030000_announcements_rls_publico_alvo.sql` (Task 6 do PR 1 de
+ * `20260807024000_announcements_rls_publico_alvo.sql` (Task 6 do PR 1 de
  * simplificacao de acesso, 07/08) -- a policy de SELECT de
  * `public.announcements` passa a filtrar por persona (aluno vs. gestor),
  * fechando o furo em que qualquer autenticado lia aviso de gestor direto
@@ -26,7 +26,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations');
-const FILE = '20260807030000_announcements_rls_publico_alvo.sql';
+const FILE = '20260807024000_announcements_rls_publico_alvo.sql';
 
 function readMigration(filename: string): string {
   // Normaliza CRLF -> LF, mesmo motivo do hardeningFuncoesDePapel.test.ts:
@@ -47,7 +47,7 @@ function corpoDaPolicy(texto: string, nome: string): string {
   return texto.slice(inicio, fim + 2);
 }
 
-describe('Task 6 (07/08) — migration 20260807030000_announcements_rls_publico_alvo.sql', () => {
+describe('Task 6 (07/08) — migration 20260807024000_announcements_rls_publico_alvo.sql', () => {
   it('recria a policy por DROP + CREATE (RLS não tem ALTER POLICY USING)', () => {
     expect(sql).toMatch(
       /DROP POLICY IF EXISTS "Users can view their IES announcements" ON public\.announcements;/,
