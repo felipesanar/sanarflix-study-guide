@@ -8,6 +8,7 @@ import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
+import { Dica } from '@/features/gestor/components/Dica';
 import { DrawerTemas, type EspecialidadeSelecionada } from '@/features/gestor/components/DrawerTemas';
 import { Glossario } from '@/features/gestor/components/Glossario';
 import { GraficoProtagonista } from '@/features/gestor/components/GraficoProtagonista';
@@ -90,6 +91,42 @@ export default function VisaoGeral() {
 
   const consulta = useVisaoGeral(filtrosGestor);
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<EspecialidadeSelecionada | null>(null);
+
+  /**
+   * O "Detalhe · micro" (a tabela nominal de alunos) só existe depois que o
+   * gestor pede.
+   *
+   * A tela é uma leitura MACRO — "como estamos e onde dói" (spec §2.1). A
+   * tabela de alunos é a resposta a outra pergunta, feita depois, e vinha
+   * montada em toda visita: centenas de linhas com nome, semestre e
+   * proficiência de cada aluno pendurando o fim do scroll, além de uma
+   * consulta paginada que ninguém tinha pedido. Sob demanda ela vira o que o
+   * CTA promete — o passo seguinte —, e o custo (dado nominal de aluno na
+   * tela, §7.7) passa a ser uma escolha, não o padrão.
+   */
+  const [detalheAberto, setDetalheAberto] = React.useState(false);
+
+  /**
+   * Rolar até o detalhe depois que ele monta. Sem isso o clique parece não
+   * fazer nada: o bloco nasce ABAIXO da dobra, fora da vista.
+   *
+   * `requestAnimationFrame` porque o nó só existe no commit seguinte ao
+   * `setState`. `prefers-reduced-motion` decide o `behavior`: a regra CSS de
+   * `gestor-theme.css` cobre `scroll-behavior` declarado em folha, não a
+   * opção passada por JS aqui.
+   */
+  const aoAlternarDetalhe = React.useCallback(() => {
+    setDetalheAberto((aberto) => {
+      if (aberto) return false;
+      requestAnimationFrame(() => {
+        const suave = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        document
+          .getElementById('alunos-detalhe')
+          ?.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+      });
+      return true;
+    });
+  }, []);
 
   const visao = consulta.data;
   const meta = consulta.meta ?? META_VAZIA;
@@ -224,10 +261,19 @@ export default function VisaoGeral() {
 
       {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
       <div className="flex flex-col gap-3">
-        {/* Item B5 do passe de conformidade: a nota da régua ("compara 1º
-            simulado · anterior · atual...") não existia em lugar nenhum do
-            código — a referência põe a nota na MESMA linha do overline. */}
-        <div className="flex flex-wrap items-baseline gap-[10px]">
+        {/*
+         * A nota da régua vive num "i", não na linha do overline.
+         *
+         * Ela nasceu (item B5 do passe de conformidade) como texto solto ao
+         * lado do rótulo, do jeito que a referência desenha. Na tela real
+         * ficou uma frase técnica de uma linha inteira — "compara 1º simulado
+         * · anterior · atual; com 1 simulado a régua não aparece; com 2,
+         * mostra só os dois" — competindo em altura com o próprio bloco que
+         * rotula, todo dia, para uma explicação que se lê uma vez. No tooltip
+         * continua a um gesto de distância, e agora em linguagem de gestor:
+         * o que a régua responde, não como ela é construída.
+         */}
+        <div className="flex flex-wrap items-center gap-[10px]">
           <span
             data-testid="overline-panorama"
             className="uppercase text-muted-foreground"
@@ -235,15 +281,11 @@ export default function VisaoGeral() {
           >
             Panorama da instituição
           </span>
-          {/*
-           * `--gp-text-4` não existe em `gestor-theme.css` (só há
-           * `--gp-text-1..3` + `--gp-text-inverse`) — decisão já resolvida
-           * no brief do item B5: usar `text-muted-foreground` em vez de
-           * inventar um token novo numa camada que não é desta tarefa.
-           */}
-          <span data-testid="nota-regua-panorama" className="text-muted-foreground" style={{ fontSize: 12 }}>
-            compara 1º simulado · anterior · atual — com 1 simulado a régua não aparece; com 2, mostra só os dois
-          </span>
+          <Dica
+            testId="nota-regua-panorama"
+            rotulo="Como ler a régua dos indicadores"
+            texto="Cada indicador mostra a mesma medida em três momentos — o primeiro simulado do período, o anterior e o mais recente — para você ver de relance se a instituição está subindo ou caindo. Com um único simulado realizado não há o que comparar e a régua não aparece; com dois, ela mostra apenas esses dois."
+          />
         </div>
         <KpisVisaoGeral
           kpis={
@@ -308,7 +350,13 @@ export default function VisaoGeral() {
         aoTentarNovamente={aoTentarNovamente}
         mensagemVazio="Sem alunos com resultado neste recorte."
       >
-        {visao ? <VisaoDeAlunos distribuicao={visao.distribuicaoAlunos} dispersao={visao.dispersao} /> : null}
+        {visao ? (
+          <VisaoDeAlunos
+            distribuicao={visao.distribuicaoAlunos}
+            onAlternarDetalhe={aoAlternarDetalhe}
+            detalheAberto={detalheAberto}
+          />
+        ) : null}
       </BlocoGestor>
 
       {/* 5. Insights autogerados (1 por área, 1 por aluno). */}
@@ -323,16 +371,33 @@ export default function VisaoGeral() {
         {visao ? <BlocoInsights insights={visao.insights} /> : null}
       </BlocoGestor>
 
-      {/* 6. Divisor + tabela de alunos — query própria, paginada no servidor, estado independente. */}
-      <div data-testid="divisor-detalhe-micro" className="flex items-center gap-3 pt-2">
-        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Detalhe · micro</span>
-        <Separator className="flex-1" />
-      </div>
+      {/*
+        6. Divisor + tabela de alunos, SÓ depois do "Ver visão detalhada" —
+        query própria, paginada no servidor, estado independente.
 
-      {/* `id` é o destino do "Ver visão detalhada" do bloco Visão de Alunos. */}
-      <div id="alunos-detalhe">
-        <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
-      </div>
+        A entrada é `motion-4` (320ms), a mesma duração e a mesma família de
+        classes do ramo que abre na cascata do Diagnóstico: o portal tem uma
+        régua só de movimento, e conteúdo que aparece empurrando o resto entra
+        deslizando de cima com fade. Sob `prefers-reduced-motion` o bloco
+        `@media` de `gestor-theme.css` zera a duração para todo descendente do
+        portal — o conteúdo aparece, o movimento não.
+
+        `id` é o destino do scroll e o `aria-controls` do CTA.
+      */}
+      {detalheAberto ? (
+        <div
+          id="alunos-detalhe"
+          data-testid="detalhe-micro"
+          className="animate-in space-y-6 [animation-duration:320ms] fade-in-0 slide-in-from-top-2"
+        >
+          <div data-testid="divisor-detalhe-micro" className="flex items-center gap-3 pt-2">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Detalhe · micro</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
+        </div>
+      ) : null}
 
       <DrawerTemas
         especialidade={especialidadeAberta}

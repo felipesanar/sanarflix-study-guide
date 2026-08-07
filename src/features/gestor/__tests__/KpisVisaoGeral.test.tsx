@@ -99,9 +99,24 @@ describe('KpisVisaoGeral', () => {
     expect(hints).toEqual([
       'projeção institucional · escala 1 a 5',
       'acima de 60 de proficiência',
-      'questões certas no período',
+      // "no simulado mais recente", não "no período": o valor é o `acerto_pct`
+      // do ponto `atual` da régua, nunca um acumulado do período.
+      'questões certas no simulado mais recente',
       'do contrato vigente da IES',
     ]);
+  });
+
+  /**
+   * Os quatro cartões têm rodapé de BASE — a linha que diz sobre o que o
+   * número foi calculado. Sem ela, dois cartões da referência ficavam sem
+   * fundo e o gestor lia "54% dos meus alunos" onde o dado diz "54% de quem
+   * fez o último simulado".
+   */
+  it('todo cartão diz a base do cálculo no rodapé', () => {
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const cartoes = screen.getAllByTestId('kpi-card');
+    expect(cartoes[1]).toHaveTextContent('sobre os alunos com resultado no simulado mais recente');
+    expect(cartoes[2]).toHaveTextContent('respostas válidas, na última tentativa de cada aluno');
   });
 
   it('marca o conceito ENAMED com o badge "projetado" e só ele', () => {

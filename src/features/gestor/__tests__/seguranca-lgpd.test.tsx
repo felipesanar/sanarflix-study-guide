@@ -172,8 +172,11 @@ describe('§7.7 — nenhum payload de aluno em storage', () => {
     const setSession = vi.spyOn(window.sessionStorage, 'setItem');
 
     render(<VisaoGeralRoute />);
-    // Prova que o dado nominal esteve de fato na tela — sem isto, a asserção
-    // abaixo passaria mesmo que nada tivesse sido renderizado.
+    // A tabela nominal é sob demanda desde que o detalhe micro passou a
+    // montar só no "Ver visão detalhada" — dado de aluno na tela virou
+    // escolha, não padrão. Aqui ele PRECISA estar na tela, senão a asserção
+    // de storage abaixo passaria por vacuidade.
+    await userEvent.setup().click(screen.getByTestId('link-visao-detalhada'));
     expect(await screen.findByText(ALUNO_NOME)).toBeInTheDocument();
 
     const escritas = [...setLocal.mock.calls, ...setSession.mock.calls].map(
@@ -224,6 +227,8 @@ describe('§7.7 — nenhum dado pessoal de aluno na URL/query string', () => {
     const urlAntes = window.location.href;
 
     render(<VisaoGeralRoute />);
+    // Idem: a tabela de alunos só monta depois do "Ver visão detalhada".
+    await user.click(screen.getByTestId('link-visao-detalhada'));
     await user.click(await screen.findByRole('button', { name: ALUNO_NOME }));
 
     // Confirma que o drawer que abriu É o do aluno certo (não um diálogo vazio).

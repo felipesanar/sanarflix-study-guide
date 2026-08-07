@@ -485,8 +485,12 @@ describe('acessibilidade — gráficos têm nome acessível e alternativa tabula
   it('todo gráfico expõe role="img" com nome, dentro de <figure>, com tabela alternativa colapsável', () => {
     montar(<VisaoGeral />, '/gestor/visao-geral?ies=ies-1&semestre=6ano');
 
+    // UM gráfico visível por vez desde 07/08: a dispersão duplicada saiu da
+    // "Visão de Alunos" (era o mesmo gráfico do modo "Aluno" do protagonista,
+    // na mesma tela). O que este teste protege não é a quantidade — é que
+    // TODO gráfico presente tenha nome, <figure> e alternativa tabular.
     const graficos = screen.getAllByRole('img');
-    expect(graficos.length).toBeGreaterThanOrEqual(2);
+    expect(graficos.length).toBeGreaterThanOrEqual(1);
 
     for (const grafico of graficos) {
       expect(grafico).toHaveAccessibleName(/\S/);

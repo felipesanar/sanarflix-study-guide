@@ -12,7 +12,7 @@ vi.mock('@/features/gestor/api/queries', () => ({
 
 describe('VisaoDeAlunos', () => {
   it('mostra a distribuição pelos 3 grupos de evolução com quantidade e percentual', () => {
-    render(<VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />);
+    render(<VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} />);
 
     const proficiente = screen.getByTestId('grupo-consistentemente_proficiente');
     expect(proficiente).toHaveTextContent('Consistentemente proficiente');
@@ -25,14 +25,18 @@ describe('VisaoDeAlunos', () => {
     );
   });
 
-  it('mostra a dispersão dentro do bloco, abaixo da distribuição', () => {
-    render(<VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />);
-    const bloco = screen.getByTestId('bloco-visao-alunos');
-    const distribuicao = screen.getByTestId('distribuicao-alunos');
-    const dispersao = screen.getByTestId('dispersao-alunos');
+  /**
+   * A dispersão SAIU deste bloco (reunião de 07/08). Era o mesmo gráfico do
+   * modo "Aluno" do gráfico protagonista, no topo da mesma tela: "aluno por
+   * semestre e proficiência por semestre é a mesma coisa; tira ele, ou deixa
+   * ele só aqui [em cima]". Duas cópias do mesmo gráfico dividem a atenção e
+   * fazem procurar uma diferença que não existe.
+   */
+  it('não repete a dispersão que o gráfico protagonista já desenha', () => {
+    render(<VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} />);
 
-    expect(bloco).toContainElement(dispersao);
-    expect(distribuicao.compareDocumentPosition(dispersao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByTestId('dispersao-alunos')).not.toBeInTheDocument();
+    expect(screen.getByTestId('distribuicao-alunos')).toBeInTheDocument();
   });
 
   /**
@@ -50,7 +54,7 @@ describe('VisaoDeAlunos', () => {
           recorte={{ iesId: 'ies-1', semestre: '6ano' }}
           onAbrirTemas={vi.fn()}
         />
-        <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />
+        <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} />
       </>,
     );
 
@@ -62,14 +66,14 @@ describe('VisaoDeAlunos', () => {
 
   it('o semáforo dos grupos vem de token do tema, nunca de paleta crua do Tailwind', () => {
     const { container } = render(
-      <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />,
+      <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} />,
     );
     expect(container.innerHTML).toContain('var(--gp-success)');
     expect(container.innerHTML).not.toMatch(/bg-(emerald|amber|red|slate)-\d{3}/);
   });
 
   it('mostra estado vazio de distribuição sem alunos', () => {
-    render(<VisaoDeAlunos distribuicao={[]} dispersao={[]} />);
+    render(<VisaoDeAlunos distribuicao={[]} />);
     expect(screen.getByTestId('distribuicao-vazia')).toHaveTextContent('Sem alunos com resultado neste recorte');
   });
 
@@ -81,7 +85,7 @@ describe('VisaoDeAlunos', () => {
           { grupo: 'em_variacao', quantidade: 5, percentual: 100 },
           { grupo: 'consistentemente_nao_proficiente', quantidade: 0, percentual: null },
         ]}
-        dispersao={[]}
+       
       />,
     );
     const proficiente = screen.getByTestId('grupo-consistentemente_proficiente');
@@ -108,7 +112,7 @@ describe('VisaoDeAlunos', () => {
           { grupo: 'em_variacao', quantidade: 5, percentual: 100 },
           { grupo: 'consistentemente_nao_proficiente', quantidade: 3, percentual: 60 },
         ]}
-        dispersao={[]}
+       
       />,
     );
 

@@ -143,10 +143,43 @@ describe('rota VisaoGeral', () => {
         'bloco-diagnostico',
         'bloco-visao-alunos',
         'bloco-insights',
-        'divisor-detalhe-micro',
-        'bloco-tabela-alunos',
       ])
     ).toBe(true);
+  });
+
+  /**
+   * O detalhe micro é o PASSO SEGUINTE, não o rodapé da tela.
+   *
+   * A Visão Geral responde "como estamos e onde dói" (spec §2.1). A tabela
+   * nominal de alunos responde outra pergunta, e vinha montada em toda
+   * visita — centenas de linhas penduradas no fim do scroll e uma consulta
+   * paginada que ninguém pediu, além de dado nominal de aluno na tela (§7.7)
+   * como padrão em vez de escolha.
+   */
+  it('o detalhe micro não existe até o gestor pedir', () => {
+    render(<VisaoGeralRoute />);
+    expect(screen.queryByTestId('detalhe-micro')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('divisor-detalhe-micro')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-tabela-alunos')).not.toBeInTheDocument();
+  });
+
+  it('"Ver visão detalhada" monta o detalhe micro depois da Visão de Alunos, e alterna de volta', async () => {
+    const user = userEvent.setup();
+    render(<VisaoGeralRoute />);
+    const cta = screen.getByTestId('link-visao-detalhada');
+    expect(cta).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(cta);
+
+    expect(screen.getByTestId('bloco-tabela-alunos')).toBeInTheDocument();
+    expect(cta).toHaveAttribute('aria-expanded', 'true');
+    expect(cta).toHaveTextContent('Ocultar visão detalhada');
+    expect(
+      ordemNoDom(['bloco-visao-alunos', 'divisor-detalhe-micro', 'bloco-tabela-alunos']),
+    ).toBe(true);
+
+    await user.click(cta);
+    expect(screen.queryByTestId('bloco-tabela-alunos')).not.toBeInTheDocument();
   });
 
   it('mostra o contexto do recorte junto do filtro', () => {
@@ -183,30 +216,31 @@ describe('rota VisaoGeral', () => {
   });
 
   /**
-   * Item B5 do passe de conformidade: a nota explicativa da régua não
-   * existia em lugar nenhum do código — a referência põe a nota na MESMA
-   * linha do overline "Panorama da instituição".
+   * A nota da régua nasceu (item B5) como texto solto ao lado do overline,
+   * como a referência desenha. Virou tooltip: era uma frase técnica de uma
+   * linha inteira, lida uma vez na vida, ocupando altura em toda visita.
+   * Continua ao lado do rótulo que explica — só que atrás de um "i", e em
+   * linguagem de gestor.
    */
-  it('a nota da régua aparece na MESMA linha do overline "Panorama da instituição" (item B5)', () => {
+  it('a ajuda da régua fica no "i" ao lado do overline "Panorama da instituição"', () => {
     render(<VisaoGeralRoute />);
     const overline = screen.getByTestId('overline-panorama');
-    const nota = screen.getByTestId('nota-regua-panorama');
+    const gatilho = screen.getByRole('button', { name: 'Como ler a régua dos indicadores' });
 
-    expect(nota).toHaveTextContent(
-      'compara 1º simulado · anterior · atual — com 1 simulado a régua não aparece; com 2, mostra só os dois',
-    );
-
-    const linha = overline.parentElement;
-    expect(linha).toContainElement(nota);
-    expect(linha?.className).toMatch(/items-baseline/);
-    expect(linha?.className).toMatch(/gap-\[10px\]/);
+    expect(overline.parentElement).toContainElement(gatilho);
   });
 
-  it('sem `--gp-text-4` no tema, a nota da régua usa text-muted-foreground em vez de inventar um token (item B5)', () => {
+  /**
+   * O texto continua no DOM (`sr-only`), não só no hover: leitor de tela não
+   * passa o mouse, e a explicação é o que sustenta a leitura dos 4 cartões.
+   */
+  it('a explicação da régua está disponível sem hover, em linguagem de gestor', () => {
     render(<VisaoGeralRoute />);
     const nota = screen.getByTestId('nota-regua-panorama');
-    expect(nota.className).toMatch(/\btext-muted-foreground\b/);
-    expect(nota.style.fontSize).toBe('12px');
+
+    expect(nota.className).toMatch(/\bsr-only\b/);
+    expect(nota).toHaveTextContent('o primeiro simulado do período, o anterior e o mais recente');
+    expect(nota).toHaveTextContent('Com um único simulado realizado não há o que comparar');
   });
 
   it('mostra os 2 insights autogerados, um por área e um por aluno', () => {
@@ -232,10 +266,12 @@ describe('rota VisaoGeral', () => {
   it('o CTA para o micro usa a copy canônica "Ver visão detalhada"', () => {
     render(<VisaoGeralRoute />);
 
-    const cta = screen.getByRole('link', { name: /Ver visão detalhada/ });
+    // `button`, não `link`: o CTA ABRE a tabela de alunos, que só monta sob
+    // demanda — um `<a href="#…">` apontaria para um alvo inexistente. O
+    // `aria-controls` mantém a relação com o bloco que ele revela.
+    const cta = screen.getByRole('button', { name: /Ver visão detalhada/ });
     expect(screen.getByTestId('bloco-visao-alunos')).toContainElement(cta);
-    // Aponta para a tabela de alunos da própria tela, abaixo do divisor "Detalhe · micro".
-    expect(cta).toHaveAttribute('href', '#alunos-detalhe');
+    expect(cta).toHaveAttribute('aria-controls', 'alunos-detalhe');
     expect(screen.getByTestId('gestor-visao-geral').textContent).not.toMatch(/drill.?down/i);
   });
 
@@ -262,7 +298,7 @@ describe('rota VisaoGeral', () => {
     expect(grafico).toHaveTextContent('Evolução institucional');
   });
 
-  it('erro em um bloco não deixa a tela em branco: KPIs seguem, só a tabela mostra erro', () => {
+  it('erro em um bloco não deixa a tela em branco: KPIs seguem, só a tabela mostra erro', async () => {
     mockUseAlunos.mockReturnValue({
       data: undefined,
       meta: undefined,
@@ -270,7 +306,12 @@ describe('rota VisaoGeral', () => {
       isError: true,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useAlunos>);
+    const user = userEvent.setup();
     render(<VisaoGeralRoute />);
+
+    // A tabela agora é sob demanda — para provar que o erro DELA não derruba a
+    // tela, é preciso pedir a tabela primeiro.
+    await user.click(screen.getByTestId('link-visao-detalhada'));
 
     expect(screen.getByTestId('kpis-visao-geral')).toBeInTheDocument();
     expect(screen.getByTestId('grafico-protagonista')).toBeInTheDocument();

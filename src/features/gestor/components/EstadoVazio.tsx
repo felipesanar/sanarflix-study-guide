@@ -27,6 +27,19 @@ interface EstadoVazioProps {
   glifoVariante?: DendeIconVariant;
   acao?: AcaoEstadoVazio;
   altura?: number | string;
+  /**
+   * Versão de UMA LINHA, sem o tile do glifo e sem centralização — para vazio
+   * que mora DENTRO de um card pequeno, ao lado de irmãos cheios.
+   *
+   * A anatomia completa (tile de 36px + título + apoio, tudo centrado com
+   * 24px de respiro) é a de um vazio que ocupa o bloco inteiro. Nos três
+   * cards do Diagnóstico Curricular ela era o que fazia a linha inteira
+   * crescer: dois cards com "nenhuma área…" esticavam a altura de todos os
+   * três, porque num grid os irmãos acompanham o mais alto. O vazio ali não
+   * é o assunto do card — é a resposta curta a uma pergunta que o gestor fez
+   * de passagem.
+   */
+  compacto?: boolean;
   className?: string;
 }
 
@@ -44,30 +57,38 @@ export const EstadoVazio: React.FC<EstadoVazioProps> = ({
   glifoVariante = 'outlined',
   acao,
   altura,
+  compacto = false,
   className,
 }) => (
   <div
     style={altura ? { minHeight: typeof altura === 'number' ? `${altura}px` : altura } : undefined}
     className={cn(
-      'flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-center',
+      'flex w-full flex-col rounded-xl border border-dashed border-border',
+      compacto
+        ? 'items-start gap-1 px-3 py-2.5 text-left'
+        : 'items-center justify-center gap-2 p-6 text-center',
       className,
     )}
   >
-    <span
-      aria-hidden="true"
-      className="inline-flex shrink-0 items-center justify-center"
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 'var(--gp-radius-sm)',
-        background: 'var(--gp-surface-3)',
-        color: 'var(--gp-text-3)',
-      }}
-    >
-      <Icon name={glifo} variant={glifoVariante} size={18} />
-    </span>
-    <p className="text-sm font-medium text-foreground">{titulo}</p>
-    {descricao && <p className="max-w-sm text-xs text-muted-foreground">{descricao}</p>}
+    {compacto ? null : (
+      <span
+        aria-hidden="true"
+        className="inline-flex shrink-0 items-center justify-center"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 'var(--gp-radius-sm)',
+          background: 'var(--gp-surface-3)',
+          color: 'var(--gp-text-3)',
+        }}
+      >
+        <Icon name={glifo} variant={glifoVariante} size={18} />
+      </span>
+    )}
+    <p className={cn('font-medium text-foreground', compacto ? 'text-xs' : 'text-sm')}>{titulo}</p>
+    {descricao && (
+      <p className={cn('text-xs text-muted-foreground', compacto ? undefined : 'max-w-sm')}>{descricao}</p>
+    )}
     {acao && (
       <Button
         variant="outline"

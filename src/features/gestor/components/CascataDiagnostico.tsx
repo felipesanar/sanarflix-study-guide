@@ -63,12 +63,24 @@ export interface CascataDiagnosticoProps {
  * nunca escrito na mão) e aponta por onde começar: as áreas medianas, da
  * pior para a melhor.
  */
+/**
+ * Quantas áreas medianas a sugestão lista. "Comece pela pior" é um conselho
+ * de PRIMEIRO passo — as sete de uma vez não são um começo, são a lista
+ * inteira de novo, e eram elas que faziam o card crítico ficar três vezes
+ * mais alto que os irmãos (e, no grid, esticar os três juntos). O restante
+ * continua alcançável na cascata, que é onde a lista completa vive.
+ */
+const SUGESTOES_MEDIANAS = 3;
+
 function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
   const piorParaMelhor = [...mediano].sort((a, b) => a.acertoPct - b.acertoPct);
+  const primeiras = piorParaMelhor.slice(0, SUGESTOES_MEDIANAS);
+  const restantes = piorParaMelhor.length - primeiras.length;
 
   return (
-    <div data-testid="diagnostico-critico-vazio" className="space-y-3">
+    <div data-testid="diagnostico-critico-vazio" className="space-y-2">
       <EstadoVazio
+        compacto
         titulo={`Nenhuma área abaixo de ${NIVEL_CRITICO_MAX}% de acerto neste recorte`}
         descricao={
           piorParaMelhor.length > 0
@@ -76,14 +88,19 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
             : undefined
         }
       />
-      {piorParaMelhor.length > 0 ? (
+      {primeiras.length > 0 ? (
         <ol data-testid="sugestao-mediano" className="space-y-1">
-          {piorParaMelhor.map((area) => (
+          {primeiras.map((area) => (
             <li key={area.id} className="flex items-center justify-between gap-2 text-xs">
               <span className="truncate text-foreground">{area.nome}</span>
               <span className="tabular-nums text-muted-foreground">{formatPct(area.acertoPct)}</span>
             </li>
           ))}
+          {restantes > 0 ? (
+            <li data-testid="sugestao-mediano-restantes" className="text-xs text-muted-foreground">
+              {`+ ${restantes} ${restantes === 1 ? 'outra área mediana' : 'outras áreas medianas'}`}
+            </li>
+          ) : null}
         </ol>
       ) : null}
     </div>
@@ -379,12 +396,29 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
           data-dividido={cascataAberta ? 'true' : 'false'}
           className={cn('grid gap-3', cascataAberta ? 'lg:grid-cols-2' : 'grid-cols-1')}
         >
-          <div className="grid gap-3 sm:grid-cols-3">
+          {/*
+           * Com a cascata aberta, os três cards passam a dividir METADE da
+           * largura — em `sm:grid-cols-3` cada um ficava com ~180px, os chips
+           * de área quebravam palavra a palavra e a coluna crescia mais que a
+           * própria cascata que ela abriu. Empilhados (`lg:grid-cols-1`) eles
+           * viram uma lista curta ao lado do detalhe, que é o que a divisão em
+           * dois quer dizer. Abaixo de `lg` o grid externo já é de 1 coluna, e
+           * os três voltam a caber lado a lado.
+           */}
+          <div className={cn('grid gap-3 sm:grid-cols-3', cascataAberta && 'lg:grid-cols-1')}>
             {ORDEM_NIVEL.map((nivel) => {
               const areas = porNivel.get(nivel) ?? [];
               const setaAberta = cascataAberta && nivelOrigem === nivel;
               return (
-                <Card key={nivel}>
+                /* O card que abriu a cascata fica visivelmente marcado: sem
+                   isso, com o detalhe ao lado, nada dizia de QUAL dos três
+                   cards aquela lista tinha saído. */
+                <Card
+                  key={nivel}
+                  data-selecionado={setaAberta ? 'true' : 'false'}
+                  className={cn(setaAberta && 'ring-1 ring-[color:var(--gp-brand-border)]')}
+                  style={setaAberta ? { background: 'var(--gp-brand-surface-soft)' } : undefined}
+                >
                   <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
                     <div className="flex items-center gap-2">
                       <ChipNivel nivel={nivel} />
@@ -392,14 +426,20 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                         {areas.length} {areas.length === 1 ? 'área' : 'áreas'}
                       </span>
                     </div>
+                    {/* Chevron nu não dizia o que faria. O rótulo visível diz —
+                        e diz também como sair, que era a queixa maior da visão
+                        expandida. `aria-label` continua igual: é ele o nome
+                        acessível do controle, e o texto visível é reforço. */}
                     <button
                       type="button"
                       aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
                       aria-expanded={setaAberta}
                       onClick={() => abrirCascata(nivel)}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-1 transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
                     >
-                      <Icon name={setaAberta ? 'expand_more' : 'chevron_right'} variant="outlined" size={16} box={16} />
+                      {setaAberta ? 'Fechar' : 'Ver áreas'}
+                      <Icon name={setaAberta ? 'expand_more' : 'chevron_right'} variant="outlined" size={14} box={14} />
                     </button>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -438,7 +478,11 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                     ) : nivel === 'critico' ? (
                       <DiagnosticoCriticoVazio mediano={porNivel.get('mediano') ?? []} />
                     ) : (
+                      /* `compacto`: um card de resumo não comporta o vazio de
+                         bloco inteiro — ver o comentário da prop em
+                         `EstadoVazio`. */
                       <EstadoVazio
+                        compacto
                         titulo={
                           nivel === 'excelente'
                             ? 'Nenhuma área em excelência neste recorte'
@@ -463,8 +507,38 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   <span data-testid="cascata-trilha" className="truncate text-xs text-muted-foreground">
                     {nodeAberto === null ? '/ grande área' : `/ ${nodeAberto} / especialidade`}
                   </span>
+                  {/* Saída explícita. Antes, sair era achar de novo a seta do
+                      card que abriu — que, com a lista rolada, podia nem estar
+                      na tela. `ml-auto` mantém o fecho no canto, onde se
+                      procura por ele. */}
+                  <button
+                    type="button"
+                    data-testid="cascata-fechar"
+                    onClick={() => abrirCascata(nivelOrigem ?? 'critico')}
+                    className="gp-hover-surface ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Icon name="close" variant="outlined" size={14} box={14} />
+                    Fechar
+                  </button>
                 </div>
-                {nivelOrigem !== null ? <TagNivel nivel={nivelOrigem} className="self-start" /> : null}
+                <div className="flex items-center gap-2">
+                  {nivelOrigem !== null ? <TagNivel nivel={nivelOrigem} /> : null}
+                  {/* Volta UM nível dentro da árvore — o ramo aberto empurra as
+                      grandes áreas para fora da vista, e recolher exigia rolar
+                      de volta até a linha que foi clicada. */}
+                  {nodeAberto !== null ? (
+                    <button
+                      type="button"
+                      data-testid="cascata-voltar"
+                      onClick={() => setNodeAberto(null)}
+                      className="inline-flex items-center gap-0.5 rounded-md text-xs font-semibold transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      style={{ color: 'var(--gp-brand-on-dark)' }}
+                    >
+                      <Icon name="chevron_left" variant="outlined" size={14} box={14} />
+                      Voltar para as grandes áreas
+                    </button>
+                  ) : null}
+                </div>
               </CardHeader>
               <CardContent className="pt-0" onKeyDown={navegarEntreNos}>
                 <NivelCascata

@@ -128,12 +128,38 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
         delta={kpis.proficientesPct.delta}
         serie={kpis.proficientesPct.serie}
         formatarPonto={(valor) => formatPct(valor)}
+        /**
+         * Rodapé de BASE, como o do Conceito ENAMED ao lado: diz sobre quem o
+         * percentual foi calculado. Não é detalhe de rodapé — é a diferença
+         * entre "54% da minha turma está proficiente" e "54% de quem fez o
+         * último simulado está proficiente", e só a segunda é verdade
+         * (`prof_pct = n_prof / n_tri` do simulado `atual`, ver o `criterio`
+         * que a própria RPC devolve).
+         *
+         * A referência escreve aqui a contagem absoluta ("56 de 104 alunos do
+         * 6º período"). O payload de `get_gestor_visao_geral` não carrega
+         * `n_prof`/`n_tri` — só o percentual já arredondado — e derivar a
+         * contagem de volta a partir de `%` × `participantes` erraria por um
+         * aluno para cima ou para baixo, além de misturar denominadores
+         * (`participantes` é `GREATEST(n_tri, n_resp)`, não `n_tri`).
+         * Afirmar "56 de 104" sem ter 56 nem 104 é exatamente o que a §4.10
+         * proíbe. Fica a base; a contagem entra quando a RPC devolver os dois
+         * números.
+         */
+        rodape="sobre os alunos com resultado no simulado mais recente"
         estado={estado}
         onTentarNovamente={onTentarNovamente}
       />
       <KpiCard
         titulo="Percentual de acerto"
-        hint="questões certas no período"
+        /**
+         * "no simulado mais recente", não "no período": o valor é
+         * `acerto_pct` do ponto `atual` da régua (acertos ÷ respostas válidas
+         * daquele simulado), nunca um acumulado do período nem uma média
+         * entre simulados. O hint anterior descrevia um cálculo que a RPC não
+         * faz — e ficava impossível de sustentar ao lado do rodapé novo.
+         */
+        hint="questões certas no simulado mais recente"
         valor={formatPct(kpis.acertoPct.valor)}
         valorNumerico={kpis.acertoPct.valor}
         formatarValor={formatPct}
@@ -142,6 +168,8 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
         delta={kpis.acertoPct.delta}
         serie={kpis.acertoPct.serie}
         formatarPonto={(valor) => formatPct(valor)}
+        /** Mesma função do rodapé ao lado: a base do cálculo, em uma linha. */
+        rodape="respostas válidas, na última tentativa de cada aluno · questão anulada fora"
         estado={estado}
         onTentarNovamente={onTentarNovamente}
       />
