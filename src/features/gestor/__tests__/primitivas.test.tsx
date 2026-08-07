@@ -78,9 +78,9 @@ describe('BadgeStatus (spec §6.4)', () => {
 describe('ChipNivel (spec §4.4)', () => {
   it('nunca comunica só por cor: sempre há rótulo textual', () => {
     const casos: Array<[Parameters<typeof ChipNivel>[0]['nivel'], string]> = [
-      ['excelente', 'Excelente'],
-      ['mediano', 'Mediano'],
-      ['critico', 'Crítico'],
+      ['excelente', 'Excelente desempenho'],
+      ['mediano', 'Desempenho mediano'],
+      ['critico', 'Desempenho crítico'],
     ];
     for (const [nivel, rotulo] of casos) {
       const { unmount } = render(<ChipNivel nivel={nivel} />);
