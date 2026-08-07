@@ -235,4 +235,61 @@ describe('GraficoProtagonista', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: 'Geral' }), { key: 'End' });
     expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('aria-pressed', 'true');
   });
+
+  /**
+   * Item B2 do passe de conformidade (`docs/06-data-viz.md:23`: "troca o
+   * conjunto de séries com fade cruzado"). O conteúdo some/aparece por
+   * `opacity` (nunca `transform`/translação/escala — decisão registrada no
+   * item), com a duração/curva do handoff em `style` (nunca classe
+   * arbitrária do Tailwind, que o guard de `tema.test.tsx` reprova).
+   */
+  describe('fade cruzado na troca de modo (item B2)', () => {
+    it('o contêiner do conteúdo declara transição de opacity com --gp-motion-3/--gp-ease, nunca transform/translação/escala', () => {
+      render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
+      const conteudo = screen.getByTestId('grafico-protagonista-conteudo');
+
+      expect(conteudo.style.transitionProperty).toBe('opacity');
+      expect(conteudo.style.transitionDuration).toBe('var(--gp-motion-3)');
+      expect(conteudo.style.transitionTimingFunction).toBe('var(--gp-ease)');
+      expect(conteudo.style.transform).toBe('');
+      expect(conteudo.getAttribute('style')).not.toMatch(/translate|scale/);
+    });
+
+    it('nasce em opacity 0 e sobe para 1 um quadro depois — é o que dá à transição CSS de onde partir', async () => {
+      render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
+      await waitFor(() =>
+        expect(screen.getByTestId('grafico-protagonista-conteudo').style.opacity).toBe('1'),
+      );
+    });
+
+    it('trocar de modo REMONTA o contêiner de fade (key={modo}) — cada modo ganha seu próprio ciclo de fade-in', async () => {
+      const user = userEvent.setup();
+      render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
+      await waitFor(() =>
+        expect(screen.getByTestId('grafico-protagonista-conteudo').style.opacity).toBe('1'),
+      );
+      const contedoAntes = screen.getByTestId('grafico-protagonista-conteudo');
+
+      await user.click(screen.getByRole('button', { name: 'Grande área' }));
+
+      const conteudoDepois = screen.getByTestId('grafico-protagonista-conteudo');
+      expect(conteudoDepois).not.toBe(contedoAntes);
+      await waitFor(() => expect(conteudoDepois.style.opacity).toBe('1'));
+    });
+
+    it('as três séries seguem sem animação própria (isAnimationActive={false} continua cravado — decisão separada de 05/08)', async () => {
+      const user = userEvent.setup();
+      render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
+
+      await user.click(screen.getByRole('button', { name: 'Grande área' }));
+      expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Aluno' }));
+      expect(screen.getByRole('img', { name: /Dispersão de proficiência por semestre/i })).toBeInTheDocument();
+      // A garantia de `isAnimationActive={false}` propriamente dita é
+      // travada por análise estática em `movimentoGraficos.test.tsx`
+      // (EvolucaoChart/AreasChart/DispersaoChart); aqui só se confirma que a
+      // troca de modo continua funcionando com o contêiner de fade no meio.
+    });
+  });
 });

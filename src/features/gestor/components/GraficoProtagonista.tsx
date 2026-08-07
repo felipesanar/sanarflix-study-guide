@@ -43,6 +43,55 @@ const PADDING_TRILHO = 3;
 const RAIO_SEGMENTO = 6;
 
 /**
+ * Fade cruzado na troca de modo (item B2 do passe de conformidade;
+ * `docs/06-data-viz.md:23`: "troca o conjunto de séries com fade cruzado").
+ *
+ * `key={modo}` no componente PAI força este componente a desmontar/remontar
+ * a cada troca — é isso que dá a cada modo sua própria instância, e por
+ * consequência seu próprio ciclo de fade. O truque do fade-in é: nascer em
+ * `opacity: 0` e, um quadro depois (`requestAnimationFrame`, não um efeito
+ * síncrono — senão o navegador nunca chega a pintar o quadro em opacity 0
+ * para a transição CSS ter de onde partir), subir para `opacity: 1` — a
+ * transição CSS entre os dois quadros É o fade.
+ *
+ * `--gp-motion-3` (200ms) e `--gp-ease` por `style`, nunca `duration-[...]`/
+ * `ease-[...]`: guard de `tema.test.tsx` (classe arbitrária do Tailwind é
+ * ambígua — já achado real num cartão do portal, ver comentário do guard).
+ *
+ * Só `opacity` — sem `transform`/translação/escala (decisão registrada no
+ * brief do item B2: o fade é do CONTÊINER, as séries continuam com
+ * `isAnimationActive={false}` cravado, decisão separada de 05/08 documentada
+ * em `movimentoGraficos.test.tsx`).
+ *
+ * Sob `prefers-reduced-motion: reduce`, o bloco `@media` de
+ * `gestor-theme.css:309-318` já zera `transition-duration` de todo
+ * descendente de `.gestor-portal` com `!important` — esta transição comum
+ * cai nesse guarda-chuva sem precisar de nenhum código extra aqui.
+ */
+function FadeConteudoGrafico({ children }: { children: React.ReactNode }) {
+  const [visivel, setVisivel] = React.useState(false);
+
+  React.useEffect(() => {
+    const quadro = requestAnimationFrame(() => setVisivel(true));
+    return () => cancelAnimationFrame(quadro);
+  }, []);
+
+  return (
+    <div
+      data-testid="grafico-protagonista-conteudo"
+      style={{
+        opacity: visivel ? 1 : 0,
+        transitionProperty: 'opacity',
+        transitionDuration: 'var(--gp-motion-3)',
+        transitionTimingFunction: 'var(--gp-ease)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
  * Gráfico protagonista da Visão Geral (spec §4.8) — 3 modos que leem as três
  * séries já carregadas juntas por `useVisaoGeral` (`evolucao`,
  * `evolucaoPorArea`, `dispersao`). Trocar de modo é trocar de LEITURA do
@@ -160,9 +209,11 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
         </div>
       </CardHeader>
       <CardContent>
-        {modo === 'geral' ? <EvolucaoChart pontos={visao.evolucao} /> : null}
-        {modo === 'area' ? <AreasChart areas={visao.evolucaoPorArea} /> : null}
-        {modo === 'aluno' ? <DispersaoChart pontos={visao.dispersao} /> : null}
+        <FadeConteudoGrafico key={modo}>
+          {modo === 'geral' ? <EvolucaoChart pontos={visao.evolucao} /> : null}
+          {modo === 'area' ? <AreasChart areas={visao.evolucaoPorArea} /> : null}
+          {modo === 'aluno' ? <DispersaoChart pontos={visao.dispersao} /> : null}
+        </FadeConteudoGrafico>
       </CardContent>
     </Card>
   );
