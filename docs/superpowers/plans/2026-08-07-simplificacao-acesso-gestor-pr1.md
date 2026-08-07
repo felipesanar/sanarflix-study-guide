@@ -326,13 +326,19 @@ git commit -m "feat(gestor): 11 RPCs deixam de exigir gestao.enabled; papel e es
 > o **PR #17** estiver mergeado e deployado, já que ele apaga `src/experiences/gestor/`
 > inteiro e o portal novo (`src/features/gestor/`) não referencia nenhuma das duas chaves.
 >
-> Checagem antes de aplicar — os dois comandos devem sair vazios na `main`:
+> Checagem antes de aplicar — lista quem ainda **consome** chave `gestao.*`.
+> Nenhuma das 3 chaves apagadas aqui pode aparecer no resultado:
 > ```bash
-> git grep -n -E "gestao\.(exportar|ia)" -- src/
+> git grep -nE "hasFeature\(\s*['\"]gestao\." -- src/
 > ```
-> ```bash
-> git grep -n -E "canExport|canChat" -- src/
-> ```
+> Grepar por `gestao.exportar` direto dá falso positivo — pega comentário e o
+> próprio teste de regressão. É o `hasFeature(` que denuncia consumo real.
+>
+> **Atenção ao escopo da Task 3/front:** `pr1/front` conserta o consumidor de
+> `gestao.enabled` (`useAccessRules.ts` passa a usar `hasExperience`), mas **não
+> toca `GestorLayout.tsx`** — os dois consumidores de `gestao.exportar`/`gestao.ia`
+> sobrevivem a `pr1/front`. Quem cobre esse buraco é o commit citado acima; ele
+> precisa entrar junto.
 >
 > Efeito colateral a conferir em produção (projeto **gvqv**, não `lljn` — o MCP
 > aponta para o projeto errado): IES com as chaves `false` ou sem linha passam a

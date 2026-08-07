@@ -19,9 +19,18 @@
 --       apaga src/experiences/gestor/ inteiro e o portal novo
 --       (src/features/gestor/) nao referencia nenhuma das duas chaves.
 --
--- Conferir na main, antes de aplicar -- ambos os comandos devem sair vazios:
---   git grep -n -E "gestao\.(exportar|ia)" -- src/
---   git grep -n -E "canExport|canChat"     -- src/
+-- Conferir na main, antes de aplicar. Este comando lista quem AINDA consome
+-- qualquer chave 'gestao.*' -- e as 3 chaves apagadas aqui nao podem aparecer:
+--   git grep -nE "hasFeature\(\s*['\"]gestao\." -- src/
+--
+-- Grepar so por "gestao.exportar" da falso positivo (pega comentario e o
+-- proprio teste de regressao); e o hasFeature( que denuncia consumo real.
+--
+-- Resultado esperado: nenhuma linha com gestao.enabled, gestao.exportar ou
+-- gestao.ia. Sobra so o teste de useAccessRules citando gestao.visao_institucional,
+-- que nao e apagada aqui. Atencao: pr1/front conserta o consumidor de
+-- gestao.enabled (useAccessRules.ts passa a usar hasExperience), mas NAO toca
+-- GestorLayout.tsx -- os dois consumidores de exportar/ia sobrevivem a pr1/front.
 --
 -- Efeito colateral do fix (a), a conferir em producao (projeto gvqv, NAO lljn):
 -- IES que hoje tenham gestao.exportar/gestao.ia = false, ou nenhuma linha,
