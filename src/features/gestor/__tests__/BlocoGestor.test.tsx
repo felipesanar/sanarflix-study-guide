@@ -41,7 +41,11 @@ describe('BlocoGestor — faixa de recorte parcial (item B3)', () => {
     const faixa = screen.getByTestId('faixa-parcial');
     expect(faixa.style.background).toBe('var(--gp-warning-surface)');
     expect(faixa.style.border).toContain('var(--gp-warning)');
-    expect(faixa.querySelector('i, span')).not.toBeNull();
+    // Achado F7 (revisão final): `i, span` também casava com o `<span>` do
+    // TEXTO do alerta, então passava mesmo com o ícone removido — o `Icon`
+    // sempre renderiza um `<i>` (`components/Icon.tsx:69`), então é isso que
+    // prova o ícone de verdade.
+    expect(faixa.querySelector('i')).not.toBeNull();
     // O texto some com a cor --gp-warning-on — o mesmo par do ícone.
     const textoAlerta = screen.getByText(/Recorte parcial/);
     expect(textoAlerta.style.color).toBe('var(--gp-warning-on)');
