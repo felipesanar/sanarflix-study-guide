@@ -17,23 +17,32 @@
  * seguia verde afirmando, entre outras coisas, que `get_gestor_aluno_contato`
  * "mantém o OR entre gestao.enabled e gestao.portal_v2". Só que
  * `20260806144647_gestor_remove_guard_portal_v2_ga_total.sql` recriou as onze
- * RPCs `get_gestor_*` SEM guard nenhum, e a conferência em produção (gvqv,
- * 06/08) confirma: nenhuma delas chama `user_has_feature` ou
- * `user_has_feature_for_ies`. O teste estava validando história, não o estado
- * em vigor — um .sql pinado nunca fica vermelho quando outro arquivo o
- * substitui. Daqui em diante a fonte é sempre a migration MAIS RECENTE que
- * recria a função, fatiada por função (mesmo padrão de
+ * RPCs `get_gestor_*` SEM guard nenhum. O teste estava validando história,
+ * não o estado em vigor — um .sql pinado nunca fica vermelho quando outro
+ * arquivo o substitui. Daqui em diante a fonte é sempre a migration MAIS
+ * RECENTE que recria a função, fatiada por função (mesmo padrão de
  * `src/features/gestor/__tests__/questoesContratoSort.test.ts`, e pelo mesmo
- * motivo: a migration de 06/08 recria onze funções no mesmo arquivo, então um
- * `match` sobre o arquivo inteiro casa com a função errada).
+ * motivo: cada migration do gestor pode recriar várias funções no mesmo
+ * arquivo, então um `match` sobre o arquivo inteiro casa com a função
+ * errada).
  *
- * Efeito colateral registrado de propósito: a limpeza do GA total tirou junto
- * o `gestao.enabled` do guard de `get_gestor_aluno_contato`. `gestao.enabled`
- * era o interruptor MESTRE do módulo de gestão — desligá-lo numa IES deixava
- * de fechar essa RPC —, e ele não fazia parte do escopo declarado da migration
- * (que era remover `gestao.portal_v2`). Não é regressão de compilação nem de
- * teste; é uma decisão que passou sem ser dita. Fica aqui, no teste que
- * afirma o estado real, para não sumir de novo.
+ * LOTE D (06/08) — gestao.enabled restaurado, gestao.portal_v2 continua morta
+ * -----------------------------------------------------------------------------
+ * A limpeza do GA total (144647) tirou junto o `gestao.enabled` do guard das
+ * onze RPCs — efeito colateral não intencional, registrado por este arquivo
+ * enquanto a versão anterior estava vermelha (ver histórico do arquivo).
+ * `gestao.enabled` é o interruptor MESTRE do módulo de gestão: desligá-lo
+ * numa IES deixava de fechar qualquer uma das onze, e isso não fazia parte
+ * do escopo declarado da 144647 (que era só remover `gestao.portal_v2`).
+ * `20260806180000_gestor_restaura_guard_gestao_enabled.sql` (Lote D) restaura
+ * SOMENTE esse guard master — `gestao.portal_v2` e as 5 chaves por módulo
+ * continuam mortas de propósito, não voltam. As dez RPCs que recebem (ou, no
+ * caso de `get_gestor_aluno_contato`, resolvem a partir do aluno) `v_ies`
+ * passam a chamar `user_has_feature_for_ies('gestao.enabled', v_ies)`, DEPOIS
+ * de autorizar a IES; a exceção é `get_gestor_contexto`, que não lê dado de
+ * uma IES só e por isso chama `user_has_feature('gestao.enabled')` (bool_or
+ * sobre as IES acessíveis) — ver o cabeçalho daquela migration para o
+ * raciocínio completo, inclusive a armadilha de posição do guard.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'fs';
@@ -157,14 +166,38 @@ describe('guard de feature nas RPCs get_gestor_* (GA total, 06/08)', () => {
   });
 
   it.each(rpcs)(
-    '%s vigente não chama user_has_feature nem user_has_feature_for_ies (guard removido, confere com gvqv)',
+    '%s vigente nunca chama a feature morta gestao.portal_v2 (removida no GA total, não volta no Lote D)',
     (nome) => {
       const corpo = corpoVigente(nome);
-      expect(corpo).not.toMatch(/user_has_feature_for_ies\s*\(/);
-      expect(corpo).not.toMatch(/user_has_feature\s*\(/);
       // Nem a chave sobrevive em lugar nenhum do corpo (ex.: dentro de um
       // COALESCE ou de uma mensagem de erro que ainda a mencionasse).
       expect(corpo).not.toMatch(/gestao\.portal_v2/);
+    },
+  );
+
+  it('get_gestor_contexto vigente restaura o master via user_has_feature (bool_or), não a variante _for_ies (Lote D, 06/08)', () => {
+    const corpo = corpoVigente('get_gestor_contexto');
+    expect(corpo).toMatch(/IF NOT public\.user_has_feature\('gestao\.enabled'\) THEN/);
+    expect(corpo).not.toMatch(/user_has_feature_for_ies\s*\(/);
+    const idxAccessDenied = corpo.indexOf('Access denied');
+    const idxFeature = corpo.indexOf("user_has_feature('gestao.enabled')");
+    expect(idxAccessDenied).toBeGreaterThan(-1);
+    expect(idxFeature).toBeGreaterThan(idxAccessDenied);
+  });
+
+  it.each(rpcs.filter((nome) => nome !== 'get_gestor_contexto'))(
+    "%s vigente restaura o master via user_has_feature_for_ies('gestao.enabled', v_ies), DEPOIS de autorizar a IES (Lote D, 06/08)",
+    (nome) => {
+      const corpo = corpoVigente(nome);
+      expect(corpo).toMatch(/IF NOT public\.user_has_feature_for_ies\('gestao\.enabled', v_ies\) THEN/);
+      // Não a variante sem _for_ies (essa faz bool_or sobre o GRUPO de IES,
+      // exatamente o vazamento entre IES irmãs que a _for_ies existe para
+      // fechar — ver 20260804120000_user_has_feature_for_ies.sql).
+      expect(corpo).not.toMatch(/user_has_feature\(/);
+      const idxAutorizacao = corpo.lastIndexOf('gestor_pode_acessar_ies(v_ies)');
+      const idxFeature = corpo.indexOf("user_has_feature_for_ies('gestao.enabled', v_ies)");
+      expect(idxAutorizacao).toBeGreaterThan(-1);
+      expect(idxFeature).toBeGreaterThan(idxAutorizacao);
     },
   );
 
@@ -172,11 +205,17 @@ describe('guard de feature nas RPCs get_gestor_* (GA total, 06/08)', () => {
     esperaCabecalhoPreservado(corpoVigente(nome));
   });
 
-  it('a migration que removeu o guard também apagou as 6 chaves de feature_catalog/ies_features', () => {
-    const { sql } = vigente('get_gestor_contexto');
-    expect(sql).toMatch(/DELETE FROM public\.ies_features/);
-    expect(sql).toMatch(/DELETE FROM public\.feature_catalog/);
-    expect(sql).toMatch(/'gestao\.portal_v2'/);
+  it('a migration do GA total (144647) apagou as 6 chaves de feature_catalog/ies_features — Lote D não as reintroduz', () => {
+    const ga = readMigration('20260806144647_gestor_remove_guard_portal_v2_ga_total.sql');
+    expect(ga).toMatch(/DELETE FROM public\.ies_features/);
+    expect(ga).toMatch(/DELETE FROM public\.feature_catalog/);
+    expect(ga).toMatch(/'gestao\.portal_v2'/);
+    // A migration vigente que recria as onze funções (Lote D) é aditiva: só
+    // CREATE OR REPLACE FUNCTION, nenhum DELETE/INSERT em feature_catalog ou
+    // ies_features.
+    const loteD = vigente('get_gestor_contexto').sql;
+    expect(loteD).not.toMatch(/DELETE FROM/);
+    expect(loteD).not.toMatch(/INSERT INTO public\.(ies_features|feature_catalog)/);
   });
 });
 
@@ -254,17 +293,16 @@ describe('get_gestor_contexto vigente (achado 15)', () => {
 describe('get_gestor_aluno_contato vigente (achados 12 e 16)', () => {
   const corpo = corpoVigente('get_gestor_aluno_contato');
 
-  it('não tem MAIS NENHUM guard de feature — nem gestao.portal_v2, nem gestao.enabled', () => {
-    // Este é o caso que a versão pinada deste arquivo afirmava ao contrário.
-    // O `gestao.enabled` foi embora junto com o `gestao.portal_v2`: hoje um
-    // gestor de IES com o módulo de gestão DESLIGADO ainda recebe o telefone
-    // do aluno por esta RPC. Ver o cabeçalho do arquivo.
-    expect(corpo).not.toMatch(/user_has_feature/);
-    expect(corpo).not.toMatch(/gestao\.enabled/);
+  it('Lote D (06/08) restaura o guard de gestao.enabled; gestao.portal_v2 continua ausente', () => {
+    // Entre o GA total (144647) e o Lote D (20260806180000), esta RPC ficou
+    // sem NENHUM guard de feature — um gestor de IES com o módulo de gestão
+    // DESLIGADO recebia o telefone do aluno mesmo assim. Ver o cabeçalho da
+    // migration 20260806180000_gestor_restaura_guard_gestao_enabled.sql.
+    expect(corpo).toMatch(/IF NOT public\.user_has_feature_for_ies\('gestao\.enabled', v_ies\) THEN/);
     expect(corpo).not.toMatch(/gestao\.portal_v2/);
   });
 
-  it('a única barreira restante é gestor_pode_acessar_ies sobre a IES DO ALUNO', () => {
+  it('a autorização por IES continua sendo gestor_pode_acessar_ies sobre a IES DO ALUNO (não trocada por outra função)', () => {
     expect(corpo).toMatch(/gestor_pode_acessar_ies\(v_ies\)/);
     expect(corpo).not.toMatch(/user_can_access_ies/);
   });
