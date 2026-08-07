@@ -18,21 +18,62 @@
  * isso `vigente(nome)` abaixo varre TODAS as migrations em ordem cronológica
  * (o prefixo do nome é o timestamp) e usa a ÚLTIMA que recria `nome` — mesmo
  * padrão de `src/features/gestor/__tests__/questoesContratoSort.test.ts`.
+ * `vigente`/`cabecalhoDe`/`corpoDaFuncao` casam `CREATE OR REPLACE FUNCTION`
+ * sem diferenciar maiúsculas de minúsculas (flag `i`): o agente do Lovable
+ * gera SQL em minúsculas com frequência neste repo — ex.:
+ * `20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:2`, que recria
+ * `user_has_feature` como `create or replace function`, tudo minúsculo. Sem a
+ * flag, uma migration do Lovable em minúsculas que recriasse qualquer uma das
+ * onze `get_gestor_*` ficaria INVISÍVEL para `vigente()`, que continuaria
+ * validando a versão anterior — exatamente o teste fantasma que este arquivo
+ * existe para impedir.
  *
- * A ARMADILHA DE POSIÇÃO — JÁ REGREDIU DUAS VEZES, NÃO REPETIR UMA TERCEIRA
+ * A ARMADILHA DE POSIÇÃO — DUAS CLASSES DE REGRESSÃO, JÁ ACONTECERAM AS DUAS
  * -------------------------------------------------------------------------
  * O guard de `gestao.enabled` (agora removido de propósito por esta mesma
- * migration) vivia DENTRO do corpo de cada uma das onze funções, não numa
- * trigger ou policy separada que sobreviveria a um `CREATE OR REPLACE`. Isso
- * já apagou guards em silêncio DUAS VEZES neste projeto: (1) a migration do
- * GA total (`20260806144647`), ao limpar a chave morta `gestao.portal_v2`,
- * levou junto `gestao.enabled` por estarem no mesmo bloco de comentário —
- * efeito colateral fora do escopo declarado; (2) uma migration do Lovable
- * recriou `get_gestor_detalhamento` e `get_gestor_questoes` a partir de uma
- * versão vinda da `main` sem o guard, corrigido só numa migration seguinte.
+ * migration) já desapareceu em silêncio duas vezes neste projeto, por DOIS
+ * mecanismos diferentes — importa não confundir os dois:
+ *
+ * (1) A HELPER CHAMADA EMBUTIA UM GUARD QUE NINGUÉM SABIA QUE ESTAVA CHAMANDO.
+ *     As dez RPCs que resolvem `v_ies` nunca tiveram uma checagem EXPLÍCITA e
+ *     separada de `gestao.enabled` — só chamavam
+ *     `user_has_feature_for_ies('gestao.portal_v2', v_ies)` (e
+ *     `get_gestor_contexto` chamava `user_has_feature('gestao.portal_v2')`).
+ *     Essas funções (`git show
+ *     feat/portal-gestor-v2:supabase/migrations/20260804120000_user_has_feature_for_ies.sql`,
+ *     que não existe nesta branch) EMBUTEM o master: antes de olhar a chave
+ *     pedida, checam `gestao.enabled` para a IES por conta própria (bloco
+ *     "MASTER", linhas 67–77 daquele arquivo). A migration do GA total
+ *     (`20260806144647`, commit `054d915102ec3e32ba1e2332ecba42a3d74ef096`)
+ *     removeu UMA ÚNICA chamada — a de `'gestao.portal_v2'`, dado morto já
+ *     ratificado para sair — e com ela foi embora, de carona, a checagem de
+ *     módulo contratado, que ninguém tinha posto no escopo daquela limpeza.
+ *     Não foram "duas linhas do mesmo comentário apagadas juntas": foi uma
+ *     única chamada cujo corpo, por dentro, fazia duas perguntas diferentes.
+ *
+ * (2) O GUARD VIVE DENTRO DO CORPO DA FUNÇÃO, E `CREATE OR REPLACE` SUBSTITUI
+ *     O CORPO INTEIRO — não há trigger nem policy separada que sobreviva à
+ *     recriação. Uma migration do Lovable recriou `get_gestor_detalhamento` e
+ *     `get_gestor_questoes` a partir de uma versão vinda da `main` sem o
+ *     guard; corrigido só numa migration seguinte
+ *     (`20260807022207_de63e0ae-b9a7-4108-9c1f-81734944dace.sql`).
+ *
  * Nenhuma das duas vezes gerou erro de tipo, erro de teste (o teste antigo
  * estava pinado no arquivo errado) ou qualquer aviso em compile-time — o
  * guard simplesmente parou de existir em produção, sem barulho.
+ *
+ * LINHAGEM DAS TENTATIVAS DE RESTAURAR O GUARD (06/08, NUNCA APLICADAS EM
+ * PRODUÇÃO) — Lote D (`20260806180000_gestor_restaura_guard_gestao_enabled.sql`,
+ * as onze funções de uma vez) e Lote E
+ * (`20260806193000_gestor_reaplica_guard_gestao_enabled_detalhamento_questoes.sql`,
+ * só `get_gestor_detalhamento` + `get_gestor_questoes`) foram escritas neste
+ * repo para restaurar o guard perdido pelo mecanismo (1). Nenhuma das duas
+ * chegou a ser aplicada: o DDL real entrou em produção por outro caminho, o
+ * agente do Lovable, que gerou suas PRÓPRIAS migrations — as duas citadas no
+ * mecanismo (2) acima —, com timestamp posterior e já mergeadas. Lote D/E
+ * viraram duplicata sem nunca terem sido aplicadas em lugar nenhum e foram
+ * apagadas (`git rm`). A presença do guard nas duas migrations do Lovable foi
+ * conferida em produção via `pg_get_functiondef`: 11/11 com o guard.
  *
  * A LIÇÃO QUE ISSO DEIXA PARA DEPOIS DE `gestao.enabled` SAIR DE VEZ: quem
  * recriar qualquer uma das onze RPCs `get_gestor_*` por QUALQUER motivo — fix,
@@ -56,6 +97,24 @@
  * `20260807022207_de63e0ae-b9a7-4108-9c1f-81734944dace.sql` — e teria ficado
  * vermelho por decisão, não por bug, no momento em que esta migration entrar
  * em vigor).
+ *
+ * PENDÊNCIA ADIADA PELO REBASE (registrar aqui, não resolver — não aplicável
+ * ainda por nascer depois deste PR, não por não existir o problema): o plano
+ * original mandava (a) deletar
+ * `gestorMigrationsRestauraGuardGestaoEnabled.test.ts` e (b) ajustar
+ * `gestorMigrationsAvisosAlunoContatoContexto.test.ts`. Nenhum dos dois existe
+ * nesta base — os dois nascem na branch do PR #17 (`feat/portal-gestor-v2`),
+ * depois do ponto em que este PR (`pr1/rpc`) foi cortado. Quando este PR for
+ * rebaseado na `main` pós-merge do #17, os dois REAPARECEM, e os dois afirmam
+ * a PRESENÇA do guard de `gestao.enabled` — vão ficar vermelhos por decisão
+ * (o guard sai de propósito nesta migration), não por bug. Nessa hora:
+ *   (a) deletar `gestorMigrationsRestauraGuardGestaoEnabled.test.ts` inteiro
+ *       — ele existe só para provar aquele guard, que não existe mais;
+ *   (b) em `gestorMigrationsAvisosAlunoContatoContexto.test.ts`, inverter as
+ *       asserções de presença do guard para ausência (mesmo padrão das
+ *       asserções `.not.toMatch(/gestao\.enabled/)` deste arquivo),
+ *       preservando o resto do arquivo — ele cobre achados 2/12/15/16 que não
+ *       têm relação com `gestao.enabled`.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'fs';
