@@ -1,0 +1,372 @@
+/**
+ * Testes estáticos do acesso às onze RPCs `get_gestor_*` depois da
+ * simplificação de 07/08 (spec `2026-08-07-simplificacao-acesso-gestor-design.md`):
+ * o acesso passa a depender SOMENTE de papel (`admin`/`gestor`/`gestor_grupo`)
+ * e escopo de IES (`gestor_pode_acessar_ies`), nunca mais de uma feature
+ * `gestao.enabled` ligada ou desligada por IES em `ies_features`.
+ *
+ * Não há harness de pgTAP neste repo e o Supabase MCP disponível aponta para
+ * o projeto errado — não dá para rodar as funções de verdade aqui. Este
+ * arquivo é análise de texto sobre a migration vigente, não teste de execução.
+ *
+ * POR QUE A FONTE É SEMPRE "A MIGRATION MAIS RECENTE QUE RECRIA A FUNÇÃO"
+ * -------------------------------------------------------------------------
+ * Um teste que pina o NOME de uma migration por constante nunca fica vermelho
+ * quando outra migration, mais recente, recria a mesma função — ele continua
+ * validando um arquivo que pode ter parado de valer. Isso já causou um teste
+ * fantasma neste projeto (ver a seção "A ARMADILHA DE POSIÇÃO" abaixo). Por
+ * isso `vigente(nome)` abaixo varre TODAS as migrations em ordem cronológica
+ * (o prefixo do nome é o timestamp) e usa a ÚLTIMA que recria `nome` — mesmo
+ * padrão de `src/features/gestor/__tests__/questoesContratoSort.test.ts`.
+ * `vigente`/`cabecalhoDe`/`corpoDaFuncao` casam `CREATE OR REPLACE FUNCTION`
+ * sem diferenciar maiúsculas de minúsculas (flag `i`): o agente do Lovable
+ * gera SQL em minúsculas com frequência neste repo — ex.:
+ * `20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:2`, que recria
+ * `user_has_feature` como `create or replace function`, tudo minúsculo. Sem a
+ * flag, uma migration do Lovable em minúsculas que recriasse qualquer uma das
+ * onze `get_gestor_*` ficaria INVISÍVEL para `vigente()`, que continuaria
+ * validando a versão anterior — exatamente o teste fantasma que este arquivo
+ * existe para impedir.
+ *
+ * A ARMADILHA DE POSIÇÃO — DUAS CLASSES DE REGRESSÃO, JÁ ACONTECERAM AS DUAS
+ * -------------------------------------------------------------------------
+ * O guard de `gestao.enabled` (agora removido de propósito por esta mesma
+ * migration) já desapareceu em silêncio duas vezes neste projeto, por DOIS
+ * mecanismos diferentes — importa não confundir os dois:
+ *
+ * (1) A HELPER CHAMADA EMBUTIA UM GUARD QUE NINGUÉM SABIA QUE ESTAVA CHAMANDO.
+ *     As dez RPCs que resolvem `v_ies` nunca tiveram uma checagem EXPLÍCITA e
+ *     separada de `gestao.enabled` — só chamavam
+ *     `user_has_feature_for_ies('gestao.portal_v2', v_ies)` (e
+ *     `get_gestor_contexto` chamava `user_has_feature('gestao.portal_v2')`).
+ *     Essas funções (`git show
+ *     feat/portal-gestor-v2:supabase/migrations/20260804120000_user_has_feature_for_ies.sql`,
+ *     que não existe nesta branch) EMBUTEM o master: antes de olhar a chave
+ *     pedida, checam `gestao.enabled` para a IES por conta própria (bloco
+ *     "MASTER", linhas 67–77 daquele arquivo). A migration do GA total
+ *     (`20260806144647`, commit `054d915102ec3e32ba1e2332ecba42a3d74ef096`)
+ *     removeu UMA ÚNICA chamada — a de `'gestao.portal_v2'`, dado morto já
+ *     ratificado para sair — e com ela foi embora, de carona, a checagem de
+ *     módulo contratado, que ninguém tinha posto no escopo daquela limpeza.
+ *     Não foram "duas linhas do mesmo comentário apagadas juntas": foi uma
+ *     única chamada cujo corpo, por dentro, fazia duas perguntas diferentes.
+ *
+ * (2) O GUARD VIVE DENTRO DO CORPO DA FUNÇÃO, E `CREATE OR REPLACE` SUBSTITUI
+ *     O CORPO INTEIRO — não há trigger nem policy separada que sobreviva à
+ *     recriação. Uma migration do Lovable recriou `get_gestor_detalhamento` e
+ *     `get_gestor_questoes` a partir de uma versão vinda da `main` sem o
+ *     guard; corrigido só numa migration seguinte
+ *     (`20260807022207_de63e0ae-b9a7-4108-9c1f-81734944dace.sql`).
+ *
+ * Nenhuma das duas vezes gerou erro de tipo, erro de teste (o teste antigo
+ * estava pinado no arquivo errado) ou qualquer aviso em compile-time — o
+ * guard simplesmente parou de existir em produção, sem barulho.
+ *
+ * LINHAGEM DAS TENTATIVAS DE RESTAURAR O GUARD (06/08, NUNCA APLICADAS EM
+ * PRODUÇÃO) — Lote D (`20260806180000_gestor_restaura_guard_gestao_enabled.sql`,
+ * as onze funções de uma vez) e Lote E
+ * (`20260806193000_gestor_reaplica_guard_gestao_enabled_detalhamento_questoes.sql`,
+ * só `get_gestor_detalhamento` + `get_gestor_questoes`) foram escritas neste
+ * repo para restaurar o guard perdido pelo mecanismo (1). Nenhuma das duas
+ * chegou a ser aplicada: o DDL real entrou em produção por outro caminho, o
+ * agente do Lovable, que gerou suas PRÓPRIAS migrations — as duas citadas no
+ * mecanismo (2) acima —, com timestamp posterior e já mergeadas. Lote D/E
+ * viraram duplicata sem nunca terem sido aplicadas em lugar nenhum e foram
+ * apagadas (`git rm`). A presença do guard nas duas migrations do Lovable foi
+ * conferida em produção via `pg_get_functiondef`: 11/11 com o guard.
+ *
+ * A LIÇÃO QUE ISSO DEIXA PARA DEPOIS DE `gestao.enabled` SAIR DE VEZ: quem
+ * recriar qualquer uma das onze RPCs `get_gestor_*` por QUALQUER motivo — fix,
+ * feature nova, refactor, merge de branch — precisa preservar os TRÊS blocos
+ * de preâmbulo que continuam depois desta migration, NESSA ORDEM: (1) papel
+ * (`Access denied`), (2) resolução de `v_ies` (`IES not resolved`), (3)
+ * `gestor_pode_acessar_ies(v_ies)` (`Permission denied: cannot access this
+ * IES`). A ordem importa porque o bloco 3 depende de `v_ies` já resolvido — um
+ * `gestor_pode_acessar_ies` antes da resolução chamaria a função com um
+ * parâmetro que ainda não existe. `get_gestor_contexto` só tem o bloco 1 (não
+ * lê dado de uma IES só). `get_gestor_aluno_contato` funde 2 e 3 num único
+ * `IF` anti-enumeração (mensagem genérica `aluno_nao_encontrado` tanto para
+ * aluno inexistente quanto para aluno de IES não autorizada), mas a ordem
+ * relativa — resolver e autorizar antes de qualquer outra coisa — é a mesma.
+ *
+ * Este arquivo substitui, com o conhecimento acima preservado, o par de
+ * arquivos que teria ficado pinado no estado ANTERIOR a esta migration
+ * (`gestorMigrationsRestauraGuardGestaoEnabled.test.ts`, que provava a
+ * PRESENÇA do guard nas duas migrations do Lovable —
+ * `20260807021546_a19e4160-6f1c-4f0d-9cc8-f9743ff340dc.sql` e
+ * `20260807022207_de63e0ae-b9a7-4108-9c1f-81734944dace.sql` — e teria ficado
+ * vermelho por decisão, não por bug, no momento em que esta migration entrar
+ * em vigor).
+ *
+ * PENDÊNCIA ADIADA PELO REBASE (registrar aqui, não resolver — não aplicável
+ * ainda por nascer depois deste PR, não por não existir o problema): o plano
+ * original mandava (a) deletar
+ * `gestorMigrationsRestauraGuardGestaoEnabled.test.ts` e (b) ajustar
+ * `gestorMigrationsAvisosAlunoContatoContexto.test.ts`. Nenhum dos dois existe
+ * nesta base — os dois nascem na branch do PR #17 (`feat/portal-gestor-v2`),
+ * depois do ponto em que este PR (`pr1/rpc`) foi cortado. Quando este PR for
+ * rebaseado na `main` pós-merge do #17, os dois REAPARECEM, e os dois afirmam
+ * a PRESENÇA do guard de `gestao.enabled` — vão ficar vermelhos por decisão
+ * (o guard sai de propósito nesta migration), não por bug. Nessa hora:
+ *   (a) deletar `gestorMigrationsRestauraGuardGestaoEnabled.test.ts` inteiro
+ *       — ele existe só para provar aquele guard, que não existe mais;
+ *   (b) em `gestorMigrationsAvisosAlunoContatoContexto.test.ts`, inverter as
+ *       asserções de presença do guard para ausência (mesmo padrão das
+ *       asserções `.not.toMatch(/gestao\.enabled/)` deste arquivo),
+ *       preservando o resto do arquivo — ele cobre achados 2/12/15/16 que não
+ *       têm relação com `gestao.enabled`.
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync } from 'fs';
+import { join } from 'path';
+
+const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations');
+
+function readMigration(filename: string): string {
+  // Normaliza CRLF -> LF: numa maquina com core.autocrlf=true, o checkout
+  // materializa estes .sql com \r\n, e as assercoes abaixo (indexOf/toMatch
+  // com "\n" puro) nunca casariam sem isto.
+  return readFileSync(join(MIGRATIONS_DIR, filename), 'utf8').replace(/\r\n/g, '\n');
+}
+
+/**
+ * O `(` no fim não é enfeite: sem ele, `get_gestor_aluno` casa com
+ * `get_gestor_aluno_contato` e `get_gestor_alunos`, que vêm ANTES no arquivo.
+ *
+ * Flag `i`: case-insensitive. O agente do Lovable gera SQL em minúsculas com
+ * frequência neste repo (`create or replace function`, não `CREATE OR REPLACE
+ * FUNCTION`) — ver `20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:2`,
+ * que recria `user_has_feature` inteiramente em minúsculo. Sem a flag, uma
+ * migration do Lovable em minúsculas que recriasse qualquer uma das onze
+ * `get_gestor_*` ficaria invisível para `vigente()`, que continuaria
+ * devolvendo a versão anterior como se fosse a vigente.
+ */
+const cabecalhoDe = (nome: string) =>
+  new RegExp(`CREATE OR REPLACE FUNCTION public\\.${nome}\\(`, 'i');
+
+/** Migrations em ordem cronológica (o prefixo do nome é o timestamp). */
+function migrationsOrdenadas(): string[] {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+}
+
+/** A migration mais recente que recria `nome` é a que vale — a definição em vigor. */
+function vigente(nome: string): { arquivo: string; sql: string } {
+  const marca = cabecalhoDe(nome);
+  const candidatos = migrationsOrdenadas()
+    .map((arquivo) => ({ arquivo, sql: readMigration(arquivo) }))
+    .filter(({ sql }) => marca.test(sql));
+  expect(candidatos.length, `nenhuma migration recria ${nome}`).toBeGreaterThan(0);
+  return candidatos[candidatos.length - 1];
+}
+
+/**
+ * Corpo de UMA função: do seu CREATE até o dollar-quote que o fecha. O helper
+ * `corpoDaFuncao(sql, nome)` citado no plano de implementação ainda não existe
+ * como import compartilhado — este arquivo copia o mesmo padrão usado em
+ * `gestorMigrationsAvisosAlunoContatoContexto.test.ts` / `questoesContratoSort.test.ts`,
+ * em vez de importar de outro arquivo de teste.
+ */
+function corpoDaFuncao(sql: string, nome: string): string {
+  const match = cabecalhoDe(nome).exec(sql);
+  const inicio = match ? match.index : -1;
+  expect(inicio, `função ${nome} não encontrada na migration`).toBeGreaterThanOrEqual(0);
+  const abertura = /\bAS\s+(\$[A-Za-z_]*\$)/.exec(sql.slice(inicio));
+  expect(abertura, `não achei o dollar-quote que abre o corpo de ${nome}`).not.toBeNull();
+  const tag = abertura![1];
+  const fim = sql.indexOf(`${tag};`, inicio + abertura!.index + abertura![0].length);
+  expect(fim, `função ${nome} não fecha com ${tag};`).toBeGreaterThan(inicio);
+  return sql.slice(inicio, fim + tag.length + 1);
+}
+
+/** O código vigente de `nome`: já fatiado por função. */
+const corpoVigente = (nome: string) => corpoDaFuncao(vigente(nome).sql, nome);
+
+/** Toda RPC `get_gestor_*` que existe em alguma migration. */
+function todasAsRpcsDoGestor(): string[] {
+  const nomes = new Set<string>();
+  for (const arquivo of migrationsOrdenadas()) {
+    for (const m of readMigration(arquivo).matchAll(
+      /CREATE OR REPLACE FUNCTION public\.(get_gestor_[a-z_]+)\(/g,
+    )) {
+      nomes.add(m[1]);
+    }
+  }
+  return [...nomes].sort();
+}
+
+// As 9 RPCs que recebem p_ies_id e passam pelos três blocos na ordem completa
+// (papel -> resolução de v_ies -> gestor_pode_acessar_ies). Ficam fora daqui:
+// get_gestor_contexto (não recebe p_ies_id, só tem o bloco de papel) e
+// get_gestor_aluno_contato (funde resolução e autorização num único IF).
+const RPCS_COM_IES = [
+  'get_gestor_cronograma',
+  'get_gestor_avisos',
+  'get_gestor_visao_geral',
+  'get_gestor_diagnostico',
+  'get_gestor_diagnostico_temas',
+  'get_gestor_alunos',
+  'get_gestor_aluno',
+  'get_gestor_detalhamento',
+  'get_gestor_questoes',
+];
+
+const TODAS_AS_ONZE = [
+  'get_gestor_contexto',
+  'get_gestor_aluno_contato',
+  ...RPCS_COM_IES,
+];
+
+describe('acesso por papel nas onze RPCs get_gestor_* (gestao.enabled removida, 07/08)', () => {
+  it('descobre exatamente as onze RPCs do portal — se este número mudar, a varredura abaixo mudou de escopo', () => {
+    expect(todasAsRpcsDoGestor()).toEqual(
+      [...TODAS_AS_ONZE].sort(),
+    );
+  });
+
+  it('nenhuma das onze menciona gestao.enabled', () => {
+    for (const nome of TODAS_AS_ONZE) {
+      expect(corpoVigente(nome), nome).not.toMatch(/gestao\.enabled/);
+    }
+  });
+
+  it('nenhuma das onze chama user_has_feature_for_ies', () => {
+    for (const nome of TODAS_AS_ONZE) {
+      expect(corpoVigente(nome), nome).not.toMatch(/user_has_feature_for_ies\s*\(/);
+    }
+  });
+
+  it('nenhuma das onze chama user_has_feature (nem a variante sem _for_ies)', () => {
+    for (const nome of TODAS_AS_ONZE) {
+      expect(corpoVigente(nome), nome).not.toMatch(/user_has_feature\s*\(/);
+    }
+  });
+
+  // As duas migrations deste PR — nao o repositorio inteiro. Uma asserção
+  // sobre TODAS as migrations seria falsa hoje:
+  // `20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:2` já recria
+  // `user_has_feature` (em minúsculas — `create or replace function`), e essa
+  // é a definição VIGENTE da helper, não uma regressão deste PR. O que este
+  // PR precisa garantir é que ELE não recria a função — não que nenhuma
+  // migration jamais o fez.
+  const MIGRATIONS_DESTE_PR = [
+    '20260807030000_gestor_remove_guard_feature_acesso_por_papel.sql',
+    '20260807031000_gestor_apaga_chaves_de_feature.sql',
+  ];
+
+  it('as duas migrations deste PR nao recriam user_has_feature (19 RPCs legadas dependem dela para aluno.%)', () => {
+    for (const arquivo of MIGRATIONS_DESTE_PR) {
+      expect(readMigration(arquivo), arquivo).not.toMatch(
+        /CREATE OR REPLACE FUNCTION public\.user_has_feature\(/i,
+      );
+    }
+  });
+
+  it.each(RPCS_COM_IES)(
+    '%s mantem papel -> resolucao de v_ies -> gestor_pode_acessar_ies, nessa ordem',
+    (nome) => {
+      const corpo = corpoVigente(nome);
+      const idxPapel = corpo.indexOf("has_role(v_uid,'admin'::app_role)");
+      // Não basta achar `has_role`: um corpo que o mantivesse SEM levantar
+      // exceção para papel errado passaria pelo indexOf sozinho. Ancora
+      // também no `RAISE EXCEPTION` que fecha aquele bloco — mesmo padrão do
+      // teste de get_gestor_contexto, abaixo.
+      const idxAccessDenied = corpo.indexOf("RAISE EXCEPTION 'Access denied';");
+      const idxResolucao = corpo.indexOf('IES not resolved');
+      // Ancora no `IF NOT ... THEN` completo, não só na chamada da função:
+      // `gestor_pode_acessar_ies(v_ies)` sozinho casaria com um comentário
+      // (ex.: "ver gestor_pode_acessar_ies(v_ies) abaixo") sem que o corpo
+      // realmente autorize antes de seguir.
+      const idxEscopo = corpo.indexOf('IF NOT public.gestor_pode_acessar_ies(v_ies) THEN');
+      expect(idxPapel, `${nome}: bloco de papel não encontrado`).toBeGreaterThan(-1);
+      expect(idxAccessDenied, `${nome}: RAISE EXCEPTION 'Access denied' não encontrado`).toBeGreaterThan(
+        idxPapel,
+      );
+      expect(idxResolucao, `${nome}: "IES not resolved" não encontrado`).toBeGreaterThan(
+        idxAccessDenied,
+      );
+      expect(
+        idxEscopo,
+        `${nome}: IF NOT public.gestor_pode_acessar_ies(v_ies) THEN não encontrado`,
+      ).toBeGreaterThan(idxResolucao);
+    },
+  );
+
+  it('get_gestor_contexto mantem SOMENTE o bloco de papel (nao autoriza por IES)', () => {
+    const corpo = corpoVigente('get_gestor_contexto');
+    expect(corpo).toMatch(/has_role\(v_uid,'admin'::app_role\)/);
+    expect(corpo).toMatch(/RAISE EXCEPTION 'Access denied';/);
+    // get_gestor_contexto tem seu PRÓPRIO "IES not resolved" (v_ies_atual, para
+    // montar iesAtual no payload) — não é o bloco 2/3 do preâmbulo das outras
+    // dez, que resolve+autoriza p_ies_id via gestor_pode_acessar_ies. Esta
+    // função nunca chama gestor_pode_acessar_ies: não lê dado de uma IES só,
+    // enumera o switcher inteiro.
+    expect(corpo).not.toMatch(/gestor_pode_acessar_ies/);
+  });
+
+  it('get_gestor_aluno_contato mantem papel e o IF fundido de resolucao+autorizacao (aluno_nao_encontrado)', () => {
+    const corpo = corpoVigente('get_gestor_aluno_contato');
+    const idxPapel = corpo.indexOf("has_role(v_uid,'admin'::app_role)");
+    const idxFundido = corpo.indexOf(
+      "IF v_ies IS NULL OR NOT public.gestor_pode_acessar_ies(v_ies) THEN",
+    );
+    expect(idxPapel).toBeGreaterThan(-1);
+    expect(idxFundido, 'IF fundido de resolucao+autorizacao nao encontrado').toBeGreaterThan(
+      idxPapel,
+    );
+    expect(corpo).toMatch(/RAISE EXCEPTION 'aluno_nao_encontrado' USING ERRCODE = '42501';/);
+  });
+
+  it.each(TODAS_AS_ONZE)('%s preserva SECURITY DEFINER, STABLE e search_path', (nome) => {
+    const corpo = corpoVigente(nome);
+    expect(corpo, nome).toMatch(/SECURITY DEFINER/);
+    expect(corpo, nome).toMatch(/\bSTABLE\b/);
+    expect(corpo, nome).toMatch(/SET search_path (?:TO 'public'|= public)/);
+  });
+});
+
+/**
+ * Migration de limpeza (20260807031000): apaga as 3 chaves de feature de
+ * gestao (`gestao.enabled`, `gestao.exportar`, `gestao.ia`) de
+ * `ies_features`/`feature_catalog` e dropa `user_has_feature_for_ies`, que
+ * fica orfa depois que a migration anterior (20260807030000) parou de
+ * chama-la nas onze RPCs. Depende da anterior: dropar a helper enquanto as
+ * RPCs ainda a chamassem quebraria todas as onze.
+ *
+ * A asserção que importa de verdade aqui é a NEGATIVA: `user_has_feature` e
+ * `user_has_feature_for_ies` compartilham prefixo (`user_has_feature`), então
+ * um regex de DROP descuidado — por exemplo `/DROP FUNCTION[^;]*user_has_feature/`
+ * sem `\(` ancorando o nome completo — casaria com as duas. `user_has_feature`
+ * NUNCA pode ser dropada nem recriada: 19 RPCs institucionais legadas
+ * dependem dela para chaves `aluno.%`.
+ */
+describe('migration de limpeza: apaga as 3 chaves de gestao e a helper orfa (20260807031000)', () => {
+  const MIGRATION_LIMPEZA = '20260807031000_gestor_apaga_chaves_de_feature.sql';
+  const sqlLimpeza = readMigration(MIGRATION_LIMPEZA);
+
+  it('a migration de limpeza nao dropa (nem recria) user_has_feature', () => {
+    expect(sqlLimpeza).not.toMatch(/DROP FUNCTION[^;]*\buser_has_feature\s*\(/);
+    expect(sqlLimpeza).not.toMatch(/CREATE (OR REPLACE )?FUNCTION public\.user_has_feature\(/);
+  });
+
+  it('dropa a helper orfa user_has_feature_for_ies', () => {
+    expect(sqlLimpeza).toMatch(
+      /DROP FUNCTION IF EXISTS public\.user_has_feature_for_ies\(text, uuid\)/,
+    );
+  });
+
+  it('apaga as 3 chaves de ies_features (coluna feature_key) e feature_catalog (coluna key)', () => {
+    expect(sqlLimpeza).toMatch(/DELETE FROM public\.ies_features/);
+    expect(sqlLimpeza).toMatch(/feature_key IN \('gestao\.enabled', 'gestao\.exportar', 'gestao\.ia'\)/);
+    expect(sqlLimpeza).toMatch(/DELETE FROM public\.feature_catalog/);
+    expect(sqlLimpeza).toMatch(/\bkey IN \('gestao\.enabled', 'gestao\.exportar', 'gestao\.ia'\)/);
+  });
+
+  it('nao toca nenhuma outra tabela ou funcao (migration aditiva/de limpeza, sem ALTER TABLE)', () => {
+    expect(sqlLimpeza).not.toMatch(/ALTER TABLE/i);
+    // só as duas DELETE + o DROP FUNCTION da helper orfa.
+    expect(sqlLimpeza.match(/^DELETE FROM/gm)?.length).toBe(2);
+    expect(sqlLimpeza.match(/^DROP FUNCTION/gm)?.length).toBe(1);
+  });
+});
