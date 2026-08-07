@@ -34,8 +34,11 @@
  * `gestao.enabled` é o interruptor MESTRE do módulo de gestão: desligá-lo
  * numa IES deixava de fechar qualquer uma das onze, e isso não fazia parte
  * do escopo declarado da 144647 (que era só remover `gestao.portal_v2`).
- * `20260806180000_gestor_restaura_guard_gestao_enabled.sql` (Lote D) restaura
- * SOMENTE esse guard master — `gestao.portal_v2` e as 5 chaves por módulo
+ * O guard restaurado (Lote D, 06/08 — depois substituído em produção pelas
+ * migrations do Lovable, ver `20260807021546_a19e4160-6f1c-4f0d-9cc8-f9743ff340dc.sql`
+ * e `20260807022207_de63e0ae-b9a7-4108-9c1f-81734944dace.sql`, testadas em
+ * `gestorMigrationsRestauraGuardGestaoEnabled.test.ts`) cobre SOMENTE esse
+ * guard master — `gestao.portal_v2` e as 5 chaves por módulo
  * continuam mortas de propósito, não voltam. As dez RPCs que recebem (ou, no
  * caso de `get_gestor_aluno_contato`, resolvem a partir do aluno) `v_ies`
  * passam a chamar `user_has_feature_for_ies('gestao.enabled', v_ies)`, DEPOIS
@@ -294,10 +297,12 @@ describe('get_gestor_aluno_contato vigente (achados 12 e 16)', () => {
   const corpo = corpoVigente('get_gestor_aluno_contato');
 
   it('Lote D (06/08) restaura o guard de gestao.enabled; gestao.portal_v2 continua ausente', () => {
-    // Entre o GA total (144647) e o Lote D (20260806180000), esta RPC ficou
-    // sem NENHUM guard de feature — um gestor de IES com o módulo de gestão
-    // DESLIGADO recebia o telefone do aluno mesmo assim. Ver o cabeçalho da
-    // migration 20260806180000_gestor_restaura_guard_gestao_enabled.sql.
+    // Entre o GA total (144647) e a restauração do guard, esta RPC ficou sem
+    // NENHUM guard de feature — um gestor de IES com o módulo de gestão
+    // DESLIGADO recebia o telefone do aluno mesmo assim. Em produção, quem
+    // restaura o guard é a migration do Lovable
+    // `20260807021546_a19e4160-6f1c-4f0d-9cc8-f9743ff340dc.sql` — ver
+    // `gestorMigrationsRestauraGuardGestaoEnabled.test.ts`.
     expect(corpo).toMatch(/IF NOT public\.user_has_feature_for_ies\('gestao\.enabled', v_ies\) THEN/);
     expect(corpo).not.toMatch(/gestao\.portal_v2/);
   });
