@@ -2325,6 +2325,7 @@ export type Database = {
       get_gestor_aluno_contato: { Args: { p_aluno_id: string }; Returns: Json }
       get_gestor_alunos: {
         Args: {
+          p_grupo?: string
           p_ies_id: string
           p_order: string
           p_page: number
