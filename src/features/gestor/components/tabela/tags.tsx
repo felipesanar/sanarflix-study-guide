@@ -45,7 +45,12 @@ export function TagSituacao({ situacao }: { situacao: AlunoNoSimulado['situacao'
   return <Tag variant={variante}>{rotuloSituacao(situacao)}</Tag>;
 }
 
-const PAR_GRUPO: Record<GrupoEvolucao, React.CSSProperties> = {
+/**
+ * Exportado: `FiltroGrupoAlunos` (`TabelaAlunos.tsx`) usa o MESMO par por
+ * grupo na bolinha do chip de filtro — um chip verde para o mesmo grupo que
+ * a tag da linha pinta verde, nunca uma segunda paleta inventada ao lado.
+ */
+export const PAR_GRUPO: Record<GrupoEvolucao, React.CSSProperties> = {
   consistentemente_proficiente: PAR_SUCESSO,
   em_variacao: PAR_ALERTA,
   consistentemente_nao_proficiente: PAR_PERIGO,

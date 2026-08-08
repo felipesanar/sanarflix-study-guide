@@ -118,9 +118,9 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
         'get_gestor_alunos',
         {
           p_ies_id: 'ies-1', p_semestre: '6ano', p_page: 1, p_page_size: 25,
-          p_sort: 'nome', p_order: 'asc', p_q: 'ana',
+          p_sort: 'nome', p_order: 'asc', p_q: 'ana', p_grupo: null,
         },
-        ['gestor', 'u1', 'alunos', 'ies-1', '6ano', 1, 25, 'nome', 'asc', 'ana'],
+        ['gestor', 'u1', 'alunos', 'ies-1', '6ano', 1, 25, 'nome', 'asc', 'ana', null],
       ],
       [
         () => useDetalhamento({ ...FILTROS, simulados: ['s2', 's1'] }),

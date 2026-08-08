@@ -419,7 +419,11 @@ export default function VisaoGeral() {
           data-testid="detalhe-micro"
           className="animate-in [animation-duration:320ms] fade-in-0 slide-in-from-top-2"
         >
-          <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
+          <TabelaAlunos
+            recorte={filtrosGestor}
+            colunasSimulados={colunasSimulados}
+            distribuicaoGrupos={visao?.distribuicaoAlunos}
+          />
         </div>
       ) : null}
 

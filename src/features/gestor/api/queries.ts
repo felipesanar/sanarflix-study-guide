@@ -343,6 +343,7 @@ export function useAlunos(
     [
       'gestor', 'alunos', filtros.iesId, filtros.semestre,
       paginacao.page, paginacao.pageSize, paginacao.sort, paginacao.order, paginacao.q,
+      paginacao.grupo ?? null,
     ],
     'get_gestor_alunos',
     {
@@ -353,6 +354,14 @@ export function useAlunos(
       p_sort: paginacao.sort,
       p_order: paginacao.order,
       p_q: paginacao.q,
+      /**
+       * `p_grupo` — filtro pelo grupo de evolução (§ chips da Visão de
+       * Alunos, 07/08). Parâmetro ADITIVO em `get_gestor_alunos`: quando
+       * `null` (o caso de todo chamador anterior a esta mudança), a RPC
+       * devolve exatamente o mesmo recorte de sempre — nenhuma migração de
+       * comportamento para quem não passa este campo.
+       */
+      p_grupo: paginacao.grupo ?? null,
     },
     filtros.iesId !== null,
   );

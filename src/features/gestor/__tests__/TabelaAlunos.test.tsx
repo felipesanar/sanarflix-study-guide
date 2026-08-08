@@ -539,6 +539,135 @@ describe('TabelaAlunos', () => {
       expect(screen.queryByTestId('faixa-transicao-alunos')).not.toBeInTheDocument();
     });
   });
+
+  /**
+   * Chips "Todos / [3 grupos]" (retomada da versão anterior, pedido de
+   * 07/08). Contagem vem de `get_gestor_visao_geral` (a mesma que a Visão de
+   * Alunos já resume acima) — sem consulta própria; o CLIQUE é que troca o
+   * RECORTE de `get_gestor_alunos` via `p_grupo`, nunca um filtro de cliente
+   * sobre a página de 25 já carregada.
+   */
+  describe('filtro por grupo de evolução', () => {
+    const DISTRIBUICAO = [
+      { grupo: 'consistentemente_proficiente' as const, quantidade: 43, percentual: 43 },
+      { grupo: 'em_variacao' as const, quantidade: 21, percentual: 21 },
+      { grupo: 'consistentemente_nao_proficiente' as const, quantidade: 32, percentual: 32 },
+    ];
+
+    it('sem distribuicaoGrupos, os chips não aparecem — uso isolado continua sem filtro', () => {
+      render(<TabelaAlunos recorte={recorte} colunasSimulados={colunasSimulados} />);
+      expect(screen.queryByTestId('filtro-grupo-alunos')).not.toBeInTheDocument();
+    });
+
+    it('mostra um chip por grupo mais "Todos", com a MESMA contagem da Visão de Alunos', () => {
+      render(
+        <TabelaAlunos
+          recorte={recorte}
+          colunasSimulados={colunasSimulados}
+          distribuicaoGrupos={DISTRIBUICAO}
+        />,
+      );
+
+      const painel = screen.getByTestId('filtro-grupo-alunos');
+      expect(within(painel).getByRole('button', { name: /Todos.*96/ })).toBeInTheDocument();
+      expect(within(painel).getByRole('button', { name: /Consistentemente proficiente.*43/ })).toBeInTheDocument();
+      expect(within(painel).getByRole('button', { name: /Em variação.*21/ })).toBeInTheDocument();
+      expect(
+        within(painel).getByRole('button', { name: /Consistentemente não proficiente.*32/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('"Todos" começa marcado, e nenhum p_grupo é enviado à RPC', () => {
+      render(
+        <TabelaAlunos
+          recorte={recorte}
+          colunasSimulados={colunasSimulados}
+          distribuicaoGrupos={DISTRIBUICAO}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /Todos/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(mockUseAlunos).toHaveBeenLastCalledWith(recorte, expect.objectContaining({ grupo: null }));
+    });
+
+    it('clicar num grupo troca o RECORTE da RPC — não filtra a página já carregada', async () => {
+      const user = userEvent.setup();
+      render(
+        <TabelaAlunos
+          recorte={recorte}
+          colunasSimulados={colunasSimulados}
+          distribuicaoGrupos={DISTRIBUICAO}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: /Em variação/ }));
+
+      expect(mockUseAlunos).toHaveBeenLastCalledWith(
+        recorte,
+        expect.objectContaining({ grupo: 'em_variacao', page: 1 }),
+      );
+      expect(screen.getByRole('button', { name: /Em variação/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: /^Todos/ })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('clicar de novo no grupo ativo limpa o filtro (mesmo gesto de ligar/desligar)', async () => {
+      const user = userEvent.setup();
+      render(
+        <TabelaAlunos
+          recorte={recorte}
+          colunasSimulados={colunasSimulados}
+          distribuicaoGrupos={DISTRIBUICAO}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: /Em variação/ }));
+      await user.click(screen.getByRole('button', { name: /Em variação/ }));
+
+      expect(mockUseAlunos).toHaveBeenLastCalledWith(recorte, expect.objectContaining({ grupo: null }));
+      expect(screen.getByRole('button', { name: /^Todos/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    /** Trocar de página 3 para um grupo com menos gente não pode pedir a página 3 dele. */
+    it('trocar de grupo volta para a página 1', async () => {
+      const user = userEvent.setup();
+      render(
+        <TabelaAlunos
+          recorte={recorte}
+          colunasSimulados={colunasSimulados}
+          distribuicaoGrupos={DISTRIBUICAO}
+        />,
+      );
+
+      await act(async () => {
+        await user.click(screen.getByRole('button', { name: 'Próxima página' }));
+      });
+      await user.click(screen.getByRole('button', { name: /Consistentemente proficiente/ }));
+
+      expect(mockUseAlunos).toHaveBeenLastCalledWith(
+        recorte,
+        expect.objectContaining({ grupo: 'consistentemente_proficiente', page: 1 }),
+      );
+    });
+
+    it('vazio com filtro ativo sugere ajustar o grupo, não só a busca/recorte', async () => {
+      const user = userEvent.setup();
+      render(
+        <TabelaAlunos
+          recorte={recorte}
+          colunasSimulados={colunasSimulados}
+          distribuicaoGrupos={DISTRIBUICAO}
+        />,
+      );
+
+      // Só depois do clique o componente sabe que há um filtro ativo — a
+      // mensagem de vazio depende do ESTADO local, não só do resultado vazio.
+      mockUseAlunos.mockReturnValue(
+        paginaResultado({ data: { data: [], page: 1, pageSize: 25, total: 0, totalPages: 0 } }),
+      );
+      await user.click(screen.getByRole('button', { name: /Em variação/ }));
+
+      expect(screen.getByText(/Ajuste a busca, o grupo ou o recorte/i)).toBeInTheDocument();
+    });
+  });
 });
 
 /**

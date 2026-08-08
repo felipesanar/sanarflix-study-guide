@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 import { Icon } from '@/features/gestor/components/Icon';
 import { DrawerAluno } from '@/features/gestor/components/DrawerAluno';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
@@ -11,6 +12,7 @@ import {
   FONTE_MONO,
   LinhaTabela,
   LinhasSkeleton,
+  PAR_GRUPO,
   Paginacao,
   RodapeTabela,
   TabelaGestor,
@@ -19,12 +21,119 @@ import {
   type OrdemTabela,
 } from '@/features/gestor/components/tabela';
 import { useAlunos } from '@/features/gestor/api/queries';
+import { rotuloGrupo } from '@/features/gestor/lib/rotulos';
 import { TRACO, formatNumero } from '@/features/gestor/lib/formatters';
-import type { FiltrosGestor } from '@/features/gestor/api/types';
+import type { FiltrosGestor, GrupoEvolucao, VisaoGeral } from '@/features/gestor/api/types';
 
 export interface TabelaAlunosProps {
   recorte: FiltrosGestor;
   colunasSimulados: { id: string; nome: string }[];
+  /**
+   * Contagem por grupo de evolução, para os chips de filtro — o MESMO dado
+   * que a Visão de Alunos já mostra em cima (`get_gestor_visao_geral`, sem
+   * consulta própria). Ausente = os chips não aparecem: uso isolado deste
+   * componente (ex.: teste) continua funcionando como uma tabela sem filtro.
+   */
+  distribuicaoGrupos?: VisaoGeral['distribuicaoAlunos'];
+}
+
+/** Mesma ordem de exibição de `VisaoDeAlunos` — não é ordem alfabética nem a do banco. */
+const ORDEM_GRUPO: GrupoEvolucao[] = [
+  'consistentemente_proficiente',
+  'em_variacao',
+  'consistentemente_nao_proficiente',
+];
+
+/**
+ * Chips "Todos / [3 grupos]" com contagem (retomada da versão anterior do
+ * portal, pedido de 07/08). Filtra a tabela pelo MESMO grupo que a tag da
+ * linha já pinta — a bolinha do chip usa o par de cor de `TagGrupo`
+ * (`PAR_GRUPO`), então o chip verde é sempre o mesmo grupo que a tag verde.
+ *
+ * O clique muda o RECORTE (`p_grupo` em `get_gestor_alunos`), não um filtro
+ * de cliente sobre a página carregada — com 590 alunos numa IES e 25 por
+ * página, filtrar no cliente devolveria "0 resultados" sempre que o grupo
+ * escolhido não estivesse entre os 25 primeiros por nome.
+ */
+function FiltroGrupoAlunos({
+  distribuicao,
+  ativo,
+  onSelecionar,
+}: {
+  distribuicao: VisaoGeral['distribuicaoAlunos'];
+  ativo: GrupoEvolucao | null;
+  onSelecionar: (grupo: GrupoEvolucao | null) => void;
+}) {
+  const porGrupo = new Map(distribuicao.map((item) => [item.grupo, item.quantidade]));
+  const totalTodos = ORDEM_GRUPO.reduce((soma, grupo) => soma + (porGrupo.get(grupo) ?? 0), 0);
+
+  const Chip = ({
+    selecionado,
+    rotulo,
+    contagem,
+    corBolinha,
+    onClick,
+  }: {
+    selecionado: boolean;
+    rotulo: string;
+    contagem: number;
+    corBolinha?: string;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      aria-pressed={selecionado}
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full transition-colors duration-200',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      )}
+      style={{
+        padding: '5px 12px 5px 10px',
+        fontSize: 12,
+        fontWeight: selecionado ? 600 : 500,
+        border: `1.5px solid ${selecionado ? 'var(--gp-text-1)' : 'var(--gp-border-strong)'}`,
+        color: selecionado ? 'var(--gp-text-1)' : 'var(--gp-text-2)',
+        background: selecionado ? 'var(--gp-surface-2)' : 'var(--gp-surface-1)',
+      }}
+    >
+      {corBolinha ? (
+        <span aria-hidden="true" className="h-2 w-2 flex-none rounded-full" style={{ background: corBolinha }} />
+      ) : null}
+      {rotulo}
+      <span
+        style={{
+          fontFamily: FONTE_MONO,
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: 11,
+          color: 'var(--gp-text-3)',
+        }}
+      >
+        {contagem}
+      </span>
+    </button>
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label="Filtrar alunos por grupo de evolução"
+      className="flex flex-wrap items-center gap-2"
+      data-testid="filtro-grupo-alunos"
+    >
+      <Chip selecionado={ativo === null} rotulo="Todos" contagem={totalTodos} onClick={() => onSelecionar(null)} />
+      {ORDEM_GRUPO.map((grupo) => (
+        <Chip
+          key={grupo}
+          selecionado={ativo === grupo}
+          rotulo={rotuloGrupo(grupo)}
+          contagem={porGrupo.get(grupo) ?? 0}
+          corBolinha={String(PAR_GRUPO[grupo].color)}
+          onClick={() => onSelecionar(ativo === grupo ? null : grupo)}
+        />
+      ))}
+    </div>
+  );
 }
 
 const TAMANHO_PAGINA = 25;
@@ -62,10 +171,11 @@ interface Ordenacao {
  * não aparece aqui: quem decide é `lib/regras.ts`, via o `grupo` e a
  * `tendencia` que o servidor já manda calculados.
  */
-export function TabelaAlunos({ recorte, colunasSimulados }: TabelaAlunosProps) {
+export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: TabelaAlunosProps) {
   const [busca, setBusca] = React.useState('');
   const [q, setQ] = React.useState('');
   const [page, setPage] = React.useState(1);
+  const [grupoAtivo, setGrupoAtivo] = React.useState<GrupoEvolucao | null>(null);
   const [ordenacao, setOrdenacao] = React.useState<Ordenacao>({ coluna: 'nome', ordem: 'asc' });
   const [alunoAberto, setAlunoAberto] = React.useState<{ id: string; nome: string } | null>(null);
 
@@ -95,12 +205,19 @@ export function TabelaAlunos({ recorte, colunasSimulados }: TabelaAlunosProps) {
     setPage(1);
   }, [recorte.iesId, recorte.semestre]);
 
+  /** Trocar de chip de grupo também volta para a página 1, pelo mesmo motivo. */
+  const selecionarGrupo = (grupo: GrupoEvolucao | null) => {
+    setGrupoAtivo(grupo);
+    setPage(1);
+  };
+
   const consulta = useAlunos(recorte, {
     page,
     pageSize: TAMANHO_PAGINA,
     sort: ordenacao.coluna,
     order: ordenacao.ordem,
     q,
+    grupo: grupoAtivo,
   });
 
   const pagina = consulta.data;
@@ -200,6 +317,14 @@ export function TabelaAlunos({ recorte, colunasSimulados }: TabelaAlunosProps) {
         </div>
       </div>
 
+      {/* Retomada da versão anterior (pedido de 07/08): filtrar pelos grupos
+          de evolução que a Visão de Alunos já resume acima. Sem
+          `distribuicaoGrupos`, os chips simplesmente não aparecem — uso
+          isolado deste componente continua sendo uma tabela sem filtro. */}
+      {distribuicaoGrupos ? (
+        <FiltroGrupoAlunos distribuicao={distribuicaoGrupos} ativo={grupoAtivo} onSelecionar={selecionarGrupo} />
+      ) : null}
+
       {emTransicao ? (
         <p
           data-testid="faixa-transicao-alunos"
@@ -226,7 +351,11 @@ export function TabelaAlunos({ recorte, colunasSimulados }: TabelaAlunosProps) {
         <>
           <EstadoVazio
             titulo="Nenhum aluno encontrado neste recorte."
-            descricao="Ajuste a busca ou o recorte de semestre/IES."
+            descricao={
+              grupoAtivo
+                ? 'Ninguém neste grupo com a busca e o recorte atuais. Ajuste a busca, o grupo ou o recorte de semestre/IES.'
+                : 'Ajuste a busca ou o recorte de semestre/IES.'
+            }
           />
           {/*
             Lista vazia com `total > 0` significa que a PÁGINA saiu do

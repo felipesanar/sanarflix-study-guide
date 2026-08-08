@@ -421,4 +421,11 @@ export interface PaginacaoGestor {
   order?: 'asc' | 'desc';
   q?: string;
   area?: string;
+  /**
+   * Filtro por grupo de evolução — só `useAlunos`/`get_gestor_alunos`
+   * consome (mesmo padrão de `area`, que só `useQuestoes` usa: a interface é
+   * o formato genérico de paginação, cada RPC lê os campos que lhe cabem).
+   * `null`/ausente = sem filtro, todos os grupos.
+   */
+  grupo?: GrupoEvolucao | null;
 }
