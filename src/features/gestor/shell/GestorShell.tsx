@@ -165,136 +165,25 @@ export const GestorShell: React.FC = () => {
         }}
 
       >
+        {/* Sidebar fixa — só de `lg` para cima. `hidden lg:flex`, não uma
+            largura que encolhe: a coluna tem anatomia própria (lockup de 48px,
+            cartão de IES, rótulos inteiros) e não sobrevive a 180px. */}
         <aside
           /* `overflow-y-auto`: o conteúdo da sidebar (lockup + IES + nav +
              perfil + ações + tema) passa de 650px, e sem scroll próprio ele
              era cortado em janela baixa — o rodapé com "Sair" ficava
              inalcançável. `min-h-0` porque um filho de flex não encolhe abaixo
              do conteúdo sem isso, e o `overflow` nunca chegaria a valer. */
-          className="relative flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r"
+          className="relative hidden h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r lg:flex"
           style={{
             background: 'var(--gp-surface-1)',
             borderColor: 'var(--gp-border-subtle)',
             color: 'var(--gp-text-2)',
           }}
         >
-          <div
-            className="flex flex-col"
-            style={{ padding: '22px 20px 18px', gap: 14, borderBottom: DIVISOR }}
-          >
-            <div className="flex items-center">
-              <img
-                src="/sanarflix-academy-lockup.svg"
-                alt="SanarFlix Academy"
-                width={533}
-                height={138}
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-                className="h-12 w-auto dark:hidden"
-              />
-              <img
-                src="/sanarflix-academy-lockup-white.svg"
-                alt=""
-                aria-hidden="true"
-                width={533}
-                height={138}
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-                className="hidden h-12 w-auto dark:block"
-              />
-
-            </div>
-            <span style={OVERLINE_SIDEBAR}>Portal do Gestor</span>
-          </div>
-
-          <div style={{ padding: '14px 16px', borderBottom: DIVISOR }}>
-            <SidebarIes />
-          </div>
-
-          <SidebarNav />
-
-          <div className="mt-auto" style={{ borderTop: DIVISOR }}>
-            <div className="flex items-center" style={{ padding: '14px 16px', gap: 10 }}>
-              <span
-                aria-hidden="true"
-                className="flex shrink-0 items-center justify-center rounded-full"
-                style={{
-                  width: 34,
-                  height: 34,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  // `lineHeight: 1` — ver TileIes em SidebarIes.tsx: com o
-                  // `normal` (≈1.21em na Inter) a caixa de linha não é
-                  // simétrica em torno das maiúsculas e a sigla assenta fora
-                  // do centro vertical do tile.
-                  lineHeight: 1,
-                  background: 'var(--gp-brand-surface)',
-                  // No claro este token É a marca; no escuro ele vira o tom
-                  // clareado que passa AA sobre superfície escura — nunca a
-                  // marca crua como cor de texto ali.
-                  color: 'var(--gp-brand-on-dark)',
-                }}
-              >
-                {iniciaisDe(user?.nome)}
-              </span>
-              <div className="min-w-0 flex-1" title={user?.email ?? undefined}>
-                <p
-                  className="truncate"
-                  style={{ fontSize: 13, fontWeight: 600, lineHeight: '16px', color: 'var(--gp-text-1)' }}
-                >
-                  {user?.nome ?? '—'}
-                </p>
-                {/* `minHeight` reserva a linha antes de o papel chegar do
-                    servidor — senão o rodapé cresce 14px no meio do carregamento. */}
-                <p
-                  className="truncate"
-                  style={{ fontSize: 11, lineHeight: '14px', minHeight: 14, color: 'var(--gp-text-3)' }}
-                >
-                  {papel ? ROTULO_PAPEL[papel] : ''}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Avisos da Sanar"
-                onClick={() => navigate('/gestor')}
-                className="gp-hover-surface flex shrink-0 items-center justify-center"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 'var(--gp-radius-sm)',
-                  color: 'var(--gp-text-2)',
-                }}
-              >
-                <Icon name="notifications" size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-1" style={{ padding: '10px 12px 12px', borderTop: DIVISOR }}>
-              {/* Troca de experiência: substitui os antigos botões avulsos
-                  ("Portal do Admin", "Ir para versão aluno"). Aluno/Admin/CX
-                  são experiências, não itens de navegação. */}
-              <div className="pb-1">
-                <ExperienceSwitcher variant="compact" />
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
-                onClick={() => logout()}
-              >
-                <Icon name="logout" size={16} />
-                Sair
-              </Button>
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>Tema</span>
-                <ThemeToggle />
-              </div>
-            </div>
-          </div>
+          <ConteudoSidebar />
         </aside>
+
 
         {/* `relative` não é decoração: é o que impede o conteúdo rolável de
             esticar o DOCUMENTO.
