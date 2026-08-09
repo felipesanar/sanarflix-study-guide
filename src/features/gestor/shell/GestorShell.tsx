@@ -162,7 +162,13 @@ export const GestorShell: React.FC = () => {
            pela borda de 1px). O token é declarado na própria classe
            `.gestor-portal` deste nó — CSS resolve `var()` no elemento que
            declara sem problema. */
-        style={{ background: 'var(--gp-bg-app)' }}
+        /* Cor base sólida + gradiente por cima: se `background-image` não
+           resolver (fallback), o fundo continua sendo o cinza chapado do token. */
+        style={{
+          backgroundColor: 'var(--gp-bg-app)',
+          backgroundImage: 'var(--gp-bg-app-gradient)',
+        }}
+
       >
         <aside
           /* `overflow-y-auto`: o conteúdo da sidebar (lockup + IES + nav +
