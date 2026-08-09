@@ -1008,6 +1008,20 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
       .find((d): d is DesempenhoPorAreaSimulado => d !== undefined && d.areas.length > 0) ?? null;
 
   /**
+   * % de acerto por grande área que a RPC do simulado JÁ devolve
+   * (`acertoPorArea`). Quando existe, prevalece sobre o valor recalculado a
+   * partir dos temas no nível 1 da cascata — número da RPC ganha de número
+   * derivado, mesmo que a diferença seja de arredondamento.
+   * Só faz sentido casar quando as duas seções falam do MESMO simulado.
+   */
+  const acertoOficialPorArea =
+    entradaDasAreas && entradaAreaDetalhada && entradaDasAreas.simuladoId === entradaAreaDetalhada.simuladoId
+      ? new Map(areasDoAluno.map((a) => [a.area, a.acertoPct]))
+      : undefined;
+
+
+
+  /**
    * §7.7: o texto do "Copiar resumo" é o recorte DESTE aluno, agregado por
    * simulado — nunca uma lista nominal de terceiros. A assinatura de
    * `AcoesRecorte` (`resumoTexto: string`) é a barreira: ele não recebe lista
