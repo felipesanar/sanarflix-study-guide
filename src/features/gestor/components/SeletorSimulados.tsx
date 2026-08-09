@@ -121,16 +121,24 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
     };
   }, [aberto]);
 
-  // Abriu = já pode digitar. Economiza um clique em cronogramas longos.
+  // Abriu = o teclado precisa de um ponto de entrada dentro do painel. Sem a
+  // busca, esse ponto é o primeiro controle focável (atalho ou 1ª linha).
   React.useEffect(() => {
-    if (aberto) campoBusca.current?.focus();
-    else setBusca('');
+    if (!aberto) return;
+    painel.current
+      ?.querySelector<HTMLElement>('button, input[type="checkbox"]:not([disabled])')
+      ?.focus();
   }, [aberto]);
 
-  const doisMaisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2).map((item) => item.id);
+  const maisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2);
+  const doisMaisRecentes = maisRecentes.map((item) => item.id);
+  const rotulosMaisRecentes = maisRecentes.map((item) =>
+    [item.nome, dataCurta(item.data)].filter(Boolean).join(' · '),
+  );
   const podeCompararRecentes =
     doisMaisRecentes.length === 2 &&
-    doisMaisRecentes.join(',') !== [...selecionados].sort().join(',');
+    [...doisMaisRecentes].sort().join(',') !== [...selecionados].sort().join(',');
+
 
   const linhaItem = (item: ItemCronograma, indice: number) => {
     const motivo = motivoIndisponivel(item);
