@@ -238,11 +238,12 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
             */}
             <CollapsibleTrigger
               data-testid="comparativo-abrir"
-              className="flex w-full items-center justify-center gap-2 rounded-sm transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-full items-center justify-center gap-2 transition-all duration-200 hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{
-                padding: '11px 16px',
+                padding: '12px 16px',
                 fontSize: 13,
                 fontWeight: 600,
+                borderRadius: 'var(--gp-radius-md)',
                 color: 'var(--gp-brand-on-dark)',
                 background: 'var(--gp-brand-surface)',
                 border: '1px solid var(--gp-brand-border)',
@@ -409,8 +410,8 @@ function LinhaIndicador({
         )}
         <span
           data-testid={valorTestId}
-          className="text-xl font-extrabold tabular-nums text-foreground"
-          style={{ fontFamily: FONTE_MONO }}
+          className="text-[22px] font-extrabold leading-none tabular-nums text-foreground"
+          style={{ fontFamily: FONTE_MONO, letterSpacing: '-0.02em' }}
         >
           {valor}
         </span>
