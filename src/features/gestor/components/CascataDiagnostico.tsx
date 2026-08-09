@@ -863,8 +863,8 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   com um ramo aberto e a lista rolada, é a trilha que diz onde
                   a gestora está. */}
               <CardHeader className="sticky top-0 z-10 gap-1 bg-card pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">Diagnóstico</span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="shrink-0 text-sm font-semibold">Diagnóstico</span>
                   <span data-testid="cascata-trilha" className="min-w-0 break-words text-xs text-muted-foreground">
                     {nodeAberto === null ? '/ grande área' : `/ ${nodeAberto} / especialidade`}
                   </span>
