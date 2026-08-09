@@ -1,151 +1,116 @@
 import * as React from 'react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Command as CommandPrimitive } from 'cmdk';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Icon } from '@/features/gestor/components/Icon';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
-
-/**
- * Altura do cartão de IES: 9px de padding + o tile de 30px + 9px. É a MESMA
- * nos dois desfechos (dropdown e rótulo estático) e no skeleton — sem isso a
- * sidebar encolhia quando `get_gestor_contexto` respondia, justamente no papel
- * majoritário (`gestor`), que é o do rótulo estático.
- */
-const ALTURA_CARTAO = 48;
-
-/** Caixa do cartão, partilhada pelas três ramificações. */
-const CARTAO: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  padding: '9px 11px',
-  minHeight: ALTURA_CARTAO,
-  borderRadius: 'var(--gp-radius-sm)',
-};
-
-/**
- * Shimmer do skeleton do cartão — os MESMOS tokens `--gp-skeleton`/
- * `--gp-skeleton-brilho` (calibrados nos dois temas em `gestor-theme.css`) e o
- * MESMO gradiente que `GestorSkeleton.tsx` usa. Duplicado em vez de
- * reaproveitado: `GestorSkeleton` sempre embrulha o resultado num `role`
- * `status` próprio (`forma="bloco"` × 2 renderizaria DOIS `role="status"`
- * dentro do cartão, e o teste/leitor de tela só quer UM "Carregando
- * instituição" por cartão) — replicar o gradiente aqui é o caminho mais
- * simples que a Onda 2/B1 deixou em aberto para este caso.
- */
-const SHIMMER: React.CSSProperties = {
-  background:
-    'linear-gradient(90deg, var(--gp-skeleton) 25%, var(--gp-skeleton-brilho) 50%, var(--gp-skeleton) 75%)',
-  backgroundSize: '200% 100%',
-};
-
-/** Partículas que não entram na sigla — "Fac. de Medicina" vira "FM", não "FD". */
-const PARTICULAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'para']);
-
-/** Sigla de até 2 letras da IES, para o tile do cartão. */
-const iniciaisDaIes = (nome: string): string =>
-  nome
-    .split(/\s+/)
-    .filter((parte) => parte && !PARTICULAS.has(parte.toLowerCase()))
-    .slice(0, 2)
-    .map((parte) => (parte.match(/\p{L}/u)?.[0] ?? '').toUpperCase())
-    .join('');
-
-/**
- * Tile de 30px com a sigla da IES. No claro é a tinta neutra mais escura; no
- * escuro é a marca — é o que a referência faz nos dois temas, e é também o que
- * mantém a sigla legível quando a superfície inverte.
- */
-const TileIes: React.FC<{ nome: string }> = ({ nome }) => (
-  <span
-    aria-hidden="true"
-    className="flex shrink-0 items-center justify-center bg-[color:var(--gp-text-1)] dark:bg-[color:var(--gp-brand)]"
-    style={{
-      width: 30,
-      height: 30,
-      borderRadius: 'var(--gp-radius-sm)',
-      fontSize: 11,
-      fontWeight: 700,
-      /**
-       * `lineHeight: 1` é o que centra a sigla de verdade.
-       *
-       * `align-items: center` centra a CAIXA DE LINHA, não o desenho da letra.
-       * Com o `line-height: normal` da Inter (≈1.21em: 0.969 de ascendente +
-       * 0.241 de descendente), a caixa tem folga assimétrica em torno de uma
-       * palavra só de maiúsculas — sobra o vão do descendente embaixo e a
-       * sigla sobe. Em 1em a meia-entrelinha fica negativa e simétrica: o topo
-       * da maiúscula cai a 0.137em do topo da caixa e a base a 0.136em do
-       * fundo — centrada por construção, sem nudge mágico.
-       */
-      lineHeight: 1,
-      color: 'var(--gp-text-inverse)',
-    }}
-  >
-    {iniciaisDaIes(nome)}
-  </span>
-);
-
-/** Tipografia do nome da IES dentro do cartão. */
-const NOME_IES: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  lineHeight: '15px',
-  color: 'var(--gp-text-1)',
-};
+import {
+  ALTURA_CARTAO,
+  CARTAO,
+  CONTEXTO_IES,
+  NOME_IES,
+  SHIMMER,
+  TileIes,
+  iniciaisDaIes,
+  normalizar,
+} from '@/features/gestor/shell/ies/cartao';
+import { lerRecentes, registrarRecente } from '@/features/gestor/shell/ies/recentes';
 
 /**
  * Instituição em foco na sidebar (spec §3).
  *
- * `admin` e `gestor_grupo` trocam de IES por dropdown; `gestor` vê o mesmo
- * cartão como rótulo estático — sem borda, sem chevron, sem afordância de
- * clique e sem controle desabilitado.
+ * Quem pode trocar de IES (`podeTrocarIes`, decidido no servidor) abre um
+ * painel de busca; quem tem uma só vê o mesmo cartão como rótulo — sem borda de
+ * campo, sem chevron, sem afordância de clique e sem controle desabilitado.
  *
- * O switch é `podeTrocarIes`, decidido no servidor: nenhum componente checa
- * role literal. E o `iesId` na URL é hint de UI — a autorização é da RPC.
- *
- * Não há rótulo "Instituição" acima do cartão: a referência não o tem na
- * sidebar (a palavra só aparece no hero da folha de handoff). O nome acessível
- * do controle vem do `aria-label` do gatilho.
+ * O switch é sempre `podeTrocarIes`: nenhum comportamento aqui olha papel
+ * literal (o papel só escolhe a FRASE da linha de contexto). E o `iesId` na URL
+ * é hint de UI — a autorização é da RPC.
  */
+
+/** Acima disto a lista não cabe na tela sem busca — e sem busca é inutilizável. */
+const LIMIAR_BUSCA = 8;
+
+/** Superfície de um item do painel, por estado. */
+const itemStyle = (ativo: boolean): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '7px 9px',
+  borderRadius: 'var(--gp-radius-sm)',
+  cursor: 'pointer',
+  background: ativo ? 'var(--gp-brand-surface-subtle)' : 'transparent',
+});
+
+const TITULO_GRUPO: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--gp-text-3)',
+  padding: '8px 9px 4px',
+};
+
+/** Uma linha da lista: tile, nome e marca de selecionada. */
+const ItemIes: React.FC<{
+  ies: { id: string; nome: string };
+  selecionada: boolean;
+  onSelecionar: (id: string) => void;
+}> = ({ ies, selecionada, onSelecionar }) => (
+  <CommandPrimitive.Item
+    value={`${ies.nome} ${iniciaisDaIes(ies.nome)} ${ies.id}`}
+    onSelect={() => onSelecionar(ies.id)}
+    className="gp-ies-item"
+    style={itemStyle(selecionada)}
+  >
+    <TileIes nome={ies.nome} tamanho={26} />
+    <span
+      className="min-w-0 flex-1 truncate"
+      style={{ ...NOME_IES, fontWeight: selecionada ? 700 : 500 }}
+      title={ies.nome}
+    >
+      {ies.nome}
+    </span>
+    {selecionada ? (
+      <Icon name="check" size={16} className="shrink-0 text-[color:var(--gp-brand)]" />
+    ) : null}
+  </CommandPrimitive.Item>
+);
+
 export const SidebarIes: React.FC = () => {
-  const { data: contexto, isLoading } = useGestorContexto();
+  const { data: contexto, isLoading, isError, refetch } = useGestorContexto();
   const { iesId, setIesId, setSimulados } = useFiltrosGestor();
   const container = useGestorPortalContainer();
 
+  const [aberto, setAberto] = React.useState(false);
+  const [busca, setBusca] = React.useState('');
+  const [trocando, setTrocando] = React.useState(false);
+  const [anuncio, setAnuncio] = React.useState('');
+  const [recentes, setRecentes] = React.useState<string[]>([]);
+
   /**
-   * Regra dos 400ms (spec de motion §7, `useDelayedLoading.ts`): antes disto
-   * o skeleton do cartão aparecia no INSTANTE em que `isLoading` virava
-   * `true` — num acesso com rede boa, `get_gestor_contexto` costuma responder
-   * bem antes disso, e o flash de skeleton só fazia o cartão parecer
-   * instável. `mostrarSkeleton` só vira `true` se `isLoading` permanecer
-   * assim por mais de 400ms.
+   * Regra dos 400ms (spec de motion §7): antes disto o skeleton aparecia no
+   * instante em que `isLoading` virava `true` e, com rede boa, só fazia o
+   * cartão parecer instável.
    */
   const mostrarSkeleton = useDelayedLoading(isLoading);
 
+  const usuarioId = contexto?.usuario.id ?? null;
+  React.useEffect(() => {
+    if (usuarioId) setRecentes(lerRecentes(usuarioId));
+  }, [usuarioId]);
+
   // `?ies=` só é aceito se apontar para uma IES que a pessoa de fato acessa.
-  // Sem essa validação, um link colável para uma IES fora do escopo (ou um
-  // bookmark de um gestor_grupo cuja IES saiu do grupo) deixaria o `<Select>`
-  // com um `value` sem `SelectItem` correspondente — seletor em branco, sem
-  // caminho de saída (achado 17). A autorização de fato é da RPC; isto é só
-  // para a UI nunca ficar num estado sem saída.
+  // Sem isso, um link colável para uma IES fora do escopo deixaria o seletor
+  // com um valor sem item correspondente — sem caminho de saída (achado 17).
   const iesValida = contexto ? contexto.iesDisponiveis.some((ies) => ies.id === iesId) : false;
 
   // Semeia (ou corrige) o recorte global com a IES do contexto assim que ele
-  // chega, sempre que a URL não tiver uma seleção válida — seja porque `iesId`
-  // ainda é `null` no primeiro acesso (achado do Felipe, item 3a: sem isso
-  // nenhum hook de dado como useCronograma/useVisaoGeral dispara, porque todos
-  // são `enabled: iesId !== null`), seja porque aponta para uma IES fora do
-  // escopo (achado 17). Cai para `contexto.iesAtual.id`, que é sempre uma das
-  // opções do dropdown — nunca deixa a pessoa sem seletor utilizável. Termina
-  // em uma escrita: depois da correção `iesValida` passa a `true` e o efeito
-  // não corre de novo, sem risco de loop.
+  // chega, sempre que a URL não tiver seleção válida: sem isso nenhum hook de
+  // dado dispara (todos são `enabled: iesId !== null`). Termina em uma escrita:
+  // depois `iesValida` passa a `true` e o efeito não corre de novo.
   React.useEffect(() => {
     if (contexto && !iesValida) {
       setIesId(contexto.iesAtual.id);
@@ -153,24 +118,27 @@ export const SidebarIes: React.FC = () => {
   }, [contexto, iesValida, setIesId]);
 
   /**
-   * Troca deliberada de IES pelo dropdown — e SÓ ela. Os ids em `?simulados=`
-   * pertencem ao cronograma da IES anterior: preservá-los deixava a nova IES
-   * montando todos os blocos sobre uma seleção inexistente — nenhum chip
-   * marcado no `SeletorSimulados` e, pior, nenhum estado vazio, porque
-   * `selecionados.length === 0` continuava falso. Limpar aqui devolve a tela
-   * ao "Escolha ao menos um simulado" de docs/05 §Vazio.
-   *
-   * Duas escritas no mesmo tick são seguras: `useFiltrosGestor` encadeia pelo
-   * próprio `paramsRef` (ver o teste "duas escritas no mesmo tick não se
-   * perdem"). O efeito de semeadura acima NÃO passa por aqui de propósito —
-   * ele corrige a URL, não é uma troca de recorte pedida pela pessoa.
+   * Troca deliberada de IES — e SÓ ela. Os ids em `?simulados=` pertencem ao
+   * cronograma da IES anterior: preservá-los deixava a tela montando todos os
+   * blocos sobre uma seleção inexistente, sem chip marcado e sem estado vazio.
+   * O efeito de semeadura acima NÃO passa por aqui de propósito: ele corrige a
+   * URL, não é uma troca pedida pela pessoa.
    */
   const trocarIes = React.useCallback(
-    (id: string) => {
+    (id: string, nome: string) => {
       setIesId(id);
       setSimulados([]);
+      setAberto(false);
+      setBusca('');
+      setAnuncio(`Instituição alterada para ${nome}`);
+      if (usuarioId) setRecentes(registrarRecente(usuarioId, id));
+      // Estado ocupado curto: o painel fecha na hora e o cartão assume o nome
+      // novo com um spinner discreto, para a troca não parecer que "não fez
+      // nada" enquanto as rotas remontam.
+      setTrocando(true);
+      window.setTimeout(() => setTrocando(false), 600);
     },
-    [setIesId, setSimulados],
+    [setIesId, setSimulados, usuarioId],
   );
 
   if (mostrarSkeleton) {
@@ -179,73 +147,255 @@ export const SidebarIes: React.FC = () => {
         role="status"
         aria-busy="true"
         aria-label="Carregando instituição"
-        className="flex flex-col justify-center"
-        style={{ height: ALTURA_CARTAO, padding: '9px 11px', gap: 6, borderRadius: 'var(--gp-radius-sm)' }}
+        style={{ ...CARTAO }}
       >
-        {/* Nome da IES: 13px de altura, 70% de largura. */}
         <div
-          className="animate-shimmer"
-          style={{ height: 13, width: '70%', borderRadius: 'var(--gp-radius-pill)', ...SHIMMER }}
+          className="animate-shimmer shrink-0"
+          style={{ width: 32, height: 32, borderRadius: 'var(--gp-radius-sm)', ...SHIMMER }}
         />
-        {/* Linha de contexto (papel/afiliação) sob o nome: 10px/50%. */}
-        <div
-          className="animate-shimmer"
-          style={{ height: 10, width: '50%', borderRadius: 'var(--gp-radius-pill)', ...SHIMMER }}
-        />
+        <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 6 }}>
+          <div
+            className="animate-shimmer"
+            style={{ height: 12, width: '78%', borderRadius: 'var(--gp-radius-pill)', ...SHIMMER }}
+          />
+          <div
+            className="animate-shimmer"
+            style={{ height: 9, width: '46%', borderRadius: 'var(--gp-radius-pill)', ...SHIMMER }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * Erro: antes disto `!contexto` renderizava `null` e a sidebar ficava com um
+   * vão sem explicação nem saída. Agora há mensagem e retentativa.
+   */
+  if (isError && !contexto) {
+    return (
+      <div
+        style={{
+          ...CARTAO,
+          alignItems: 'flex-start',
+          flexDirection: 'column',
+          gap: 6,
+          border: '1px solid var(--gp-border-strong)',
+        }}
+      >
+        <p style={{ ...CONTEXTO_IES, color: 'var(--gp-text-2)' }}>
+          Não foi possível carregar a instituição
+        </p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="inline-flex items-center gap-1 hover:underline"
+          style={{ ...CONTEXTO_IES, color: 'var(--gp-brand)', fontWeight: 700 }}
+        >
+          <Icon name="refresh" size={13} />
+          Tentar novamente
+        </button>
       </div>
     );
   }
 
   if (!contexto) return null;
 
+  const opcoes = contexto.iesDisponiveis;
+
+  // `iesId` (URL) é a fonte de verdade da seleção. `contexto.iesAtual` NÃO
+  // acompanha a troca — `get_gestor_contexto()` não recebe `p_ies_id` e não é
+  // reconsultado — então usá-lo aqui prenderia o rótulo na primeira IES para
+  // sempre.
+  const iesSelecionada = iesValida ? iesId ?? contexto.iesAtual.id : contexto.iesAtual.id;
+  const nomeSelecionado =
+    opcoes.find((ies) => ies.id === iesSelecionada)?.nome ?? contexto.iesAtual.nome;
+
+  /**
+   * Linha de contexto. O papel entra APENAS como escolha de frase — nenhuma
+   * decisão de comportamento depende dele (o switch é `podeTrocarIes`).
+   */
+  const linhaContexto = !contexto.podeTrocarIes
+    ? contexto.contrato?.nome ?? 'Instituição do seu acesso'
+    : contexto.usuario.papel === 'admin'
+      ? 'Todas as instituições'
+      : `Grupo · ${opcoes.length} instituições`;
+
   if (!contexto.podeTrocarIes) {
     return (
       <div style={CARTAO}>
-        <TileIes nome={contexto.iesAtual.nome} />
-        <p className="min-w-0 flex-1 truncate" style={NOME_IES} title={contexto.iesAtual.nome}>
-          {contexto.iesAtual.nome}
-        </p>
+        <TileIes nome={nomeSelecionado} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate" style={NOME_IES} title={nomeSelecionado}>
+            {nomeSelecionado}
+          </p>
+          <p className="truncate" style={CONTEXTO_IES}>
+            {linhaContexto}
+          </p>
+        </div>
       </div>
     );
   }
 
-  // `iesId` (URL) é a fonte de verdade da seleção. `contexto.iesAtual` NÃO
-  // acompanha a troca — `get_gestor_contexto()` não recebe `p_ies_id` e não é
-  // reconsultado quando o usuário muda de IES — então usá-lo aqui prenderia o
-  // rótulo do dropdown na primeira IES para sempre (achado do Felipe, item
-  // 3b). Cai em `iesAtual` quando não há seleção válida ainda: `iesId` nulo no
-  // primeiro acesso, ou fora de `iesDisponiveis` (achado 17) — em ambos os
-  // casos só até o efeito de correção rodar.
-  const iesSelecionada = iesValida ? iesId ?? contexto.iesAtual.id : contexto.iesAtual.id;
-  const nomeSelecionado =
-    contexto.iesDisponiveis.find((ies) => ies.id === iesSelecionada)?.nome ??
-    contexto.iesAtual.nome;
+  const comBusca = opcoes.length > LIMIAR_BUSCA;
+  const idsRecentes = comBusca
+    ? recentes.filter((id) => id !== iesSelecionada && opcoes.some((ies) => ies.id === id))
+    : [];
+  const listaRecentes = idsRecentes
+    .map((id) => opcoes.find((ies) => ies.id === id))
+    .filter((ies): ies is { id: string; nome: string } => Boolean(ies));
+  const demais = opcoes.filter((ies) => !idsRecentes.includes(ies.id));
 
   return (
-    <Select value={iesSelecionada} onValueChange={trocarIes}>
-      <SelectTrigger
-        aria-label="Instituição em foco"
-        // `h-auto` e `[&>span]:line-clamp-none` desfazem o gatilho genérico do
-        // shadcn (40px de altura fixa e clamp em todo span filho, que
-        // quebraria o flex do tile). O resto da caixa — borda, raio, padding —
-        // vem do `style`, que vence as classes utilitárias sem depender de
-        // ordem de cascata.
-        className="h-auto w-full [&>span]:line-clamp-none"
-        style={{ ...CARTAO, border: '1px solid var(--gp-border-strong)' }}
-        icon={<Icon name="expand_more" size={16} className="text-[color:var(--gp-text-3)]" />}
+    <>
+      <Popover
+        open={aberto}
+        onOpenChange={(proximo) => {
+          setAberto(proximo);
+          if (!proximo) setBusca('');
+        }}
       >
-        <TileIes nome={nomeSelecionado} />
-        <span className="min-w-0 flex-1 truncate text-left" style={NOME_IES}>
-          <SelectValue />
-        </span>
-      </SelectTrigger>
-      <SelectContent container={container}>
-        {contexto.iesDisponiveis.map((ies) => (
-          <SelectItem key={ies.id} value={ies.id}>
-            {ies.nome}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            role="combobox"
+            aria-label="Instituição em foco"
+            aria-expanded={aberto}
+            className="gp-ies-trigger w-full text-left transition-colors"
+            style={{
+              ...CARTAO,
+              border: '1px solid var(--gp-border-strong)',
+              background: aberto ? 'var(--gp-surface-2)' : 'transparent',
+            }}
+          >
+            <TileIes nome={nomeSelecionado} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate" style={NOME_IES}>
+                {nomeSelecionado}
+              </span>
+              <span className="block truncate" style={CONTEXTO_IES}>
+                {trocando ? 'Carregando dados…' : linhaContexto}
+              </span>
+            </span>
+            {trocando ? (
+              <Icon
+                name="progress_activity"
+                size={16}
+                className="shrink-0 animate-spin text-[color:var(--gp-text-3)]"
+              />
+            ) : (
+              <Icon
+                name="unfold_more"
+                size={16}
+                className="shrink-0 text-[color:var(--gp-text-3)]"
+              />
+            )}
+          </button>
+        </PopoverTrigger>
+
+        <PopoverContent
+          container={container}
+          align="start"
+          sideOffset={6}
+          className="p-0"
+          style={{
+            width: 288,
+            background: 'var(--gp-surface-1)',
+            border: '1px solid var(--gp-border-strong)',
+            borderRadius: 'var(--gp-radius-md)',
+            boxShadow: 'var(--gp-shadow-card)',
+          }}
+        >
+          <CommandPrimitive
+            label="Trocar de instituição"
+            filter={(value, search) => (normalizar(value).includes(normalizar(search)) ? 1 : 0)}
+          >
+            {comBusca ? (
+              <div
+                className="flex items-center gap-2"
+                style={{ padding: '10px 12px', borderBottom: '1px solid var(--gp-border-subtle)' }}
+              >
+                <Icon name="search" size={16} className="shrink-0 text-[color:var(--gp-text-3)]" />
+                <CommandPrimitive.Input
+                  autoFocus
+                  value={busca}
+                  onValueChange={setBusca}
+                  aria-label="Buscar por nome ou sigla"
+                  placeholder="Buscar por nome ou sigla"
+                  className="w-full bg-transparent outline-none placeholder:text-[color:var(--gp-text-3)]"
+                  style={{ fontSize: 12.5, color: 'var(--gp-text-1)' }}
+                />
+                {busca ? (
+                  <button
+                    type="button"
+                    onClick={() => setBusca('')}
+                    aria-label="Limpar busca"
+                    className="shrink-0 text-[color:var(--gp-text-3)] hover:text-[color:var(--gp-text-1)]"
+                  >
+                    <Icon name="close" size={15} />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            <CommandPrimitive.List
+              className="overflow-y-auto overscroll-contain"
+              style={{ maxHeight: 288, padding: 6 }}
+            >
+              <CommandPrimitive.Empty
+                style={{ ...CONTEXTO_IES, padding: '18px 10px', textAlign: 'center' }}
+              >
+                Nenhuma instituição encontrada para “{busca}”.
+              </CommandPrimitive.Empty>
+
+              {listaRecentes.length > 0 ? (
+                <CommandPrimitive.Group heading="Recentes" style={{ marginBottom: 2 }}>
+                  {listaRecentes.map((ies) => (
+                    <ItemIes
+                      key={ies.id}
+                      ies={ies}
+                      selecionada={false}
+                      onSelecionar={() => trocarIes(ies.id, ies.nome)}
+                    />
+                  ))}
+                </CommandPrimitive.Group>
+              ) : null}
+
+              <CommandPrimitive.Group
+                heading={listaRecentes.length > 0 ? 'Todas as instituições' : undefined}
+              >
+                {demais.map((ies) => (
+                  <ItemIes
+                    key={ies.id}
+                    ies={ies}
+                    selecionada={ies.id === iesSelecionada}
+                    onSelecionar={() => trocarIes(ies.id, ies.nome)}
+                  />
+                ))}
+              </CommandPrimitive.Group>
+            </CommandPrimitive.List>
+
+            <p
+              style={{
+                ...CONTEXTO_IES,
+                padding: '8px 12px',
+                borderTop: '1px solid var(--gp-border-subtle)',
+              }}
+            >
+              {opcoes.length === 1
+                ? '1 instituição disponível'
+                : `${opcoes.length} instituições disponíveis`}
+            </p>
+          </CommandPrimitive>
+        </PopoverContent>
+      </Popover>
+
+      {/* Troca de recorte é mudança de contexto: precisa ser anunciada. */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {anuncio}
+      </span>
+    </>
   );
 };
+
+/** Reexportado para quem media a estabilidade de altura da sidebar. */
+export { ALTURA_CARTAO };
