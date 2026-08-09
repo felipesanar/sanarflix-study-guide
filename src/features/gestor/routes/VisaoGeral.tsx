@@ -8,7 +8,7 @@ import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
-import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
+import { CabecalhoTela, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
 
 import { Dica } from '@/features/gestor/components/Dica';
@@ -390,11 +390,14 @@ export default function VisaoGeral() {
 
   return (
     <ContainerRota className="pb-12" data-testid="gestor-visao-geral" aria-busy={emTransicao}>
-      {/* SEM cabeçalho de tela (pedido de 09/08): sem título, sem apoio e sem
-          chip de instituição. Sobra a barra de controles — glossário e filtro de
-          semestre — com o resumo do recorte logo abaixo. */}
+      {/* Cabeçalho de página (não sticky, sem chips de recorte): título, uma
+          linha de apoio e os controles da tela à direita. */}
       <div data-testid="barra-filtros" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <CabecalhoTela
+          testId="cabecalho-visao-geral"
+          titulo="Visão geral"
+          apoio="Como a instituição está no recorte selecionado e para onde o desempenho está indo."
+          acoes={<>
           {/* Único caminho de UI para o glossário no produto: sem este gatilho o
               componente existia e era inalcançável em produção. */}
           <Glossario />
@@ -403,7 +406,8 @@ export default function VisaoGeral() {
               consegue responder. Enquanto a query não volta, `undefined`
               mantém a lista completa em vez de piscar um dropdown vazio. */}
           <FiltroSemestre semestresDisponiveis={semestresComResultado} />
-        </div>
+          </>}
+        />
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
       </div>
 
