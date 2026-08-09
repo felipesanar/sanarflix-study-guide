@@ -243,7 +243,7 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
     >
       {/* Cabeçalho: o que é isto, quantos entraram e a saída rápida. */}
       <div className="mb-2 flex items-center gap-2">
-        <Icon name="checklist" size={15} className="text-[color:var(--gp-text-3)]" aria-hidden="true" />
+        <Icon name="filter_list" size={15} className="text-[color:var(--gp-text-3)]" aria-hidden="true" />
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gp-text-1)' }}>
           Simulados no recorte
         </span>
