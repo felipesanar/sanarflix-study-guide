@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
-import { Icon } from '@/components/dende/Icon';
+import { Icon } from '@/features/gestor/components/Icon';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 
 /** Função pura para não precisar de fake timers no teste. */
@@ -17,11 +17,11 @@ export function primeiroNome(nome: string): string {
 }
 
 /** Glifo do momento do dia — a saudação muda de luz junto com o horário. */
-export function glifoPorHora(agora: Date): 'wb_sunny' | 'wb_twilight' | 'dark_mode' {
+export function glifoPorHora(agora: Date): 'light-mode' | 'schedule' | 'dark-mode' {
   const hora = agora.getHours();
-  if (hora < 12) return 'wb_sunny';
-  if (hora < 18) return 'wb_twilight';
-  return 'dark_mode';
+  if (hora < 12) return 'light-mode';
+  if (hora < 18) return 'schedule';
+  return 'dark-mode';
 }
 
 /** "Sexta-feira, 09 de agosto" — sentence case, sem ano (é sempre o corrente). */
