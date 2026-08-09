@@ -865,7 +865,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
               <CardHeader className="sticky top-0 z-10 gap-1 bg-card pb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">Diagnóstico</span>
-                  <span data-testid="cascata-trilha" className="truncate text-xs text-muted-foreground">
+                  <span data-testid="cascata-trilha" className="min-w-0 break-words text-xs text-muted-foreground">
                     {nodeAberto === null ? '/ grande área' : `/ ${nodeAberto} / especialidade`}
                   </span>
                   {/* Saída explícita. Antes, sair era achar de novo a seta do
