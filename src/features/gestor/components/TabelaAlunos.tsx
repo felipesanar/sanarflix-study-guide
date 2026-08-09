@@ -10,6 +10,7 @@ import { prefetchAluno, prefetchProximaPaginaAlunos } from '@/features/gestor/ap
 import {
   CabecalhoTabela,
   Celula,
+  AlternadorDensidade,
   CelulaCabecalho,
   CorpoTabela,
   FONTE_MONO,
@@ -375,24 +376,31 @@ export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: 
             Proficiência por simulado. Ausência aparece como {TRACO} e fica fora de toda média.
           </p>
         </div>
-        <div
-          className="flex min-w-[220px] items-center gap-2 px-3"
-          style={{
-            border: '1px solid var(--gp-border-input)',
-            borderRadius: 9,
-            color: 'var(--gp-text-3)',
-          }}
-        >
-          <Icon name="search" size={15} />
-          <input
-            type="search"
-            aria-label="Buscar aluno"
-            placeholder="Buscar aluno por nome…"
-            value={busca}
-            onChange={(evento) => setBusca(evento.target.value)}
-            className="h-8 w-full bg-transparent outline-none"
-            style={{ fontSize: 12, color: 'var(--gp-text-1)' }}
-          />
+        <div className="flex items-center gap-2">
+          <div
+            className="flex min-w-[220px] items-center gap-2 px-3"
+            style={{
+              border: '1px solid var(--gp-border-input)',
+              borderRadius: 9,
+              color: 'var(--gp-text-3)',
+            }}
+          >
+            <Icon name="search" size={15} />
+            <input
+              type="search"
+              aria-label="Buscar aluno"
+              placeholder="Buscar aluno por nome…"
+              value={busca}
+              onChange={(evento) => setBusca(evento.target.value)}
+              className="h-8 w-full bg-transparent outline-none"
+              style={{ fontSize: 12, color: 'var(--gp-text-1)' }}
+            />
+          </div>
+          {/* Onda 4: densidade de linha. Fica junto da busca porque é o mesmo
+              gesto — "quero ver mais alunos de uma vez". A escolha é global
+              (store de módulo), então vale também para as tabelas do
+              Detalhamento. */}
+          <AlternadorDensidade />
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
 import { BlocoGestor, type EstadoBloco } from '../components/BlocoGestor';
 import { ComparativoSimulados } from '../components/ComparativoSimulados';
-import { CabecalhoTela, ChipRecorte, ContainerRota } from '../components/CabecalhoTela';
+import { ContainerRota } from '../components/CabecalhoTela';
 import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
 
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
@@ -349,86 +349,66 @@ export default function Detalhamento() {
 
   return (
     <ContainerRota data-testid="gestor-detalhamento" aria-busy={emTransicao}>
-      <CabecalhoTela
-        testId="bloco-filtros"
-        titulo="Detalhamento por simulados"
-        apoio="Camada investigativa · métricas por simulado específico"
-        acoes={
-          <>
-            {/* `acertoPorAreaESemestre.semestres` já é a lista de semestres
-                que produziram acerto no recorte — não oferecer os outros. */}
-            <FiltroSemestre semestresDisponiveis={semestresComResultado} />
-            <Sheet open={cronogramaAberto} onOpenChange={setCronogramaAberto}>
-              <SheetTrigger asChild>
-                {/* Link de texto, não botão de contorno: na referência o glifo de
-                    calendário pertence ao CABEÇALHO do drawer, e o gatilho leva só
-                    o chevron, DEPOIS do rótulo. */}
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm underline-offset-4 hover:underline focus-visible:outline-none"
-                  style={{
-                    fontSize: 'var(--gp-font-size-apoio)',
-                    fontWeight: 'var(--gp-font-weight-medio)' as unknown as number,
-                    color: 'var(--gp-brand-on-dark)',
-                  }}
-                >
-                  Ver cronograma
-                  <Icon name="chevron_right" size={14} />
-                </button>
-              </SheetTrigger>
-              {/* Fechar do PORTAL, não o do shadcn: o `X` do Lucide é de outra
-                  família de ícones (handoff §3 exige 100% Fontello do Dendê) e
-                  anunciava "Close" num portal inteiro em pt-BR. O scrim vem de
-                  `--gp-scrim`, calibrado por tema no `gestor-theme.css` —
-                  `bg-black/80` é opaco demais para o claro. */}
-              <SheetContent
-                container={portalContainer}
-                side="right"
-                className="w-full sm:max-w-md"
-                closeIcon={<Icon name="close" size={16} />}
-                closeLabel="Fechar"
-                closeClassName="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border border-[color:var(--gp-border-strong)] text-[color:var(--gp-text-3)] opacity-100"
-                overlayClassName="bg-[var(--gp-scrim)]"
+      {/* SEM cabeçalho de tela (pedido de 09/08): nem título, nem linha de
+          apoio, nem chips de recorte (Instituição/Simulados). A sidebar já diz
+          em que tela a pessoa está, e a instituição ativa já vive no cartão da
+          própria sidebar — repetir isso aqui só empurrava o dado para baixo.
+          O que sobra é a BARRA DE CONTROLES: filtro de semestre, cronograma e
+          o seletor de simulados, que é o controle primário desta tela. */}
+      <div data-testid="bloco-filtros" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {/* `acertoPorAreaESemestre.semestres` já é a lista de semestres
+              que produziram acerto no recorte — não oferecer os outros. */}
+          <FiltroSemestre semestresDisponiveis={semestresComResultado} />
+          <Sheet open={cronogramaAberto} onOpenChange={setCronogramaAberto}>
+            <SheetTrigger asChild>
+              {/* Link de texto, não botão de contorno: na referência o glifo de
+                  calendário pertence ao CABEÇALHO do drawer, e o gatilho leva só
+                  o chevron, DEPOIS do rótulo. */}
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm underline-offset-4 hover:underline focus-visible:outline-none"
+                style={{
+                  fontSize: 'var(--gp-font-size-apoio)',
+                  fontWeight: 'var(--gp-font-weight-medio)' as unknown as number,
+                  color: 'var(--gp-brand-on-dark)',
+                }}
               >
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2" style={{ fontSize: 15, fontWeight: 700 }}>
-                    <Icon name="calendar_month" variant="filled" size={18} />
-                    Cronograma de simulados
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="mt-4">
-                  <CronogramaSimulados iesId={iesAtivaId ?? ''} iesNome={iesNomeAtiva} />
-                </div>
-              </SheetContent>
-            </Sheet>
-          </>
-        }
-        /* Instituição e quantidade de simulados no corte. O semestre fica com o
-           `ContextoDoRecorte` abaixo, que já o diz junto do período do dado. */
-        contexto={
-          <>
-            {iesNomeAtiva ? <ChipRecorte testId="chip-ies" rotulo="Instituição" valor={iesNomeAtiva} /> : null}
-            <ChipRecorte
-              testId="chip-simulados"
-              rotulo="Simulados"
-              valor={
-                simuladosNoRecorte.length === 0
-                  ? 'nenhum selecionado'
-                  : simuladosNoRecorte.length === 1
-                    ? '1 selecionado'
-                    : `${simuladosNoRecorte.length} selecionados`
-              }
-            />
-          </>
-        }
-      >
-        {/* O seletor é o controle primário desta tela — vem antes do resumo do
-            recorte, que é leitura sobre a escolha já feita. */}
-        <div className="space-y-3">
-          <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
-          <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
+                Ver cronograma
+                <Icon name="chevron_right" size={14} />
+              </button>
+            </SheetTrigger>
+            {/* Fechar do PORTAL, não o do shadcn: o `X` do Lucide é de outra
+                família de ícones (handoff §3 exige 100% Fontello do Dendê) e
+                anunciava "Close" num portal inteiro em pt-BR. O scrim vem de
+                `--gp-scrim`, calibrado por tema no `gestor-theme.css` —
+                `bg-black/80` é opaco demais para o claro. */}
+            <SheetContent
+              container={portalContainer}
+              side="right"
+              className="w-full sm:max-w-md"
+              closeIcon={<Icon name="close" size={16} />}
+              closeLabel="Fechar"
+              closeClassName="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border border-[color:var(--gp-border-strong)] text-[color:var(--gp-text-3)] opacity-100"
+              overlayClassName="bg-[var(--gp-scrim)]"
+            >
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2" style={{ fontSize: 15, fontWeight: 700 }}>
+                  <Icon name="calendar_month" variant="filled" size={18} />
+                  Cronograma de simulados
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <CronogramaSimulados iesId={iesAtivaId ?? ''} iesNome={iesNomeAtiva} />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      </CabecalhoTela>
+
+        <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
+        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
+      </div>
+
 
 
       {emTransicao ? (

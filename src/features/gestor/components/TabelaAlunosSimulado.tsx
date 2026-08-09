@@ -5,6 +5,7 @@ import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import {
   CabecalhoTabela,
   Celula,
+  AlternadorDensidade,
   CelulaCabecalho,
   CorpoTabela,
   FONTE_MONO,
@@ -482,8 +483,11 @@ export function TabelaAlunosSimulado({
             >
               Mostrando {daPagina.length} de {visiveis.length}
             </span>
+            {/* Onda 4: densidade também aqui, encostada na paginação — é a
+                mesma decisão ("cabe mais linha na tela?") e a escolha é
+                compartilhada com a tabela da Visão de Alunos. */}
+            <AlternadorDensidade className="ml-auto" />
             <Paginacao
-              className="ml-auto"
               rotulo="Paginação de alunos do simulado"
               page={pageAtual}
               totalPages={totalPages}

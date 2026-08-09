@@ -282,7 +282,7 @@ const TIMEOUT_AXE = 120_000;
 describe('acessibilidade — sem violações de axe por rota e por drawer (§11)', () => {
   it('Início', async () => {
     montar(<Inicio />, '/gestor');
-    expect(screen.getByTestId('saudacao')).toBeInTheDocument();
+    expect(screen.getByTestId('direcionadores')).toBeInTheDocument();
     expect(screen.getByTestId('cronograma')).toBeInTheDocument();
     expect(screen.getByTestId('avisos')).toBeInTheDocument();
 
@@ -307,7 +307,9 @@ describe('acessibilidade — sem violações de axe por rota e por drawer (§11)
 
   it('Detalhamento com 1 simulado', async () => {
     montar(<Detalhamento />, '/gestor/detalhamento?ies=ies-1&semestre=6ano&simulados=s1');
-    expect(screen.getByRole('heading', { name: /detalhamento por simulados/i })).toBeInTheDocument();
+    // Sem cabeçalho de tela (09/08): o âncora do smoke passa a ser o
+    // controle primário da rota, o seletor de simulados.
+    expect(screen.getByTestId('bloco-filtros')).toBeInTheDocument();
 
     /**
      * ACHADO real (axe, `heading-order`), **corrigido em 05/08**: a rota tem

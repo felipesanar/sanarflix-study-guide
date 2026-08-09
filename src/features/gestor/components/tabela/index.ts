@@ -11,6 +11,14 @@ export {
   type OrdemTabela,
 } from './TabelaGestor';
 export { Paginacao, paginasVisiveis } from './Paginacao';
+export {
+  AlternadorDensidade,
+  definirDensidade,
+  PADDING_DENSIDADE,
+  ROTULO_DENSIDADE,
+  useDensidadeTabela,
+  type Densidade,
+} from './densidade';
 export { PAR_GRUPO, TagGrupo, TagSituacao, TagTendencia } from './tags';
 // `ROTULO_TENDENCIA` NÃO é reexportado daqui de propósito: o vocabulário pt-BR
 // mora em `lib/rotulos.ts` e ter dois caminhos de import para a mesma constante

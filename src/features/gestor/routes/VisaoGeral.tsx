@@ -8,7 +8,7 @@ import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
-import { CabecalhoTela, ChipRecorte, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
+import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
 
 import { Dica } from '@/features/gestor/components/Dica';
@@ -390,36 +390,23 @@ export default function VisaoGeral() {
 
   return (
     <ContainerRota className="pb-12" data-testid="gestor-visao-geral" aria-busy={emTransicao}>
-      {/* Cabeçalho + filtros: agora a faixa canônica do portal
-          (`CabecalhoTela`), a mesma do Detalhamento — título e apoio na escala
-          tipográfica, controles à direita, e a barra de contexto colada no topo
-          da área rolável, para o corte em exibição não sumir no primeiro
-          scroll desta tela (que passa de 3000px). */}
-      <CabecalhoTela
-        testId="barra-filtros"
-        titulo="Visão Geral"
-        apoio="Leitura macro da evolução institucional"
-        acoes={
-          <>
-            {/* Único caminho de UI para o glossário no produto: sem este gatilho o
-                componente existia e era inalcançável em produção. */}
-            <Glossario />
-            {/* `dispersao` é exatamente "aluno com nota de proficiência no
-                recorte" — a mesma população que o filtro por semestre
-                consegue responder. Enquanto a query não volta, `undefined`
-                mantém a lista completa em vez de piscar um dropdown vazio. */}
-            <FiltroSemestre semestresDisponiveis={semestresComResultado} />
-          </>
-        }
-        /* O semestre NÃO entra como chip: ele já é dito, com o período do dado
-           ao lado, pelo `ContextoDoRecorte` logo abaixo — dois lugares para o
-           mesmo fato seria ruído, não reforço. */
-        contexto={
-          iesNomeAtiva ? <ChipRecorte testId="chip-ies" rotulo="Instituição" valor={iesNomeAtiva} /> : null
-        }
-      >
+      {/* SEM cabeçalho de tela (pedido de 09/08): sem título, sem apoio e sem
+          chip de instituição. Sobra a barra de controles — glossário e filtro de
+          semestre — com o resumo do recorte logo abaixo. */}
+      <div data-testid="barra-filtros" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {/* Único caminho de UI para o glossário no produto: sem este gatilho o
+              componente existia e era inalcançável em produção. */}
+          <Glossario />
+          {/* `dispersao` é exatamente "aluno com nota de proficiência no
+              recorte" — a mesma população que o filtro por semestre
+              consegue responder. Enquanto a query não volta, `undefined`
+              mantém a lista completa em vez de piscar um dropdown vazio. */}
+          <FiltroSemestre semestresDisponiveis={semestresComResultado} />
+        </div>
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
-      </CabecalhoTela>
+      </div>
+
 
 
       {emTransicao ? (
