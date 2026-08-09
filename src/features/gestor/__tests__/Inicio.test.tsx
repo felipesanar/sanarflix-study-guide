@@ -144,13 +144,12 @@ beforeEach(() => {
 });
 
 describe('Inicio — composição (spec §2.1)', () => {
-  it('monta direcionadores, cronograma e avisos — SEM cabeçalho/saudação (09/08)', () => {
+  it('monta saudação, direcionadores, cronograma e avisos', () => {
     montar();
 
-    // A tela abre direto nos direcionadores: nenhuma faixa de título, nenhuma
-    // saudação. Quem está na tela e em que IES já é dito pela sidebar.
-    expect(screen.queryByTestId('saudacao')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    // A saudação voltou (09/08): cabeçalho da página, no fluxo do scroll.
+    expect(screen.getByTestId('saudacao')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(screen.getByTestId('direcionadores')).toBeInTheDocument();
     expect(screen.getByTestId('cronograma')).toBeInTheDocument();
     expect(screen.getByTestId('avisos')).toBeInTheDocument();
@@ -202,8 +201,8 @@ describe('Inicio — estados (spec §8.4)', () => {
     expect(skeletonAvisos).toBeInTheDocument();
     expect(screen.queryByTestId('cronograma')).not.toBeInTheDocument();
     expect(screen.queryByTestId('avisos')).not.toBeInTheDocument();
-    // Sem saudação, não há skeleton de saudação para reservar altura.
-    expect(screen.queryByTestId('saudacao-skeleton')).not.toBeInTheDocument();
+    // A saudação reserva a própria altura enquanto o contexto carrega.
+    expect(screen.getByTestId('saudacao-skeleton')).toBeInTheDocument();
   });
 
   it('loading: os skeletons são acessíveis (role="status"), não um <Skeleton> cru sem rótulo (achado 19)', () => {

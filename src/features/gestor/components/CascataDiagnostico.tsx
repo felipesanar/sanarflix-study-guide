@@ -669,12 +669,15 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
             <div
               data-testid="diagnostico-distribuicao"
               className="flex w-full items-center gap-1.5"
-              role="img"
-              aria-label={ORDEM_NIVEL.map(
-                (n) => `${(porNivel.get(n) ?? []).length} ${ROTULO_NIVEL[n].toLowerCase()}`,
-              ).join(', ')}
             >
-              <span className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              {/* Alternativa textual da proporção: a barra é decoração, o texto
+                  é o dado (não é gráfico com eixo, então não vira <figure>). */}
+              <span className="sr-only">
+                {ORDEM_NIVEL.map(
+                  (n) => `${(porNivel.get(n) ?? []).length} ${ROTULO_NIVEL[n].toLowerCase()}`,
+                ).join(', ')}
+              </span>
+              <span aria-hidden className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 {ORDEM_NIVEL.map((nivel) => {
                   const qtd = (porNivel.get(nivel) ?? []).length;
                   if (qtd === 0) return null;
