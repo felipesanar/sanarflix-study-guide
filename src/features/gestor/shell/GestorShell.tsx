@@ -1,46 +1,19 @@
 import * as React from 'react';
 import { Suspense } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { useAuth } from '@/contexts/AuthContext';
-import { ExperienceSwitcher } from '@/experiences/shared/ExperienceSwitcher';
-import { useGestorContexto } from '@/features/gestor/api/queries';
-import type { ContextoGestor } from '@/features/gestor/api/types';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 
 import { Icon } from '@/features/gestor/components/Icon';
 
-import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
-import { OVERLINE_SIDEBAR, SidebarNav } from '@/features/gestor/shell/SidebarNav';
+import { ConteudoSidebar } from '@/features/gestor/shell/ConteudoSidebar';
+import { OVERLINE_SIDEBAR } from '@/features/gestor/shell/SidebarNav';
 import '@/features/gestor/gestor-theme.css';
 // Fonte de ícones do Dendê. Precisa vir junto do tema: sem este import o
 // @font-face não entra no bundle e todo `<Icon>` renderiza tofu.
 import '@/features/gestor/dende-icons.css';
 
-/** Iniciais do nome (até 2), para o avatar do rodapé. */
-const iniciaisDe = (nome: string | undefined): string =>
-  (nome ?? '')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? '')
-    .join('');
-
-/**
- * Segunda linha do rodapé: o PAPEL da pessoa, como na referência ("Gestora
- * acadêmica"), não o e-mail. Rótulos sem marca de gênero — a mesma conta serve
- * a qualquer pessoa. O e-mail continua alcançável, no `title` do bloco.
- */
-const ROTULO_PAPEL: Record<ContextoGestor['usuario']['papel'], string> = {
-  admin: 'Administração',
-  gestor_grupo: 'Gestão do grupo',
-  gestor: 'Gestão acadêmica',
-};
-
-/** Divisor entre os blocos da sidebar (lockup · IES · nav · rodapé). */
-const DIVISOR = '1px solid var(--gp-border-subtle)';
 
 /**
  * Carregamento da TELA (não de um bloco): é o que aparece no lugar do
