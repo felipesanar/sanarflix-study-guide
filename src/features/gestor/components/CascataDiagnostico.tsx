@@ -628,41 +628,6 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
           </div>
 
 
-          {/* Barra de distribuição: em uma olhada, a proporção das 3 faixas no
-              recorte. Só aparece quando há classificação — sem dado, nada é
-              afirmado. */}
-          {totalAreas > 0 ? (
-            <div
-              data-testid="diagnostico-distribuicao"
-              className="flex w-full items-center gap-1.5"
-            >
-              {/* Alternativa textual da proporção: a barra é decoração, o texto
-                  é o dado (não é gráfico com eixo, então não vira <figure>). */}
-              <span className="sr-only">
-                {ORDEM_NIVEL.map(
-                  (n) => `${(porNivel.get(n) ?? []).length} ${ROTULO_NIVEL[n].toLowerCase()}`,
-                ).join(', ')}
-              </span>
-              <span aria-hidden className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                {ORDEM_NIVEL.map((nivel) => {
-                  const qtd = (porNivel.get(nivel) ?? []).length;
-                  if (qtd === 0) return null;
-                  return (
-                    <span
-                      key={nivel}
-                      style={{
-                        width: `${(qtd / totalAreas) * 100}%`,
-                        background: COR_NIVEL[nivel].ponto,
-                      }}
-                    />
-                  );
-                })}
-              </span>
-              <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
-                {totalAreas} {totalAreas === 1 ? 'área' : 'áreas'}
-              </span>
-            </div>
-          ) : null}
         </CardHeader>
 
         <CardContent className="pt-0">
