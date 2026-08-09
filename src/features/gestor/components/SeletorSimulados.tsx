@@ -81,10 +81,9 @@ function normalizar(texto: string): string {
  */
 export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimuladosProps) {
   const [aberto, setAberto] = React.useState(false);
-  const [busca, setBusca] = React.useState('');
   const idPainel = React.useId();
   const raiz = React.useRef<HTMLDivElement>(null);
-  const campoBusca = React.useRef<HTMLInputElement>(null);
+  const painel = React.useRef<HTMLDivElement>(null);
 
   const semSelecao = selecionados.length === 0;
   const excedeLegibilidade = selecionados.length > LIMITE_LEGIBILIDADE;
@@ -95,14 +94,6 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
   const disponiveis = itens.filter((item) => motivoIndisponivel(item) === null);
   const indisponiveis = itens.filter((item) => motivoIndisponivel(item) !== null);
 
-  const filtrar = (lista: ItemCronograma[]) => {
-    const alvo = normalizar(busca.trim());
-    if (alvo === '') return lista;
-    return lista.filter((item) => normalizar(rotuloItem(item)).includes(alvo));
-  };
-  const disponiveisVisiveis = filtrar(disponiveis);
-  const indisponiveisVisiveis = filtrar(indisponiveis);
-  const nadaEncontrado = disponiveisVisiveis.length === 0 && indisponiveisVisiveis.length === 0;
 
   const alternar = (id: string) => {
     onChange(
