@@ -108,9 +108,21 @@ export interface Kpi {
   criterio: string;
 }
 
+/**
+ * `kpis.enamedProjetado` acrescido de `origem` (campo novo confirmado em
+ * produção em `get_gestor_visao_geral`): `'oficial'` quando a RPC tem a nota
+ * oficial do MEC para o recorte atual, `'estimado'` quando ela falta e o
+ * conceito 1–5 é derivado do percentual de alunos proficientes — o mesmo
+ * cálculo que já valia antes deste campo existir (ver `criterio`), agora
+ * identificado explicitamente em vez de ficar implícito.
+ */
+export interface KpiEnamedProjetado extends Kpi {
+  origem: 'oficial' | 'estimado';
+}
+
 export interface VisaoGeral {
   kpis: {
-    enamedProjetado: Kpi;
+    enamedProjetado: KpiEnamedProjetado;
     proficientesPct: Kpi;
     acertoPct: Kpi;
     /**
@@ -132,6 +144,17 @@ export interface VisaoGeral {
      */
     simulados: { realizados: number; contratados: number | null };
   };
+  /**
+   * Total de alunos matriculados da IES no recorte vigente (campo novo
+   * confirmado em produção em `get_gestor_visao_geral`, mesmo nível de
+   * `kpis`/`evolucao`) — a POPULAÇÃO real, sem o corte que
+   * `distribuicaoAlunos` aplica. `distribuicaoAlunos.reduce(...)` conta só
+   * quem tem ao menos um resultado de TRI no recorte; este campo é sempre
+   * `>=` aquela soma, e normalmente maior (bug documentado, não é o que este
+   * campo corrige — ele só dá o denominador honesto para contextualizar o
+   * corte, ver `VisaoDeAlunos`).
+   */
+  alunosMatriculadosNoRecorte: number;
   /**
    * Semestres da IES que têm ao menos um aluno com nota de proficiência —
    * SEM o recorte vigente aplicado. Alimenta o dropdown "Por semestre".
@@ -387,6 +410,53 @@ export interface Questao {
   enunciado: string;
   alternativas: Alternativa[];
   distratorDominante?: Alternativa['letra'];
+  /**
+   * Imagem do enunciado — URL ou `null` quando a questão não tem imagem.
+   * Chave sempre presente na resposta (nunca omitida), então `null` é o
+   * único caso de "sem imagem" — `undefined` não é uma forma real deste
+   * campo. Migration `20260809231000_get_gestor_questoes_semestre_imagens_e_respondentes.sql`
+   * (PARTE 1), já em produção em 09/08.
+   */
+  imagemEnunciado: string | null;
+  /** Segunda imagem do enunciado (ex.: gráfico e tabela na mesma questão) — mesma regra de `imagemEnunciado`. */
+  imagemEnunciado2: string | null;
+  /**
+   * Imagem do comentário/gabarito. `null` TAMBÉM enquanto o simulado está
+   * ABERTO — a RPC zera este campo antes do encerramento (`CASE WHEN
+   * v_aberta THEN NULL ELSE o.imagem_comentario END`), mesmo tratamento que
+   * `correta`/`distratorDominante` já recebem. Por isso este campo não
+   * distingue "questão sem imagem de gabarito" de "simulado ainda aberto" —
+   * os dois chegam `null`.
+   */
+  imagemComentario: string | null;
+  /**
+   * Identificador da questão (`questoes_simulado.id`) — necessário para
+   * `get_gestor_questao_respondentes(p_question_id, ...)`, que a distribuição
+   * por alternativa (`DistribuicaoAlternativas`) chama ao clicar numa
+   * alternativa para listar quem a marcou.
+   *
+   * OPCIONAL, e por um motivo real: `get_gestor_questoes` (mesma migration
+   * acima) SELECIONA `q.id` internamente (`q_base`/`q_full`/`q_alts` o usam
+   * para fazer JOIN entre as CTEs) mas nunca o inclui no `jsonb_build_object`
+   * de cada questão — conferido nas duas versões da função (a `CREATE OR
+   * REPLACE` de 29/07 e o patch textual de 09/08, nenhuma das duas expõe uma
+   * chave `id`/`questaoId`). Até uma migration futura acrescentar essa chave,
+   * este campo chega `undefined` em todo payload real, e a UI mostra "lista
+   * indisponível" no clique em vez de chamar a RPC com um id inventado.
+   */
+  id?: string;
+}
+
+/**
+ * Uma linha de `get_gestor_questao_respondentes(p_ies_id, p_question_id,
+ * p_alternativa)` — aluno que marcou aquela alternativa daquela questão.
+ * RPC nova (migration `20260809231000_..._respondentes.sql`, PARTE 2, já em
+ * produção em 09/08), consumida por `useQuestaoRespondentes` (`api/queries.ts`)
+ * a partir do clique numa linha de `DistribuicaoAlternativas`.
+ */
+export interface QuestaoRespondente {
+  alunoId: string;
+  nome: string;
 }
 
 export interface AcertoPorAreaESemestre {

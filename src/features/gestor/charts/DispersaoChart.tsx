@@ -273,6 +273,18 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
   return (
     <figure className="m-0">
       {/*
+       * `TITULO` promovido a texto VISÍVEL (antes só existia dentro do
+       * `aria-label`, invisível para quem usa visão normal). Foi reportado
+       * que o modo "Aluno" não deixa clara sua utilidade/interpretação — o
+       * único texto em tela era o título genérico "Alunos por semestre" de
+       * `GraficoProtagonista`. O `aria-label` abaixo continua carregando o
+       * mesmo texto: redundância entre um elemento visível e um `aria-label`
+       * não é problema de acessibilidade, é reforço.
+       */}
+      <p data-testid="dispersao-subtitulo" className="mb-1 text-xs text-muted-foreground">
+        {TITULO}
+      </p>
+      {/*
        * `role="img"` fica no contêiner do DESENHO, nunca no `<figure>`:
        * `role="img"` torna todo descendente "presentational" (ARIA 1.2,
        * Children Presentational: True), o que podaria a `<figcaption>` — que
@@ -304,19 +316,30 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
           Cada ponto é um aluno do recorte
         </span>
         <span className="inline-flex items-center gap-1.5">
+          {/*
+           * Swatch SÓLIDO de marca — casa com a `ReferenceLine` real da meta
+           * (`stroke="var(--gp-brand)"`, 2px, sem `strokeDasharray`, acima).
+           * Antes deste ajuste a legenda trazia aqui o traço tracejado
+           * neutro, e no swatch da mediana (abaixo) o sólido de marca — as
+           * cores tinham sido trocadas entre as duas `ReferenceLine` na
+           * reunião de 07/08 e a legenda não acompanhou a troca, então o
+           * corte (o que importa de negócio) lia como o traço secundário.
+           */}
           <span
             aria-hidden="true"
-            className="w-4"
-            style={{ borderTop: '1.5px dashed var(--gp-border-input)' }}
+            className="h-0.5 w-4 rounded-full"
+            style={{ background: 'var(--gp-brand)' }}
           />
           {`Corte de proficiência: ${PROFICIENCIA_MINIMA}`}
         </span>
         {mediana !== null ? (
           <span className="inline-flex items-center gap-1.5">
+            {/* Swatch TRACEJADO neutro — casa com a `ReferenceLine` real da
+                mediana (`stroke="var(--gp-border-input)"`, tracejada, acima). */}
             <span
               aria-hidden="true"
-              className="h-0.5 w-4 rounded-full"
-              style={{ background: 'var(--gp-brand)' }}
+              className="w-4"
+              style={{ borderTop: '1.5px dashed var(--gp-border-input)' }}
             />
             {`Mediana do semestre: ${formatNumero(mediana)}`}
           </span>
@@ -341,6 +364,16 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
           <span>A reta de tendência ainda não é publicada pelo servidor.</span>
         )}
       </figcaption>
+      {/*
+       * Explica o jitter (achado do reporte: o modo "Aluno" "não deixa clara
+       * a utilidade e a interpretação"). O deslocamento horizontal dentro de
+       * cada coluna de semestre é artificial — só separa pontos que, no eixo
+       * discreto real, cairiam todos empilhados na mesma coluna de 1px (ver
+       * `prepararPontos` acima) — e isso nunca era dito em tela.
+       */}
+      <p className="mt-1.5 text-[11px]" style={{ color: 'var(--gp-text-3)' }}>
+        A posição horizontal dentro de cada semestre é só para separar os pontos visualmente — não representa nenhum dado.
+      </p>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-muted-foreground">Ver dados em tabela</summary>
         {/*

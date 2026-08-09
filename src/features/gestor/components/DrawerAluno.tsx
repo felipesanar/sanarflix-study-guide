@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
+import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AcoesRecorte } from '@/features/gestor/components/AcoesRecorte';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
@@ -8,7 +9,7 @@ import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { FONTE_MONO, TagSituacao } from '@/features/gestor/components/tabela';
-import { useAluno, useAlunoContato } from '@/features/gestor/api/queries';
+import { useAluno, useAlunoContato, useAlunoDesempenhoPorArea } from '@/features/gestor/api/queries';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import {
   TRACO,
@@ -20,7 +21,9 @@ import {
 } from '@/features/gestor/lib/formatters';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import type { AlunoSimuladoEntry } from '@/features/gestor/api/types';
+import type { AreaDesempenhoAluno, DesempenhoPorAreaSimulado } from '@/features/gestor/api/types-aluno-area';
 
 export interface DrawerAlunoProps {
   alunoId: string | null;
@@ -448,6 +451,314 @@ function InsightArea({
   );
 }
 
+/** Uma especialidade agrupada, com os temas já ordenados do pior para o melhor acerto. */
+interface EspecialidadeAgrupada {
+  especialidade: string;
+  temas: AreaDesempenhoAluno[];
+}
+
+/** Uma grande área agrupada, com as especialidades e a contagem honesta de temas/críticos. */
+interface GrandeAreaAgrupada {
+  grandeArea: string;
+  especialidades: EspecialidadeAgrupada[];
+  totalTemas: number;
+  totalCriticos: number;
+}
+
+/**
+ * Agrupa as linhas de tema (a granularidade que `get_gestor_aluno_desempenho_por_area`
+ * devolve) em grande área → especialidade → tema para o drill-down.
+ *
+ * Nenhum `acertoPct` é calculado para os níveis de grande área/especialidade
+ * aqui — a RPC não devolve essa média, e inventá-la (seja por média simples
+ * dos temas, seja por qualquer outra conta) seria a mesma classe de erro que
+ * a "regra de agregação honesta" do drawer já proíbe para simulados
+ * (`InsightArea`/comparativo abaixo). Os dois níveis de cima são só
+ * AGRUPAMENTO visual — contagem de tema e de tema crítico, que são contagens
+ * diretas sobre o dado recebido, nunca um número sintetizado.
+ *
+ * Temas dentro de uma especialidade saem ordenados do PIOR para o melhor
+ * acerto — "comece pela pior" é o mesmo critério já usado em
+ * `DiagnosticoCriticoVazio` (`CascataDiagnostico.tsx`). Grande área e
+ * especialidade saem em ordem alfabética: sem um número de nível para
+ * ordenar por severidade, alfabética é a única ordem estável.
+ */
+function agruparPorArea(areas: AreaDesempenhoAluno[]): GrandeAreaAgrupada[] {
+  const porGrandeArea = new Map<string, Map<string, AreaDesempenhoAluno[]>>();
+
+  for (const area of areas) {
+    if (!porGrandeArea.has(area.grandeArea)) porGrandeArea.set(area.grandeArea, new Map());
+    const porEspecialidade = porGrandeArea.get(area.grandeArea)!;
+    if (!porEspecialidade.has(area.especialidade)) porEspecialidade.set(area.especialidade, []);
+    porEspecialidade.get(area.especialidade)!.push(area);
+  }
+
+  return [...porGrandeArea.entries()]
+    .map(([grandeArea, especialidadesMapa]) => {
+      const especialidades: EspecialidadeAgrupada[] = [...especialidadesMapa.entries()]
+        .map(([especialidade, temas]) => ({
+          especialidade,
+          temas: [...temas].sort((a, b) => a.acertoPct - b.acertoPct),
+        }))
+        .sort((a, b) => a.especialidade.localeCompare(b.especialidade, 'pt-BR'));
+
+      const totalTemas = especialidades.reduce((soma, e) => soma + e.temas.length, 0);
+      const totalCriticos = especialidades.reduce(
+        (soma, e) => soma + e.temas.filter((t) => t.critica).length,
+        0,
+      );
+
+      return { grandeArea, especialidades, totalTemas, totalCriticos };
+    })
+    .sort((a, b) => a.grandeArea.localeCompare(b.grandeArea, 'pt-BR'));
+}
+
+/** Nível 3 (folha) do drill-down: o tema, com as métricas cruas da RPC. */
+function LinhaTema({ tema }: { tema: AreaDesempenhoAluno }) {
+  const cor = tema.critica ? 'var(--gp-danger-on)' : 'var(--gp-text-2)';
+  return (
+    <li
+      data-testid={`drawer-tema-${tema.tema}`}
+      className="flex items-center justify-between gap-2 py-1.5 pl-1"
+      style={{ fontSize: 12 }}
+    >
+      <span className="min-w-0 truncate" style={{ color: cor, fontWeight: tema.critica ? 600 : undefined }}>
+        {tema.tema}
+        {/* Cor nunca é canal único: a criticidade também sai por texto, mesma regra da BarraArea. */}
+        {tema.critica ? <span className="sr-only"> (tema crítico)</span> : null}
+      </span>
+      <span className="flex flex-none items-center gap-2.5" style={{ color: 'var(--gp-text-3)' }}>
+        <span style={{ fontFamily: FONTE_MONO }}>
+          {`${formatNumero(tema.questoesRespondidas)}/${formatNumero(tema.questoesTotal)}`}
+        </span>
+        <span style={{ fontFamily: FONTE_MONO, color: cor, fontWeight: 600, width: 34, textAlign: 'right' }}>
+          {formatPct(tema.acertoPct)}
+        </span>
+      </span>
+    </li>
+  );
+}
+
+/** Nível 2 do drill-down: a especialidade, expandindo para a lista de temas. */
+function LinhaEspecialidade({
+  grupo,
+  aberto,
+  onClick,
+}: {
+  grupo: EspecialidadeAgrupada;
+  aberto: boolean;
+  onClick: () => void;
+}) {
+  const criticos = grupo.temas.filter((t) => t.critica).length;
+  return (
+    <li>
+      <button
+        type="button"
+        data-especialidade-cascata=""
+        onClick={onClick}
+        aria-expanded={aberto}
+        data-testid={`drawer-especialidade-${grupo.especialidade}`}
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ fontSize: 12, fontWeight: 600 }}
+      >
+        <Icon
+          name={aberto ? 'expand_more' : 'chevron_right'}
+          variant="outlined"
+          size={14}
+          box={14}
+          className={aberto ? 'text-foreground' : 'text-muted-foreground'}
+        />
+        <span className="min-w-0 flex-1 truncate">{grupo.especialidade}</span>
+        <span style={{ fontWeight: 400, color: 'var(--gp-text-3)' }}>
+          {`${grupo.temas.length} ${grupo.temas.length === 1 ? 'tema' : 'temas'}`}
+        </span>
+        {criticos > 0 ? (
+          <span style={{ color: 'var(--gp-danger-on)' }}>{`${criticos} ${criticos === 1 ? 'crítico' : 'críticos'}`}</span>
+        ) : null}
+      </button>
+      {aberto ? (
+        <ul
+          data-testid={`drawer-temas-de-${grupo.especialidade}`}
+          className="ml-4 border-l pl-2"
+          style={{ borderColor: 'var(--gp-border-subtle)' }}
+        >
+          {grupo.temas.map((tema) => (
+            <LinhaTema key={tema.tema} tema={tema} />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+/**
+ * Drill-down grande área → especialidade → tema de UM simulado do aluno
+ * (spec da task, 09/08) — reaproveita o padrão visual de cascata de
+ * `CascataDiagnostico.tsx`/`DrawerTemas.tsx` (disclosure por chevron, um
+ * ramo aberto por nível) na escala do drawer: dois níveis de acordeão
+ * (grande área e, dentro dela, especialidade) que revelam a folha (tema).
+ *
+ * Acordeão de UM aberto por nível — clicar outra grande área fecha a
+ * especialidade que estivesse aberta dentro da anterior, mesma exclusividade
+ * de `nodeAberto` na cascata do Diagnóstico.
+ */
+function CascataDesempenhoAluno({ areas }: { areas: AreaDesempenhoAluno[] }) {
+  const grupos = React.useMemo(() => agruparPorArea(areas), [areas]);
+  const [grandeAreaAberta, setGrandeAreaAberta] = React.useState<string | null>(null);
+  const [especialidadeAberta, setEspecialidadeAberta] = React.useState<string | null>(null);
+
+  const alternarGrandeArea = (grandeArea: string) => {
+    setGrandeAreaAberta((atual) => (atual === grandeArea ? null : grandeArea));
+    setEspecialidadeAberta(null);
+  };
+
+  return (
+    <ul data-testid="drawer-cascata-areas" className="space-y-0.5">
+      {grupos.map((grupo) => {
+        const aberto = grandeAreaAberta === grupo.grandeArea;
+        return (
+          <li key={grupo.grandeArea}>
+            <button
+              type="button"
+              data-grande-area-cascata=""
+              onClick={() => alternarGrandeArea(grupo.grandeArea)}
+              aria-expanded={aberto}
+              data-testid={`drawer-grande-area-${grupo.grandeArea}`}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              style={{ fontSize: 13, fontWeight: 700, color: 'var(--gp-text-1)' }}
+            >
+              <Icon
+                name={aberto ? 'expand_more' : 'chevron_right'}
+                variant="outlined"
+                size={16}
+                box={16}
+                className={aberto ? 'text-foreground' : 'text-muted-foreground'}
+              />
+              <span className="min-w-0 flex-1 truncate">{grupo.grandeArea}</span>
+              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--gp-text-3)' }}>
+                {`${grupo.totalTemas} ${grupo.totalTemas === 1 ? 'tema' : 'temas'}`}
+              </span>
+              {grupo.totalCriticos > 0 ? (
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gp-danger-on)' }}>
+                  {`${grupo.totalCriticos} ${grupo.totalCriticos === 1 ? 'crítico' : 'críticos'}`}
+                </span>
+              ) : null}
+            </button>
+            {aberto ? (
+              <ul
+                data-testid={`drawer-especialidades-de-${grupo.grandeArea}`}
+                className="ml-4 border-l pl-2"
+                style={{ borderColor: 'var(--gp-border-subtle)' }}
+              >
+                {grupo.especialidades.map((especialidade) => (
+                  <LinhaEspecialidade
+                    key={especialidade.especialidade}
+                    grupo={especialidade}
+                    aberto={especialidadeAberta === especialidade.especialidade}
+                    onClick={() =>
+                      setEspecialidadeAberta((atual) =>
+                        atual === especialidade.especialidade ? null : especialidade.especialidade,
+                      )
+                    }
+                  />
+                ))}
+              </ul>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+interface InsightAlunoIAProps {
+  iesId: string | null;
+  alunoId: string;
+  simulados: string[];
+}
+
+/**
+ * "Insight do aluno" gerado por IA (edge function `gestor-ai-insights`, spec
+ * da task 09/08). Mesmo padrão de chamada de `AiRecommendationCard.tsx`
+ * (`supabase.functions.invoke`), adaptado à anatomia do gestor (skeleton do
+ * portal, `TituloSecao`) em vez dos componentes genéricos daquele cartão.
+ *
+ * Sob CLIQUE do usuário, nunca ao abrir o drawer — decisão de custo já
+ * tomada. Qualquer falha (status != 200, exceção de rede, resposta sem
+ * `insight` utilizável) esconde o resultado e cai num estado de erro
+ * discreto com "Tentar novamente": a IA nunca trava nem quebra o resto do
+ * drawer, mesmo princípio de degradação graciosa do cartão de referência.
+ */
+function InsightAlunoIA({ iesId, alunoId, simulados }: InsightAlunoIAProps) {
+  const [estado, setEstado] = React.useState<'ocioso' | 'carregando' | 'ok' | 'erro'>('ocioso');
+  const [insight, setInsight] = React.useState<string | null>(null);
+
+  const gerar = React.useCallback(async () => {
+    setEstado('carregando');
+    try {
+      const { data, error } = await supabase.functions.invoke('gestor-ai-insights', {
+        body: { modo: 'aluno', iesId, alunoId, simulados },
+      });
+      if (error) throw error;
+      const texto = typeof data?.insight === 'string' ? data.insight.trim() : '';
+      if (!texto) throw new Error('gestor-ai-insights: resposta sem insight');
+      setInsight(texto);
+      setEstado('ok');
+    } catch {
+      // Degradação graciosa: nunca deixa a exceção subir e derrubar o resto
+      // do drawer — só recolhe o resultado e mostra o estado de erro local.
+      setInsight(null);
+      setEstado('erro');
+    }
+  }, [iesId, alunoId, simulados]);
+
+  const rotuloBotao =
+    estado === 'carregando'
+      ? 'Gerando…'
+      : estado === 'erro'
+        ? 'Tentar novamente'
+        : estado === 'ok'
+          ? 'Gerar novamente'
+          : 'Gerar com IA';
+
+  return (
+    <div data-testid="drawer-insight-ia" className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <TituloSecao>Insight do aluno (IA)</TituloSecao>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="drawer-insight-ia-gerar"
+          className="h-auto shrink-0 rounded-sm px-3 py-1.5 text-xs font-semibold"
+          onClick={gerar}
+          disabled={estado === 'carregando'}
+        >
+          {rotuloBotao}
+        </Button>
+      </div>
+
+      {estado === 'carregando' ? (
+        <div className="space-y-1.5" data-testid="drawer-insight-ia-carregando">
+          <GestorSkeleton altura={12} rotulo="Gerando insight do aluno" />
+          <GestorSkeleton altura={12} rotulo="Gerando insight do aluno" />
+          <GestorSkeleton altura={12} rotulo="Gerando insight do aluno" />
+        </div>
+      ) : estado === 'erro' ? (
+        <p data-testid="drawer-insight-ia-erro" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+          Não foi possível gerar o insight agora.
+        </p>
+      ) : estado === 'ok' && insight ? (
+        <p
+          data-testid="drawer-insight-ia-texto"
+          style={{ fontSize: 13, color: 'var(--gp-text-1)', lineHeight: 1.5 }}
+        >
+          {insight}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Visão detalhada de um aluno (handoff §4.8).
  *
@@ -465,6 +776,8 @@ function InsightArea({
 export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: DrawerAlunoProps) {
   const consulta = useAluno(alunoId, simulados);
   const contato = useAlunoContato(alunoId);
+  const desempenhoArea = useAlunoDesempenhoPorArea(alunoId, simulados);
+  const { iesId } = useFiltrosGestor();
   const entradas: AlunoSimuladoEntry[] = consulta.data ?? [];
 
   /**
@@ -532,6 +845,23 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const areasDoAluno = [...(entradaDasAreas?.acertoPorArea ?? [])].sort(
     (a, b) => b.acertoPct - a.acertoPct,
   );
+
+  /**
+   * Mesma regra de recorte do comparativo acima, aplicada ao drill-down por
+   * tema: UM simulado, o mais recente que tenha classificação, NUNCA fundido
+   * entre simulados. `get_gestor_aluno_desempenho_por_area` é uma consulta
+   * própria (`desempenhoArea`, hook `useAlunoDesempenhoPorArea`) — casada por
+   * `simuladoId` contra a mesma ordem cronológica de `cronologicas`, para que
+   * "mais recente" signifique a mesma coisa nas duas seções.
+   */
+  const areaPorSimulado = new Map(
+    (desempenhoArea.data ?? []).map((entrada) => [entrada.simuladoId, entrada]),
+  );
+  const entradaAreaDetalhada: DesempenhoPorAreaSimulado | null =
+    [...cronologicas]
+      .reverse()
+      .map((e) => areaPorSimulado.get(e.simuladoId))
+      .find((d): d is DesempenhoPorAreaSimulado => d !== undefined && d.areas.length > 0) ?? null;
 
   /**
    * §7.7: o texto do "Copiar resumo" é o recorte DESTE aluno, agregado por
@@ -706,6 +1036,42 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
                 </div>
               </div>
             ) : null}
+
+            {/*
+              Drill-down grande área → especialidade → tema (task 09/08).
+              Consulta PRÓPRIA (`useAlunoDesempenhoPorArea`), independente de
+              `consulta`: uma falha aqui nunca esconde as notas/evolução/
+              comparativo acima, que já carregaram com sucesso.
+            */}
+            <div data-testid="drawer-desempenho-area" className="space-y-2">
+              <TituloSecao>Desempenho por área, especialidade e tema</TituloSecao>
+              {desempenhoArea.isLoading ? (
+                <GestorSkeleton altura={64} rotulo="Carregando desempenho por área" />
+              ) : desempenhoArea.isError ? (
+                <EstadoErro
+                  titulo="Não foi possível carregar o desempenho por área."
+                  onRetry={desempenhoArea.refetch}
+                  className="py-3"
+                />
+              ) : entradaAreaDetalhada ? (
+                <>
+                  {/* De QUAL simulado sai a cascata — mesma âncora de proveniência do comparativo acima. */}
+                  <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                    {`${entradaAreaDetalhada.nome} · toque para expandir`}
+                  </p>
+                  <CascataDesempenhoAluno areas={entradaAreaDetalhada.areas} />
+                </>
+              ) : (
+                <EstadoVazio compacto titulo="Sem classificação por tema neste recorte" />
+              )}
+            </div>
+
+            {/*
+              Insight do aluno por IA (task 09/08) — sempre por último: é a
+              seção de custo mais alto (chamada de IA) e a única que depende
+              de um clique explícito para existir.
+            */}
+            <InsightAlunoIA iesId={iesId} alunoId={alunoId} simulados={simulados} />
           </div>
         )}
 

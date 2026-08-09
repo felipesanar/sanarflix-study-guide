@@ -5,18 +5,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // exige um Router montado. Mesmo wrapper de DrawerTemas.test.tsx.
 import { render, screen, userEvent, waitFor, within } from '@/test/utils';
 import { DrawerAluno, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
-import { useAluno, useAlunoContato, useGestorContexto } from '@/features/gestor/api/queries';
+import {
+  useAluno,
+  useAlunoContato,
+  useAlunoDesempenhoPorArea,
+  useGestorContexto,
+} from '@/features/gestor/api/queries';
 import { TRACO } from '@/features/gestor/lib/formatters';
 import type { AlunoContato, AlunoSimuladoEntry, Meta } from '@/features/gestor/api/types';
+import type { AreaDesempenhoAluno, DesempenhoPorAreaSimulado } from '@/features/gestor/api/types-aluno-area';
 
 // O `<Toaster />` não faz parte do wrapper de teste: sem interceptar o hook, o
 // aviso de "exportação indisponível" não teria onde aparecer para ser afirmado.
 const { mockToast } = vi.hoisted(() => ({ mockToast: vi.fn() }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 
+// "Insight do aluno (IA)" chama `supabase.functions.invoke` direto (mesmo
+// padrão de `AiRecommendationCard`) — sem este mock, o clique em "Gerar com
+// IA" bateria numa rede de verdade.
+const { mockFunctionsInvoke } = vi.hoisted(() => ({ mockFunctionsInvoke: vi.fn() }));
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: { functions: { invoke: (...args: unknown[]) => mockFunctionsInvoke(...args) } },
+}));
+
 vi.mock('@/features/gestor/api/queries', () => ({
   useAluno: vi.fn(),
   useAlunoContato: vi.fn(),
+  // Drill-down grande área → especialidade → tema (task 09/08) — consulta
+  // própria, precisa do próprio mock para o drawer não quebrar ao montar.
+  useAlunoDesempenhoPorArea: vi.fn(),
   // O rodapé de ações é o `AcoesRecorte`, que lê `podeExportar` do contexto
   // resolvido no SERVIDOR — o mock do módulo precisa expor este hook também.
   useGestorContexto: vi.fn(),
@@ -24,6 +41,7 @@ vi.mock('@/features/gestor/api/queries', () => ({
 
 const mockUseAluno = vi.mocked(useAluno);
 const mockUseAlunoContato = vi.mocked(useAlunoContato);
+const mockUseAlunoDesempenhoPorArea = vi.mocked(useAlunoDesempenhoPorArea);
 const mockUseContexto = vi.mocked(useGestorContexto);
 
 const META: Meta = {
@@ -72,6 +90,48 @@ const ENTRADA_S2: AlunoSimuladoEntry = {
   simuladoData: '2026-05-12T12:00:00Z',
 };
 
+/**
+ * Fixture do drill-down grande área → especialidade → tema
+ * (`get_gestor_aluno_desempenho_por_area`). Duas especialidades em "Clínica
+ * Médica" (uma delas com tema crítico) e uma em "Cirurgia" — o mínimo para
+ * exercitar agrupamento, contagem de críticos e os dois níveis de acordeão.
+ */
+const AREA_CARDIO: AreaDesempenhoAluno = {
+  grandeArea: 'Clínica Médica',
+  especialidade: 'Cardiologia',
+  tema: 'Insuficiência cardíaca',
+  questoesRespondidas: 9,
+  questoesTotal: 10,
+  acertoPct: 90,
+  critica: false,
+};
+
+const AREA_NEONATO_CRITICA: AreaDesempenhoAluno = {
+  grandeArea: 'Clínica Médica',
+  especialidade: 'Neonatologia',
+  tema: 'Ictericia neonatal',
+  questoesRespondidas: 4,
+  questoesTotal: 10,
+  acertoPct: 40,
+  critica: true,
+};
+
+const AREA_TRAUMA: AreaDesempenhoAluno = {
+  grandeArea: 'Cirurgia',
+  especialidade: 'Trauma',
+  tema: 'Politrauma',
+  questoesRespondidas: 7,
+  questoesTotal: 10,
+  acertoPct: 70,
+  critica: false,
+};
+
+const DESEMPENHO_AREA_S2: DesempenhoPorAreaSimulado = {
+  simuladoId: 's2',
+  nome: 'Simulado 2',
+  areas: [AREA_CARDIO, AREA_NEONATO_CRITICA, AREA_TRAUMA],
+};
+
 const resultado = (over: Record<string, unknown> = {}) => ({
   data: undefined,
   meta: META,
@@ -115,6 +175,11 @@ beforeEach(() => {
   mockUseAluno.mockReturnValue(resultado({ data: [ENTRADA_S1] }) as unknown as ReturnType<typeof useAluno>);
   mockUseAlunoContato.mockReturnValue(
     resultado({ data: CONTATO_PADRAO }) as unknown as ReturnType<typeof useAlunoContato>,
+  );
+  // Drill-down por área — default sem dado (nenhum teste deste arquivo é
+  // sobre ele); os testes dedicados sobrescrevem com `mockReturnValue`.
+  mockUseAlunoDesempenhoPorArea.mockReturnValue(
+    resultado({ data: [] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
   );
   mockUseContexto.mockReturnValue(contextoComExport(true));
 });
@@ -578,6 +643,152 @@ describe('DrawerAluno — sem nenhum simulado no recorte pedido', () => {
     mockUseAluno.mockReturnValue(resultado({ data: [] }) as unknown as ReturnType<typeof useAluno>);
     montar();
     expect(screen.getByRole('dialog')).toHaveTextContent(/nenhum simulado/i);
+  });
+});
+
+/**
+ * Drill-down grande área → especialidade → tema (task 09/08), consulta
+ * própria (`useAlunoDesempenhoPorArea`). Loading/erro/vazio seguem o mesmo
+ * padrão de bloco independente do resto do drawer (spec de degradação
+ * graciosa já usada em `drawer-areas`/`drawer-evolucao`).
+ */
+describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)', () => {
+  it('carregando: mostra skeleton do bloco, nunca a cascata', () => {
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
+    );
+    montar();
+    expect(screen.getByRole('status', { name: 'Carregando desempenho por área' })).toBeInTheDocument();
+    expect(screen.queryByTestId('drawer-cascata-areas')).not.toBeInTheDocument();
+  });
+
+  it('erro: mensagem + Tentar novamente refaz só esta consulta, sem derrubar o resto do drawer', async () => {
+    const refetch = vi.fn();
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: undefined, isError: true, refetch }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
+    );
+    const user = userEvent.setup();
+    montar();
+
+    const bloco = screen.getByTestId('drawer-desempenho-area');
+    expect(within(bloco).getByRole('alert')).toBeInTheDocument();
+    await user.click(within(bloco).getByRole('button', { name: /tentar novamente/i }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+    // O resto do drawer segue disponível — a falha é só deste bloco.
+    expect(screen.getByText('Proficiência')).toBeInTheDocument();
+  });
+
+  it('sem classificação por tema no recorte, mostra vazio — nunca quebra', () => {
+    // beforeEach já monta `useAlunoDesempenhoPorArea` com `data: []`.
+    montar();
+    expect(
+      within(screen.getByTestId('drawer-desempenho-area')).getByText('Sem classificação por tema neste recorte'),
+    ).toBeInTheDocument();
+  });
+
+  it('usa o simulado MAIS RECENTE com classificação — nunca funde entre simulados', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S2] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
+    );
+    montar();
+    expect(screen.getByTestId('drawer-desempenho-area')).toHaveTextContent('Simulado 2');
+  });
+
+  it('grande área expande para especialidade, que expande para o tema — com contagens honestas', async () => {
+    // `DESEMPENHO_AREA_S2` é do simulado 's2' — sem isso no recorte de
+    // `useAluno`, o casamento por `simuladoId` (regra de agregação honesta)
+    // não encontra o simulado e a seção cai no vazio, não na cascata.
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S2] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
+    );
+    const user = userEvent.setup();
+    montar();
+
+    // Nível 1: grande área, com contagem de temas e de críticos — nada de
+    // acertoPct sintetizado para este nível, que a RPC não devolve.
+    const grandeArea = screen.getByTestId('drawer-grande-area-Clínica Médica');
+    expect(grandeArea).toHaveTextContent('2 temas');
+    expect(grandeArea).toHaveTextContent('1 crítico');
+    expect(screen.queryByTestId('drawer-especialidade-Neonatologia')).not.toBeInTheDocument();
+
+    await user.click(grandeArea);
+    expect(screen.getByTestId('drawer-especialidade-Neonatologia')).toBeInTheDocument();
+    expect(screen.getByTestId('drawer-especialidade-Cardiologia')).toBeInTheDocument();
+    expect(screen.queryByTestId('drawer-tema-Ictericia neonatal')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('drawer-especialidade-Neonatologia'));
+    const tema = screen.getByTestId('drawer-tema-Ictericia neonatal');
+    expect(tema).toHaveTextContent('4/10');
+    expect(tema).toHaveTextContent('40%');
+    // Cor nunca é canal único: a criticidade também sai por texto.
+    expect(screen.getByText(/\(tema crítico\)/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * "Insight do aluno (IA)" (task 09/08) — `supabase.functions.invoke`, sob
+ * clique, nunca ao abrir o drawer. Degradação graciosa: qualquer falha
+ * esconde o resultado e cai num estado discreto com "Tentar novamente".
+ */
+describe('DrawerAluno — insight do aluno por IA', () => {
+  it('não chama a IA ao abrir o drawer — só sob clique do usuário', () => {
+    montar();
+    expect(mockFunctionsInvoke).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Gerar com IA' })).toBeInTheDocument();
+  });
+
+  it('ao clicar, mostra skeleton e depois o texto retornado, com o payload certo', async () => {
+    // Promise represada de propósito: com `mockResolvedValue` puro, a
+    // resolução cai no mesmo microtask flush do próprio `user.click`, e o
+    // teste nunca observa o estado 'carregando' — represar é o que garante
+    // a janela para afirmar o skeleton antes de liberar o resultado.
+    let resolverInvoke: (valor: unknown) => void = () => undefined;
+    mockFunctionsInvoke.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolverInvoke = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole('button', { name: 'Gerar com IA' }));
+    expect(screen.getByTestId('drawer-insight-ia-carregando')).toBeInTheDocument();
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith('gestor-ai-insights', {
+      body: { modo: 'aluno', iesId: null, alunoId: 'a1', simulados: ['s1', 's2'] },
+    });
+
+    resolverInvoke({ data: { insight: 'Este aluno evoluiu bem em Clínica Médica.' }, error: null });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('drawer-insight-ia-texto')).toHaveTextContent(
+        'Este aluno evoluiu bem em Clínica Médica.',
+      ),
+    );
+  });
+
+  it('em erro, esconde o resultado e mostra estado discreto com opção de tentar de novo — sem quebrar o drawer', async () => {
+    mockFunctionsInvoke.mockResolvedValue({ data: null, error: new Error('edge function failed') });
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole('button', { name: 'Gerar com IA' }));
+    await waitFor(() => expect(screen.getByTestId('drawer-insight-ia-erro')).toBeInTheDocument());
+    expect(screen.queryByTestId('drawer-insight-ia-texto')).not.toBeInTheDocument();
+    // O resto do drawer segue de pé — a IA nunca trava o componente.
+    expect(screen.getByText('Proficiência')).toBeInTheDocument();
+
+    mockFunctionsInvoke.mockResolvedValue({ data: { insight: 'Recuperou no retry.' }, error: null });
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('drawer-insight-ia-texto')).toHaveTextContent('Recuperou no retry.'),
+    );
   });
 });
 

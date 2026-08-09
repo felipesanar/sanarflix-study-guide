@@ -33,7 +33,14 @@ function corpoVigente(nome: string): string {
     .readdirSync(MIGRATIONS)
     .filter((f) => f.endsWith('.sql'))
     .sort();
-  const marcador = `CREATE OR REPLACE FUNCTION public.${nome}`;
+  // `(` logo após o nome é essencial: sem isso, procurar
+  // `get_gestor_detalhamento` também casa `get_gestor_detalhamento_temas`
+  // (mesmo prefixo) e o teste passa a ler a função errada — achado em 09/08
+  // ao introduzir `get_gestor_detalhamento_temas` (drill-down do Detalhamento).
+  // Alguns chamadores (ex.: `get_gestor_aluno(`) já mandam o `(` embutido no
+  // próprio `nome` para essa mesma finalidade — não duplicar nesse caso.
+  const nomeComParen = nome.endsWith('(') ? nome : `${nome}(`;
+  const marcador = `CREATE OR REPLACE FUNCTION public.${nomeComParen}`;
   const comFuncao = arquivos.filter((f) =>
     fs.readFileSync(path.join(MIGRATIONS, f), 'utf-8').includes(marcador),
   );

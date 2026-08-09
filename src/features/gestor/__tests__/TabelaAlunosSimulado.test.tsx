@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within, userEvent } from '@/test/utils';
 import {
   TabelaAlunosSimulado,
+  classificarProficiencia,
   ordenarAlunosNoSimulado,
 } from '@/features/gestor/components/TabelaAlunosSimulado';
 import type { AlunoNoSimulado } from '@/features/gestor/api/types';
@@ -336,5 +337,107 @@ describe('TabelaAlunosSimulado', () => {
   it('com 1 simulado a coluna Variação não existe', () => {
     render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
     expect(screen.queryByText('Variação')).toBeNull();
+  });
+
+  describe('classificarProficiencia', () => {
+    it('>= 60 é proficiente', () => {
+      expect(classificarProficiencia(60)).toBe('proficiente');
+      expect(classificarProficiencia(100)).toBe('proficiente');
+    });
+
+    it('entre 45 e 59,99 é próximo da proficiência', () => {
+      expect(classificarProficiencia(45)).toBe('proximo');
+      expect(classificarProficiencia(59.99)).toBe('proximo');
+    });
+
+    it('< 45 é não proficiente', () => {
+      expect(classificarProficiencia(44.99)).toBe('nao_proficiente');
+      expect(classificarProficiencia(0)).toBe('nao_proficiente');
+    });
+
+    it('null (sem nota) não entra em nenhuma faixa', () => {
+      expect(classificarProficiencia(null)).toBeNull();
+    });
+  });
+
+  /**
+   * Filtro de proficiência (decisão de produto desta sessão): 3 faixas sobre
+   * o score TRI já carregado pela tabela — client-side, sem RPC nova.
+   */
+  describe('filtro de proficiência', () => {
+    const QUATRO: AlunoNoSimulado[] = [
+      aluno({ id: 'a1', nome: 'Ana', proficiencia: 72 }), // proficiente
+      aluno({ id: 'a2', nome: 'Bruno', proficiencia: 50 }), // próximo
+      aluno({ id: 'a3', nome: 'Carla', proficiencia: 30 }), // não proficiente
+      aluno({ id: 'a4', nome: 'Diego', participou: false, proficiencia: null }), // sem nota
+    ];
+
+    it('mostra os 4 chips (Todos + 3 faixas) com contagem sobre TODOS os alunos', () => {
+      render(<TabelaAlunosSimulado alunos={QUATRO} multiSimulado={false} />);
+
+      const filtro = screen.getByTestId('filtro-proficiencia-alunos');
+      expect(within(filtro).getByRole('button', { name: /Todos/ })).toHaveTextContent('3');
+      expect(within(filtro).getByRole('button', { name: /Proficiente/ })).toHaveTextContent('1');
+      expect(within(filtro).getByRole('button', { name: /Próximo da proficiência/ })).toHaveTextContent('1');
+      expect(within(filtro).getByRole('button', { name: /Não proficiente/ })).toHaveTextContent('1');
+    });
+
+    it('filtra a tabela para a faixa selecionada, sem afetar a contagem dos outros chips', async () => {
+      const user = userEvent.setup();
+      render(<TabelaAlunosSimulado alunos={QUATRO} multiSimulado={false} />);
+
+      await user.click(screen.getByRole('button', { name: /^Proficiente/ }));
+      expect(nomesNaOrdem()).toEqual(['Ana']);
+
+      const filtro = screen.getByTestId('filtro-proficiencia-alunos');
+      expect(within(filtro).getByRole('button', { name: /Não proficiente/ })).toHaveTextContent('1');
+      expect(within(filtro).getByRole('button', { name: /^Proficiente/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('aluno sem nota nunca aparece sob nenhuma faixa selecionada', async () => {
+      const user = userEvent.setup();
+      render(<TabelaAlunosSimulado alunos={QUATRO} multiSimulado={false} />);
+
+      await user.click(screen.getByRole('button', { name: /Não proficiente/ }));
+      expect(nomesNaOrdem()).toEqual(['Carla']);
+      expect(screen.queryByText('Diego')).toBeNull();
+    });
+
+    it('clicar de novo na faixa ativa limpa o filtro (volta para Todos)', async () => {
+      const user = userEvent.setup();
+      render(<TabelaAlunosSimulado alunos={QUATRO} multiSimulado={false} />);
+
+      // Cada clique re-consulta o botão: o chip é remontado a cada render
+      // (mesmo padrão de `FiltroGrupoAlunos`), então reusar a referência do
+      // primeiro clique apontaria para um nó já desmontado no segundo.
+      await user.click(screen.getByRole('button', { name: /Próximo da proficiência/ }));
+      expect(nomesNaOrdem()).toEqual(['Bruno']);
+
+      await user.click(screen.getByRole('button', { name: /Próximo da proficiência/ }));
+      expect(nomesNaOrdem()).toEqual(['Ana', 'Bruno', 'Carla', 'Diego']);
+    });
+
+    it('combina com "ocultar não participantes" (os dois filtros juntos)', async () => {
+      const user = userEvent.setup();
+      render(<TabelaAlunosSimulado alunos={QUATRO} multiSimulado={false} />);
+
+      await user.click(screen.getByRole('button', { name: /ocultar não participantes/i }));
+      expect(nomesNaOrdem()).toEqual(['Ana', 'Bruno', 'Carla']);
+
+      await user.click(screen.getByRole('button', { name: /^Proficiente/ }));
+      expect(nomesNaOrdem()).toEqual(['Ana']);
+    });
+
+    it('vazio com o filtro ativo oferece saída para mostrar todas as faixas', async () => {
+      const user = userEvent.setup();
+      const SO_NAO_PROFICIENTE: AlunoNoSimulado[] = [aluno({ id: 'a1', nome: 'Ana', proficiencia: 72 })];
+      render(<TabelaAlunosSimulado alunos={SO_NAO_PROFICIENTE} multiSimulado={false} />);
+
+      await user.click(screen.getByRole('button', { name: /Não proficiente/ }));
+      expect(screen.getByText('Nenhum aluno com esse filtro')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /mostrar todas as faixas de proficiência/i }));
+      expect(nomesNaOrdem()).toEqual(['Ana']);
+    });
   });
 });

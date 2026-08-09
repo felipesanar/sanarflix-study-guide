@@ -35,6 +35,9 @@ export const visaoGeralFake: VisaoGeral = {
         { rotulo: 'atual', valor: 3 },
       ],
       criterio: 'Conceito 1–5 derivado do percentual de alunos proficientes do simulado',
+      // Padrão 'oficial': o selo "estimado" (KpisVisaoGeral) só aparece nos
+      // casos que o exercitam explicitamente, nunca no caminho feliz.
+      origem: 'oficial',
     },
     proficientesPct: {
       valor: 62,
@@ -58,6 +61,11 @@ export const visaoGeralFake: VisaoGeral = {
     },
     simulados: { realizados: 3, contratados: 7 },
   },
+  // Maior que `distribuicaoAlunos.reduce(...)` (115) DE PROPÓSITO: a
+  // população matriculada real é maior que quem tem resultado de TRI no
+  // recorte (bug documentado em `VisaoDeAlunos`, não corrigido por este
+  // campo — ele só dá o denominador honesto para contextualizar o corte).
+  alunosMatriculadosNoRecorte: 132,
   evolucao: [
     { simuladoId: 's1', nome: 'Simulado 1', data: '2026-03-10T00:00:00.000Z', valor: 51, participantes: 120 },
     { simuladoId: 's2', nome: 'Simulado 2', data: '2026-05-12T00:00:00.000Z', valor: 58, participantes: 118 },
@@ -127,7 +135,13 @@ export function visaoComUmSimulado(): VisaoGeral {
   return {
     ...visaoGeralFake,
     kpis: {
-      enamedProjetado: { valor: 2, delta: null, serie: [{ rotulo: 'atual', valor: 2 }], criterio: metaFake.criterio },
+      enamedProjetado: {
+        valor: 2,
+        delta: null,
+        serie: [{ rotulo: 'atual', valor: 2 }],
+        criterio: metaFake.criterio,
+        origem: 'oficial',
+      },
       proficientesPct: { valor: 51, delta: null, serie: [{ rotulo: 'atual', valor: 51 }], criterio: metaFake.criterio },
       acertoPct: { valor: 55, delta: null, serie: [{ rotulo: 'atual', valor: 55 }], criterio: metaFake.criterio },
       simulados: { realizados: 1, contratados: 7 },

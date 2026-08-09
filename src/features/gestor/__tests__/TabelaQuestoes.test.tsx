@@ -25,6 +25,15 @@ const questao = (over: Partial<Questao>): Questao => ({
   acertoPct: 42,
   enunciado: 'Paciente de 62 anos com dispneia progressiva…',
   alternativas: alternativas(),
+  // Forma real de `get_gestor_questoes` desde 09/08 (migration
+  // 20260809231000_..._respondentes.sql): as 3 chaves de imagem estão sempre
+  // presentes no JSON, `null` quando a questão não tem imagem. `id` fica de
+  // fora do default de propósito — a RPC real não o expõe (ver o comentário
+  // de `Questao.id` em api/types.ts); testes que precisarem dele passam
+  // `over.id` explicitamente.
+  imagemEnunciado: null,
+  imagemEnunciado2: null,
+  imagemComentario: null,
   ...over,
 });
 

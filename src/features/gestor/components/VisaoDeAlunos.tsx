@@ -40,6 +40,21 @@ export interface VisaoDeAlunosProps {
    * (§4.10).
    */
   totalSimulados?: number;
+  /**
+   * População matriculada da IES no recorte vigente —
+   * `VisaoGeral.alunosMatriculadosNoRecorte` (campo novo confirmado em
+   * produção em `get_gestor_visao_geral`), passado pelo chamador
+   * (`VisaoGeral.tsx`) inteiro, sem recorte deste componente.
+   *
+   * Existe para contextualizar `totalAlunos` abaixo: aquele número é a soma
+   * de `distribuicao`, que só conta quem tem ao menos um resultado de TRI no
+   * recorte — SEMPRE menor ou igual à população real, e tipicamente menor
+   * (bug já documentado, não é o que esta prop corrige — ela só dá o
+   * denominador honesto para a gestora entender o tamanho do corte).
+   * `undefined` quando o chamador não sabe: a linha secundária de contexto
+   * não aparece, em vez de inventar um total.
+   */
+  totalMatriculados?: number;
 }
 
 /** Ordem fixa de exibição dos 3 grupos de evolução (mesmo espírito do `ORDEM_NIVEL` de `CascataDiagnostico`). */
@@ -74,6 +89,7 @@ export function VisaoDeAlunos({
   onAlternarDetalhe,
   detalheAberto = false,
   totalSimulados,
+  totalMatriculados,
 }: VisaoDeAlunosProps) {
   const porGrupo = new Map(distribuicao.map((item) => [item.grupo, item]));
 
@@ -156,6 +172,22 @@ export function VisaoDeAlunos({
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {/*
+            Linha secundária de contexto, abaixo da nota do cabeçalho: o "N
+            alunos" ali é `distribuicao.reduce(...)`, que só conta quem tem
+            resultado de TRI no recorte — bem menor que a população
+            matriculada real (bug já documentado, não corrigido aqui). Sem
+            `totalMatriculados` (chamador não sabe o total), a linha não
+            aparece — nunca um total inventado (§4.10).
+          */}
+          {totalMatriculados !== undefined ? (
+            <p
+              data-testid="visao-alunos-matriculados-contexto"
+              className="text-[11px] text-muted-foreground"
+            >
+              {formatNumero(totalAlunos)} de {formatNumero(totalMatriculados)} alunos matriculados têm resultado
+            </p>
+          ) : null}
           <div data-testid="distribuicao-alunos">
             {distribuicao.length === 0 ? (
               <div data-testid="distribuicao-vazia">

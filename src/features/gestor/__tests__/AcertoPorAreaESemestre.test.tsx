@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@/test/utils';
+import { render, screen, within, userEvent } from '@/test/utils';
 import {
   AcertoPorAreaESemestre,
   semestresEmEvidencia,
@@ -194,5 +194,80 @@ describe('AcertoPorAreaESemestre', () => {
     expect(coluna(12).style.background).toBe('var(--gp-text-1)');
     expect(coluna(10).style.background).toBe('var(--gp-border-input)');
     expect(coluna(10).className).not.toContain('bg-primary');
+  });
+
+  /**
+   * Task A4: drill-down de área (drawer especialidade → tema) via
+   * `onAbrirArea`. É um controle SEPARADO do recorte cruzado — precisa
+   * conviver na mesma linha sem um botão ficar aninhado no outro (HTML não
+   * permite `<button>` dentro de `<button>`) e sem que os dois cliques se
+   * confundam.
+   */
+  describe('drill-down de área (onAbrirArea)', () => {
+    it('sem onAbrirArea, nenhum botão de drill-down aparece', () => {
+      render(<AcertoPorAreaESemestre dados={DADOS} semestre="geral" onRecorteChange={vi.fn()} />);
+      expect(screen.queryByTestId('area-drilldown-cirurgia')).toBeNull();
+    });
+
+    it('com onAbrirArea, chama com {id, nome} da área clicada — sem acionar o recorte cruzado', async () => {
+      const user = userEvent.setup();
+      const onAbrirArea = vi.fn();
+      const onRecorteChange = vi.fn();
+      render(
+        <AcertoPorAreaESemestre
+          dados={DADOS}
+          semestre="geral"
+          onRecorteChange={onRecorteChange}
+          onAbrirArea={onAbrirArea}
+        />,
+      );
+
+      await user.click(screen.getByTestId('area-drilldown-cirurgia'));
+      expect(onAbrirArea).toHaveBeenCalledWith({ id: 'cirurgia', nome: 'Cirurgia' });
+      expect(onRecorteChange).not.toHaveBeenCalled();
+    });
+
+    it('o botão de drill-down convive com o de recorte cruzado, sem aninhamento de <button>', async () => {
+      const user = userEvent.setup();
+      const onAbrirArea = vi.fn();
+      const onRecorteChange = vi.fn();
+      // Cruzamento precisa de `matriz` para não ficar `aria-disabled` — sem
+      // isso o clique cruzado é um no-op por contrato (ver o outro teste,
+      // "sem cruzamento disponível"), e este teste quer o cruzamento ATIVO.
+      const matriz = [
+        { areaId: 'clinica', semestre: 11, acertoPct: 70, amostra: 100 },
+        { areaId: 'cirurgia', semestre: 11, acertoPct: 40, amostra: 90 },
+        { areaId: 'pediatria', semestre: 11, acertoPct: 55, amostra: 80 },
+      ];
+      render(
+        <AcertoPorAreaESemestre
+          dados={DADOS}
+          semestre="geral"
+          matriz={matriz}
+          onRecorteChange={onRecorteChange}
+          onAbrirArea={onAbrirArea}
+        />,
+      );
+
+      // O clique cruzado continua funcionando — os dois controles são irmãos.
+      // `/^Cirurgia/` (não `/Cirurgia/`) para não casar com o botão de
+      // drill-down, cujo aria-label ("Ver especialidades e temas de
+      // Cirurgia") também contém o nome da área.
+      await user.click(screen.getByRole('button', { name: /^Cirurgia/ }));
+      expect(onRecorteChange).toHaveBeenCalledWith({ tipo: 'area', id: 'cirurgia' });
+      expect(onAbrirArea).not.toHaveBeenCalled();
+
+      const drilldown = screen.getByTestId('area-drilldown-cirurgia');
+      expect(drilldown.closest('button')).toBe(drilldown);
+    });
+
+    it('funciona mesmo sem cruzamento disponível (sem matriz/onRecorteChange)', async () => {
+      const user = userEvent.setup();
+      const onAbrirArea = vi.fn();
+      render(<AcertoPorAreaESemestre dados={DADOS} semestre="geral" onAbrirArea={onAbrirArea} />);
+
+      await user.click(screen.getByTestId('area-drilldown-clinica'));
+      expect(onAbrirArea).toHaveBeenCalledWith({ id: 'clinica', nome: 'Clínica Médica' });
+    });
   });
 });

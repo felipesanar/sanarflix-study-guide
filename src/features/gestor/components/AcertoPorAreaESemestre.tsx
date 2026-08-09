@@ -98,6 +98,7 @@ export function AcertoPorAreaESemestre({
   matriz,
   recorte = null,
   onRecorteChange,
+  onAbrirArea,
 }: AcertoPorAreaESemestreProps) {
   const interativo = typeof onRecorteChange === 'function';
   const cruzamentoDisponivel = Boolean(matriz && matriz.length > 0);
@@ -260,7 +261,7 @@ export function AcertoPorAreaESemestre({
                   data-critica={String(area.critica)}
                   data-recorte={ativo ? 'ativo' : 'inativo'}
                   className={cn(
-                    'rounded transition-opacity duration-200',
+                    'flex items-center gap-1 rounded transition-opacity duration-200',
                     ativo && 'bg-primary/5 ring-1 ring-primary/30',
                     esmaecida ? 'opacity-40' : 'opacity-100',
                   )}
@@ -280,7 +281,7 @@ export function AcertoPorAreaESemestre({
                          o comentário do motivo, acima), mas para de prometer
                          um clique que não vai acontecer. */
                       className={cn(
-                        'grid w-full grid-cols-[10rem_1fr_3.5rem] items-center gap-3 rounded px-1 py-1',
+                        'grid min-w-0 flex-1 grid-cols-[10rem_1fr_3.5rem] items-center gap-3 rounded px-1 py-1',
                         'transition-colors duration-200',
                         cruzamentoDisponivel
                           ? 'cursor-pointer hover:bg-[color:var(--gp-surface-3)]'
@@ -290,8 +291,29 @@ export function AcertoPorAreaESemestre({
                       {linha}
                     </button>
                   ) : (
-                    <div className="grid grid-cols-[10rem_1fr_3.5rem] items-center gap-3 px-1 py-1">{linha}</div>
+                    <div className="grid min-w-0 flex-1 grid-cols-[10rem_1fr_3.5rem] items-center gap-3 px-1 py-1">
+                      {linha}
+                    </div>
                   )}
+                  {/*
+                    Drill-down (Task A4) — controle SEPARADO do botão acima,
+                    nunca aninhado nele (botão-dentro-de-botão não é HTML
+                    válido). É por isso que o cruzamento área × semestre e o
+                    drill-down especialidade → tema convivem na MESMA linha
+                    sem um roubar o clique do outro.
+                  */}
+                  {onAbrirArea ? (
+                    <button
+                      type="button"
+                      data-testid={`area-drilldown-${area.id}`}
+                      aria-label={`Ver especialidades e temas de ${area.nome}`}
+                      title="Ver especialidades e temas"
+                      onClick={() => onAbrirArea({ id: area.id, nome: area.nome })}
+                      className="inline-flex shrink-0 items-center justify-center rounded p-1 text-muted-foreground transition-colors duration-200 hover:bg-[color:var(--gp-surface-3)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Icon name="chevron_right" variant="outlined" size={16} />
+                    </button>
+                  ) : null}
                 </li>
               );
             })}

@@ -262,17 +262,40 @@ describe('KpisVisaoGeral', () => {
   });
 
   /**
-   * `6ano` e `geral` deixam `v_sems` NULL na RPC — os dois cobrem a IES
-   * inteira (`6ano` só põe 11º/12º em evidência). Nesses recortes o
-   * denominador do contrato descreve o mesmo universo do numerador e continua
-   * onde sempre esteve; suprimi-lo ali seria esconder metade do KPI à toa.
+   * `geral` deixa `v_sems` NULL na RPC — cobre a IES inteira. O denominador do
+   * contrato descreve o mesmo universo do numerador e continua onde sempre
+   * esteve; suprimi-lo ali seria esconder metade do KPI à toa.
    */
-  it.each(['6ano', 'geral'])('com recorte "%s" (IES inteira) o denominador e a trilha permanecem', (semestre) => {
-    window.history.pushState({}, '', `/gestor/visao-geral?semestre=${semestre}`);
+  it('com recorte "geral" (IES inteira) o denominador e a trilha permanecem', () => {
+    window.history.pushState({}, '', '/gestor/visao-geral?semestre=geral');
     render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
     const cards = screen.getAllByTestId('kpi-card');
     expect(cards[3].querySelector('[data-testid="kpi-sufixo"]')?.textContent).toBe('/ 7');
     expect(cards[3].querySelector('[data-testid="kpi-trilha"]')).not.toBeNull();
+  });
+
+  /**
+   * Refino de 07/08 (migration
+   * `20260807200000_gestor_recorte_6ano_e_conceito_geral.sql`): `'6ano'`
+   * deixou de cair em `v_sems := NULL` (antes só marcava 11º/12º em
+   * evidência, sem filtrar) e passou a recortar de verdade para
+   * `ARRAY[11,12]`, igual a um semestre numérico específico. Por isso o KPI
+   * de simulados trata `'6ano'` como QUALQUER outro recorte de semestre —
+   * mesmo comportamento do teste de `?semestre=5`/`?semestre=12` acima: o
+   * numerador (só 11º/12º) e o denominador (contrato da IES inteira) passam a
+   * descrever universos diferentes, então o denominador e a trilha somem.
+   * Este era exatamente o caso que este arquivo, antes da correção, afirmava
+   * o contrário (agrupado com `'geral'` no `it.each` acima).
+   */
+  it('com recorte "6ano" (filtra 11º/12º, não é mais IES inteira) o KPI de simulados esconde o denominador e a trilha', () => {
+    window.history.pushState({}, '', '/gestor/visao-geral?semestre=6ano');
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const cards = screen.getAllByTestId('kpi-card');
+    expect(cards[3].querySelector('[data-testid="kpi-sufixo"]')).toBeNull();
+    expect(cards[3].querySelector('[data-testid="kpi-trilha"]')).toBeNull();
+    expect(cards[3].querySelector('[data-testid="kpi-hint"]')?.textContent).toBe(
+      'com nota neste recorte de semestre',
+    );
   });
 
   it('com ponto nulo na régua, o KPI de proficientes mostra traço nesse ponto (nunca zero)', () => {

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import type {
+  Alternativa,
   AlunoContato,
   AlunoSimuladoEntry,
   Aviso,
@@ -13,14 +14,17 @@ import type {
   ItemCronograma,
   LinhaAluno,
   Meta,
+  NivelDesempenho,
   NoDiagnostico,
   Paginado,
   PaginacaoGestor,
   ProficienciaSimulado,
   Questao,
+  QuestaoRespondente,
   TemaCritico,
   VisaoGeral,
 } from '@/features/gestor/api/types';
+import type { DesempenhoPorAreaSimulado } from '@/features/gestor/api/types-aluno-area';
 
 /** Dado do gestor é fresco por 5 minutos (spec §8.2). */
 export const GESTOR_STALE_TIME = 5 * 60 * 1000;
@@ -422,6 +426,36 @@ export function useAluno(
 }
 
 /**
+ * Desempenho do aluno por grande área/especialidade/tema (drill-down do
+ * `DrawerAluno`, 09/08) — `get_gestor_aluno_desempenho_por_area` devolve UMA
+ * ENTRADA POR SIMULADO (`DesempenhoPorAreaSimulado[]`), mesmo espírito de
+ * `useAluno`/`AlunoSimuladoEntry`: nenhuma linha de área é fundida entre
+ * simulados (regra de agregação honesta).
+ *
+ * Tipos isolados em `api/types-aluno-area.ts`, não em `api/types.ts` — aquele
+ * arquivo está em edição paralela por outra tarefa no mesmo dia.
+ *
+ * `manterDadoAnterior = false`: mesma razão de `useAluno` — `alunoId`
+ * IDENTIFICA o objeto exibido, então trocar de aluno nunca deve mostrar o
+ * drill-down do aluno ANTERIOR sob o nome do novo enquanto a busca está em
+ * voo.
+ */
+export function useAlunoDesempenhoPorArea(
+  alunoId: string | null,
+  simulados: string[],
+): ResultadoGestor<DesempenhoPorAreaSimulado[]> {
+  const { iesId } = useFiltrosGestor();
+  const lista = ordenados(simulados);
+  return useEnvelope<DesempenhoPorAreaSimulado[]>(
+    ['gestor', 'aluno-desempenho-area', iesId, alunoId, lista],
+    'get_gestor_aluno_desempenho_por_area',
+    { p_ies_id: iesId, p_aluno_id: alunoId, p_simulados: lista },
+    iesId !== null && alunoId !== null,
+    false,
+  );
+}
+
+/**
  * Contato do aluno (telefone) para o cabeçalho do `DrawerAluno` — decisão de
  * Felipe (31/07, reafirmada em 05/08 ao herdar o dado do
  * `StudentAnalyticsDrawer` extinto junto do console antigo): qualquer gestor
@@ -504,6 +538,64 @@ export function useDetalhamento(
 }
 
 /**
+ * Forma de UMA linha do drill-down de área do Detalhamento
+ * (`get_gestor_detalhamento_temas`, migration
+ * `20260809233000_get_gestor_detalhamento_temas.sql`) — mesmo shape de
+ * `NoDiagnostico` (id/nome/nivel/acertoPct/desempenho/amostra/lowSample/
+ * temFilhos), mas com outro contrato de nível: a cascata do Diagnóstico
+ * Curricular tem um nível a mais ('grande_area') que esta RPC nunca devolve
+ * — a grande área é o PARÂMETRO (`p_grande_area`), não um nível da resposta.
+ * Definido aqui, e não em `api/types.ts`, para não colidir com edição
+ * paralela daquele arquivo por outra tarefa desta mesma sessão.
+ */
+export interface NoDetalhamentoTemas {
+  id: string;
+  nome: string;
+  nivel: 'especialidade' | 'tema';
+  acertoPct: number;
+  desempenho: NivelDesempenho;
+  amostra: number;
+  lowSample: boolean;
+  temFilhos: boolean;
+}
+
+/**
+ * Drill-down de área do card "Acerto por grande área e por semestre" do
+ * Detalhamento (`AcertoPorAreaESemestre` → `DrawerTemasDetalhamento`).
+ *
+ * Recorta por `p_simulados` (o MESMO array da tela), nunca por semestre:
+ * `get_gestor_detalhamento_temas` segue o padrão de recorte de
+ * `get_gestor_detalhamento`, não o de `get_gestor_diagnostico_temas` (que
+ * recorta por `p_ies_id` + `p_semestre`). Por isso este hook recebe
+ * `iesId`/`simulados` crus em vez de `FiltrosGestor` inteiro — `semestre`
+ * nunca chega à RPC e não deveria fingir que chega.
+ *
+ * Sem `especialidade`, agrupa por especialidade dentro de `grandeArea`
+ * (nível "especialidade"); com `especialidade`, agrupa por tema dentro dela
+ * (nível "tema", sempre folha) — mesmo par de modos de `useDiagnosticoTemas`.
+ *
+ * `manterDadoAnterior = false`: `grandeArea`/`especialidade` IDENTIFICAM o
+ * nível exibido no drawer — mesmo motivo de `useDiagnosticoTemas`/`useAluno`
+ * acima. Trocar de área ou drilar para uma especialidade com o placeholder
+ * ligado serviria o nível ANTERIOR sob o título do novo.
+ */
+export function useDetalhamentoTemas(
+  iesId: string | null,
+  simulados: string[],
+  grandeArea: string | null,
+  especialidade: string | null,
+): ResultadoGestor<NoDetalhamentoTemas[]> {
+  const lista = ordenados(simulados);
+  return useEnvelope<NoDetalhamentoTemas[]>(
+    ['gestor', 'detalhamento-temas', iesId, lista, grandeArea, especialidade],
+    'get_gestor_detalhamento_temas',
+    { p_ies_id: iesId, p_simulados: lista, p_grande_area: grandeArea, p_especialidade: especialidade },
+    iesId !== null && lista.length > 0 && grandeArea !== null,
+    false,
+  );
+}
+
+/**
  * Tradução do valor do controle de ordenação para o contrato da RPC.
  *
  * `get_gestor_questoes` só aceita `p_sort IN ('numero','acerto')` e, fora
@@ -535,7 +627,18 @@ export function sortQuestoesParaRpc(sort: string, suportaDesc = false): string {
   return suportaDesc ? alvo : (SORT_QUESTOES_FALLBACK[alvo] ?? alvo);
 }
 
-/** Detalhamento das Questões — só com EXATAMENTE 1 simulado (spec §4.7). */
+/**
+ * Detalhamento das Questões — só com EXATAMENTE 1 simulado (spec §4.7).
+ *
+ * `p_semestre` — mesmo recorte de semestre que `useAlunos`/`useDetalhamento`
+ * enviam, vindo da MESMA fonte (`filtros.semestre` do recorte global): a
+ * população de alunos usada para `acertoPct`/`marcadaPct` de cada questão
+ * passa a respeitar "6º ano"/um semestre específico, não só a IES + o
+ * simulado. Parâmetro ADITIVO em `get_gestor_questoes` (migration
+ * `20260809231000_get_gestor_questoes_semestre_imagens_e_respondentes.sql`,
+ * já em produção em 09/08) — sempre enviado, nunca omitido, mesmo padrão de
+ * `p_grande_area` em `useDiagnosticoTemas` acima.
+ */
 export function useQuestoes(
   filtros: FiltrosGestor,
   paginacao: PaginacaoGestor,
@@ -543,12 +646,13 @@ export function useQuestoes(
   const simuladoId = filtros.simulados.length === 1 ? filtros.simulados[0] : null;
   return useEnvelope<Paginado<Questao>>(
     [
-      'gestor', 'questoes', filtros.iesId, simuladoId,
+      'gestor', 'questoes', filtros.iesId, filtros.semestre, simuladoId,
       paginacao.page, paginacao.pageSize, paginacao.sort, paginacao.area,
     ],
     'get_gestor_questoes',
     {
       p_ies_id: filtros.iesId,
+      p_semestre: filtros.semestre,
       p_simulado_id: simuladoId,
       p_page: paginacao.page,
       p_page_size: paginacao.pageSize,
@@ -556,5 +660,39 @@ export function useQuestoes(
       p_area: paginacao.area,
     },
     filtros.iesId !== null && simuladoId !== null,
+  );
+}
+
+/**
+ * Alunos que marcaram uma alternativa específica de uma questão — clique em
+ * "ver quem marcou" na distribuição por alternativa (`DistribuicaoAlternativas`).
+ * RPC nova, `get_gestor_questao_respondentes(p_ies_id, p_question_id,
+ * p_alternativa)` (migration `20260809231000_..._respondentes.sql`, PARTE 2,
+ * já em produção em 09/08) — devolve o envelope `{ data, meta }` padrão, então
+ * usa `useEnvelope`/`chamarRpcGestor` como todo outro hook deste arquivo.
+ *
+ * `manterDadoAnterior = false` (SEM `placeholderData`) — mesma lógica de
+ * `useAluno`/`useAlunoContato` acima: o par `(questionId, alternativa)`
+ * IDENTIFICA a lista exibida. Isto é um dado pontual de um clique, não um
+ * recorte de tela — manter o anterior mostraria os respondentes de OUTRA
+ * alternativa (ou de outra questão) sob o rótulo da nova, no instante em que
+ * a gestora troca de alternativa/questão com a lista ainda em voo.
+ *
+ * `habilitado` (default `true`) deixa o CHAMADOR decidir quando a consulta
+ * deve rodar — o uso real (`DistribuicaoAlternativas`) só habilita quando a
+ * linha da alternativa está aberta, nunca a cada render da distribuição.
+ */
+export function useQuestaoRespondentes(
+  iesId: string | null,
+  questionId: string | null,
+  alternativa: Alternativa['letra'] | null,
+  habilitado = true,
+): ResultadoGestor<QuestaoRespondente[]> {
+  return useEnvelope<QuestaoRespondente[]>(
+    ['gestor', 'questao-respondentes', iesId, questionId, alternativa],
+    'get_gestor_questao_respondentes',
+    { p_ies_id: iesId, p_question_id: questionId, p_alternativa: alternativa },
+    habilitado && iesId !== null && questionId !== null && alternativa !== null,
+    false,
   );
 }

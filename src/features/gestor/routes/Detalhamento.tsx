@@ -10,6 +10,7 @@ import { ComparativoSimulados } from '../components/ComparativoSimulados';
 import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
 import { DrawerAluno } from '../components/DrawerAluno';
+import { DrawerTemasDetalhamento } from '../components/DrawerTemasDetalhamento';
 import { DispersaoChart } from '../charts/DispersaoChart';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
@@ -194,6 +195,8 @@ export default function Detalhamento() {
 
   const [recorte, setRecorte] = React.useState<RecorteCruzado | null>(null);
   const [alunoSelecionadoId, setAlunoSelecionadoId] = React.useState<string | null>(null);
+  /** Área aberta no drill-down especialidade → tema (Task A4, `DrawerTemasDetalhamento`). */
+  const [areaDrillDown, setAreaDrillDown] = React.useState<{ id: string; nome: string } | null>(null);
 
   /**
    * O recorte cruzado (área × semestre) é estado do BLOCO e só existe dentro do
@@ -201,9 +204,14 @@ export default function Detalhamento() {
    * o chip "Recorte: …" ligado sobre uma matriz que já não tem aquela linha: o
    * bloco mostrava "Sem dado de grande área neste recorte" com o chip aceso e,
    * quando a área sumia de `dados.areas`, o rótulo caía no id CRU da área.
+   *
+   * O drill-down de área segue a MESMA regra e pelo mesmo motivo: uma área
+   * aberta de um recorte de simulados que já mudou mostraria o drawer sobre
+   * dado que não corresponde mais ao filtro vigente.
    */
   React.useEffect(() => {
     setRecorte(null);
+    setAreaDrillDown(null);
   }, [chaveDoRecorte]);
 
   /**
@@ -484,7 +492,7 @@ export default function Detalhamento() {
           {/* Área × semestre e dispersão são o MESMO movimento de exploração — a
               referência os põe lado a lado (1.15fr/1fr). Empilhados, a dispersão
               caía um scroll inteiro depois da leitura que ela complementa. */}
-          <div className="grid items-stretch gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_1fr]">
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
                 estado={estado}
@@ -501,6 +509,7 @@ export default function Detalhamento() {
                     matriz={dados.acertoPorAreaESemestre.matriz}
                     recorte={recorte}
                     onRecorteChange={setRecorte}
+                    onAbrirArea={setAreaDrillDown}
                   />
                 ) : null}
               </BlocoGestor>
@@ -597,6 +606,13 @@ export default function Detalhamento() {
             nome={alunoSelecionado?.nome ?? ''}
             simulados={simuladosNoRecorte}
             onFechar={() => setAlunoSelecionadoId(null)}
+          />
+
+          <DrawerTemasDetalhamento
+            area={areaDrillDown}
+            iesId={iesAtivaId}
+            simulados={simuladosNoRecorte}
+            onFechar={() => setAreaDrillDown(null)}
           />
         </>
       )}

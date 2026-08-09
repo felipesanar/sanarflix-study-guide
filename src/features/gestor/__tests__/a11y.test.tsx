@@ -71,7 +71,9 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useAlunos: vi.fn(),
   useAluno: vi.fn(),
   useAlunoContato: vi.fn(() => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} })),
+  useAlunoDesempenhoPorArea: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: () => {} })),
   useDetalhamento: vi.fn(),
+  useDetalhamentoTemas: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: () => {} })),
   useQuestoes: vi.fn(),
 }));
 

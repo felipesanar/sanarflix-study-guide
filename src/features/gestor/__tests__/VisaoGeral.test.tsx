@@ -21,6 +21,7 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useDiagnosticoTemas: vi.fn(),
   useAluno: vi.fn(),
   useAlunoContato: vi.fn(() => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} })),
+  useAlunoDesempenhoPorArea: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: () => {} })),
   // Consumido por `AcoesRecorte` (rodapé de ações do `DrawerTemas`): é o
   // servidor que decide `podeExportar`, nunca uma role lida no cliente.
   useGestorContexto: vi.fn(),

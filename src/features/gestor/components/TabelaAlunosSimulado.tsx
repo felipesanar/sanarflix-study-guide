@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 import { Icon } from '@/features/gestor/components/Icon';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import {
@@ -61,6 +62,153 @@ function corAtenuada(participou: boolean, selecionado: boolean): string {
   return selecionado ? 'var(--gp-text-2)' : 'var(--gp-text-3)';
 }
 
+/**
+ * Filtro de proficiência da tabela de alunos do simulado (decisão de produto
+ * desta sessão, ajustável depois): 3 faixas sobre o score TRI já carregado
+ * pela tabela — nunca uma RPC nova, o dado já está em `AlunoNoSimulado.proficiencia`.
+ *
+ * Faixas: proficiente a partir de 60 (mesmo corte de `PROFICIENCIA_MINIMA`,
+ * `lib/regras.ts`), próximo da proficiência entre 45 (inclusive) e 60
+ * (exclusive), não proficiente abaixo de 45. Os limiares ficam locais a este
+ * arquivo — a régua de `lib/regras.ts` só define o corte ÚNICO de
+ * "proficiente", nunca a faixa intermediária.
+ */
+export type FiltroProficiencia = 'proficiente' | 'proximo' | 'nao_proficiente';
+
+const LIMIAR_PROFICIENTE = 60;
+const LIMIAR_PROXIMO_MIN = 45;
+
+const ROTULO_PROFICIENCIA: Record<FiltroProficiencia, string> = {
+  proficiente: 'Proficiente',
+  proximo: 'Próximo da proficiência',
+  nao_proficiente: 'Não proficiente',
+};
+
+/**
+ * Mesma paleta semântica de `TagNivel`/`CascataDiagnostico` (sucesso/aviso/
+ * perigo) para as 3 faixas — não é um capricho: é o mesmo conceito de
+ * "quão perto da meta" que o resto do portal já pinta com essas 3 cores.
+ */
+const COR_PROFICIENCIA: Record<FiltroProficiencia, string> = {
+  proficiente: 'var(--gp-success)',
+  proximo: 'var(--gp-warning)',
+  nao_proficiente: 'var(--gp-danger)',
+};
+
+/**
+ * Classifica UM score TRI numa das 3 faixas. `null` (aluno sem nota — não
+ * participou ou aguardando resultado) não entra em NENHUMA faixa: não há
+ * como classificar o que não foi medido, e um "Não proficiente" que incluísse
+ * quem nem fez a prova confundiria ausência com desempenho baixo (§4.10).
+ */
+export function classificarProficiencia(proficiencia: number | null): FiltroProficiencia | null {
+  if (proficiencia === null) return null;
+  if (proficiencia >= LIMIAR_PROFICIENTE) return 'proficiente';
+  if (proficiencia >= LIMIAR_PROXIMO_MIN) return 'proximo';
+  return 'nao_proficiente';
+}
+
+const ORDEM_PROFICIENCIA: FiltroProficiencia[] = ['proficiente', 'proximo', 'nao_proficiente'];
+
+/**
+ * Chips "Todos / [3 faixas]" com contagem — mesmo estilo visual de
+ * `FiltroGrupoAlunos` (`TabelaAlunos.tsx`), só a anatomia do seletor: aqui o
+ * filtro é CLIENT-SIDE sobre `alunos` (já carregados pela tabela), nunca um
+ * parâmetro de RPC. As contagens somam sobre TODOS os alunos do recorte,
+ * não sobre a lista já filtrada — trocar de faixa não pode zerar a contagem
+ * das outras.
+ */
+function FiltroProficienciaAlunos({
+  alunos,
+  ativo,
+  onSelecionar,
+}: {
+  alunos: AlunoNoSimulado[];
+  ativo: FiltroProficiencia | null;
+  onSelecionar: (faixa: FiltroProficiencia | null) => void;
+}) {
+  const porFaixa = new Map<FiltroProficiencia, number>();
+  for (const aluno of alunos) {
+    const faixa = classificarProficiencia(aluno.proficiencia);
+    if (faixa === null) continue;
+    porFaixa.set(faixa, (porFaixa.get(faixa) ?? 0) + 1);
+  }
+  const totalClassificado = ORDEM_PROFICIENCIA.reduce((soma, faixa) => soma + (porFaixa.get(faixa) ?? 0), 0);
+
+  const Chip = ({
+    selecionado,
+    rotulo,
+    contagem,
+    corBolinha,
+    onClick,
+  }: {
+    selecionado: boolean;
+    rotulo: string;
+    contagem: number;
+    corBolinha?: string;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      aria-pressed={selecionado}
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full transition-colors duration-200',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      )}
+      style={{
+        padding: '5px 12px 5px 10px',
+        fontSize: 12,
+        fontWeight: selecionado ? 600 : 500,
+        border: `1.5px solid ${selecionado ? 'var(--gp-text-1)' : 'var(--gp-border-strong)'}`,
+        color: selecionado ? 'var(--gp-text-1)' : 'var(--gp-text-2)',
+        background: selecionado ? 'var(--gp-surface-2)' : 'var(--gp-surface-1)',
+      }}
+    >
+      {corBolinha ? (
+        <span aria-hidden="true" className="h-2 w-2 flex-none rounded-full" style={{ background: corBolinha }} />
+      ) : null}
+      {rotulo}
+      <span
+        style={{
+          fontFamily: FONTE_MONO,
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: 11,
+          color: 'var(--gp-text-3)',
+        }}
+      >
+        {contagem}
+      </span>
+    </button>
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label="Filtrar alunos por proficiência"
+      className="flex flex-wrap items-center gap-2"
+      data-testid="filtro-proficiencia-alunos"
+    >
+      <Chip
+        selecionado={ativo === null}
+        rotulo="Todos"
+        contagem={totalClassificado}
+        onClick={() => onSelecionar(null)}
+      />
+      {ORDEM_PROFICIENCIA.map((faixa) => (
+        <Chip
+          key={faixa}
+          selecionado={ativo === faixa}
+          rotulo={ROTULO_PROFICIENCIA[faixa]}
+          contagem={porFaixa.get(faixa) ?? 0}
+          corBolinha={COR_PROFICIENCIA[faixa]}
+          onClick={() => onSelecionar(ativo === faixa ? null : faixa)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export interface TabelaAlunosSimuladoProps {
   alunos: AlunoNoSimulado[];
   multiSimulado: boolean;
@@ -91,12 +239,22 @@ export function TabelaAlunosSimulado({
     ordem: 'desc',
   });
   const [ocultarNaoParticipantes, setOcultarNaoParticipantes] = React.useState(false);
+  const [filtroProficiencia, setFiltroProficiencia] = React.useState<FiltroProficiencia | null>(null);
   const [page, setPage] = React.useState(1);
 
   const visiveis = React.useMemo(() => {
-    const filtrados = ocultarNaoParticipantes ? alunos.filter((a) => a.participou) : alunos;
+    let filtrados = ocultarNaoParticipantes ? alunos.filter((a) => a.participou) : alunos;
+    if (filtroProficiencia !== null) {
+      filtrados = filtrados.filter((a) => classificarProficiencia(a.proficiencia) === filtroProficiencia);
+    }
     return ordenarAlunosNoSimulado(filtrados, ordenacao.coluna, ordenacao.ordem);
-  }, [alunos, ocultarNaoParticipantes, ordenacao]);
+  }, [alunos, ocultarNaoParticipantes, filtroProficiencia, ordenacao]);
+
+  /** Trocar de faixa de proficiência também volta para a página 1 — mesmo motivo de `ocultarNaoParticipantes`. */
+  const selecionarProficiencia = (faixa: FiltroProficiencia | null) => {
+    setFiltroProficiencia(faixa);
+    setPage(1);
+  };
 
   const totalPages = Math.max(1, Math.ceil(visiveis.length / pageSize));
   const pageAtual = Math.min(page, totalPages);
@@ -144,18 +302,24 @@ export function TabelaAlunosSimulado({
         </span>
       </div>
 
+      <FiltroProficienciaAlunos alunos={alunos} ativo={filtroProficiencia} onSelecionar={selecionarProficiencia} />
+
       {visiveis.length === 0 ? (
         <div className="flex flex-col items-center gap-3">
           <EstadoVazio
             titulo={
-              ocultarNaoParticipantes
-                ? 'Nenhum aluno participou deste recorte'
+              ocultarNaoParticipantes || filtroProficiencia !== null
+                ? 'Nenhum aluno com esse filtro'
                 : 'Nenhum aluno neste recorte'
             }
             descricao={
-              ocultarNaoParticipantes
-                ? 'O filtro de participação escondeu todas as linhas.'
-                : 'Ajuste o recorte de simulados ou de semestre.'
+              ocultarNaoParticipantes && filtroProficiencia !== null
+                ? 'O filtro de participação e o de proficiência juntos escondem todas as linhas.'
+                : filtroProficiencia !== null
+                  ? 'O filtro de proficiência escondeu todas as linhas.'
+                  : ocultarNaoParticipantes
+                    ? 'O filtro de participação escondeu todas as linhas.'
+                    : 'Ajuste o recorte de simulados ou de semestre.'
             }
           />
           {ocultarNaoParticipantes ? (
@@ -170,6 +334,17 @@ export function TabelaAlunosSimulado({
             >
               <Icon name="visibility" size={15} />
               Mostrar não participantes
+            </button>
+          ) : null}
+          {filtroProficiencia !== null ? (
+            <button
+              type="button"
+              onClick={() => selecionarProficiencia(null)}
+              className="inline-flex items-center gap-1.5"
+              style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-text-2)' }}
+            >
+              <Icon name="visibility" size={15} />
+              Mostrar todas as faixas de proficiência
             </button>
           ) : null}
         </div>

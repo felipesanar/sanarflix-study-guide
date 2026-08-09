@@ -27,6 +27,7 @@ vi.mock('@/features/gestor/api/queries', async (importOriginal) => {
     useAlunos: vi.fn(),
     useAluno: vi.fn(),
     useAlunoContato: vi.fn(() => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} })),
+    useAlunoDesempenhoPorArea: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: () => {} })),
     useGestorContexto: vi.fn(() => ({
       data: { iesAtual: { id: 'ies-1', nome: 'Universidade Teste' }, iesDisponiveis: [], podeExportar: false },
       meta: null,

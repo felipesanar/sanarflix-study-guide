@@ -310,6 +310,16 @@ export function EvolucaoChart({ pontos, largura, altura = 300 }: EvolucaoChartPr
         /* A base do plot é a única linha de eixo desenhada, e mais densa que a grade. */
         axisLine={{ stroke: 'var(--gp-border-strong)' }}
         tickLine={false}
+        /*
+         * Sem `interval`, o Recharts usa o default `'preserveEnd'`: ele
+         * percorre os ticks de trás para frente para garantir que o ÚLTIMO
+         * sempre apareça, encolhendo o espaço disponível a cada iteração — o
+         * PRIMEIRO ponto (primeiro simulado da série) é avaliado por último,
+         * com o espaço mais apertado, e costuma perder o rótulo.
+         * `'preserveStartEnd'` fixa o primeiro E o último tick, sacrificando
+         * só os do meio se precisar.
+         */
+        interval="preserveStartEnd"
       />
       <YAxis
         domain={[0, 100]}

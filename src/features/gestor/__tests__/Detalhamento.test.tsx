@@ -6,7 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import Detalhamento from '@/features/gestor/routes/Detalhamento';
-import { useCronograma, useDetalhamento, useGestorContexto, useQuestoes } from '@/features/gestor/api/queries';
+import {
+  useCronograma,
+  useDetalhamento,
+  useDetalhamentoTemas,
+  useGestorContexto,
+  useQuestoes,
+} from '@/features/gestor/api/queries';
 import type { AlunoNoSimulado, ContextoGestor, ItemCronograma, Meta, MetricasSimulado, Questao } from '@/features/gestor/api/types';
 import type { DetalhamentoComExtras } from '@/features/gestor/api/detalhamentoExtras';
 
@@ -23,6 +29,11 @@ vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'
 vi.mock('@/features/gestor/api/queries', () => ({
   useCronograma: vi.fn(),
   useDetalhamento: vi.fn(),
+  // `DrawerTemasDetalhamento` (Task A4) chama este hook incondicionalmente
+  // (regra dos hooks — não dá para pular a chamada só porque `area` é
+  // `null`), então mesmo os testes que nunca abrem o drill-down de área
+  // precisam do mock aqui, senão o hook real tentaria falar com o Supabase.
+  useDetalhamentoTemas: vi.fn(),
   useQuestoes: vi.fn(),
   useGestorContexto: vi.fn(),
 }));
@@ -202,6 +213,19 @@ beforeEach(() => {
     isFetching: false,
     refetch: vi.fn(),
   } as unknown as ReturnType<typeof useQuestoes>);
+  // Nenhum teste desta suíte abre o drill-down de área (isso vive em
+  // `AcertoPorAreaESemestre.test.tsx`/um teste dedicado do drawer) — só
+  // precisa existir para o hook incondicional de `DrawerTemasDetalhamento`
+  // não quebrar o render.
+  vi.mocked(useDetalhamentoTemas).mockReturnValue({
+    data: [],
+    meta: undefined,
+    isLoading: false,
+    isError: false,
+    isPlaceholderData: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useDetalhamentoTemas>);
 });
 
 describe('Rota Detalhamento — sub-estado vazio (§12 caso 4)', () => {

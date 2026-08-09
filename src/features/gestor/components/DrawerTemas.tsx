@@ -235,7 +235,7 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
                         className="ml-auto whitespace-nowrap"
                         style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
                       >
-                        {tema.amostra} respostas
+                        {tema.amostra} alunos com resposta
                       </span>
                     </div>
                   </li>

@@ -377,25 +377,52 @@ export function TabelaQuestoes({
                           <Celula colSpan={6} id={`detalhe-questao-${q.numero}`} data-testid={`detalhe-questao-${q.numero}`}>
                             {/* `animate-in` do tailwindcss-animate = opacity + translate
                                 (nunca altura), 200ms = motion-3. O bloco
-                                prefers-reduced-motion de gestor-theme.css já zera isto. */}
-                            <div
-                              className="flex flex-col gap-3.5 border p-4 duration-200 animate-in fade-in-0 slide-in-from-top-1"
-                              style={{
-                                borderColor: 'var(--gp-border-subtle)',
-                                borderRadius: 'var(--gp-radius-md)',
-                                background: 'var(--gp-surface-1)',
-                              }}
-                            >
+                                prefers-reduced-motion de gestor-theme.css já zera isto.
+                                Fundo branco + borda do card (revisão de estilo): mesma
+                                classe de AcertoPorAreaESemestre.tsx, em vez dos tokens
+                                --gp-* usados antes aqui. */}
+                            <div className="flex flex-col gap-3.5 rounded-lg border border-border bg-card p-4 duration-200 animate-in fade-in-0 slide-in-from-top-1">
                               <p className="whitespace-pre-line text-xs leading-5" style={{ color: 'var(--gp-text-2)' }}>
                                 <span className="font-semibold" style={{ color: 'var(--gp-text-1)' }}>
                                   Enunciado.
                                 </span>{' '}
                                 {q.enunciado}
                               </p>
+                              {(q.imagemEnunciado || q.imagemEnunciado2) && (
+                                <div className="flex flex-wrap gap-3" data-testid={`imagens-enunciado-${q.numero}`}>
+                                  {q.imagemEnunciado && (
+                                    <img
+                                      src={q.imagemEnunciado}
+                                      alt={`Imagem do enunciado da questão ${q.numero}`}
+                                      className="h-auto max-w-full rounded border border-border sm:max-w-[360px]"
+                                    />
+                                  )}
+                                  {q.imagemEnunciado2 && (
+                                    <img
+                                      src={q.imagemEnunciado2}
+                                      alt={`Segunda imagem do enunciado da questão ${q.numero}`}
+                                      className="h-auto max-w-full rounded border border-border sm:max-w-[360px]"
+                                    />
+                                  )}
+                                </div>
+                              )}
                               <DistribuicaoAlternativas
                                 alternativas={q.alternativas}
                                 distratorDominante={q.distratorDominante}
+                                questionId={q.id}
                               />
+                              {q.imagemComentario && (
+                                <div className="flex flex-col gap-1.5" data-testid={`imagem-comentario-${q.numero}`}>
+                                  <p className={cn('text-[10px] font-bold uppercase tracking-[0.06em]')} style={{ color: 'var(--gp-text-3)' }}>
+                                    Imagem do comentário
+                                  </p>
+                                  <img
+                                    src={q.imagemComentario}
+                                    alt={`Imagem do comentário/gabarito da questão ${q.numero}`}
+                                    className="h-auto max-w-full rounded border border-border sm:max-w-[360px]"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </Celula>
                         </LinhaTabela>

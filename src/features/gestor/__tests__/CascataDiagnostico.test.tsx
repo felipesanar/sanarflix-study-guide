@@ -223,12 +223,12 @@ describe('CascataDiagnostico', () => {
     expect(pilula).toHaveAttribute('title', expect.stringContaining('8'));
     // O n é metadado à direita da linha, não texto dentro da pílula.
     expect(pilula).not.toHaveTextContent('8');
-    expect(cardio.querySelector('[data-testid="amostra-esp-cardio"]')).toHaveTextContent('8 respostas');
+    expect(cardio.querySelector('[data-testid="amostra-esp-cardio"]')).toHaveTextContent('8 alunos com resposta');
 
     // Nó sem baixa amostra: nenhuma pílula, mas o n continua visível.
     const pneumo = screen.getByRole('button', { name: /Pneumologia/ });
     expect(within(pneumo).queryByText('cobertura parcial')).not.toBeInTheDocument();
-    expect(pneumo.querySelector('[data-testid="amostra-esp-pneumo"]')).toHaveTextContent('110 respostas');
+    expect(pneumo.querySelector('[data-testid="amostra-esp-pneumo"]')).toHaveTextContent('110 alunos com resposta');
   });
 
   /**

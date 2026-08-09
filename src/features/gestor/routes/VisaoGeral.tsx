@@ -384,6 +384,12 @@ export default function VisaoGeral() {
                a nota de contexto do bloco e o indicador do topo não podem
                dizer números diferentes sobre a mesma pergunta. */
             totalSimulados={visao.kpis.simulados.realizados}
+            /* Campo novo confirmado em produção em `get_gestor_visao_geral`
+               (mesmo nível de `kpis`/`evolucao`): a população matriculada da
+               IES no recorte vigente, sem o corte que `distribuicaoAlunos`
+               aplica — ver o comentário de `totalMatriculados` em
+               `VisaoDeAlunos.tsx`. */
+            totalMatriculados={visao.alunosMatriculadosNoRecorte}
             onAlternarDetalhe={aoAlternarDetalhe}
             detalheAberto={detalheAberto}
           />

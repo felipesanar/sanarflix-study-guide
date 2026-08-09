@@ -129,8 +129,8 @@ describe('DrawerTemas', () => {
    */
   it('mostra a amostra de todo tema, não só do de cobertura parcial', () => {
     render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
-    expect(screen.getByTestId('amostra-tema-ic')).toHaveTextContent('118 respostas');
-    expect(screen.getByTestId('amostra-tema-arritmia')).toHaveTextContent('7 respostas');
+    expect(screen.getByTestId('amostra-tema-ic')).toHaveTextContent('118 alunos com resposta');
+    expect(screen.getByTestId('amostra-tema-arritmia')).toHaveTextContent('7 alunos com resposta');
   });
 
   /**

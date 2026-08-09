@@ -54,6 +54,7 @@ vi.mock('@/features/gestor/api/queries', () => ({
   // O telefone (05/08) não é assunto deste arquivo, mas o `DrawerAluno` o
   // busca ao abrir — sem este mock a chamada real sobe até o supabase.
   useAlunoContato: () => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} }),
+  useAlunoDesempenhoPorArea: () => ({ data: [], isLoading: false, isError: false, refetch: () => {} }),
   useDiagnosticoTemas: (...args: unknown[]) => mockUseDiagnosticoTemas(...args),
   useCronograma: (...args: unknown[]) => mockUseCronograma(...args),
   useDetalhamento: (...args: unknown[]) => mockUseDetalhamento(...args),

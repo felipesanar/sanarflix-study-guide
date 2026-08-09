@@ -137,10 +137,10 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
         () => useQuestoes({ ...FILTROS, simulados: ['s1'] }, { page: 2, pageSize: 10, sort: 'ordem_da_prova', area: 'clinica' }),
         'get_gestor_questoes',
         {
-          p_ies_id: 'ies-1', p_simulado_id: 's1', p_page: 2, p_page_size: 10,
+          p_ies_id: 'ies-1', p_semestre: '6ano', p_simulado_id: 's1', p_page: 2, p_page_size: 10,
           p_sort: 'numero', p_area: 'clinica',
         },
-        ['gestor', 'u1', 'questoes', 'ies-1', 's1', 2, 10, 'ordem_da_prova', 'clinica'],
+        ['gestor', 'u1', 'questoes', 'ies-1', '6ano', 's1', 2, 10, 'ordem_da_prova', 'clinica'],
       ],
       [
         () => useAluno('aluno-7', ['s2', 's1']),

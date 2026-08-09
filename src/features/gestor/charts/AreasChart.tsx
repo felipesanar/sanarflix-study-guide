@@ -285,6 +285,14 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
         tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
         axisLine={{ stroke: 'var(--gp-border-strong)' }}
         tickLine={false}
+        /*
+         * Mesmo bug/correção de `EvolucaoChart.tsx`: sem `interval`, o
+         * Recharts usa o default `'preserveEnd'` e avalia o PRIMEIRO rótulo
+         * por último, com o espaço mais apertado — é o primeiro simulado que
+         * costuma perder o tick. `'preserveStartEnd'` fixa o primeiro E o
+         * último, sacrificando só os do meio se precisar.
+         */
+        interval="preserveStartEnd"
       />
       <YAxis
         domain={[0, 100]}

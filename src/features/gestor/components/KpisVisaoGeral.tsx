@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from '@/features/gestor/components/Icon';
 import { KpiCard, type EstadoKpi } from '@/features/gestor/components/KpiCard';
+import { Tag } from '@/features/gestor/components/Tag';
 import { formatConceito, formatNumero, formatPct } from '@/features/gestor/lib/formatters';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import type { Meta, VisaoGeral } from '@/features/gestor/api/types';
@@ -24,20 +26,42 @@ function conceitoSemEscala(valor: number | null): string {
 }
 
 /**
- * Recorte de UM semestre específico. É o MESMO regex que
- * `get_gestor_visao_geral` usa para decidir o recorte (`v_sems :=
- * ARRAY[p_semestre::int]`, migration
- * `20260804130000_get_gestor_visao_geral_guard_kpi_lowsample.sql`); `6ano` e
- * `geral` deixam `v_sems` NULL, ou seja, cobrem a IES inteira — `6ano` só põe
- * 11º/12º em evidência, não filtra. Valor ausente ou inválido degrada para o
- * padrão `6ano` em `useFiltrosGestor`, que também é a IES inteira, então o
- * "não casou" desta expressão coincide com o comportamento real do servidor.
+ * Selo "estimado" do Conceito ENAMED — só aparece quando
+ * `kpis.enamedProjetado.origem === 'estimado'` (campo novo confirmado em
+ * produção em `get_gestor_visao_geral`): a RPC não tinha a nota oficial do
+ * MEC disponível para o recorte atual, e o conceito 1–5 foi derivado do
+ * percentual de alunos proficientes em vez de vir direto da fonte oficial.
+ * Com `origem === 'oficial'` este selo não renderiza — comportamento atual,
+ * sem mudança visual nenhuma nesse caso.
  *
- * Não importamos as constantes de `useFiltrosGestor` de propósito: aquele
- * módulo é substituído por `vi.mock` em suítes que montam a rota inteira, e um
- * import de constante viria `undefined` lá dentro.
+ * Vive no rodapé do cartão (junto do aviso "não é o conceito oficial do
+ * MEC"), não no título ao lado do badge "projetado": `KpiCard` (fora do
+ * escopo desta mudança) só aceita `badge` como string simples, sem espaço
+ * para um segundo selo com tooltip próprio.
  */
-const SEMESTRE_UNICO = /^(1[0-2]|[1-9])$/;
+function SeloOrigemEstimada() {
+  const explicacao =
+    'Nota oficial não disponível para este recorte; valor estimado a partir do % de alunos proficientes.';
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Tag
+          variant="qualificador"
+          data-testid="kpi-enamed-origem-estimado"
+          tabIndex={0}
+          className="cursor-help"
+          title={explicacao}
+          aria-label={`Conceito estimado. ${explicacao}`}
+        >
+          estimado
+        </Tag>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs" style={{ fontSize: 12 }}>
+        {explicacao}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 /**
  * Os 4 KPIs no topo da Visão Geral, na ordem canônica fixa (spec §4.8):
@@ -76,8 +100,33 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
    * Enquanto a RPC não devolver contratados por recorte, a saída honesta é
    * mostrar só o numerador quando o recorte não é a IES inteira — afirmar um
    * total que não corresponde é pior do que não afirmar total nenhum.
+   *
+   * "IES inteira" é `v_geral` em `get_gestor_visao_geral` (migration
+   * `20260807200000_gestor_recorte_6ano_e_conceito_geral.sql`):
+   * `p_semestre IS NULL OR p_semestre = 'geral'`. Refino de 07/08 — antes
+   * `'6ano'` também caía em `v_sems := NULL` (não filtrava, só marcava 11º/12º
+   * em evidência) e por isso contava como IES inteira aqui também. Hoje
+   * `'6ano'` recorta de verdade para `ARRAY[11,12]`, igual a um semestre
+   * numérico específico — então deixa de ser IES inteira, e o denominador do
+   * contrato (universo sempre sem recorte) passa a descrever um universo
+   * diferente do numerador, igual ao caso de `?semestre=5`.
+   *
+   * Parâmetro ausente ou vazio (`''`/`null`) segue degradando para IES
+   * inteira aqui — igual ao `p_semestre IS NULL` do servidor — mesmo sabendo
+   * que `useFiltrosGestor` resolve a ausência para o padrão `'6ano'` antes de
+   * chamar a RPC: sem o parâmetro explícito na URL não temos como saber que o
+   * recorte efetivo é `'6ano'` sem importar aquele módulo, e o `useFiltrosGestor`
+   * é o próprio motivo de não fazer esse import (ver abaixo). Mostrar o
+   * denominador de mais nesse caso-limite é o lado seguro: nenhuma tela real
+   * chega ao KPI de simulados sem a query string do recorte já escrita pelo
+   * `FiltroSemestre`/`SidebarNav`.
+   *
+   * Não lemos `useFiltrosGestor` de propósito: aquele módulo é substituído
+   * por `vi.mock` em suítes que montam a rota inteira, e um import de
+   * constante viria `undefined` lá dentro.
    */
-  const recorteEhIesInteira = !SEMESTRE_UNICO.test(searchParams.get('semestre') ?? '');
+  const semestreParam = searchParams.get('semestre');
+  const recorteEhIesInteira = !semestreParam || semestreParam === 'geral';
   /**
    * `contratados` é `null` quando a IES não tem linha de contrato — nunca
    * `0` (spec §4.10). `formatNumero` já devolve TRACO para `null`, então o
@@ -111,7 +160,12 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
         delta={kpis.enamedProjetado.delta}
         serie={kpis.enamedProjetado.serie}
         formatarPonto={formatConceito}
-        rodape="projetado no último simulado · não é o conceito oficial do MEC"
+        rodape={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>projetado no último simulado · não é o conceito oficial do MEC</span>
+            {kpis.enamedProjetado.origem === 'estimado' ? <SeloOrigemEstimada /> : null}
+          </span>
+        }
         estado={estado}
         onTentarNovamente={onTentarNovamente}
       />

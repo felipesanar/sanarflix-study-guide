@@ -1,7 +1,10 @@
+import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { formatPct } from '../lib/formatters';
 import type { Alternativa } from '../api/types';
 import { FONTE_MONO } from '../components/tabela/TabelaGestor';
+import { useQuestaoRespondentes } from '../api/queries';
+import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 
 /**
  * Derivação exata (não estimativa): a incorreta mais marcada. Usada só quando o
@@ -55,17 +58,74 @@ export interface DistribuicaoAlternativasProps {
    * (a RPC não devolve), então o consumidor real não o passa.
    */
   respostas?: number | null;
+  /**
+   * Id da questão (`Questao.id`) — habilita o clique em "ver quem marcou" de
+   * cada linha da distribuição, via `useQuestaoRespondentes`. `undefined`
+   * hoje em todo payload real (ver o comentário de `Questao.id` em
+   * `api/types.ts`: `get_gestor_questoes` seleciona o id internamente mas não
+   * o expõe no JSON) — sem ele, a linha ainda abre ao clicar, mas mostra o
+   * aviso de indisponibilidade em vez de chamar a RPC com um id inventado.
+   */
+  questionId?: string;
+}
+
+/**
+ * Lista de alunos que marcaram uma alternativa — o conteúdo do painel que
+ * abre ao clicar numa linha da distribuição. Componente PRÓPRIO (em vez de
+ * inline no `.map` de `DistribuicaoAlternativas`) para que
+ * `useQuestaoRespondentes` (e o `useAuth()` que `useEnvelope` chama por
+ * dentro) só monte quando a linha realmente abre — nunca a cada render da
+ * distribuição, e nunca quando não há `questionId` para perguntar.
+ *
+ * Nunca afirma "nenhum aluno marcou" antes de a busca terminar (mesmo
+ * princípio de `TabelaAlunos`: não declarar vazio antes de qualquer
+ * requisição) — por isso `isLoading` é checado primeiro.
+ */
+function RespondentesAlternativa({
+  questionId,
+  alternativa,
+}: {
+  questionId: string;
+  alternativa: Alternativa['letra'];
+}) {
+  const { iesId } = useFiltrosGestor();
+  const { data, isLoading, isError } = useQuestaoRespondentes(iesId, questionId, alternativa, true);
+
+  if (isLoading) {
+    return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Carregando alunos…</p>;
+  }
+  if (isError) {
+    return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Não foi possível carregar os alunos.</p>;
+  }
+  const alunos = data ?? [];
+  if (alunos.length === 0) {
+    return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Nenhum aluno marcou esta alternativa.</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-1 text-xs">
+      {alunos.map((aluno) => (
+        <li key={aluno.alunoId} style={{ color: 'var(--gp-text-2)' }}>
+          {aluno.nome}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function DistribuicaoAlternativas({
   alternativas,
   distratorDominante,
   respostas,
+  questionId,
 }: DistribuicaoAlternativasProps) {
   const dominante = distratorDominante ?? derivarDistratorDominante(alternativas);
+  const [aberta, setAberta] = React.useState<Alternativa['letra'] | null>(null);
 
   const papelDe = (alt: Alternativa): PapelAlternativa =>
     alt.correta ? 'correta' : alt.letra === dominante ? 'distrator' : 'neutro';
+
+  const alternar = (letra: Alternativa['letra']) =>
+    setAberta((atual) => (atual === letra ? null : letra));
 
   return (
     <div className="flex flex-col gap-4">
@@ -120,45 +180,87 @@ export function DistribuicaoAlternativas({
           {alternativas.map((alt) => {
             const papel = papelDe(alt);
             const fracao = Math.max(0, Math.min(100, alt.marcadaPct ?? 0)) / 100;
+            const linhaAberta = aberta === alt.letra;
             return (
-              <li
-                key={alt.letra}
-                data-testid={`distribuicao-${alt.letra}`}
-                data-correta={String(alt.correta)}
-                className="grid grid-cols-[14px_1fr_56px] items-center gap-3 text-xs"
-              >
-                <span
-                  className={papel === 'neutro' ? undefined : 'font-bold'}
-                  style={{ color: COR_TEXTO[papel] }}
+              <React.Fragment key={alt.letra}>
+                {/*
+                  A linha inteira é clicável (`role="button"`, não um filho
+                  novo) — os 3 `<span>` continuam os ÚNICOS filhos diretos do
+                  `<li>`, sem alteração de estrutura (C1 do teste de fonte
+                  mono depende de ":scope > span:last-child" aqui). Abre a
+                  lista de quem marcou esta alternativa, via
+                  `RespondentesAlternativa` abaixo — nunca inline, para o
+                  `useAuth()` de `useQuestaoRespondentes` só montar quando a
+                  linha realmente abre.
+                */}
+                <li
+                  data-testid={`distribuicao-${alt.letra}`}
+                  data-correta={String(alt.correta)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={linhaAberta}
+                  aria-controls={`respondentes-${alt.letra}`}
+                  aria-label={`Ver quem marcou a alternativa ${alt.letra}`}
+                  onClick={() => alternar(alt.letra)}
+                  onKeyDown={(evento) => {
+                    if (evento.key === 'Enter' || evento.key === ' ') {
+                      evento.preventDefault();
+                      alternar(alt.letra);
+                    }
+                  }}
+                  className="grid grid-cols-[14px_1fr_56px] items-center gap-3 text-xs cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {alt.letra}
-                </span>
-                <span
-                  className="block h-4 overflow-hidden"
-                  style={{ borderRadius: RAIO_BARRA, background: 'var(--gp-surface-3)' }}
-                >
-                  {/* Regra de ouro de movimento: anima só `transform`/`opacity`, nunca
-                      `width` — largura é layout e reflui a linha inteira a cada recorte. */}
                   <span
-                    aria-hidden="true"
-                    className="block h-full w-full origin-left transition-transform duration-200"
-                    style={{
-                      borderRadius: RAIO_BARRA,
-                      background: COR_BARRA[papel],
-                      transform: `scaleX(${fracao})`,
-                    }}
-                  />
-                </span>
-                <span
-                  className={cn('text-right tabular-nums', papel !== 'neutro' && 'font-semibold')}
-                  style={{ color: COR_TEXTO[papel], fontFamily: FONTE_MONO }}
-                >
-                  {formatPct(alt.marcadaPct)}
-                  {/* Canal redundante à cor (mesma receita da primeira lista, `:88`):
-                      caractere literal, sem aria-hidden — é informação, não decoração. */}
-                  {alt.correta ? ' ✓' : ''}
-                </span>
-              </li>
+                    className={papel === 'neutro' ? undefined : 'font-bold'}
+                    style={{ color: COR_TEXTO[papel] }}
+                  >
+                    {alt.letra}
+                  </span>
+                  <span
+                    className="block h-4 overflow-hidden"
+                    style={{ borderRadius: RAIO_BARRA, background: 'var(--gp-surface-3)' }}
+                  >
+                    {/* Regra de ouro de movimento: anima só `transform`/`opacity`, nunca
+                        `width` — largura é layout e reflui a linha inteira a cada recorte. */}
+                    <span
+                      aria-hidden="true"
+                      className="block h-full w-full origin-left transition-transform duration-200"
+                      style={{
+                        borderRadius: RAIO_BARRA,
+                        background: COR_BARRA[papel],
+                        transform: `scaleX(${fracao})`,
+                      }}
+                    />
+                  </span>
+                  <span
+                    className={cn('text-right tabular-nums', papel !== 'neutro' && 'font-semibold')}
+                    style={{ color: COR_TEXTO[papel], fontFamily: FONTE_MONO }}
+                  >
+                    {formatPct(alt.marcadaPct)}
+                    {/* Canal redundante à cor (mesma receita da primeira lista, `:88`):
+                        caractere literal, sem aria-hidden — é informação, não decoração. */}
+                    {alt.correta ? ' ✓' : ''}
+                  </span>
+                </li>
+                {linhaAberta && (
+                  <li
+                    id={`respondentes-${alt.letra}`}
+                    data-testid={`respondentes-${alt.letra}`}
+                    className="rounded border border-border bg-card p-2.5 duration-200 animate-in fade-in-0"
+                  >
+                    <p className={cn(CLASSE_KICKER, 'mb-1.5')} style={{ color: 'var(--gp-text-3)' }}>
+                      Quem marcou {alt.letra}
+                    </p>
+                    {questionId ? (
+                      <RespondentesAlternativa questionId={questionId} alternativa={alt.letra} />
+                    ) : (
+                      <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                        Lista de alunos indisponível para esta questão.
+                      </p>
+                    )}
+                  </li>
+                )}
+              </React.Fragment>
             );
           })}
         </ul>
