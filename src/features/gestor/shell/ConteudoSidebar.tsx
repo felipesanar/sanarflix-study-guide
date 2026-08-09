@@ -99,15 +99,19 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
 
       <SidebarNav onNavegar={aoNavegar} />
 
-      <div className="mt-auto" style={{ borderTop: DIVISOR }}>
-        <div className="flex items-center" style={{ padding: '14px 16px', gap: 10 }}>
+      <div
+        className="mt-auto flex flex-col"
+        style={{ borderTop: DIVISOR, padding: '10px 12px 12px', gap: 8 }}
+      >
+        {/* Identidade: avatar + nome/papel + avisos, tudo numa linha só. */}
+        <div className="flex items-center" style={{ gap: 8 }}>
           <span
             aria-hidden="true"
             className="flex shrink-0 items-center justify-center rounded-full"
             style={{
-              width: 34,
-              height: 34,
-              fontSize: 12,
+              width: 30,
+              height: 30,
+              fontSize: 11,
               fontWeight: 700,
               // `lineHeight: 1` — ver TileIes em SidebarIes.tsx: com o
               // `normal` (≈1.21em na Inter) a caixa de linha não é
@@ -126,15 +130,15 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
           <div className="min-w-0 flex-1" title={user?.email ?? undefined}>
             <p
               className="truncate"
-              style={{ fontSize: 13, fontWeight: 600, lineHeight: '16px', color: 'var(--gp-text-1)' }}
+              style={{ fontSize: 12.5, fontWeight: 600, lineHeight: '15px', color: 'var(--gp-text-1)' }}
             >
               {user?.nome ?? '—'}
             </p>
             {/* `minHeight` reserva a linha antes de o papel chegar do
-                servidor — senão o rodapé cresce 14px no meio do carregamento. */}
+                servidor — senão o rodapé cresce 13px no meio do carregamento. */}
             <p
               className="truncate"
-              style={{ fontSize: 11, lineHeight: '14px', minHeight: 14, color: 'var(--gp-text-3)' }}
+              style={{ fontSize: 10.5, lineHeight: '13px', minHeight: 13, color: 'var(--gp-text-3)' }}
             >
               {papel ? ROTULO_PAPEL[papel] : ''}
             </p>
@@ -148,37 +152,36 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
             }}
             className="gp-hover-surface flex shrink-0 items-center justify-center"
             style={{
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               borderRadius: 'var(--gp-radius-sm)',
               color: 'var(--gp-text-2)',
             }}
           >
-            <Icon name="notifications" size={18} />
+            <Icon name="notifications" size={16} />
           </button>
         </div>
 
-        <div className="space-y-1" style={{ padding: '10px 12px 12px', borderTop: DIVISOR }}>
-          {/* Troca de experiência: substitui os antigos botões avulsos
-              ("Portal do Admin", "Ir para versão aluno"). Aluno/Admin/CX
-              são experiências, não itens de navegação. */}
-          <div className="pb-1">
-            <ExperienceSwitcher variant="compact" />
+        {/* Ações: uma única faixa horizontal. O seletor de experiência ocupa
+            a largura sobrando; tema e sair são ícones (rótulo só no a11y —
+            "Tema" escrito ao lado do botão era texto sem função). */}
+        <div className="flex items-center" style={{ gap: 6 }}>
+          <ExperienceSwitcher variant="compact" className="min-w-0 flex-1" />
+          {/* ThemeToggle é compartilhado (h-10 por padrão); aqui ele desce a
+              32px para casar com a altura da faixa sem virar outro botão. */}
+          <div className="shrink-0 [&>button]:h-8 [&>button]:w-8">
+            <ThemeToggle />
           </div>
-
           <Button
             variant="ghost"
-            size="sm"
-            className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
+            size="icon"
+            aria-label="Sair da conta"
+            title="Sair"
+            className="h-8 w-8 shrink-0 text-[color:var(--gp-text-3)]"
             onClick={() => logout()}
           >
             <Icon name="logout" size={16} />
-            Sair
           </Button>
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>Tema</span>
-            <ThemeToggle />
-          </div>
         </div>
       </div>
     </>
