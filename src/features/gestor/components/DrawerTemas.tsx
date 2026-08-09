@@ -8,7 +8,9 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { TagCoberturaParcial } from '@/features/gestor/components/Tag';
 import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
+import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
 import { formatPct } from '@/features/gestor/lib/formatters';
+
 import { nivelDesempenho } from '@/features/gestor/lib/regras';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
