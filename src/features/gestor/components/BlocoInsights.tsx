@@ -22,6 +22,13 @@ const FONTE_ESCOPO: Record<VisaoGeral['insights'][number]['escopo'], string> = {
 type EstadoInsightIA = 'idle' | 'loading' | 'sucesso' | 'erro';
 
 /**
+ * Ocultado por decisão de produto em 09/08 — a RPC/edge function seguem no ar
+ * em produção, só a entrada de UI foi desligada enquanto o insight por IA não
+ * é revisado. Reativar trocando para `true` (ver também `DrawerAluno.tsx`).
+ */
+const MOSTRAR_INSIGHT_IA = false;
+
+/**
  * Terceiro card, sob demanda: um insight gerado por IA (`gestor-ai-insights`,
  * `modo: 'pedagogico'`), ao lado dos 2 autogerados por template SQL. Nunca
  * dispara ao montar — decisão de custo já tomada — só quando a gestora clica
@@ -167,9 +174,11 @@ export function BlocoInsights({ insights }: { insights: VisaoGeral['insights'] }
         </ul>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CardInsightIA />
-      </div>
+      {MOSTRAR_INSIGHT_IA ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CardInsightIA />
+        </div>
+      ) : null}
     </section>
   );
 }

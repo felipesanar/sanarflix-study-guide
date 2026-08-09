@@ -671,6 +671,13 @@ function CascataDesempenhoAluno({ areas }: { areas: AreaDesempenhoAluno[] }) {
   );
 }
 
+/**
+ * Ocultado por decisão de produto em 09/08 — a RPC/edge function seguem no ar
+ * em produção, só a entrada de UI foi desligada enquanto o insight por IA não
+ * é revisado. Reativar trocando para `true` (ver também `BlocoInsights.tsx`).
+ */
+const MOSTRAR_INSIGHT_IA = false;
+
 interface InsightAlunoIAProps {
   iesId: string | null;
   alunoId: string;
@@ -1071,7 +1078,9 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
               seção de custo mais alto (chamada de IA) e a única que depende
               de um clique explícito para existir.
             */}
-            <InsightAlunoIA iesId={iesId} alunoId={alunoId} simulados={simulados} />
+            {MOSTRAR_INSIGHT_IA ? (
+              <InsightAlunoIA iesId={iesId} alunoId={alunoId} simulados={simulados} />
+            ) : null}
           </div>
         )}
 

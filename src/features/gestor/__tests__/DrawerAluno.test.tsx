@@ -735,8 +735,12 @@ describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)',
  * "Insight do aluno (IA)" (task 09/08) — `supabase.functions.invoke`, sob
  * clique, nunca ao abrir o drawer. Degradação graciosa: qualquer falha
  * esconde o resultado e cai num estado discreto com "Tentar novamente".
+ *
+ * SKIP (09/08): a seção está ocultada em produção (`MOSTRAR_INSIGHT_IA =
+ * false` em `DrawerAluno.tsx`) por decisão de produto — o botão "Gerar com
+ * IA" não existe na árvore enquanto isso valer. Reativar junto da flag.
  */
-describe('DrawerAluno — insight do aluno por IA', () => {
+describe.skip('DrawerAluno — insight do aluno por IA', () => {
   it('não chama a IA ao abrir o drawer — só sob clique do usuário', () => {
     montar();
     expect(mockFunctionsInvoke).not.toHaveBeenCalled();
