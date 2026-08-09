@@ -302,47 +302,12 @@ export const SidebarIes: React.FC = () => {
             boxShadow: 'var(--gp-shadow-card)',
           }}
         >
-          <CommandPrimitive
-            label="Trocar de instituição"
-            filter={(value, search) => (normalizar(value).includes(normalizar(search)) ? 1 : 0)}
-          >
-            {comBusca ? (
-              <div
-                className="flex items-center gap-2"
-                style={{ padding: '10px 12px', borderBottom: '1px solid var(--gp-border-subtle)' }}
-              >
-                <Icon name="search" size={16} className="shrink-0 text-[color:var(--gp-text-3)]" />
-                <CommandPrimitive.Input
-                  autoFocus
-                  value={busca}
-                  onValueChange={setBusca}
-                  aria-label="Buscar por nome ou sigla"
-                  placeholder="Buscar por nome ou sigla"
-                  className="w-full bg-transparent outline-none placeholder:text-[color:var(--gp-text-3)]"
-                  style={{ fontSize: 12.5, color: 'var(--gp-text-1)' }}
-                />
-                {busca ? (
-                  <button
-                    type="button"
-                    onClick={() => setBusca('')}
-                    aria-label="Limpar busca"
-                    className="shrink-0 text-[color:var(--gp-text-3)] hover:text-[color:var(--gp-text-1)]"
-                  >
-                    <Icon name="close" size={15} />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
+          <CommandPrimitive label="Trocar de instituição" loop>
             <CommandPrimitive.List
               className="overflow-y-auto overscroll-contain"
               style={{ maxHeight: 288, padding: 6 }}
             >
-              <CommandPrimitive.Empty
-                style={{ ...CONTEXTO_IES, padding: '18px 10px', textAlign: 'center' }}
-              >
-                Nenhuma instituição encontrada para “{busca}”.
-              </CommandPrimitive.Empty>
+
 
               {listaRecentes.length > 0 ? (
                 <CommandPrimitive.Group heading="Recentes" style={{ marginBottom: 2 }}>
