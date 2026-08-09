@@ -144,10 +144,13 @@ beforeEach(() => {
 });
 
 describe('Inicio — composição (spec §2.1)', () => {
-  it('monta saudação, direcionadores, cronograma e avisos', () => {
+  it('monta direcionadores, cronograma e avisos — SEM cabeçalho/saudação (09/08)', () => {
     montar();
 
-    expect(screen.getByTestId('saudacao')).toBeInTheDocument();
+    // A tela abre direto nos direcionadores: nenhuma faixa de título, nenhuma
+    // saudação. Quem está na tela e em que IES já é dito pela sidebar.
+    expect(screen.queryByTestId('saudacao')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
     expect(screen.getByTestId('direcionadores')).toBeInTheDocument();
     expect(screen.getByTestId('cronograma')).toBeInTheDocument();
     expect(screen.getByTestId('avisos')).toBeInTheDocument();
@@ -199,7 +202,8 @@ describe('Inicio — estados (spec §8.4)', () => {
     expect(skeletonAvisos).toBeInTheDocument();
     expect(screen.queryByTestId('cronograma')).not.toBeInTheDocument();
     expect(screen.queryByTestId('avisos')).not.toBeInTheDocument();
-    expect(screen.getByTestId('saudacao-skeleton')).toBeInTheDocument();
+    // Sem saudação, não há skeleton de saudação para reservar altura.
+    expect(screen.queryByTestId('saudacao-skeleton')).not.toBeInTheDocument();
   });
 
   it('loading: os skeletons são acessíveis (role="status"), não um <Skeleton> cru sem rótulo (achado 19)', () => {
@@ -214,9 +218,6 @@ describe('Inicio — estados (spec §8.4)', () => {
     ).toBeGreaterThan(0);
     expect(
       within(screen.getByTestId('inicio-skeleton-direcionadores')).getAllByRole('status').length,
-    ).toBeGreaterThan(0);
-    expect(
-      within(screen.getByTestId('saudacao-skeleton')).getAllByRole('status').length,
     ).toBeGreaterThan(0);
   });
 
@@ -357,16 +358,13 @@ describe('Inicio — proveniência escopada à IES em foco na troca de IES (acha
     });
   });
 
-  it('a saudação mostra o nome da IES em foco (da URL), não o da IES padrão do usuário', () => {
+  it('a IES em foco (da URL) é a que alimenta as queries da tela, não a IES padrão', () => {
     montar();
 
-    expect(screen.getByTestId('saudacao')).toHaveTextContent('Universidade Federal Fluminense');
-    expect(screen.getByTestId('saudacao')).not.toHaveTextContent('UEA');
-  });
-
-  it('a saudação omite o contrato — ele é da IES padrão (ies-1), não da IES em foco (ies-9)', () => {
-    montar();
-    expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
+    // Sem saudação para carregar o nome da IES, a prova de escopo passa a ser
+    // o argumento das queries de cronograma e avisos.
+    expect(mocks.useCronograma).toHaveBeenCalledWith('ies-9');
+    expect(mocks.useAvisos).toHaveBeenCalledWith('ies-9');
   });
 
   it('o rodapé do cronograma usa a vigência devolvida pela query da IES em foco, não o contrato do contexto', () => {

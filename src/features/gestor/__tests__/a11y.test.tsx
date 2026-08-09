@@ -282,7 +282,7 @@ const TIMEOUT_AXE = 120_000;
 describe('acessibilidade — sem violações de axe por rota e por drawer (§11)', () => {
   it('Início', async () => {
     montar(<Inicio />, '/gestor');
-    expect(screen.getByTestId('saudacao')).toBeInTheDocument();
+    expect(screen.getByTestId('direcionadores')).toBeInTheDocument();
     expect(screen.getByTestId('cronograma')).toBeInTheDocument();
     expect(screen.getByTestId('avisos')).toBeInTheDocument();
 
