@@ -196,7 +196,18 @@ export interface NoDiagnostico {
   nivel: 'grande_area' | 'especialidade';
   acertoPct: number;
   desempenho: NivelDesempenho;
+  /**
+   * Alunos distintos com resposta neste nó — base do `lowSample`/"cobertura
+   * parcial" (§ o quanto a turma participou, não quanto ela respondeu).
+   */
   amostra: number;
+  /**
+   * Total de respostas neste nó (campo novo, 09/08) — é isso, não `amostra`,
+   * que alimenta `acertoPct` (`count(*)`, nunca média por aluno). Exibir
+   * este número, não `amostra`, ao lado do percentual: `amostra` responde
+   * "quantos alunos", `respostas` responde "quanto dado sustenta esse %".
+   */
+  respostas: number;
   lowSample: boolean;
   temFilhos: boolean;
 }
@@ -206,6 +217,8 @@ export interface TemaCritico {
   nome: string;
   acertoPct: number;
   amostra: number;
+  /** Ver `NoDiagnostico.respostas` — mesma distinção alunos × respostas. */
+  respostas: number;
   lowSample: boolean;
 }
 

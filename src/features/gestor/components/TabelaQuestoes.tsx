@@ -10,6 +10,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { DistribuicaoAlternativas } from '../charts/DistribuicaoAlternativas';
 import { Icon } from './Icon';
+import type { DendeIconName } from './icon-names';
 import {
   CabecalhoTabela,
   Celula,
@@ -28,33 +29,26 @@ import type { Meta, NivelDesempenho, Questao } from '../api/types';
 
 /**
  * `indisponivel` presente = opção desabilitada, com o motivo visível (handoff §9).
- *
- * `Mais acertadas` exige ordenação decrescente, e o `ORDER BY` de
- * `get_gestor_questoes` é `acerto_pct ASC` fixo, sem parâmetro de direção — o
- * banco simplesmente não sabe servir essa leitura hoje. A alternativa seria
- * degradar em silêncio para `acerto` ascendente, o que devolveria a MESMA lista
- * de "Mais erradas" sob outro rótulo: a gestora leria "as que mais acertaram" e
- * veria as que mais erraram. Desabilitar dizendo o porquê é honesto; mentir com
- * a lista invertida não é. Reabrir quando `acerto_desc` entrar na whitelist da
- * RPC (ver `questoesContratoSort.test.ts`).
+ * Nenhuma das três precisa disso hoje — `acerto_desc` (que sustenta "Mais
+ * acertadas") está confirmado em produção desde 06-07/08 (`ORDER BY ...
+ * acerto_pct DESC`); o campo continua existindo no tipo para uma eventual
+ * quarta opção que precise dele no futuro.
  */
 export type OrdenacaoQuestoes = 'ordem_da_prova' | 'mais_erradas' | 'mais_acertadas';
 
 interface OpcaoOrdenacao {
   valor: OrdenacaoQuestoes;
   rotulo: string;
+  /** Só as duas opções de ranking têm seta — "ordem da prova" não é uma direção. */
+  icone?: DendeIconName;
   /** Presente = opção desabilitada; o texto é o motivo mostrado à gestora. */
   indisponivel?: string;
 }
 
 export const ORDENACOES_QUESTOES: readonly OpcaoOrdenacao[] = [
   { valor: 'ordem_da_prova', rotulo: 'Ordem da prova' },
-  { valor: 'mais_erradas', rotulo: 'Mais erradas' },
-  {
-    valor: 'mais_acertadas',
-    rotulo: 'Mais acertadas',
-    indisponivel: 'Indisponível: o banco ainda não ordena por acerto decrescente.',
-  },
+  { valor: 'mais_erradas', rotulo: 'Mais erradas', icone: 'arrow_downward' },
+  { valor: 'mais_acertadas', rotulo: 'Mais acertadas', icone: 'arrow_upward' },
 ];
 
 
@@ -80,6 +74,16 @@ const COR_NIVEL: Record<NivelDesempenho, string> = {
   critico: 'var(--gp-danger)',
   mediano: 'var(--gp-warning)',
   excelente: 'var(--gp-success)',
+};
+
+/**
+ * Ícone só nos dois extremos (crítico/excelente) — mediano é o meio-termo
+ * esperado, não precisa de sinalização própria. Cor não é o único canal
+ * (mesma regra do resto do portal): o glifo repete o que a cor já diz.
+ */
+const ICONE_NIVEL: Partial<Record<NivelDesempenho, DendeIconName>> = {
+  critico: 'report_problem',
+  excelente: 'star',
 };
 
 /** 6 colunas da referência: `56px 1fr 1.15fr 1.5fr 1.6fr 66px`. */
@@ -124,23 +128,48 @@ export function TabelaQuestoes({
   const [expandida, setExpandida] = React.useState<number | null>(null);
   const portalContainer = useGestorPortalContainer();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const idMotivo = React.useId();
-  const indisponiveis = ORDENACOES_QUESTOES.filter((o) => o.indisponivel !== undefined);
 
   const atualizadoEm = meta?.atualizadoEm ? formatData(meta.atualizadoEm) : TRACO;
   const temRastreabilidade = Boolean(meta) && meta?.fonte !== TRACO;
 
   return (
-    <section aria-labelledby="questoes-titulo" className="space-y-3">
-      <h3 id="questoes-titulo" className="text-base font-semibold text-foreground">
-        Detalhamento das questões
-      </h3>
+    <section
+      aria-labelledby="questoes-titulo"
+      className="flex flex-col gap-4 p-6"
+      style={{
+        background: 'var(--gp-surface-1)',
+        border: '1px solid var(--gp-border-strong)',
+        borderRadius: 16,
+        boxShadow: 'var(--gp-shadow-card)',
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 shrink-0 items-center justify-center"
+          style={{
+            background: 'var(--gp-brand-surface)',
+            color: 'var(--gp-brand-on-dark)',
+            borderRadius: 'var(--gp-radius-sm)',
+          }}
+        >
+          <Icon name="quiz" size={17} />
+        </span>
+        <h3 id="questoes-titulo" style={{ fontSize: 15, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+          Detalhamento das questões
+        </h3>
+        {!processando && (
+          <span className="ml-auto tabular-nums" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+            {total} {total === 1 ? 'questão' : 'questões'}
+          </span>
+        )}
+      </div>
 
       {processando ? (
         <div
           data-testid="questoes-processando"
           className="flex flex-col items-center gap-2 border-2 border-dashed p-8 text-center"
-          style={{ borderColor: 'var(--gp-border-strong)', borderRadius: 'var(--gp-radius-md)' }}
+          style={{ borderColor: 'var(--gp-border-subtle)', borderRadius: 'var(--gp-radius-md)' }}
         >
           <span
             aria-hidden="true"
@@ -195,62 +224,34 @@ export function TabelaQuestoes({
               </SelectContent>
             </Select>
 
-            {/*
-              O motivo da opção desabilitada é TEXTO NA TELA, ao lado do
-              controle — mesmo padrão do `motivo-sem-cruzamento` de
-              `AcertoPorAreaESemestre`. Em `title` de um botão `disabled` ele
-              não chegava a ninguém: controle desabilitado não dispara evento
-              de mouse, então Chrome e Firefox nunca mostram a tooltip; e
-              `aria-description` não é texto na tela e tem suporte parcial. A
-              gestora via um segmento cinza e inerte, sem explicação. O `title`
-              fica por cima como reforço, e a ligação com o segmento passa a
-              ser `aria-describedby`, que aponta para este texto real.
-            */}
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-              {indisponiveis.map((o) => (
-                <p
+            <ToggleGroup
+              type="single"
+              value={ordenacao}
+              onValueChange={(v) => v && onOrdenacaoChange(v as OrdenacaoQuestoes)}
+              aria-label="Ordenação das questões"
+              className="ml-auto gap-0 border p-[3px]"
+              style={{
+                background: 'var(--gp-surface-3)',
+                borderColor: 'var(--gp-border-subtle)',
+                borderRadius: 'var(--gp-radius-sm)',
+              }}
+            >
+              {ORDENACOES_QUESTOES.map((o) => (
+                <ToggleGroupItem
                   key={o.valor}
-                  id={`${idMotivo}-${o.valor}`}
-                  data-testid={`motivo-ordenacao-${o.valor}`}
-                  className="leading-4"
-                  style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
+                  value={o.valor}
+                  className="h-auto gap-1 px-3 py-1 text-[11px]"
                 >
-                  {o.indisponivel}
-                </p>
+                  {o.icone ? <Icon name={o.icone} size={12} className="opacity-80" /> : null}
+                  {o.rotulo}
+                </ToggleGroupItem>
               ))}
-
-              <ToggleGroup
-                type="single"
-                value={ordenacao}
-                onValueChange={(v) => v && onOrdenacaoChange(v as OrdenacaoQuestoes)}
-                aria-label="Ordenação das questões"
-                className="gap-0 border p-[3px]"
-                style={{
-                  background: 'var(--gp-surface-3)',
-                  borderColor: 'var(--gp-border-subtle)',
-                  borderRadius: 'var(--gp-radius-sm)',
-                }}
-              >
-                {ORDENACOES_QUESTOES.map((o) => (
-                  <ToggleGroupItem
-                    key={o.valor}
-                    value={o.valor}
-                    disabled={o.indisponivel !== undefined}
-                    title={o.indisponivel}
-                    aria-describedby={o.indisponivel === undefined ? undefined : `${idMotivo}-${o.valor}`}
-                    className="h-auto px-3 py-1 text-[11px]"
-                  >
-                    {o.rotulo}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
+            </ToggleGroup>
           </div>
 
           <div
-            className="border"
             style={{
-              borderColor: 'var(--gp-border-subtle)',
+              border: '1px solid var(--gp-border-strong)',
               borderRadius: 'var(--gp-radius-md)',
               overflow: 'hidden',
             }}
@@ -366,8 +367,20 @@ export function TabelaQuestoes({
                         </Celula>
                         <Celula numerica ausente={q.acertoPct === null}>
                           {/* A cor do crítico vive num `<span>`: `Celula` já declara
-                              `color` inline, e classe nenhuma vence estilo inline. */}
-                          <span className={cn(nivel === 'critico' && 'gp-text-danger font-semibold')}>
+                              `color` inline, e classe nenhuma vence estilo inline. O
+                              ícone repete o mesmo canal da cor (§ nunca cor sozinha),
+                              só nos dois extremos — ver `ICONE_NIVEL`. */}
+                          <span
+                            className={cn(
+                              'inline-flex items-center justify-end gap-1',
+                              nivel === 'critico' && 'gp-text-danger font-semibold',
+                              nivel === 'excelente' && 'font-semibold',
+                            )}
+                            style={nivel === 'excelente' ? { color: 'var(--gp-success-on)' } : undefined}
+                          >
+                            {nivel !== null && ICONE_NIVEL[nivel] ? (
+                              <Icon name={ICONE_NIVEL[nivel]!} size={13} className="shrink-0" />
+                            ) : null}
                             {formatPct(q.acertoPct)}
                           </span>
                         </Celula>

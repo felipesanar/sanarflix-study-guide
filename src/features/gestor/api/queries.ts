@@ -554,7 +554,10 @@ export interface NoDetalhamentoTemas {
   nivel: 'especialidade' | 'tema';
   acertoPct: number;
   desempenho: NivelDesempenho;
+  /** Alunos distintos com resposta — base do `lowSample`, não de `acertoPct`. */
   amostra: number;
+  /** Total de respostas — o que de fato alimenta `acertoPct` (ver `NoDiagnostico.respostas`). */
+  respostas: number;
   lowSample: boolean;
   temFilhos: boolean;
 }
@@ -598,20 +601,18 @@ export function useDetalhamentoTemas(
 /**
  * Tradução do valor do controle de ordenação para o contrato da RPC.
  *
- * `get_gestor_questoes` só aceita `p_sort IN ('numero','acerto')` e, fora
- * disso, `RAISE EXCEPTION 'sort_invalido'`. A UI mandava o próprio rótulo
- * interno (`ordem_da_prova` | `mais_erradas` | `mais_acertadas`), que não está
- * na whitelist — então TODA chamada falhava, inclusive a do estado inicial, e o
- * bloco "Detalhamento das Questões" ficava permanentemente vazio nas três
- * ordenações. O teste `questoesContratoSort.test.ts` trava os dois lados juntos
- * para que a whitelist do SQL e os valores da UI não voltem a divergir.
+ * `get_gestor_questoes` aceita `p_sort IN ('numero','acerto','acerto_desc')`
+ * (confirmado em produção em 09/08 — `ORDER BY ... acerto_pct DESC` quando
+ * `v_sort='acerto_desc'`) e, fora disso, `RAISE EXCEPTION 'sort_invalido'`. A
+ * UI manda o próprio rótulo interno (`ordem_da_prova` | `mais_erradas` |
+ * `mais_acertadas`), que não está na whitelist — daí a tradução abaixo. O
+ * teste `questoesContratoSort.test.ts` trava os dois lados juntos para que a
+ * whitelist do SQL e os valores da UI não voltem a divergir.
  *
- * `mais_acertadas` ainda não tem caminho no servidor: o ORDER BY da RPC é
- * `acerto_pct ASC` fixo, sem parâmetro de direção. A migration
- * `20260806..._get_gestor_questoes_ordem_desc.sql` acrescenta `acerto_desc` à
- * whitelist; enquanto ela não estiver aplicada, este mapa degrada para
- * `acerto` (ascendente) em vez de estourar a RPC — lista errada é ruim, lista
- * vazia é pior, e a alternativa seria esconder a opção do gestor.
+ * `suportaDesc` continua parametrizável (default `false`) só para o caso de
+ * algum caminho futuro precisar do fallback ascendente sem tocar o chamador
+ * real — hoje `useQuestoes` já chama com `true`, porque `acerto_desc` está
+ * no ar.
  */
 const SORT_QUESTOES_RPC: Record<string, string> = {
   ordem_da_prova: 'numero',
@@ -619,7 +620,7 @@ const SORT_QUESTOES_RPC: Record<string, string> = {
   mais_acertadas: 'acerto_desc',
 };
 
-/** Fallback enquanto `acerto_desc` não existir no banco. */
+/** Fallback só usado quando o chamador passa `suportaDesc: false` explicitamente. */
 const SORT_QUESTOES_FALLBACK: Record<string, string> = { acerto_desc: 'acerto' };
 
 export function sortQuestoesParaRpc(sort: string, suportaDesc = false): string {
@@ -656,7 +657,7 @@ export function useQuestoes(
       p_simulado_id: simuladoId,
       p_page: paginacao.page,
       p_page_size: paginacao.pageSize,
-      p_sort: sortQuestoesParaRpc(paginacao.sort),
+      p_sort: sortQuestoesParaRpc(paginacao.sort, true),
       p_area: paginacao.area,
     },
     filtros.iesId !== null && simuladoId !== null,

@@ -237,30 +237,26 @@ describe('TabelaQuestoes', () => {
   });
 
   /**
-   * `title` em botão `disabled` não chega a ninguém: controle desabilitado não
-   * dispara evento de mouse, então Chrome e Firefox nunca mostram a tooltip. O
-   * motivo tem que ser TEXTO NA TELA ao lado do controle, como o
-   * `motivo-sem-cruzamento` de `AcertoPorAreaESemestre`.
+   * `acerto_desc` confirmado em produção em 09/08 (`ORDER BY ... acerto_pct
+   * DESC`) — "Mais acertadas" deixou de ser a única opção desabilitada das
+   * três. Nenhuma das três precisa mais de `motivo`/`aria-describedby`.
    */
-  it('"Mais acertadas" segue desabilitada e o motivo é texto na tela, não só title', () => {
-    render(<TabelaQuestoes {...props()} />);
+  it('"Mais acertadas" está habilitada e não tem nenhum motivo de indisponibilidade na tela', async () => {
+    const user = userEvent.setup();
+    const onOrdenacaoChange = vi.fn();
+    render(<TabelaQuestoes {...props({ onOrdenacaoChange })} />);
 
     const opcao = screen.getByRole('radio', { name: 'Mais acertadas' });
-    expect(opcao).toBeDisabled();
-    expect(opcao).toHaveAttribute('title', expect.stringContaining('Indisponível'));
+    expect(opcao).not.toBeDisabled();
+    expect(opcao).not.toHaveAttribute('title');
+    expect(opcao).not.toHaveAttribute('aria-describedby');
 
-    const motivo = screen.getByTestId('motivo-ordenacao-mais_acertadas');
-    expect(motivo).toBeVisible();
-    expect(motivo).toHaveTextContent('o banco ainda não ordena por acerto decrescente');
-    // `aria-describedby` aponta para o texto real da tela; `aria-description`
-    // não é texto na tela e tem suporte parcial.
-    expect(opcao).toHaveAttribute('aria-describedby', motivo.id);
-    expect(opcao).not.toHaveAttribute('aria-description');
-
-    // Ordenação disponível não ganha linha de motivo — o aviso é do que falta.
+    expect(screen.queryByTestId('motivo-ordenacao-mais_acertadas')).toBeNull();
     expect(screen.queryByTestId('motivo-ordenacao-mais_erradas')).toBeNull();
     expect(screen.queryByTestId('motivo-ordenacao-ordem_da_prova')).toBeNull();
-    expect(screen.getByRole('radio', { name: 'Mais erradas' })).not.toHaveAttribute('aria-describedby');
+
+    await user.click(opcao);
+    expect(onOrdenacaoChange).toHaveBeenCalledWith('mais_acertadas');
   });
 
   it('a grande área é um dropdown (não um segmentado) e filtra pelo callback, sem filtrar no cliente', async () => {

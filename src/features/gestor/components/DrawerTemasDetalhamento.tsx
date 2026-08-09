@@ -209,7 +209,7 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
                           className="ml-auto whitespace-nowrap"
                           style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
                         >
-                          {no.amostra} alunos com resposta
+                          {no.respostas} respostas
                         </span>
                         {/* Afordância de "tem próximo nível" — só a especialidade
                             com `temFilhos` drila; tema é sempre folha nesta RPC. */}

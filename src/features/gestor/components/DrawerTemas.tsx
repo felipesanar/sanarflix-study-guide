@@ -103,7 +103,7 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
    */
   const resumoTexto = [
     `Temas de ${especialidade.nome} — percentual de acerto`,
-    ...temas.map((tema) => `${tema.nome}: ${formatPct(tema.acertoPct)} (amostra: ${tema.amostra})`),
+    ...temas.map((tema) => `${tema.nome}: ${formatPct(tema.acertoPct)} (${tema.respostas} respostas)`),
   ].join('\n');
 
   return (
@@ -235,7 +235,7 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
                         className="ml-auto whitespace-nowrap"
                         style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
                       >
-                        {tema.amostra} alunos com resposta
+                        {tema.respostas} respostas
                       </span>
                     </div>
                   </li>

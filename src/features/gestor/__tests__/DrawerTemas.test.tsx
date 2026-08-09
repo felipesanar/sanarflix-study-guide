@@ -30,8 +30,8 @@ const metaFake: Meta = {
 };
 
 const temas: TemaCritico[] = [
-  { id: 'tema-ic', nome: 'Insuficiência cardíaca', acertoPct: 22, amostra: 118, lowSample: false },
-  { id: 'tema-arritmia', nome: 'Arritmias', acertoPct: 41, amostra: 7, lowSample: true },
+  { id: 'tema-ic', nome: 'Insuficiência cardíaca', acertoPct: 22, amostra: 118, respostas: 944, lowSample: false },
+  { id: 'tema-arritmia', nome: 'Arritmias', acertoPct: 41, amostra: 7, respostas: 56, lowSample: true },
 ];
 
 const recorte = { iesId: 'ies-1', semestre: '6ano' as const };
@@ -129,8 +129,8 @@ describe('DrawerTemas', () => {
    */
   it('mostra a amostra de todo tema, não só do de cobertura parcial', () => {
     render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
-    expect(screen.getByTestId('amostra-tema-ic')).toHaveTextContent('118 alunos com resposta');
-    expect(screen.getByTestId('amostra-tema-arritmia')).toHaveTextContent('7 alunos com resposta');
+    expect(screen.getByTestId('amostra-tema-ic')).toHaveTextContent('944 respostas');
+    expect(screen.getByTestId('amostra-tema-arritmia')).toHaveTextContent('56 respostas');
   });
 
   /**

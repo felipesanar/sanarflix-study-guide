@@ -82,14 +82,14 @@ const diagnosticoResumoVazioFake: VisaoGeral['diagnosticoResumo'] = [
 ];
 
 const grandesAreas: NoDiagnostico[] = [
-  { id: 'ga-clinica', nome: 'Clínica Médica', nivel: 'grande_area', acertoPct: 27, desempenho: 'critico', amostra: 118, lowSample: false, temFilhos: true },
-  { id: 'ga-cirurgia', nome: 'Cirurgia', nivel: 'grande_area', acertoPct: 28, desempenho: 'critico', amostra: 118, lowSample: false, temFilhos: true },
-  { id: 'ga-gine', nome: 'Ginecologia e Obstetrícia', nivel: 'grande_area', acertoPct: 84, desempenho: 'excelente', amostra: 118, lowSample: false, temFilhos: true },
+  { id: 'ga-clinica', nome: 'Clínica Médica', nivel: 'grande_area', acertoPct: 27, desempenho: 'critico', amostra: 118, respostas: 940, lowSample: false, temFilhos: true },
+  { id: 'ga-cirurgia', nome: 'Cirurgia', nivel: 'grande_area', acertoPct: 28, desempenho: 'critico', amostra: 118, respostas: 940, lowSample: false, temFilhos: true },
+  { id: 'ga-gine', nome: 'Ginecologia e Obstetrícia', nivel: 'grande_area', acertoPct: 84, desempenho: 'excelente', amostra: 118, respostas: 940, lowSample: false, temFilhos: true },
 ];
 
 const especialidadesClinica: NoDiagnostico[] = [
-  { id: 'esp-cardio', nome: 'Cardiologia', nivel: 'especialidade', acertoPct: 24, desempenho: 'critico', amostra: 8, lowSample: true, temFilhos: true },
-  { id: 'esp-pneumo', nome: 'Pneumologia', nivel: 'especialidade', acertoPct: 31, desempenho: 'mediano', amostra: 110, lowSample: false, temFilhos: true },
+  { id: 'esp-cardio', nome: 'Cardiologia', nivel: 'especialidade', acertoPct: 24, desempenho: 'critico', amostra: 8, respostas: 64, lowSample: true, temFilhos: true },
+  { id: 'esp-pneumo', nome: 'Pneumologia', nivel: 'especialidade', acertoPct: 31, desempenho: 'mediano', amostra: 110, respostas: 880, lowSample: false, temFilhos: true },
 ];
 
 const recorte = { iesId: 'ies-1', semestre: '6ano' as const };
@@ -223,12 +223,12 @@ describe('CascataDiagnostico', () => {
     expect(pilula).toHaveAttribute('title', expect.stringContaining('8'));
     // O n é metadado à direita da linha, não texto dentro da pílula.
     expect(pilula).not.toHaveTextContent('8');
-    expect(cardio.querySelector('[data-testid="amostra-esp-cardio"]')).toHaveTextContent('8 alunos com resposta');
+    expect(cardio.querySelector('[data-testid="amostra-esp-cardio"]')).toHaveTextContent('64 respostas');
 
     // Nó sem baixa amostra: nenhuma pílula, mas o n continua visível.
     const pneumo = screen.getByRole('button', { name: /Pneumologia/ });
     expect(within(pneumo).queryByText('cobertura parcial')).not.toBeInTheDocument();
-    expect(pneumo.querySelector('[data-testid="amostra-esp-pneumo"]')).toHaveTextContent('110 alunos com resposta');
+    expect(pneumo.querySelector('[data-testid="amostra-esp-pneumo"]')).toHaveTextContent('880 respostas');
   });
 
   /**

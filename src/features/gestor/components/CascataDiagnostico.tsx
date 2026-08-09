@@ -180,7 +180,7 @@ function LinhaNo({
         className="shrink-0 whitespace-nowrap"
         style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
       >
-        {no.amostra} alunos com resposta
+        {no.respostas} respostas
       </span>
 
       {/* Afordância de folha: só este rótulo distingue "abre o drawer de
