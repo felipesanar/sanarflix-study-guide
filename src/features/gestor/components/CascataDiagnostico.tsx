@@ -56,11 +56,30 @@ const ORDEM_NIVEL: NivelDesempenho[] = ['excelente', 'mediano', 'critico'];
  * paleta de GRÁFICO (`--chart-*`), que é cor de série, não de status, e nunca
  * hex cru, que não acompanharia o tema escuro.
  */
-const COR_NIVEL: Record<NivelDesempenho, { ponto: string; texto: string }> = {
-  excelente: { ponto: 'var(--gp-success)', texto: 'var(--gp-success-on)' },
-  mediano: { ponto: 'var(--gp-warning)', texto: 'var(--gp-warning-on)' },
-  critico: { ponto: 'var(--gp-danger)', texto: 'var(--gp-danger-on)' },
+const COR_NIVEL: Record<
+  NivelDesempenho,
+  { ponto: string; texto: string; superficie: string; icone: string }
+> = {
+  excelente: {
+    ponto: 'var(--gp-success)',
+    texto: 'var(--gp-success-on)',
+    superficie: 'var(--gp-success-surface)',
+    icone: 'trending_up',
+  },
+  mediano: {
+    ponto: 'var(--gp-warning)',
+    texto: 'var(--gp-warning-on)',
+    superficie: 'var(--gp-warning-surface)',
+    icone: 'trending_flat',
+  },
+  critico: {
+    ponto: 'var(--gp-danger)',
+    texto: 'var(--gp-danger-on)',
+    superficie: 'var(--gp-danger-surface)',
+    icone: 'trending_down',
+  },
 };
+
 
 type AreaResumo = VisaoGeral['diagnosticoResumo'][number]['areas'][number];
 
