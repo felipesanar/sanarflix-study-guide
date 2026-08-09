@@ -16,7 +16,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { getPortalEntries } from "@/experiences/shared/globalNav";
+import { ExperienceSwitcher } from "@/experiences/shared/ExperienceSwitcher";
 import { isRouteActive } from "@/experiences/shared/navActive";
 import {
   BookOpen,
@@ -149,8 +149,10 @@ export function AppSidebar() {
   const studentItems = menuItems.filter(
     (item) => item.accessKey !== "home" && accessRules[item.accessKey],
   );
-  const portalEntries = getPortalEntries(access);
-  const visibleMenuItems = [...studentItems, ...portalEntries];
+  // A sidebar do aluno lista SÓ telas de aluno. Portais (admin/gestão/CX) não
+  // são itens de menu: são trocas de experiência, feitas no ExperienceSwitcher
+  // do topo desta mesma sidebar.
+  const visibleMenuItems = studentItems;
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -175,6 +177,11 @@ export function AppSidebar() {
                 Academy
               </h2>
             )}
+          </div>
+
+          {/* Troca de experiência (portal) — só aparece para quem tem mais de uma. */}
+          <div className={collapsed ? "mt-3 flex justify-center" : "mt-3"}>
+            <ExperienceSwitcher variant={collapsed ? "icon" : "full"} />
           </div>
         </SidebarHeader>
 
