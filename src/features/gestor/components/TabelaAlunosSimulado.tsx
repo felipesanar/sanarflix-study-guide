@@ -5,6 +5,7 @@ import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import {
   CabecalhoTabela,
   Celula,
+  AlternadorDensidade,
   CelulaCabecalho,
   CorpoTabela,
   FONTE_MONO,
