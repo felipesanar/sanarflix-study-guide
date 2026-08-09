@@ -713,8 +713,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                     style={{ background: COR_NIVEL[nivel].ponto, opacity: 0.6 }}
                   />
 
-                    }}
-                  />
+
 
                   {/* A contagem + a classificação SÃO o gatilho da cascata. */}
                   <button
