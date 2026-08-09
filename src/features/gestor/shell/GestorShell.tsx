@@ -184,48 +184,121 @@ export const GestorShell: React.FC = () => {
           <ConteudoSidebar />
         </aside>
 
+        {/* Coluna do conteúdo: abaixo de `lg` ela ganha uma barra superior
+            fixa (fora da área rolável, para não competir com o cabeçalho
+            sticky de cada tela) com o lockup e o gatilho do menu.
+            `min-w-0` é o que permite a tabela larga rolar dentro de si em vez
+            de esticar o shell inteiro. */}
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+          <div
+            className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5 lg:hidden"
+            style={{
+              background: 'var(--gp-surface-1)',
+              borderColor: 'var(--gp-border-subtle)',
+            }}
+          >
+            <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Abrir menu do portal"
+                  className="gp-hover-surface flex h-9 w-9 shrink-0 items-center justify-center"
+                  style={{
+                    borderRadius: 'var(--gp-radius-sm)',
+                    border: '1px solid var(--gp-border-subtle)',
+                    color: 'var(--gp-text-2)',
+                  }}
+                >
+                  <Icon name="menu" size={18} />
+                </button>
+              </SheetTrigger>
+              {/* Sem padding próprio: o `ConteudoSidebar` já traz o padding e
+                  os divisores de cada bloco. `overflow-y-auto` porque em
+                  tablet deitado a coluna inteira não cabe na altura. */}
+              <SheetContent
+                container={portalContainer}
+                side="left"
+                className="flex w-[280px] flex-col gap-0 overflow-y-auto p-0"
+                style={{ background: 'var(--gp-surface-1)', color: 'var(--gp-text-2)' }}
+                closeIcon={<Icon name="close" size={16} />}
+                closeLabel="Fechar"
+              >
+                {/* O `Sheet` do repositório exige título acessível; aqui ele é
+                    só para leitor de tela — o lockup do próprio conteúdo já
+                    diz visualmente onde a pessoa está. */}
+                <SheetTitle className="sr-only">Menu do Portal do Gestor</SheetTitle>
+                <ConteudoSidebar aoNavegar={() => setMenuAberto(false)} />
+              </SheetContent>
+            </Sheet>
 
-        {/* `relative` não é decoração: é o que impede o conteúdo rolável de
-            esticar o DOCUMENTO.
+            <img
+              src="/sanarflix-academy-lockup.svg"
+              alt="SanarFlix Academy"
+              width={533}
+              height={138}
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
+              className="h-7 w-auto dark:hidden"
+            />
+            <img
+              src="/sanarflix-academy-lockup-white.svg"
+              alt=""
+              aria-hidden="true"
+              width={533}
+              height={138}
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
+              className="hidden h-7 w-auto dark:block"
+            />
+            <span className="ml-auto truncate" style={OVERLINE_SIDEBAR}>
+              Portal do Gestor
+            </span>
+          </div>
 
-            Sem um ancestral posicionado, todo descendente `position:absolute`
-            resolve contra o viewport inicial, não contra este `main`. O
-            `.sr-only` do Tailwind é justamente `position:absolute`, e a posição
-            estática dele fica onde ele aparece no fluxo — lá embaixo, num
-            conteúdo de 3400px. Resultado: o `<html>` crescia para 2486px num
-            viewport de 891, o documento ganhava barra de rolagem própria e
-            sobrava uma faixa vazia (preta) abaixo do app. Só acontecia no
-            Detalhamento porque é a tela cujo conteúdo passa da altura da
-            janela por margem suficiente.
+          {/* `relative` não é decoração: é o que impede o conteúdo rolável de
+              esticar o DOCUMENTO.
 
-            Medido no navegador: com `relative`, `documentElement.scrollHeight`
-            cai de 2486 para 891 — exatamente o viewport. */}
-        <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {/*
-            `key={pathname}` no Suspense não é detalhe: é o que faz a troca de
-            tela ser INSTANTÂNEA (achado 09/08).
+              Sem um ancestral posicionado, todo descendente `position:absolute`
+              resolve contra o viewport inicial, não contra este `main`. O
+              `.sr-only` do Tailwind é justamente `position:absolute`, e a posição
+              estática dele fica onde ele aparece no fluxo — lá embaixo, num
+              conteúdo de 3400px. Resultado: o `<html>` crescia para 2486px num
+              viewport de 891, o documento ganhava barra de rolagem própria e
+              sobrava uma faixa vazia (preta) abaixo do app. Só acontecia no
+              Detalhamento porque é a tela cujo conteúdo passa da altura da
+              janela por margem suficiente.
 
-            O router roda com `v7_startTransition`, então navegar é um update
-            em transição — e o React, por definição, MANTÉM o conteúdo antigo
-            na tela enquanto uma boundary já montada suspende, em vez de trocar
-            pelo fallback. Com o chunk da rota destino ainda por baixar (lazy),
-            isso prendia o gestor na tela atual por segundos, sem nenhum sinal
-            de que o clique tinha valido — a sensação de travado que ele
-            relatou ao ir de Visão geral para Detalhamento na primeira vez da
-            sessão.
+              Medido no navegador: com `relative`, `documentElement.scrollHeight`
+              cai de 2486 para 891 — exatamente o viewport. */}
+          <main className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {/*
+              `key={pathname}` no Suspense não é detalhe: é o que faz a troca de
+              tela ser INSTANTÂNEA (achado 09/08).
 
-            Trocando a `key` a cada rota, a boundary do destino é uma boundary
-            NOVA: não tem conteúdo anterior para preservar, então o fallback
-            aparece de imediato. A navegação acontece no clique e o
-            carregamento passa a ser mostrado na tela de destino, que é a
-            ordem certa.
-          */}
-          <Suspense key={pathname} fallback={<EsqueletoDeRota />}>
-            <Outlet />
-          </Suspense>
-        </main>
+              O router roda com `v7_startTransition`, então navegar é um update
+              em transição — e o React, por definição, MANTÉM o conteúdo antigo
+              na tela enquanto uma boundary já montada suspende, em vez de trocar
+              pelo fallback. Com o chunk da rota destino ainda por baixar (lazy),
+              isso prendia o gestor na tela atual por segundos, sem nenhum sinal
+              de que o clique tinha valido — a sensação de travado que ele
+              relatou ao ir de Visão geral para Detalhamento na primeira vez da
+              sessão.
 
+              Trocando a `key` a cada rota, a boundary do destino é uma boundary
+              NOVA: não tem conteúdo anterior para preservar, então o fallback
+              aparece de imediato. A navegação acontece no clique e o
+              carregamento passa a ser mostrado na tela de destino, que é a
+              ordem certa.
+            */}
+            <Suspense key={pathname} fallback={<EsqueletoDeRota />}>
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
       </div>
+
     </GestorPortalContainerContext.Provider>
   );
 };
