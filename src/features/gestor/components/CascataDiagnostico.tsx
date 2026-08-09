@@ -7,6 +7,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { useDiagnostico } from '@/features/gestor/api/queries';
 import { prefetchDiagnosticoNivel } from '@/features/gestor/api/prefetch';
 import { Icon } from '@/features/gestor/components/Icon';
+import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import { TagCoberturaParcial, TagNivel } from '@/features/gestor/components/Tag';
 import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
@@ -58,25 +59,25 @@ const ORDEM_NIVEL: NivelDesempenho[] = ['excelente', 'mediano', 'critico'];
  */
 const COR_NIVEL: Record<
   NivelDesempenho,
-  { ponto: string; texto: string; superficie: string; icone: string }
+  { ponto: string; texto: string; superficie: string; icone: DendeIconName }
 > = {
   excelente: {
     ponto: 'var(--gp-success)',
     texto: 'var(--gp-success-on)',
     superficie: 'var(--gp-success-surface)',
-    icone: 'trending_up',
+    icone: 'arrow_upward',
   },
   mediano: {
     ponto: 'var(--gp-warning)',
     texto: 'var(--gp-warning-on)',
     superficie: 'var(--gp-warning-surface)',
-    icone: 'trending_flat',
+    icone: 'arrow_right',
   },
   critico: {
     ponto: 'var(--gp-danger)',
     texto: 'var(--gp-danger-on)',
     superficie: 'var(--gp-danger-surface)',
-    icone: 'trending_down',
+    icone: 'arrow_downward',
   },
 };
 
@@ -580,7 +581,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
               color: 'var(--gp-brand-on-dark)',
             }}
           >
-            <Icon name="stethoscope" variant="outlined" size={18} box={18} />
+            <Icon name="insights" variant="outlined" size={18} box={18} />
           </span>
           <div className="min-w-0">
             <h2
