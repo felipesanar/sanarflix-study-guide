@@ -136,7 +136,15 @@ function FiltroProficienciaAlunos({
   }
   const totalClassificado = ORDEM_PROFICIENCIA.reduce((soma, faixa) => soma + (porFaixa.get(faixa) ?? 0), 0);
 
-  const Chip = ({
+  /**
+   * Anatomia de SEGMENTED CONTROL, e não de 4 chips soltos: as quatro opções
+   * são mutuamente exclusivas (é um único recorte por vez), e quatro pílulas
+   * de borda igual em cinza não diziam isso — pareciam quatro etiquetas
+   * independentes. Numa trilha só, com a opção ativa em superfície elevada, o
+   * "um de quatro" fica na forma, e a contagem ganha um selo próprio em vez
+   * de flutuar colada ao rótulo.
+   */
+  const Opcao = ({
     selecionado,
     rotulo,
     contagem,
@@ -154,37 +162,52 @@ function FiltroProficienciaAlunos({
       aria-pressed={selecionado}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full',
+        'group/opcao inline-flex min-w-0 items-center gap-2 rounded-[10px] px-2.5 py-1.5',
         // Comportamento 13 (spec de motion, Parte IV §11): `scale(0.96)` no
-        // press, 80ms — mesma implementação de `TabelaAlunos.tsx` (`FiltroGrupoAlunos`).
-        'transition-[color,background-color,border-color,transform] active:scale-[0.96]',
+        // press, 80ms — mesma implementação de `TabelaAlunos.tsx`.
+        'transition-[color,background-color,box-shadow,transform] active:scale-[0.96]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
       style={{
-        padding: '5px 12px 5px 10px',
         fontSize: 12,
         fontWeight: selecionado ? 600 : 500,
-        border: `1.5px solid ${selecionado ? 'var(--gp-text-1)' : 'var(--gp-border-strong)'}`,
         color: selecionado ? 'var(--gp-text-1)' : 'var(--gp-text-2)',
-        background: selecionado ? 'var(--gp-surface-2)' : 'var(--gp-surface-1)',
-        transitionDuration: 'var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-1)',
+        background: selecionado ? 'var(--gp-surface-1)' : 'transparent',
+        boxShadow: selecionado ? 'var(--gp-shadow-card)' : 'none',
+        transitionDuration:
+          'var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-1)',
         transitionTimingFunction: 'var(--gp-ease)',
       }}
     >
       {corBolinha ? (
-        <span aria-hidden="true" className="h-2 w-2 flex-none rounded-full" style={{ background: corBolinha }} />
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 flex-none rounded-full"
+          style={{
+            background: corBolinha,
+            // O semáforo só fica saturado na opção ativa: com as quatro em
+            // cor cheia, a trilha virava um arco-íris e nenhuma cor pesava.
+            opacity: selecionado ? 1 : 0.55,
+          }}
+        />
       ) : null}
-      {rotulo}
+      <span className="truncate">{rotulo}</span>
       <span
+        aria-hidden="true"
+        className="flex-none rounded-md px-1.5"
         style={{
           fontFamily: FONTE_MONO,
           fontVariantNumeric: 'tabular-nums',
           fontSize: 11,
-          color: 'var(--gp-text-3)',
+          lineHeight: '16px',
+          color: selecionado ? 'var(--gp-text-1)' : 'var(--gp-text-3)',
+          background: selecionado ? 'var(--gp-surface-2)' : 'transparent',
         }}
       >
         {contagem}
       </span>
+      {/* Contagem legível por leitor de tela sem o selo virar rótulo do botão. */}
+      <span className="sr-only">{contagem}</span>
     </button>
   );
 
@@ -192,17 +215,22 @@ function FiltroProficienciaAlunos({
     <div
       role="group"
       aria-label="Filtrar alunos por proficiência"
-      className="flex flex-wrap items-center gap-2"
+      className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl p-1"
+      style={{
+        background: 'var(--gp-surface-2)',
+        border: '1px solid var(--gp-border-strong)',
+      }}
       data-testid="filtro-proficiencia-alunos"
     >
-      <Chip
+      <Opcao
         selecionado={ativo === null}
         rotulo="Todos"
         contagem={totalClassificado}
         onClick={() => onSelecionar(null)}
       />
+      <span aria-hidden="true" className="h-4 w-px" style={{ background: 'var(--gp-border-strong)' }} />
       {ORDEM_PROFICIENCIA.map((faixa) => (
-        <Chip
+        <Opcao
           key={faixa}
           selecionado={ativo === faixa}
           rotulo={ROTULO_PROFICIENCIA[faixa]}
@@ -214,6 +242,7 @@ function FiltroProficienciaAlunos({
     </div>
   );
 }
+
 
 export interface TabelaAlunosSimuladoProps {
   alunos: AlunoNoSimulado[];
