@@ -283,8 +283,23 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
           <AcoesRecorte
             escopo={especialidade.nome}
             resumoTexto={resumoTexto}
-            onExportar={() => onExportarRecorte(`especialidade:${especialidade.id}`)}
+            /*
+              O ARQUIVO é montado aqui, onde o dado do recorte já está, e não em
+              `AcoesRecorte` (que segue sem receber lista nenhuma, §7.7) nem na
+              rota (que não conhece os temas). `onExportarRecorte` continua
+              sendo chamado depois: é a telemetria e o toast de confirmação da
+              tela, agora sobre um arquivo que existe de verdade.
+            */
+            onExportar={() => {
+              baixarCsv(
+                nomeArquivoCsv(['temas', especialidade.grandeArea, especialidade.nome]),
+                COLUNAS_TEMAS,
+                temas,
+              );
+              onExportarRecorte(`especialidade:${especialidade.id}`);
+            }}
           />
+
         </div>
 
         {/* Proveniência do recorte — vem do `meta` do envelope (mesma fonte do
