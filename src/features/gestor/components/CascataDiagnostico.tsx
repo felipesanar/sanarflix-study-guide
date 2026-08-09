@@ -580,48 +580,24 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
      */
     <section data-testid="bloco-diagnostico" aria-labelledby="titulo-diagnostico">
       <Card className="relative overflow-hidden">
-        {/* Aura de marca no topo do bloco: um fio de 2px + um halo muito baixo
-            de opacidade. É o que dá a leitura "premium" sem inventar cor nova —
-            tudo derivado dos tokens de marca do portal. */}
+        {/* Aura de marca no topo do bloco: só um fio de 1px, em opacidade
+            baixa. O halo radial saiu — com o gradiente do fundo da página já
+            atrás do card, ele lia como mancha, não como acabamento. */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-0 h-px"
           style={{
             background:
-              'linear-gradient(90deg, transparent, var(--gp-brand-border) 22%, var(--gp-brand) 50%, var(--gp-brand-border) 78%, transparent)',
-            opacity: 0.75,
+              'linear-gradient(90deg, transparent, var(--gp-brand-border) 30%, var(--gp-brand-border) 70%, transparent)',
+            opacity: 0.5,
           }}
         />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-32"
-          style={{
-            background:
-              'radial-gradient(120% 100% at 50% 0%, var(--gp-brand-surface-soft), transparent 70%)',
-          }}
-        />
-        <CardHeader className="relative flex flex-row flex-wrap items-center gap-3 pb-5">
-          {/* Medalhão do bloco: ancora o título e cria a hierarquia que faltava
-              entre o nome da seção e a nota de leitura. */}
-          <span
-            aria-hidden="true"
-            className="inline-flex shrink-0 items-center justify-center"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: 'var(--gp-brand-surface)',
-              border: '1px solid var(--gp-brand-border)',
-              color: 'var(--gp-brand-on-dark)',
-            }}
-          >
-            <Icon name="insights" variant="outlined" size={18} box={18} />
-          </span>
+        <CardHeader className="relative flex flex-row flex-wrap items-center gap-3 pb-4">
           <div className="min-w-0">
             <h2
               id="titulo-diagnostico"
               className="truncate"
-              style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em' }}
+              style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}
             >
               Diagnóstico Curricular
             </h2>
@@ -632,35 +608,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
               desempenho por grande área no período, em percentual de acerto
             </p>
           </div>
-          {/* Entrada única para a cascata completa, sem recorte de nível — as
-              setas por cartão continuam existindo (cada uma recortando ao seu
-              grupo), esta abre TODAS as grandes áreas. */}
-          <button
-            type="button"
-            data-testid="diagnostico-ver-niveis"
-            aria-expanded={cascataAberta && nivelOrigem === null}
-            onClick={() => abrirCascata(null)}
-            className={cn(
-              'ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 transition-all',
-              '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
-              'text-[color:var(--gp-brand-on-dark)] hover:-translate-y-px hover:text-[color:var(--gp-brand-strong)]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            )}
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              borderColor: 'var(--gp-brand-border)',
-              background: 'var(--gp-brand-surface-soft)',
-            }}
-          >
-            {cascataAberta && nivelOrigem === null ? 'Fechar' : 'Ver por nível de desempenho'}
-            <Icon
-              name={cascataAberta && nivelOrigem === null ? 'expand_more' : 'chevron_right'}
-              variant="outlined"
-              size={14}
-              box={14}
-            />
-          </button>
+
 
           {/* Barra de distribuição: em uma olhada, a proporção das 3 faixas no
               recorte. Só aparece quando há classificação — sem dado, nada é
