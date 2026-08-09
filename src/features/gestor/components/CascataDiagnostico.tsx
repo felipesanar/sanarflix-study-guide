@@ -149,11 +149,44 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
         }
       />
       {primeiras.length > 0 ? (
-        <ol data-testid="sugestao-mediano" className="space-y-1">
-          {primeiras.map((area) => (
-            <li key={area.id} className="flex items-center justify-between gap-2 text-xs">
-              <span className="truncate text-foreground">{area.nome}</span>
-              <span className="tabular-nums text-muted-foreground">{formatPct(area.acertoPct)}</span>
+        <ol data-testid="sugestao-mediano" className="space-y-2">
+          {primeiras.map((area, indice) => (
+            <li key={area.id} className="space-y-1">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {/* Ordem de ataque explícita: 1º, 2º, 3º. */}
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex shrink-0 items-center justify-center tabular-nums"
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 5,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: 'var(--gp-warning-surface)',
+                      color: 'var(--gp-warning-on)',
+                    }}
+                  >
+                    {indice + 1}
+                  </span>
+                  <span className="truncate text-foreground">{area.nome}</span>
+                </span>
+                <span className="shrink-0 tabular-nums font-semibold text-foreground">
+                  {formatPct(area.acertoPct)}
+                </span>
+              </div>
+              {/* Barra da própria % de acerto — a distância até a meta fica
+                  visível, não só numérica. */}
+              <span aria-hidden="true" className="block h-1 overflow-hidden rounded-full bg-muted">
+                <span
+                  className="block h-full rounded-full"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, area.acertoPct))}%`,
+                    background: 'var(--gp-warning)',
+                  }}
+                />
+              </span>
             </li>
           ))}
           {restantes > 0 ? (
@@ -163,6 +196,7 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
           ) : null}
         </ol>
       ) : null}
+
     </div>
   );
 }
