@@ -667,6 +667,7 @@ export default function Detalhamento() {
           />
         </>
       )}
-    </div>
+    </ContainerRota>
+
   );
 }
