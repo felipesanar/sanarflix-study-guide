@@ -333,7 +333,9 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
 
       {aberto && (
         <div
+          ref={painel}
           id={idPainel}
+
           role="group"
           aria-label="Simulados do recorte"
           className="absolute left-3.5 right-3.5 z-30 mt-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]"
