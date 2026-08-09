@@ -408,7 +408,7 @@ export default function Detalhamento() {
         />
 
         <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
-        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
+
       </div>
 
 
