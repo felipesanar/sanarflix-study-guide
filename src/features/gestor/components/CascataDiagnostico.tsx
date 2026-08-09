@@ -170,7 +170,7 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
                   >
                     {indice + 1}
                   </span>
-                  <span className="truncate text-foreground">{area.nome}</span>
+                  <span className="min-w-0 break-words text-foreground">{area.nome}</span>
                 </span>
                 <span className="shrink-0 tabular-nums font-semibold text-foreground">
                   {formatPct(area.acertoPct)}
@@ -228,7 +228,7 @@ function LinhaNo({
       onMouseEnter={no.temFilhos ? onPrefetch : undefined}
       aria-expanded={ehFolha ? undefined : aberto}
       className={cn(
-        'group flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
+        'group flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
         '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
         'hover:bg-[color:var(--gp-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
@@ -241,7 +241,7 @@ function LinhaNo({
         só a caixa óptica vazia para os nomes alinharem entre irmãos.
       */}
       {ehFolha ? (
-        <span aria-hidden="true" className="inline-block w-4 shrink-0" />
+        <span aria-hidden="true" className="mt-0.5 inline-block w-4 shrink-0" />
       ) : (
         <Icon
           name={aberto ? 'expand_more' : 'chevron_right'}
@@ -249,48 +249,66 @@ function LinhaNo({
           size={16}
           box={16}
           className={cn(
-            'transition-colors [transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+            'mt-0.5 shrink-0 transition-colors [transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
             'group-hover:text-[color:var(--gp-text-2)]',
             aberto ? 'text-foreground' : 'text-muted-foreground',
           )}
         />
       )}
 
-      <span className="min-w-0 truncate">{no.nome}</span>
-
-      {/* Nível por NÓ (handoff §04-componentes, "Por nó: % de acerto, nível,
-          badge de cobertura parcial") — é aqui, e não só nos 3 cards de
-          resumo, que a classificação guia a ação da gestora. */}
-      <TagNivel nivel={no.desempenho} className="shrink-0" />
-
-      {no.lowSample ? <TagCoberturaParcial n={no.amostra} className="shrink-0" /> : null}
-
-      <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">{formatPct(no.acertoPct)}</span>
-
-      {/* O `n` vive FORA da pílula (a pílula carrega só o rótulo + tooltip),
-          como metadado à direita — mesma anatomia do drawer de temas. */}
-      <span
-        data-testid={`amostra-${no.id}`}
-        className="shrink-0 whitespace-nowrap"
-        style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
-      >
-        {no.respostas} respostas
-      </span>
-
-      {/* Afordância de folha: só este rótulo distingue "abre o drawer de
-          temas" de "nó terminal inerte" — a cascata para no 2º nível. */}
-      {ehFolha ? (
-        <span
-          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap"
-          style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
-        >
-          Ver temas
-          <Icon name="chevron_right" variant="outlined" size={13} />
+      {/*
+        Nome em CIMA, metadados EMBAIXO. Antes tudo dividia uma linha só e, com
+        a cascata em meia largura, o nome era a única parte flexível: ele
+        truncava para "Pedia…" enquanto tag, % e "respostas" ficavam inteiros —
+        exatamente o inverso da prioridade de leitura. O nome nunca trunca
+        (`break-words`, sem `truncate`) e os metadados envolvem em várias
+        linhas quando a coluna aperta.
+      */}
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 flex-1 break-words font-medium leading-snug text-foreground">
+            {no.nome}
+          </span>
+          <span className="shrink-0 tabular-nums font-semibold text-foreground">
+            {formatPct(no.acertoPct)}
+          </span>
         </span>
-      ) : null}
+
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {/* Nível por NÓ (handoff §04-componentes, "Por nó: % de acerto, nível,
+              badge de cobertura parcial") — é aqui, e não só nos 3 cards de
+              resumo, que a classificação guia a ação da gestora. */}
+          <TagNivel nivel={no.desempenho} className="shrink-0" />
+
+          {no.lowSample ? <TagCoberturaParcial n={no.amostra} className="shrink-0" /> : null}
+
+          {/* O `n` vive FORA da pílula (a pílula carrega só o rótulo + tooltip),
+              como metadado — mesma anatomia do drawer de temas. */}
+          <span
+            data-testid={`amostra-${no.id}`}
+            className="whitespace-nowrap"
+            style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
+          >
+            {no.respostas} respostas
+          </span>
+
+          {/* Afordância de folha: só este rótulo distingue "abre o drawer de
+              temas" de "nó terminal inerte" — a cascata para no 2º nível. */}
+          {ehFolha ? (
+            <span
+              className="ml-auto inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap"
+              style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+            >
+              Ver temas
+              <Icon name="chevron_right" variant="outlined" size={13} />
+            </span>
+          ) : null}
+        </span>
+      </span>
     </button>
   );
 }
+
 
 /**
  * Skeleton de um nível da cascata (spec §5, item 6): 3 nós na altura final
@@ -788,7 +806,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                                 adiante, na cascata, com amostra e cobertura. */}
                             <span
                               data-testid={`chip-${area.id}`}
-                              className="inline-flex items-center whitespace-nowrap transition-colors"
+                              className="inline-flex items-center transition-colors"
                               style={{
                                 fontSize: 12,
                                 fontWeight: 500,
@@ -845,9 +863,9 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   com um ramo aberto e a lista rolada, é a trilha que diz onde
                   a gestora está. */}
               <CardHeader className="sticky top-0 z-10 gap-1 bg-card pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">Diagnóstico</span>
-                  <span data-testid="cascata-trilha" className="truncate text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="shrink-0 text-sm font-semibold">Diagnóstico</span>
+                  <span data-testid="cascata-trilha" className="min-w-0 break-words text-xs text-muted-foreground">
                     {nodeAberto === null ? '/ grande área' : `/ ${nodeAberto} / especialidade`}
                   </span>
                   {/* Saída explícita. Antes, sair era achar de novo a seta do
