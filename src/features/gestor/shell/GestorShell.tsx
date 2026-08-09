@@ -1,13 +1,15 @@
 import * as React from 'react';
 import { Suspense } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import type { ContextoGestor } from '@/features/gestor/api/types';
+import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
+
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
 import { OVERLINE_SIDEBAR, SidebarNav } from '@/features/gestor/shell/SidebarNav';
 import '@/features/gestor/gestor-theme.css';
@@ -37,6 +39,32 @@ const ROTULO_PAPEL: Record<ContextoGestor['usuario']['papel'], string> = {
 
 /** Divisor entre os blocos da sidebar (lockup · IES · nav · rodapé). */
 const DIVISOR = '1px solid var(--gp-border-subtle)';
+
+/**
+ * Carregamento da TELA (não de um bloco): é o que aparece no lugar do
+ * conteúdo no instante do clique na navegação, enquanto o chunk da rota e a
+ * primeira consulta dela chegam.
+ *
+ * Silhueta genérica de propósito — título, faixa de KPIs e um bloco alto —,
+ * porque é a mesma para as três telas: reserva altura suficiente para não
+ * haver salto quando o conteúdo real entra, sem prometer um layout que
+ * aquela rota específica pode não ter.
+ */
+const EsqueletoDeRota: React.FC = () => (
+  <div className="mx-auto w-full max-w-[1120px] px-6 py-8" role="status" aria-busy="true">
+    <span className="sr-only">Carregando a tela</span>
+    <GestorSkeleton altura={20} rotulo="Carregando o título" className="max-w-[260px]" />
+    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {[0, 1, 2, 3].map((indice) => (
+        <GestorSkeleton key={indice} altura={104} forma="cartao" rotulo="Carregando indicador" />
+      ))}
+    </div>
+    <div className="mt-6">
+      <GestorSkeleton altura={280} forma="cartao" rotulo="Carregando o conteúdo" />
+    </div>
+  </div>
+);
+
 
 /**
  * Container do Portal do Radix para quem vive dentro do shell (Task 65,
@@ -105,7 +133,9 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
 export const GestorShell: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { data: contexto } = useGestorContexto();
+
   const papel = contexto?.usuario.papel;
   const ehAdmin = papel === 'admin';
 
@@ -288,10 +318,30 @@ export const GestorShell: React.FC = () => {
             Medido no navegador: com `relative`, `documentElement.scrollHeight`
             cai de 2486 para 891 — exatamente o viewport. */}
         <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
+          {/*
+            `key={pathname}` no Suspense não é detalhe: é o que faz a troca de
+            tela ser INSTANTÂNEA (achado 09/08).
+
+            O router roda com `v7_startTransition`, então navegar é um update
+            em transição — e o React, por definição, MANTÉM o conteúdo antigo
+            na tela enquanto uma boundary já montada suspende, em vez de trocar
+            pelo fallback. Com o chunk da rota destino ainda por baixar (lazy),
+            isso prendia o gestor na tela atual por segundos, sem nenhum sinal
+            de que o clique tinha valido — a sensação de travado que ele
+            relatou ao ir de Visão geral para Detalhamento na primeira vez da
+            sessão.
+
+            Trocando a `key` a cada rota, a boundary do destino é uma boundary
+            NOVA: não tem conteúdo anterior para preservar, então o fallback
+            aparece de imediato. A navegação acontece no clique e o
+            carregamento passa a ser mostrado na tela de destino, que é a
+            ordem certa.
+          */}
+          <Suspense key={pathname} fallback={<EsqueletoDeRota />}>
             <Outlet />
           </Suspense>
         </main>
+
       </div>
     </GestorPortalContainerContext.Provider>
   );
