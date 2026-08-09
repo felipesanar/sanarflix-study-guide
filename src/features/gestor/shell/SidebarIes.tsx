@@ -14,7 +14,6 @@ import {
   SHIMMER,
   TileIes,
   iniciaisDaIes,
-  normalizar,
 } from '@/features/gestor/shell/ies/cartao';
 import { lerRecentes, registrarRecente } from '@/features/gestor/shell/ies/recentes';
 
@@ -22,16 +21,14 @@ import { lerRecentes, registrarRecente } from '@/features/gestor/shell/ies/recen
  * Instituição em foco na sidebar (spec §3).
  *
  * Quem pode trocar de IES (`podeTrocarIes`, decidido no servidor) abre um
- * painel de busca; quem tem uma só vê o mesmo cartão como rótulo — sem borda de
- * campo, sem chevron, sem afordância de clique e sem controle desabilitado.
+ * painel com a lista; quem tem uma só vê o mesmo cartão como rótulo — sem borda
+ * de campo, sem chevron, sem afordância de clique e sem controle desabilitado.
  *
  * O switch é sempre `podeTrocarIes`: nenhum comportamento aqui olha papel
  * literal (o papel só escolhe a FRASE da linha de contexto). E o `iesId` na URL
  * é hint de UI — a autorização é da RPC.
  */
 
-/** Acima disto a lista não cabe na tela sem busca — e sem busca é inutilizável. */
-const LIMIAR_BUSCA = 8;
 
 /** Superfície de um item do painel, por estado. */
 const itemStyle = (ativo: boolean): React.CSSProperties => ({
@@ -81,8 +78,8 @@ export const SidebarIes: React.FC = () => {
   const container = useGestorPortalContainer();
 
   const [aberto, setAberto] = React.useState(false);
-  const [busca, setBusca] = React.useState('');
   const [trocando, setTrocando] = React.useState(false);
+
   const [anuncio, setAnuncio] = React.useState('');
   const [recentes, setRecentes] = React.useState<string[]>([]);
 
@@ -125,7 +122,7 @@ export const SidebarIes: React.FC = () => {
       setIesId(id);
       setSimulados([]);
       setAberto(false);
-      setBusca('');
+
       setAnuncio(`Instituição alterada para ${nome}`);
       if (usuarioId) setRecentes(registrarRecente(usuarioId, id));
       // Estado ocupado curto: o painel fecha na hora e o cartão assume o nome
@@ -232,10 +229,9 @@ export const SidebarIes: React.FC = () => {
     );
   }
 
-  const comBusca = opcoes.length > LIMIAR_BUSCA;
-  const idsRecentes = comBusca
-    ? recentes.filter((id) => id !== iesSelecionada && opcoes.some((ies) => ies.id === id))
-    : [];
+  const idsRecentes = recentes.filter(
+    (id) => id !== iesSelecionada && opcoes.some((ies) => ies.id === id),
+  );
   const listaRecentes = idsRecentes
     .map((id) => opcoes.find((ies) => ies.id === id))
     .filter((ies): ies is { id: string; nome: string } => Boolean(ies));
@@ -243,13 +239,8 @@ export const SidebarIes: React.FC = () => {
 
   return (
     <>
-      <Popover
-        open={aberto}
-        onOpenChange={(proximo) => {
-          setAberto(proximo);
-          if (!proximo) setBusca('');
-        }}
-      >
+      <Popover open={aberto} onOpenChange={setAberto}>
+
         <PopoverTrigger asChild>
           <button
             type="button"
@@ -302,48 +293,11 @@ export const SidebarIes: React.FC = () => {
             boxShadow: 'var(--gp-shadow-card)',
           }}
         >
-          <CommandPrimitive
-            label="Trocar de instituição"
-            filter={(value, search) => (normalizar(value).includes(normalizar(search)) ? 1 : 0)}
-          >
-            {comBusca ? (
-              <div
-                className="flex items-center gap-2"
-                style={{ padding: '10px 12px', borderBottom: '1px solid var(--gp-border-subtle)' }}
-              >
-                <Icon name="search" size={16} className="shrink-0 text-[color:var(--gp-text-3)]" />
-                <CommandPrimitive.Input
-                  autoFocus
-                  value={busca}
-                  onValueChange={setBusca}
-                  aria-label="Buscar por nome ou sigla"
-                  placeholder="Buscar por nome ou sigla"
-                  className="w-full bg-transparent outline-none placeholder:text-[color:var(--gp-text-3)]"
-                  style={{ fontSize: 12.5, color: 'var(--gp-text-1)' }}
-                />
-                {busca ? (
-                  <button
-                    type="button"
-                    onClick={() => setBusca('')}
-                    aria-label="Limpar busca"
-                    className="shrink-0 text-[color:var(--gp-text-3)] hover:text-[color:var(--gp-text-1)]"
-                  >
-                    <Icon name="close" size={15} />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
+          <CommandPrimitive label="Trocar de instituição" loop>
             <CommandPrimitive.List
               className="overflow-y-auto overscroll-contain"
               style={{ maxHeight: 288, padding: 6 }}
             >
-              <CommandPrimitive.Empty
-                style={{ ...CONTEXTO_IES, padding: '18px 10px', textAlign: 'center' }}
-              >
-                Nenhuma instituição encontrada para “{busca}”.
-              </CommandPrimitive.Empty>
-
               {listaRecentes.length > 0 ? (
                 <CommandPrimitive.Group heading="Recentes" style={{ marginBottom: 2 }}>
                   {listaRecentes.map((ies) => (
