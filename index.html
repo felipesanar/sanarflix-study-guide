@@ -12,7 +12,12 @@
     <title>Academy</title>
     <meta name="description" content="Plataforma exclusiva para Universidades Parceiras da Sanar">
     <meta name="author" content="SanarFlix Academy" />
+    <!-- O lockup é a primeira imagem visível do shell (sidebar): pré-carregar
+         aqui evita esperar o boot do JS para só então pedir o arquivo. -->
+    <link rel="preload" as="image" href="/sanarflix-academy-lockup.svg" type="image/svg+xml" fetchpriority="high" />
+    <link rel="prefetch" as="image" href="/sanarflix-academy-lockup-white.svg" type="image/svg+xml" />
     <!-- DNS Prefetch & Preconnect for critical domains -->
+
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
