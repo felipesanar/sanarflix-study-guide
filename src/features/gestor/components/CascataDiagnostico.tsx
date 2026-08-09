@@ -170,7 +170,7 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
                   >
                     {indice + 1}
                   </span>
-                  <span className="truncate text-foreground">{area.nome}</span>
+                  <span className="min-w-0 break-words text-foreground">{area.nome}</span>
                 </span>
                 <span className="shrink-0 tabular-nums font-semibold text-foreground">
                   {formatPct(area.acertoPct)}
