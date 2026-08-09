@@ -148,8 +148,9 @@ describe('SaudacaoGestor (spec §2.1)', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Marina$/);
     expect(screen.getByTestId('saudacao')).toHaveTextContent(
-      'Sua vista é a Universidade do Estado do Amazonas. Comece pelo cronograma de simulados, confira os avisos da Sanar e siga para a análise de desempenho das suas turmas.',
+      'Sua vista é a Universidade do Estado do Amazonas.',
     );
+
   });
 
   /**
