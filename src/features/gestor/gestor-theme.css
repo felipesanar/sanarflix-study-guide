@@ -161,12 +161,21 @@
   /* Par escuro do fundo da área de conteúdo (handoff #0B0C0D) — um degrau
      ABAIXO do card (#16181C), que é o que faz o card subir no escuro. */
   --gp-bg-app: hsl(209 8.3% 4.7%);
-  /* Par escuro do gradiente: um sopro de luz no topo-esquerda, nunca claro o
-     suficiente para encostar no card (#16181C). */
+  /* Par escuro do gradiente — mesmas quatro camadas do claro: luz no
+     topo-esquerda, brasa da marca no topo-direita em opacidade mínima,
+     vinheta que escurece a base, rampa vertical. Nenhuma camada chega perto da
+     luminância do card (#16181C), senão o card deixaria de subir. */
   --gp-bg-app-gradient:
-    radial-gradient(1100px 580px at 10% -16%, hsl(210 16% 16% / 0.55), transparent 62%),
-    radial-gradient(880px 500px at 100% 0%, hsl(209 14% 12% / 0.45), transparent 58%),
-    linear-gradient(180deg, hsl(209 9% 6.2%), hsl(209 8.3% 4.1%));
+    radial-gradient(1050px 560px at 6% -20%, hsl(210 18% 17% / 0.6), transparent 60%),
+    radial-gradient(720px 440px at 104% -8%, hsl(355 45% 20% / 0.28), transparent 58%),
+    radial-gradient(1100px 700px at 52% 122%, hsl(209 12% 2% / 0.55), transparent 62%),
+    linear-gradient(
+      180deg,
+      hsl(209 9% 6.6%) 0%,
+      hsl(209 8.3% 5%) 44%,
+      hsl(209 8.5% 3.6%) 100%
+    );
+
 
 
   /* Item A2: par escuro do degrau de superfície (handoff #1E2223 / #23282A). */
