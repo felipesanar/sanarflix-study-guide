@@ -59,21 +59,17 @@ function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
   return (b.data ?? '').localeCompare(a.data ?? '');
 }
 
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 /**
  * Multi-seleção de simulados do Detalhamento (§4.7, handoff §10.4).
  *
  * Anatomia: cabeçalho com rótulo + contador + "Limpar", campo com os
  * selecionados em CHIPS REMOVÍVEIS e um painel flutuante (dentro da subárvore
  * `.gestor-portal`, sem Portal, para os tokens `--gp-*` e o
- * `prefers-reduced-motion` do tema alcançarem) com busca, atalho para os 2 mais
- * recentes e a lista de checkboxes separada em disponíveis × indisponíveis.
+ * `prefers-reduced-motion` do tema alcançarem) com o atalho de um clique para os
+ * 2 mais recentes e a lista de checkboxes separada em disponíveis ×
+ * indisponíveis. Sem campo de busca: o cronograma de uma IES é curto e os dois
+ * agrupamentos já dão a leitura.
+
  *
  * O "×" do chip é o único caminho para desmarcar um simulado que ficou
  * indisponível DEPOIS de selecionado (a outra metade da correção, o filtro de
