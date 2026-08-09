@@ -129,7 +129,10 @@ export function AlternadorDensidade({ className }: { className?: string }) {
               transitionTimingFunction: 'var(--gp-ease)',
             }}
           >
-            <Icon name={opcao === 'compacta' ? 'density_small' : 'density_medium'} size={16} />
+            {/* `unfold_less`/`unfold_more` são os glifos do Dendê que dizem
+                "juntar linhas"/"afastar linhas" — a fonte não tem família
+                `density_*`, e inventar nome é erro de compilação (icon-names). */}
+            <Icon name={opcao === 'compacta' ? 'unfold_less' : 'unfold_more'} size={16} />
           </button>
         );
       })}
