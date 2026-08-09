@@ -59,21 +59,17 @@ function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
   return (b.data ?? '').localeCompare(a.data ?? '');
 }
 
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 /**
  * Multi-seleção de simulados do Detalhamento (§4.7, handoff §10.4).
  *
  * Anatomia: cabeçalho com rótulo + contador + "Limpar", campo com os
  * selecionados em CHIPS REMOVÍVEIS e um painel flutuante (dentro da subárvore
  * `.gestor-portal`, sem Portal, para os tokens `--gp-*` e o
- * `prefers-reduced-motion` do tema alcançarem) com busca, atalho para os 2 mais
- * recentes e a lista de checkboxes separada em disponíveis × indisponíveis.
+ * `prefers-reduced-motion` do tema alcançarem) com o atalho de um clique para os
+ * 2 mais recentes e a lista de checkboxes separada em disponíveis ×
+ * indisponíveis. Sem campo de busca: o cronograma de uma IES é curto e os dois
+ * agrupamentos já dão a leitura.
+
  *
  * O "×" do chip é o único caminho para desmarcar um simulado que ficou
  * indisponível DEPOIS de selecionado (a outra metade da correção, o filtro de
@@ -81,10 +77,9 @@ function normalizar(texto: string): string {
  */
 export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimuladosProps) {
   const [aberto, setAberto] = React.useState(false);
-  const [busca, setBusca] = React.useState('');
   const idPainel = React.useId();
   const raiz = React.useRef<HTMLDivElement>(null);
-  const campoBusca = React.useRef<HTMLInputElement>(null);
+  const painel = React.useRef<HTMLDivElement>(null);
 
   const semSelecao = selecionados.length === 0;
   const excedeLegibilidade = selecionados.length > LIMITE_LEGIBILIDADE;
@@ -95,14 +90,6 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
   const disponiveis = itens.filter((item) => motivoIndisponivel(item) === null);
   const indisponiveis = itens.filter((item) => motivoIndisponivel(item) !== null);
 
-  const filtrar = (lista: ItemCronograma[]) => {
-    const alvo = normalizar(busca.trim());
-    if (alvo === '') return lista;
-    return lista.filter((item) => normalizar(rotuloItem(item)).includes(alvo));
-  };
-  const disponiveisVisiveis = filtrar(disponiveis);
-  const indisponiveisVisiveis = filtrar(indisponiveis);
-  const nadaEncontrado = disponiveisVisiveis.length === 0 && indisponiveisVisiveis.length === 0;
 
   const alternar = (id: string) => {
     onChange(
@@ -130,16 +117,24 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
     };
   }, [aberto]);
 
-  // Abriu = já pode digitar. Economiza um clique em cronogramas longos.
+  // Abriu = o teclado precisa de um ponto de entrada dentro do painel. Sem a
+  // busca, esse ponto é o primeiro controle focável (atalho ou 1ª linha).
   React.useEffect(() => {
-    if (aberto) campoBusca.current?.focus();
-    else setBusca('');
+    if (!aberto) return;
+    painel.current
+      ?.querySelector<HTMLElement>('button, input[type="checkbox"]:not([disabled])')
+      ?.focus();
   }, [aberto]);
 
-  const doisMaisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2).map((item) => item.id);
+  const maisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2);
+  const doisMaisRecentes = maisRecentes.map((item) => item.id);
+  const rotulosMaisRecentes = maisRecentes.map((item) =>
+    [item.nome, dataCurta(item.data)].filter(Boolean).join(' · '),
+  );
   const podeCompararRecentes =
     doisMaisRecentes.length === 2 &&
-    doisMaisRecentes.join(',') !== [...selecionados].sort().join(',');
+    [...doisMaisRecentes].sort().join(',') !== [...selecionados].sort().join(',');
+
 
   const linhaItem = (item: ItemCronograma, indice: number) => {
     const motivo = motivoIndisponivel(item);
@@ -338,7 +333,9 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
 
       {aberto && (
         <div
+          ref={painel}
           id={idPainel}
+
           role="group"
           aria-label="Simulados do recorte"
           className="absolute left-3.5 right-3.5 z-30 mt-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]"
@@ -349,39 +346,52 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
             boxShadow: 'var(--gp-shadow-drawer)',
           }}
         >
-          <div
-            className="flex items-center gap-2"
-            style={{
-              padding: '8px 10px',
-              background: 'var(--gp-surface-2)',
-              borderBottom: '1px solid var(--gp-border-strong)',
-            }}
-          >
-            <Icon name="search" size={14} className="text-[color:var(--gp-text-3)]" aria-hidden="true" />
-            <input
-              ref={campoBusca}
-              value={busca}
-              onChange={(evento) => setBusca(evento.target.value)}
-              type="text"
-              aria-label="Buscar simulado por nome"
-              placeholder="Buscar simulado"
-              className="flex-1 bg-transparent outline-none placeholder:text-[color:var(--gp-text-3)]"
-              style={{ fontSize: 13, color: 'var(--gp-text-1)' }}
-            />
-            {podeCompararRecentes && (
-              <button
-                type="button"
-                onClick={() => onChange(doisMaisRecentes)}
-                className="whitespace-nowrap rounded-sm px-2 py-1 transition-colors hover:bg-[var(--gp-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                style={{ fontSize: 11, fontWeight: 700, color: 'var(--gp-brand-on-dark, var(--gp-brand))' }}
+          {/* Atalho de um clique. Fica no topo, mostra QUAIS dois simulados vai
+              marcar: comparar às cegas é a fonte de erro aqui. */}
+          {podeCompararRecentes && (
+            <button
+              type="button"
+              onClick={() => onChange(doisMaisRecentes)}
+              className="flex w-full items-center gap-2.5 text-left transition-colors hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              style={{
+                padding: '10px 12px',
+                background: 'var(--gp-brand-surface)',
+                borderBottom: '1px solid var(--gp-border-strong)',
+              }}
+            >
+              <span
+                aria-hidden="true"
+                className="flex items-center justify-center"
+                style={{
+                  width: 26,
+                  height: 26,
+                  flex: 'none',
+                  borderRadius: 'var(--gp-radius-sm)',
+                  background: 'var(--gp-brand)',
+                  color: 'var(--gp-on-brand)',
+                }}
               >
-                Comparar os 2 mais recentes
-              </button>
-            )}
-          </div>
+                <Icon name="equalizer" size={15} />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+                  Comparar os 2 mais recentes
+                </span>
+                <span className="truncate" style={{ fontSize: 11, color: 'var(--gp-text-2)' }}>
+                  {rotulosMaisRecentes.join('  ·vs·  ')}
+                </span>
+              </span>
+              <Icon
+                name="arrow_forward"
+                size={14}
+                aria-hidden="true"
+                className="ml-auto text-[color:var(--gp-text-3)]"
+              />
+            </button>
+          )}
 
           <div className="max-h-[52vh] overflow-y-auto">
-            {disponiveisVisiveis.length > 0 && (
+            {disponiveis.length > 0 && (
               <>
                 <p
                   style={{
@@ -396,11 +406,11 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
                 >
                   Disponíveis · marque 1 ou mais
                 </p>
-                {disponiveisVisiveis.map((item, indice) => linhaItem(item, indice))}
+                {disponiveis.map((item, indice) => linhaItem(item, indice))}
               </>
             )}
 
-            {indisponiveisVisiveis.length > 0 && (
+            {indisponiveis.length > 0 && (
               <>
                 <p
                   style={{
@@ -417,16 +427,17 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
                 >
                   Ainda sem resultado
                 </p>
-                {indisponiveisVisiveis.map((item, indice) => linhaItem(item, indice))}
+                {indisponiveis.map((item, indice) => linhaItem(item, indice))}
               </>
             )}
 
-            {nadaEncontrado && (
+            {itens.length === 0 && (
               <p style={{ padding: '18px 12px', fontSize: 12, color: 'var(--gp-text-3)' }}>
-                Nenhum simulado com esse nome no cronograma desta instituição.
+                Nenhum simulado no cronograma desta instituição.
               </p>
             )}
           </div>
+
 
           <div
             className="flex items-center justify-between gap-2"
