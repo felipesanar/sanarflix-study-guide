@@ -1065,20 +1065,71 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
             </div>
           </div>
           {/*
-            Telefone do aluno (decisão de Felipe, 31/07/reafirmada 05/08):
-            dado de CONTATO, não métrica — por isso fica aqui, no cabeçalho,
-            nunca na grade Proficiência/Acertos/Posição/Variação abaixo.
-            Busca própria (`useAlunoContato`), independente de `consulta`:
-            carrega quando o drawer abre, para este aluno, nunca em lote.
-            Ausência (`telefone: null`) e erro caem no mesmo TRACO — nunca
-            zero, nunca string vazia, nunca um espaço em branco.
+            CONTATO do aluno — telefone + "Enviar no WhatsApp" na MESMA seção
+            (pedido de 09/08). O botão vivia no rodapé de ações, a uma tela de
+            distância do número que ele usa: quem quer falar com o aluno lia o
+            telefone aqui em cima, rolava o drawer inteiro e só então achava o
+            atalho. Agora é um bloco só, no topo: o dado e a ação que ele
+            habilita, lado a lado.
+
+            Telefone (decisão de Felipe, 31/07/reafirmada 05/08): dado de
+            CONTATO, não métrica — por isso fica aqui, nunca na grade
+            Proficiência/Acertos/Posição/Variação abaixo. Busca própria
+            (`useAlunoContato`), independente de `consulta`: carrega quando o
+            drawer abre, para este aluno, nunca em lote. Ausência
+            (`telefone: null`) e erro caem no mesmo TRACO — nunca zero, nunca
+            string vazia, nunca um espaço em branco.
+
+            Sem telefone cadastrado o botão não aparece (`linkWhatsApp` nulo):
+            um "falar" que não tem com quem falar é um clique que só pode
+            frustrar. Fica FORA do `AcoesRecorte` de propósito — aquele
+            componente é o par Exportar/Copiar sob a capability de export, e
+            falar com um aluno não é exportar dado.
           */}
-          <p className="pt-2 text-left" style={{ fontSize: 12, color: 'var(--gp-text-3)' }}>
-            <span style={{ fontWeight: 600, color: 'var(--gp-text-2)' }}>Telefone: </span>
-            <span data-testid="drawer-telefone">
-              {contato.isLoading ? 'Carregando telefone' : (contato.data?.telefone ?? TRACO)}
-            </span>
-          </p>
+          <div
+            data-testid="drawer-contato"
+            className="mt-3 flex items-center gap-3 px-3 py-2.5 text-left"
+            style={{
+              background: 'var(--gp-surface-2)',
+              border: '1px solid var(--gp-border-subtle)',
+              borderRadius: 'var(--gp-radius-sm)',
+            }}
+          >
+            <Icon
+              name="call"
+              variant="outlined"
+              size={16}
+              box={16}
+              className="text-[color:var(--gp-text-3)]"
+            />
+            <div className="min-w-0 flex-1">
+              <div style={{ ...OVERLINE_CONTATO }}>Telefone</div>
+              <div
+                data-testid="drawer-telefone"
+                style={{
+                  fontFamily: FONTE_MONO,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--gp-text-1)',
+                }}
+              >
+                {contato.isLoading ? 'Carregando telefone' : (contato.data?.telefone ?? TRACO)}
+              </div>
+            </div>
+            {linkWhatsApp ? (
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="drawer-whatsapp"
+                className="h-auto flex-none gap-1.5 rounded-sm px-3 py-1.5 text-xs font-semibold"
+                onClick={() => window.open(linkWhatsApp, '_blank', 'noopener,noreferrer')}
+              >
+                <Icon name="whatsapp" size={14} />
+                Enviar no WhatsApp
+              </Button>
+            ) : null}
+          </div>
+
         </SheetHeader>
 
         {consulta.isLoading ? (
