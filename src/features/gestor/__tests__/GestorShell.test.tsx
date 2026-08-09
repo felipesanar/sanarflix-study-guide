@@ -244,11 +244,11 @@ describe('GestorShell (spec §8.3)', () => {
   });
 
 
-  it('rodapé traz o perfil do usuário: avatar de 34px, nome 13px/600 e o PAPEL abaixo (nunca o e-mail)', () => {
+  it('rodapé traz o perfil do usuário: avatar de 30px, nome 12.5px/600 e o PAPEL abaixo (nunca o e-mail)', () => {
     renderizar('/gestor');
 
     const nome = screen.getByText('Ana Gestora');
-    expect(nome.style.fontSize).toBe('13px');
+    expect(nome.style.fontSize).toBe('12.5px');
     expect(nome.style.fontWeight).toBe('600');
 
     // Segunda linha = papel vindo do servidor, não o e-mail (que vai para o title).
@@ -257,24 +257,24 @@ describe('GestorShell (spec §8.3)', () => {
     expect((nome.parentElement as HTMLElement).title).toBe('ana@ies.edu.br');
 
     const avatar = nome.parentElement?.previousElementSibling as HTMLElement;
-    expect(avatar.style.width).toBe('34px');
-    expect(avatar.style.height).toBe('34px');
+    expect(avatar.style.width).toBe('30px');
+    expect(avatar.style.height).toBe('30px');
     expect(avatar.style.background).toBe('var(--gp-brand-surface)');
     expect(avatar.textContent).toBe('AG');
 
     expect(screen.getByRole('button', { name: /sair/i })).toBeInTheDocument();
   });
 
-  it('rodapé traz o sino de avisos: 32px, glifo do Dendê de 18px, com nome acessível', () => {
+  it('rodapé traz o sino de avisos: 28px, glifo do Dendê de 16px, com nome acessível', () => {
     renderizar('/gestor');
     const sino = screen.getByRole('button', { name: 'Avisos da Sanar' });
-    expect(sino.style.width).toBe('32px');
-    expect(sino.style.height).toBe('32px');
+    expect(sino.style.width).toBe('28px');
+    expect(sino.style.height).toBe('28px');
     expect(sino.style.borderRadius).toBe('var(--gp-radius-sm)');
 
     const glifo = sino.querySelector('.icon-dende-icons-notifications-outlined') as HTMLElement;
     expect(glifo).not.toBeNull();
-    expect(glifo.style.fontSize).toBe('18px');
+    expect(glifo.style.fontSize).toBe('16px');
   });
 
   it('o papel exibido acompanha o que o servidor devolve', () => {
