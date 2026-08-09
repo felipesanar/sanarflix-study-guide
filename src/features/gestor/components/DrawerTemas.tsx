@@ -50,6 +50,25 @@ export interface DrawerTemasProps {
 }
 
 /**
+ * Colunas do CSV de temas. Espelho fiel do que a lista mostra — mesma ordem,
+ * mesmos rótulos, mesmo número — mais as duas ressalvas que a tela dá por
+ * cor/legenda e que um arquivo perderia: `amostra` (alunos) separada de
+ * `respostas`, e a marca de amostra pequena.
+ *
+ * `acertoPct` sai como número cru com vírgula decimal, não `formatPct`: o "%"
+ * no valor faria o Excel tratar a coluna como texto e impediria qualquer
+ * cálculo. A unidade fica no CABEÇALHO, onde não contamina a célula.
+ */
+const COLUNAS_TEMAS: ReadonlyArray<ColunaCsv<TemaCritico>> = [
+  { cabecalho: 'Tema', valor: (tema) => tema.nome },
+  { cabecalho: 'Acerto (%)', valor: (tema) => String(tema.acertoPct).replace('.', ',') },
+  { cabecalho: 'Alunos', valor: (tema) => tema.amostra },
+  { cabecalho: 'Respostas', valor: (tema) => tema.respostas },
+  { cabecalho: 'Amostra pequena', valor: (tema) => (tema.lowSample ? 'sim' : 'não') },
+];
+
+
+/**
  * Cor de preenchimento da barra do tema. A cor é REFORÇO do número já
  * impresso ao lado — nunca o único canal — e vem da mesma régua que
  * classifica a cascata (`lib/regras.ts`), nunca de um corte reescrito aqui.
