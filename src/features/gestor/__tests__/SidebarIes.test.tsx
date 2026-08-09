@@ -296,4 +296,63 @@ describe('SidebarIes (spec §3)', () => {
     );
     expect(screen.getByText('IES Alfa')).toBeInTheDocument();
   });
+
+  const MUITAS_IES = Array.from({ length: 12 }, (_, i) => ({
+    id: `ies-${i + 1}`,
+    nome: i === 0 ? 'IES Alfa' : `Universidade ${String.fromCharCode(65 + i)}`,
+  }));
+
+  it('admin com muitas IES: painel abre com busca, contador e filtro acento-insensível', async () => {
+    comContexto(contexto('admin', true, MUITAS_IES));
+    renderizar();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    const busca = await screen.findByLabelText(/buscar por nome ou sigla/i);
+    expect(screen.getByText('12 instituições disponíveis')).toBeInTheDocument();
+
+    fireEvent.change(busca, { target: { value: 'universidade c' } });
+    await waitFor(() => {
+      expect(screen.getByText('Universidade C')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Universidade D')).not.toBeInTheDocument();
+  });
+
+  it('busca sem resultado mostra o estado vazio, não uma lista em branco', async () => {
+    comContexto(contexto('admin', true, MUITAS_IES));
+    renderizar();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    const busca = await screen.findByLabelText(/buscar por nome ou sigla/i);
+    fireEvent.change(busca, { target: { value: 'zzzz' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/nenhuma institui[çc][ãa]o encontrada/i)).toBeInTheDocument();
+    });
+  });
+
+  it('poucas IES: sem campo de busca — a lista já cabe', async () => {
+    comContexto(contexto('gestor_grupo', true, TRES_IES));
+    renderizar();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    await screen.findByText('IES Beta', { selector: '[role="option"] *, [role="option"]' });
+    expect(screen.queryByLabelText(/buscar por nome ou sigla/i)).toBeNull();
+  });
+
+  it('erro sem dado: mensagem e "Tentar novamente" chamando refetch — nunca um vão vazio na sidebar', () => {
+    const refetch = vi.fn();
+    mockUseGestorContexto.mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+    renderizar();
+
+    expect(screen.getByText(/não foi possível carregar a instituição/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /tentar novamente/i }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 });
+
