@@ -307,8 +307,6 @@ export const SidebarIes: React.FC = () => {
               className="overflow-y-auto overscroll-contain"
               style={{ maxHeight: 288, padding: 6 }}
             >
-
-
               {listaRecentes.length > 0 ? (
                 <CommandPrimitive.Group heading="Recentes" style={{ marginBottom: 2 }}>
                   {listaRecentes.map((ies) => (
