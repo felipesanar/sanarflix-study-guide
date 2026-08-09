@@ -68,16 +68,9 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
   const agora = new Date();
 
   return (
-    <header data-testid="saudacao" className="relative overflow-hidden">
-      {/* Aura de marca: um halo largo e discreto atrás do título, para a
-          saudação ter luz própria sem virar um card. Puramente decorativa. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-24 -top-28 h-56 w-[520px] rounded-full opacity-[0.14] blur-3xl"
-        style={{ background: 'var(--gp-brand-gradient, var(--gp-brand-on-dark))' }}
-      />
-
+    <header data-testid="saudacao" className="relative">
       <div className="relative">
+
         {/* Linha do dia: dá contexto temporal ao número que vem depois e faz a
             home parecer viva a cada acesso, sem afirmar nenhuma métrica. */}
         <p
