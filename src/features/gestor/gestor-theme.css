@@ -22,9 +22,18 @@
      interno encurtou: ao mexer em `--gp-surface-2` ou `--gp-surface-3`,
      conferir que os três ainda se distinguem.
 
-     Sem gradiente e sem malha de pontos: aquilo é tratamento do board de
-     apresentação, não da aplicação. Aqui o fundo é chapado. */
-  --gp-bg-app: hsl(220 12% 95.1%);
+      Sem malha de pontos: aquilo é tratamento do board de apresentação, não da
+      aplicação. O fundo da área de conteúdo ganha um gradiente MUITO leve
+      (`--gp-bg-app-gradient`) para não parecer chapado; `--gp-bg-app` continua
+      existindo como cor base sólida — é o fallback e a referência de contraste
+      dos quatro degraus. A amplitude do gradiente fica em ~2% de luminância:
+      qualquer coisa acima disso começa a competir com o card. */
+   --gp-bg-app: hsl(220 12% 95.1%);
+   --gp-bg-app-gradient:
+     radial-gradient(1200px 620px at 12% -14%, hsl(0 0% 100% / 0.85), transparent 62%),
+     radial-gradient(900px 520px at 100% 0%, hsl(220 30% 92% / 0.5), transparent 58%),
+     linear-gradient(180deg, hsl(220 13% 96.6%), hsl(220 12% 94.2%));
+
   --gp-surface-1: hsl(var(--card));
   /* Item A2: literal próprio — hsl(var(--muted)) (#F3F4F6) e hsl(220 14% 93%)
      (#EBECF0) não batem com o handoff (#F9FAFB / #F4F5F6). Par escuro abaixo. */
