@@ -7,7 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import type { ContextoGestor } from '@/features/gestor/api/types';
+import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
+
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
 import { OVERLINE_SIDEBAR, SidebarNav } from '@/features/gestor/shell/SidebarNav';
 import '@/features/gestor/gestor-theme.css';
