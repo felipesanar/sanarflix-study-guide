@@ -765,7 +765,9 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   <div className="relative">
                     {areas.length > 0 ? (
                       <ul className="flex flex-wrap gap-1.5">
-                        {areas.map((area) => (
+                        {/* No máximo duas áreas visíveis; o restante vira um
+                            selo de contagem — indicativo, não interativo. */}
+                        {areas.slice(0, 2).map((area) => (
                           <li key={area.id}>
                             {/* Chip é só o NOME da área — o % mora um clique
                                 adiante, na cascata, com amostra e cobertura. */}
@@ -786,7 +788,32 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                             </span>
                           </li>
                         ))}
+                        {areas.length > 2 ? (
+                          <li>
+                            <span
+                              data-testid={`chip-mais-${nivel}`}
+                              className="inline-flex items-center tabular-nums"
+                              title={areas
+                                .slice(2)
+                                .map((area) => area.nome)
+                                .join(', ')}
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: 'var(--gp-text-3)',
+                                border: '1px dashed var(--gp-border-input)',
+                                background: 'transparent',
+                                borderRadius: 'var(--gp-radius-pill)',
+                                padding: '4px 11px',
+                              }}
+                            >
+                              +{areas.length - 2}
+                            </span>
+                          </li>
+                        ) : null}
                       </ul>
+
+
 
                     ) : nivel === 'critico' ? (
                       <DiagnosticoCriticoVazio mediano={porNivel.get('mediano') ?? []} />
