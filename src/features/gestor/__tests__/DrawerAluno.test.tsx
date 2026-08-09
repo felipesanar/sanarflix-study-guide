@@ -127,6 +127,13 @@ const AREA_TRAUMA: AreaDesempenhoAluno = {
   critica: false,
 };
 
+/** Mesmo recorte no simulado 1 — o default de `montar()` é o recorte de S1. */
+const DESEMPENHO_AREA_S1: DesempenhoPorAreaSimulado = {
+  simuladoId: 's1',
+  nome: 'Simulado 1',
+  areas: [AREA_CARDIO, AREA_NEONATO_CRITICA, AREA_TRAUMA],
+};
+
 const DESEMPENHO_AREA_S2: DesempenhoPorAreaSimulado = {
   simuladoId: 's2',
   nome: 'Simulado 2',
@@ -304,8 +311,6 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     const bloco = screen.getByTestId('drawer-area-critica-s1');
     expect(bloco).toHaveTextContent('Grande área crítica');
     expect(bloco).toHaveTextContent('Clínica Médica · 42% de acerto');
-    // Cor nunca é canal único: a barra da área carrega a marca em texto.
-    expect(screen.getByText(/\(área crítica\)/)).toBeInTheDocument();
   });
 
   /**
@@ -317,6 +322,11 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
   it('o comparativo por grande área vem do simulado mais recente, e diz de qual', () => {
     mockUseAluno.mockReturnValue(
       resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    // A cascata única é o comparativo: o nível 1 usa o % que a RPC do simulado
+    // devolve em `acertoPorArea`, e só existe casado com o MESMO simuladoId.
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S2] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
     );
     montar();
 
@@ -381,6 +391,11 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
    * o canal visual é o que permite varrer as áreas de um aluno de relance.
    */
   it('desenha uma barra por grande área, com o percentual como valor acessível', () => {
+    // A barra é o nível 1 da cascata única — existe casada com a classificação
+    // por tema do MESMO simulado.
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
+    );
     montar();
     const barra = screen.getByRole('progressbar', { name: /Clínica Médica/ });
     expect(barra).toHaveAttribute('aria-valuenow', '42');
@@ -717,10 +732,11 @@ describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)',
       resultado({ data: [DESEMPENHO_AREA_S2] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
     );
     montar();
-    expect(screen.getByTestId('drawer-desempenho-area')).toHaveTextContent('Simulado 2');
+    // A procedência ("de qual simulado") vive no cabeçalho do bloco único.
+    expect(screen.getByTestId('drawer-areas')).toHaveTextContent('Simulado 2');
   });
 
-  it('grande área expande para especialidade, que expande para o tema — com contagens honestas', async () => {
+  it('grande área expande para especialidade, que expande para o tema — com % em todos os níveis', async () => {
     // `DESEMPENHO_AREA_S2` é do simulado 's2' — sem isso no recorte de
     // `useAluno`, o casamento por `simuladoId` (regra de agregação honesta)
     // não encontra o simulado e a seção cai no vazio, não na cascata.
@@ -733,11 +749,12 @@ describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)',
     const user = userEvent.setup();
     montar();
 
-    // Nível 1: grande área, com contagem de temas e de críticos — nada de
-    // acertoPct sintetizado para este nível, que a RPC não devolve.
+    // Nível 1: grande área com o SEU % de acerto — aqui vem de `acertoPorArea`
+    // do próprio simulado (55%), que prevalece sobre o valor recalculado.
+    // Nenhuma contagem de temas/especialidades: a métrica é sempre o % (09/08).
     const grandeArea = screen.getByTestId('drawer-grande-area-Clínica Médica');
-    expect(grandeArea).toHaveTextContent('2 temas');
-    expect(grandeArea).toHaveTextContent('1 crítico');
+    expect(grandeArea).toHaveTextContent('55%');
+    expect(grandeArea.textContent).not.toMatch(/\d+\s+(temas?|especialidades?|críticos?)/i);
     expect(screen.queryByTestId('drawer-especialidade-Neonatologia')).not.toBeInTheDocument();
 
     await user.click(grandeArea);
@@ -745,12 +762,16 @@ describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)',
     expect(screen.getByTestId('drawer-especialidade-Cardiologia')).toBeInTheDocument();
     expect(screen.queryByTestId('drawer-tema-Ictericia neonatal')).not.toBeInTheDocument();
 
-    await user.click(screen.getByTestId('drawer-especialidade-Neonatologia'));
+    // Nível 2: a especialidade também tem % — ponderado pelas questões
+    // respondidas dos seus temas (Neonatologia tem só o tema de 40%).
+    const especialidade = screen.getByTestId('drawer-especialidade-Neonatologia');
+    expect(especialidade).toHaveTextContent('40%');
+
+    await user.click(especialidade);
     const tema = screen.getByTestId('drawer-tema-Ictericia neonatal');
-    expect(tema).toHaveTextContent('4/10');
     expect(tema).toHaveTextContent('40%');
     // Cor nunca é canal único: a criticidade também sai por texto.
-    expect(screen.getByText(/\(tema crítico\)/)).toBeInTheDocument();
+    expect(screen.getAllByText(/\(crítico\)/).length).toBeGreaterThan(0);
   });
 });
 

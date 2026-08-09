@@ -2323,6 +2323,10 @@ export type Database = {
         Returns: Json
       }
       get_gestor_aluno_contato: { Args: { p_aluno_id: string }; Returns: Json }
+      get_gestor_aluno_desempenho_por_area: {
+        Args: { p_aluno_id: string; p_ies_id: string; p_simulados: string[] }
+        Returns: Json
+      }
       get_gestor_alunos: {
         Args: {
           p_grupo?: string
@@ -2343,6 +2347,15 @@ export type Database = {
         Args: { p_ies_id: string; p_semestre: string; p_simulados: string[] }
         Returns: Json
       }
+      get_gestor_detalhamento_temas: {
+        Args: {
+          p_especialidade?: string
+          p_grande_area: string
+          p_ies_id: string
+          p_simulados: string[]
+        }
+        Returns: Json
+      }
       get_gestor_diagnostico: {
         Args: { p_ies_id: string; p_node: string; p_semestre: string }
         Returns: Json
@@ -2356,12 +2369,17 @@ export type Database = {
         }
         Returns: Json
       }
+      get_gestor_questao_respondentes: {
+        Args: { p_alternativa: string; p_ies_id: string; p_question_id: string }
+        Returns: Json
+      }
       get_gestor_questoes: {
         Args: {
           p_area: string
           p_ies_id: string
           p_page: number
           p_page_size: number
+          p_semestre?: string
           p_simulado_id: string
           p_sort: string
         }
