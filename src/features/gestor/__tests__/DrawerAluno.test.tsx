@@ -127,6 +127,13 @@ const AREA_TRAUMA: AreaDesempenhoAluno = {
   critica: false,
 };
 
+/** Mesmo recorte no simulado 1 — o default de `montar()` é o recorte de S1. */
+const DESEMPENHO_AREA_S1: DesempenhoPorAreaSimulado = {
+  simuladoId: 's1',
+  nome: 'Simulado 1',
+  areas: [AREA_CARDIO, AREA_NEONATO_CRITICA, AREA_TRAUMA],
+};
+
 const DESEMPENHO_AREA_S2: DesempenhoPorAreaSimulado = {
   simuladoId: 's2',
   nome: 'Simulado 2',
@@ -384,6 +391,11 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
    * o canal visual é o que permite varrer as áreas de um aluno de relance.
    */
   it('desenha uma barra por grande área, com o percentual como valor acessível', () => {
+    // A barra é o nível 1 da cascata única — existe casada com a classificação
+    // por tema do MESMO simulado.
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
+    );
     montar();
     const barra = screen.getByRole('progressbar', { name: /Clínica Médica/ });
     expect(barra).toHaveAttribute('aria-valuenow', '42');
