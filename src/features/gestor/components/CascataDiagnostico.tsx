@@ -123,14 +123,6 @@ export interface CascataDiagnosticoProps {
  * nunca escrito na mão) e aponta por onde começar: as áreas medianas, da
  * pior para a melhor.
  */
-/**
- * Quantas áreas medianas a sugestão lista. "Comece pela pior" é um conselho
- * de PRIMEIRO passo — as sete de uma vez não são um começo, são a lista
- * inteira de novo, e eram elas que faziam o card crítico ficar três vezes
- * mais alto que os irmãos (e, no grid, esticar os três juntos). O restante
- * continua alcançável na cascata, que é onde a lista completa vive.
- */
-const SUGESTOES_MEDIANAS = 3;
 
 function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
   void mediano;
