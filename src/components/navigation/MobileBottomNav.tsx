@@ -21,7 +21,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { getPortalEntries } from "@/experiences/shared/globalNav";
+import { ExperienceSwitcher } from "@/experiences/shared/ExperienceSwitcher";
 import { isRouteActive } from "@/experiences/shared/navActive";
 import { useTheme } from "next-themes";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
@@ -58,7 +58,7 @@ const reducedMotionTransition = {
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, access, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { accessRules } = useAccessRules();
   const { count: notebookDueCount } = useNotebookDueCount();
   const { resolvedTheme, setTheme } = useTheme();
@@ -135,19 +135,8 @@ export function MobileBottomNav() {
       sections.push({ title: "Ferramentas", items: ferramentasItems });
     }
 
-    // Gestão: entradas dos portais que o access concede (URLs corretas por experiência).
-    const portalItems = getPortalEntries(access).map((e) => ({
-      title: e.title,
-      url: e.url,
-      icon: e.icon ?? ChevronRight,
-      show: true,
-    }));
-    if (portalItems.length > 0) {
-      sections.push({ title: "Gestão", items: portalItems });
-    }
-
     return sections;
-  }, [accessRules, user, access, notebookDueCount]);
+  }, [accessRules, user, notebookDueCount]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -346,6 +335,11 @@ export function MobileBottomNav() {
                 </SheetHeader>
 
                 <Separator className="mb-3" />
+
+                {/* Troca de experiência (portal) — não é item de menu. */}
+                <div className="px-4 pb-3">
+                  <ExperienceSwitcher onNavigate={() => setIsMenuOpen(false)} />
+                </div>
 
                 <motion.div
                   variants={containerVariants}

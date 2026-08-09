@@ -1,27 +1,73 @@
-import { UserCog, School, Headset } from 'lucide-react';
-import { hasExperience, type Access } from '@/experiences/access';
-import type { NavItem } from '@/experiences/types';
+import { UserCog, School, Headset, GraduationCap } from 'lucide-react';
+import type { ElementType } from 'react';
+import { hasExperience, type Access, type ExperienceId } from '@/experiences/access';
+
+export interface ExperienceOption {
+  id: ExperienceId;
+  /** Nome curto da experiência, como aparece no gatilho e no menu. */
+  label: string;
+  /** Uma linha explicando o que a pessoa encontra ali. */
+  description: string;
+  /** Entrypoint da experiência (ver EXPERIENCE_ENTRYPOINTS). */
+  url: string;
+  icon: ElementType;
+}
 
 /**
- * Entradas de navegação para os PORTAIS dedicados do usuário.
+ * Experiências (portais) disponíveis para o usuário, em ordem fixa.
  *
- * Todo usuário tem a experiência de aluno na base; quem tem experiência
- * dedicada em `access.experiences` ganha, por cima, o(s) link(s) para o seu
- * portal. Cada entrada aponta para o entrypoint CORRETO da experiência — em
- * especial, o CX vai para `/atendimento/usuarios` (não `/admin/*`, que ele não
- * acessa). Um usuário com múltiplas experiências recebe uma entrada por
- * portal, na ordem admin > gestão > CX.
+ * Portais NÃO são itens de navegação: são trocas de experiência. A sidebar de
+ * cada portal lista somente as telas daquele portal, e a alternância entre
+ * eles acontece no `ExperienceSwitcher`, que consome esta lista.
+ *
+ * `aluno` é a base de todo usuário autenticado, por isso entra sempre.
  */
-export const getPortalEntries = (access: Access | null | undefined): NavItem[] => {
-  const entries: NavItem[] = [];
+export const getExperienceOptions = (access: Access | null | undefined): ExperienceOption[] => {
+  const options: ExperienceOption[] = [
+    {
+      id: 'aluno',
+      label: 'Aluno',
+      description: 'Estudos, simulados e progresso',
+      url: '/',
+      icon: GraduationCap,
+    },
+  ];
+
   if (hasExperience(access, 'admin')) {
-    entries.push({ title: 'Portal do Admin', url: '/admin', icon: UserCog });
+    options.push({
+      id: 'admin',
+      label: 'Admin',
+      description: 'Administração da plataforma',
+      url: '/admin',
+      icon: UserCog,
+    });
   }
   if (hasExperience(access, 'gestao')) {
-    entries.push({ title: 'Desempenho Institucional', url: '/gestor', icon: School });
+    options.push({
+      id: 'gestao',
+      label: 'Gestão',
+      description: 'Desempenho institucional da sua IES',
+      url: '/gestor',
+      icon: School,
+    });
   }
   if (hasExperience(access, 'atendimento')) {
-    entries.push({ title: 'Atendimento', url: '/atendimento/usuarios', icon: Headset });
+    options.push({
+      id: 'atendimento',
+      label: 'Atendimento',
+      description: 'Suporte a usuários',
+      url: '/atendimento/usuarios',
+      icon: Headset,
+    });
   }
-  return entries;
+
+  return options;
+};
+
+/** Qual experiência a rota atual pertence (fallback: aluno, a base de todos). */
+export const resolveCurrentExperience = (pathname: string): ExperienceId => {
+  if (pathname.startsWith('/admin')) return 'admin';
+  if (pathname.startsWith('/gestor')) return 'gestao';
+  if (pathname.startsWith('/atendimento')) return 'atendimento';
+  return 'aluno';
 };
