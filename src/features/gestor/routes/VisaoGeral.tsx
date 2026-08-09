@@ -607,6 +607,7 @@ export default function VisaoGeral() {
         onFechar={() => setEspecialidadeAberta(null)}
         onExportarRecorte={aoExportarRecorte}
       />
-    </div>
+    </ContainerRota>
+
   );
 }
