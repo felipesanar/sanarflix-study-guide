@@ -58,7 +58,7 @@ const reducedMotionTransition = {
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, access, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { accessRules } = useAccessRules();
   const { count: notebookDueCount } = useNotebookDueCount();
   const { resolvedTheme, setTheme } = useTheme();
@@ -136,7 +136,7 @@ export function MobileBottomNav() {
     }
 
     return sections;
-  }, [accessRules, user, access, notebookDueCount]);
+  }, [accessRules, user, notebookDueCount]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;

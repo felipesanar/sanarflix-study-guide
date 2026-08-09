@@ -4,7 +4,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
-import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
+import { ExperienceSwitcher } from '@/experiences/shared/ExperienceSwitcher';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import type { ContextoGestor } from '@/features/gestor/api/types';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';

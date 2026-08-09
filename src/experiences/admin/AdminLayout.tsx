@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasExperience } from '@/experiences/access';
 import { cn } from '@/lib/utils';
 import { isRouteActive } from '@/experiences/shared/navActive';
-import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
+import { ExperienceSwitcher } from '@/experiences/shared/ExperienceSwitcher';
 import { ADMIN_NAV_GROUPS, CX_NAV_GROUPS, filterAdminNav, type AdminNavGroup } from '@/experiences/admin/AdminNav';
 import { useAdminAttention } from '@/services/admin/useAdminAttention';
 
@@ -165,7 +165,7 @@ export const ConsoleShell: React.FC<{ portal: ConsolePortal }> = ({ portal }) =>
             <TooltipContent side="top">Selecione um usuário em Usuários para impersonar.</TooltipContent>
           </Tooltip>
 
-          <GoToStudentButton className="w-full justify-start" />
+          <ExperienceSwitcher variant="compact" />
 
           <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">

@@ -88,7 +88,7 @@ const studyGuideItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { user, access, logout } = useAuth();
+  const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
   const { accessRules } = useAccessRules();
