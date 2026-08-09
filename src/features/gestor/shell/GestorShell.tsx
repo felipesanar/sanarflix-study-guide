@@ -85,29 +85,45 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
 /**
  * Shell do Portal do Gestor v2 (spec §8.3).
  *
- * Sidebar fixa de 240px (`w-60`), SEM header no topo do conteúdo. Quatro
- * blocos separados por divisor, como na referência: lockup SanarFlix Academy
- * (48px) + overline "Portal do Gestor" → cartão da instituição → nav de 3
- * itens → rodapé com perfil e avisos, e abaixo as ações do portal. A área de
- * conteúdo é a única que rola.
+ * Sidebar de 240px (`w-60`) com quatro blocos separados por divisor, como na
+ * referência: lockup SanarFlix Academy (48px) + overline "Portal do Gestor" →
+ * cartão da instituição → nav de 3 itens → rodapé com perfil e avisos, e
+ * abaixo as ações do portal (ver {@link ConteudoSidebar}). A área de conteúdo
+ * é a única que rola.
  *
- * A troca de portal (aluno / admin / atendimento) vive no
- * {@link ExperienceSwitcher} do rodapé — os antigos botões avulsos "Portal do
- * Admin" e "Ir para versão aluno" saíram: portal não é item de navegação, é
- * troca de experiência, e o alternador é o mesmo controle em todos os portais.
- * Quais experiências ele oferece vem de `access.experiences` (RPC
- * `get_access`), e cada uma continua protegida pelo `ExperienceGuard`.
+ * RESPONSIVIDADE (auditoria de 09/08, item B7 — o pior nota do portal, 3/10):
+ * a partir de `lg` (1024px) a sidebar é a coluna fixa de sempre; abaixo disso
+ * ela sai do fluxo e o MESMO conteúdo passa a viver num drawer, aberto por uma
+ * barra superior com o lockup e o botão "Menu". Antes deste passe não havia uma
+ * única classe responsiva no shell: em notebook estreito e tablet os 240px
+ * comiam a área útil das tabelas densas, e não havia rota de fuga além do
+ * `overflow-x-auto` de cada tabela.
  *
- * Marca: duas `<img>` (clara/branca) alternadas por `dark:` — nunca
- * `filter: invert()`, nunca redesenho, nunca sombra colorida.
+ * O drawer é o `Sheet` do repositório com o `container` do próprio portal (ver
+ * {@link GestorPortalContainerContext}) — sem isso o menu abriria fora do
+ * alcance de `gestor-theme.css`, sem nenhum token `--gp-*`.
+ *
+ * A troca de portal (aluno / admin / atendimento) vive no `ExperienceSwitcher`
+ * do rodapé — os antigos botões avulsos "Portal do Admin" e "Ir para versão
+ * aluno" saíram: portal não é item de navegação, é troca de experiência, e o
+ * alternador é o mesmo controle em todos os portais. Quais experiências ele
+ * oferece vem de `access.experiences` (RPC `get_access`), e cada uma continua
+ * protegida pelo `ExperienceGuard`.
  */
 export const GestorShell: React.FC = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { data: contexto } = useGestorContexto();
 
-  const papel = contexto?.usuario.papel;
+  /**
+   * Drawer da navegação abaixo de `lg`. Fecha ao trocar de rota: o `NavLink`
+   * já avisa via `aoNavegar`, e este efeito cobre o resto (voltar do
+   * navegador, redirecionos do `GestorFeatureGate`, links dentro do
+   * conteúdo) — um menu aberto sobre a tela nova seria um estado morto.
+   */
+  const [menuAberto, setMenuAberto] = React.useState(false);
+  React.useEffect(() => {
+    setMenuAberto(false);
+  }, [pathname]);
+
 
   /**
    * `useState`, não `useRef`: só uma mudança de STATE re-renderiza os
