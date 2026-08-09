@@ -191,6 +191,17 @@ export default function VisaoGeral() {
    */
   const iesAtivaId = filtros.iesId ?? contexto.data?.iesAtual.id ?? null;
 
+  /**
+   * NOME da IES em foco, para o chip de contexto. Vem de `iesDisponiveis`, não
+   * de `iesAtual`: `get_gestor_contexto()` não recebe `p_ies_id` e por isso
+   * `iesAtual` continua sendo a IES PADRÃO do usuário mesmo depois de uma troca
+   * no seletor — mesma armadilha documentada em `Inicio.tsx` e `SidebarIes.tsx`.
+   */
+  const iesNomeAtiva =
+    contexto.data?.iesDisponiveis.find((ies) => ies.id === iesAtivaId)?.nome ?? '';
+
+
+
   const filtrosGestor: FiltrosGestor = React.useMemo(
     () => ({ iesId: iesAtivaId, semestre: filtros.semestre, simulados: filtros.simulados }),
     [iesAtivaId, filtros.semestre, filtros.simulados],
