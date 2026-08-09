@@ -44,14 +44,10 @@ const itemStyle = (ativo: boolean): React.CSSProperties => ({
   background: ativo ? 'var(--gp-brand-surface-subtle)' : 'transparent',
 });
 
-const TITULO_GRUPO: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--gp-text-3)',
-  padding: '8px 9px 4px',
-};
+/* Os títulos de grupo do painel são estilizados por `[cmdk-group-heading]` em
+   `gestor-theme.css` — o cmdk renderiza esse nó por conta própria. */
+
+
 
 /** Uma linha da lista: tile, nome e marca de selecionada. */
 const ItemIes: React.FC<{
