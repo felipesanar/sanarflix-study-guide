@@ -26,13 +26,25 @@
       aplicação. O fundo da área de conteúdo ganha um gradiente MUITO leve
       (`--gp-bg-app-gradient`) para não parecer chapado; `--gp-bg-app` continua
       existindo como cor base sólida — é o fallback e a referência de contraste
-      dos quatro degraus. A amplitude do gradiente fica em ~2% de luminância:
-      qualquer coisa acima disso começa a competir com o card. */
+      dos quatro degraus. A amplitude do gradiente fica em ~3% de luminância:
+      qualquer coisa acima disso começa a competir com o card.
+
+      Quatro camadas, de cima para baixo na pilha: luz fria no topo-esquerda
+      (de onde "vem" a luz do card), um respiro quente da marca no topo-direita
+      em opacidade mínima, uma vinheta fria embaixo que assenta o conteúdo, e a
+      rampa vertical que dá a direção. */
    --gp-bg-app: hsl(220 12% 95.1%);
    --gp-bg-app-gradient:
-     radial-gradient(1200px 620px at 12% -14%, hsl(0 0% 100% / 0.85), transparent 62%),
-     radial-gradient(900px 520px at 100% 0%, hsl(220 30% 92% / 0.5), transparent 58%),
-     linear-gradient(180deg, hsl(220 13% 96.6%), hsl(220 12% 94.2%));
+     radial-gradient(1150px 600px at 6% -20%, hsl(0 0% 100% / 0.95), transparent 60%),
+     radial-gradient(760px 460px at 104% -8%, hsl(355 60% 93% / 0.34), transparent 58%),
+     radial-gradient(1100px 720px at 52% 120%, hsl(220 26% 88% / 0.38), transparent 62%),
+     linear-gradient(
+       180deg,
+       hsl(220 14% 97.1%) 0%,
+       hsl(220 12% 95.4%) 44%,
+       hsl(220 12% 93.6%) 100%
+     );
+
 
   --gp-surface-1: hsl(var(--card));
   /* Item A2: literal próprio — hsl(var(--muted)) (#F3F4F6) e hsl(220 14% 93%)
