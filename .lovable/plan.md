@@ -1,56 +1,44 @@
-## Diagnóstico
+# Troca de experiência (portal switcher)
 
-A aluna `008f9aaa-…` (UEA, `semestre=11`) está marcando aulas do Intensivão ENAMED normalmente — verifiquei na tabela `public.study_progress`: existem dezenas de registros com `completed=true`, `semestre=11` e `content_id="Intensivo ENAMED-Semana 0X-…-<aula>"`. Ou seja, o **StudyGuide grava direito**; o problema está em quem lê.
+A sidebar do aluno volta a ser só do aluno. "Portal do Admin" e "Desempenho Institucional" deixam de ser itens de menu e passam a ser **troca de experiência**, num controle único e consistente nos três portais.
 
-O Intensivão ENAMED foi carregado em `public.conteudos` com **`semestre = 'Intensivo ENAMED'`** (texto), enquanto o restante do currículo usa semestre numérico (`'11'`, `'12'`, …).
+## Decisão de UX
 
-A edge function `get-progress-hub` (chamada pela "aba de progresso") aplica dois filtros que descartam o Intensivão:
+Um único componente novo — **Alternador de experiência** — colocado no topo da sidebar, logo abaixo da marca (antes do cartão do usuário):
 
-1. **Denominador (universo de aulas):**
-   ```ts
-   conteudosQuery.eq('semestre', String(userSemestre)) // "11"
-   ```
-   → só carrega aulas do 11º semestre. Aulas do Intensivão ENAMED nunca entram no total.
+```text
+┌──────────────────────────────┐
+│  ●  Academy                  │
+├──────────────────────────────┤
+│ ┌──────────────────────────┐ │
+│ │ 🎓 Aluno            ⌄    │ │  <- alternador (só aparece p/ quem tem 2+)
+│ └──────────────────────────┘ │
+├──────────────────────────────┤
+│  FS  Felipe Souza      ⚙     │
+│  MENU PRINCIPAL              │
+│  Início / Guia / ... (aluno) │
+└──────────────────────────────┘
+```
 
-2. **Numerador (aulas concluídas):**  
-   `isProgressFromSemester(content_id)` só aceita um `content_id` composto se:
-   - o primeiro token antes do `-` parseia para um inteiro 1–12 igual ao `effectiveSemestre`, **ou**
-   - o `content_id` bate com `getCompositeId(content, effectiveSemestre)`, que sempre prefixa com `"11-"`.
-   
-   Como os registros do Intensivão têm prefixo `"Intensivo ENAMED-"`, todos são rejeitados. O mesmo prefixo `"INTERNATO-"` já tem um caminho explícito no código — falta o mesmo tratamento para `"Intensivo ENAMED-"`.
+Ao clicar, abre um menu com as experiências disponíveis, cada uma com ícone, nome e uma linha de descrição, e um check na atual:
 
-O caminho de impersonação em `admin-user-support` (case `"progress_hub"`) tem o mesmo bug: filtra `conteudos` por `String(userSemestre)` e só lê `user_progress` por UUID, ignorando `study_progress` e o Intensivão.
+- Aluno — "Estudos, simulados e progresso" → `/`
+- Gestão — "Desempenho institucional da sua IES" → `/gestor`
+- Admin — "Administração da plataforma" → `/admin`
+- Atendimento — "Suporte a usuários" → `/atendimento/usuarios`
 
-Colegas da mesma IES relatam o mesmo porque a UEA inteira usa esse cronograma paralelo.
+Regras:
+- O alternador só aparece para quem tem mais de uma experiência; quem só é aluno não vê nada novo (sidebar limpa, sem elemento morto).
+- Rótulo do gatilho = experiência **atual**, para deixar claro "onde estou".
+- Mobile: o mesmo alternador entra no topo do sheet do menu (`MobileBottomNav`), substituindo a seção "Gestão"; a barra inferior continua 100% aluno.
+- Nos portais Admin/CX e Gestor, o alternador substitui os botões avulsos ("Ir para versão aluno", "Portal do Admin", troca Admin↔CX), mantendo o mesmo formato e posição relativa (rodapé da sidebar daqueles shells, onde hoje vivem esses botões).
 
-## Correção
+## Mudanças técnicas
 
-**Só backend.** Nada de front-end, nada de migração de dados, nada de RPC.
-
-### 1) `supabase/functions/get-progress-hub/index.ts`
-
-- **Universo de aulas:** além do fetch atual (`semestre = String(userSemestre)`), fazer um segundo fetch com `semestre = 'Intensivo ENAMED'` na mesma IES e concatenar. Manter o fallback INTERNATO como está. Se o combinado ficar vazio, manter o retorno de "empty state".
-- **`getCompositeId`:** passar a usar `content.semestre` da própria linha em vez de um `effectiveSemestre` global, para que aulas do Intensivão gerem o prefixo `"Intensivo ENAMED-"` e as do 11º gerem `"11-"`. Aplicar em `isContentCompleted`, `getCompletedAt` e no laço do Method 3 de `isProgressFromSemester`.
-- **`extractSemestreFromContentId`:** reconhecer o prefixo `"Intensivo ENAMED-"` (retornar `'Intensivo ENAMED'`), análogo ao `"INTERNATO-"`.
-- **`isProgressFromSemester`:** aceitar como válido qualquer `content_id` cujo semestre extraído seja `'Intensivo ENAMED'` **e** cuja composição bata com alguma aula do conjunto Intensivão carregado no passo 1.
-- **Filtro por `p.semestre` em `study_progress`:** hoje descarta linhas onde `p.semestre !== numericSemestre`. O front-end sempre grava `semestre = user.semestre` (11 nesta aluna), então essa checagem já não elimina Intensivão — mas confirmar que o `continue` só dispara quando o `content_id` também não é reconhecido como Intensivão.
-
-### 2) `supabase/functions/admin-user-support/index.ts` — case `"progress_hub"`
-
-Espelhar as mesmas mudanças usadas em `get-progress-hub`:
-- adicionar segundo fetch de `conteudos` com `semestre = 'Intensivo ENAMED'`;
-- ler também `study_progress` (`completed=true`) além do `user_progress`, resolvendo UUID *e* content_id composto (com prefixo por linha).
-
-Assim a visão impersonada de suporte/atendimento passa a mostrar o mesmo número que a aluna vê.
-
-### 3) Deploy + verificação
-
-- Deploy de `get-progress-hub` e `admin-user-support`.
-- Invalidar o cache local: os hooks (`useProgressHub`, `useHomeData`) já usam TTL curto e refazem fetch em background, então basta a aluna abrir a página novamente (ou dar refresh). Sem migration, sem toque em dados.
-- Verificar via `curl_edge_functions` chamando `get-progress-hub` como a aluna: `overview.total` deve saltar dos ~conteúdos do 11º ano para incluir as ~500 aulas do Intensivão, e `overview.completed` deve refletir os registros de `study_progress` já persistidos.
-
-## Fora de escopo
-
-- Não mexer em `useStudyProgress`, `StudyAulaItem`, `StudyGuide.tsx` — gravação está correta.
-- Não normalizar `conteudos.semestre` para inteiro (quebraria a página do StudyGuide, que hoje exibe "Intensivo ENAMED" como filtro).
-- Não alterar `get_progress_hub_summary` RPC (não é o caminho usado pela Central de Progresso hoje — o hook chama a edge function).
+- Novo `src/experiences/shared/ExperienceSwitcher.tsx`: usa `useAuth().access` + `hasExperience`, lista derivada de um novo `getExperienceOptions(access)` em `src/experiences/shared/globalNav.ts` (id, rótulo, descrição, ícone, entrypoint de `EXPERIENCE_ENTRYPOINTS`), detecção da experiência atual pelo `pathname`. Radix `DropdownMenu`, tokens semânticos, teclado/ARIA (`aria-current`, foco visível).
+- `src/components/AppSidebar.tsx`: remover `getPortalEntries` do menu (`visibleMenuItems` volta a ser só `studentItems`) e montar o alternador no header. Versão colapsada: só o ícone da experiência atual, com tooltip.
+- `src/components/navigation/MobileBottomNav.tsx`: remover a seção "Gestão" do sheet e inserir o alternador no topo do sheet.
+- `src/experiences/admin/AdminLayout.tsx`: trocar `GoToStudentButton` + botão de troca Admin/CX pelo alternador.
+- `src/features/gestor/shell/GestorShell.tsx`: trocar o botão "Portal do Admin" + `GoToStudentButton` pelo alternador, estilizado com os tokens `--gp-*` do tema do gestor (variante compacta).
+- `getPortalEntries` e `GoToStudentButton` ficam sem uso: remover ambos junto com `src/test/unit/globalNav.test.ts` (substituído por teste do novo `getExperienceOptions`) e ajustar testes que os referenciam.
+- Testes: cobrir "aluno puro não vê alternador", "admin vê as opções e a atual marcada", "sidebar do aluno não contém mais 'Portal do Admin'/'Desempenho Institucional'".
