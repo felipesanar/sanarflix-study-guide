@@ -439,14 +439,26 @@ export default function Detalhamento() {
         </div>
       ) : (
         <>
-          {/* A nota é LEGENDA do grupo de métricas, não parágrafo da barra de
-              filtros: 11px, colada no topo do que ela explica. Em 14px dentro do
-              bloco de filtros ela competia com os próprios KPIs que legenda. */}
-          <div className={`space-y-0.5 ${classeRevelacao(0)}`} data-testid="bloco-kpis">
-            <p data-testid="nota-reatividade" className="text-muted-foreground" style={{ fontSize: 11, lineHeight: '16px' }}>
-              Os indicadores abaixo reagem ao semestre e aos simulados selecionados. Com 2 ou mais simulados as médias são
-              recalculadas e o conceito ENAMED vira comparativo, nunca média.
-            </p>
+          {/* A nota virou disclosure: a tela já é densa, então a explicação de
+              como os indicadores reagem fica a um clique, colada no topo do que
+              ela explica, em vez de ocupar duas linhas fixas. */}
+          <div className={`space-y-1 ${classeRevelacao(0)}`} data-testid="bloco-kpis">
+            <details data-testid="nota-reatividade-toggle" className="group">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" style={{ fontSize: 11, lineHeight: '16px' }}>
+                <Icon
+                  name="right-open"
+                  size={11}
+                  aria-hidden="true"
+                  className="transition-transform group-open:rotate-90"
+                />
+                Como ler estes indicadores
+              </summary>
+              <p data-testid="nota-reatividade" className="pt-1 text-muted-foreground" style={{ fontSize: 11, lineHeight: '16px' }}>
+                Os indicadores abaixo reagem ao semestre e aos simulados selecionados. Com 2 ou mais simulados as médias são
+                recalculadas e o conceito ENAMED vira comparativo, nunca média.
+              </p>
+            </details>
+
             <BlocoGestor
               estado={estado}
               parcial={parcial}
