@@ -396,7 +396,7 @@ export default function VisaoGeral() {
         <CabecalhoTela
           testId="cabecalho-visao-geral"
           titulo="Visão geral"
-          apoio="Como a instituição está no recorte selecionado e para onde o desempenho está indo."
+          apoio="Onde a instituição está e para onde vai."
           acoes={<>
           {/* Único caminho de UI para o glossário no produto: sem este gatilho o
               componente existia e era inalcançável em produção. */}
