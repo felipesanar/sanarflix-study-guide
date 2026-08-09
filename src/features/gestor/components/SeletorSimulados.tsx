@@ -285,7 +285,7 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
           padding: '7px 8px 7px 10px',
           fontSize: 13,
           color: 'var(--gp-text-1)',
-          background: 'var(--gp-surface-1, transparent)',
+          background: 'var(--gp-surface-1)',
           cursor: 'pointer',
         }}
       >
@@ -344,9 +344,9 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
           className="absolute left-3.5 right-3.5 z-30 mt-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]"
           style={{
             border: '1px solid var(--gp-border-strong)',
-            borderRadius: 'var(--gp-radius-md, 10px)',
-            background: 'var(--gp-surface-1, var(--gp-surface-2))',
-            boxShadow: 'var(--gp-shadow-2, 0 12px 32px -12px rgb(0 0 0 / 0.35))',
+            borderRadius: 'var(--gp-radius-md)',
+            background: 'var(--gp-surface-1)',
+            boxShadow: 'var(--gp-shadow-drawer)',
           }}
         >
           <div
