@@ -269,22 +269,13 @@ export const GestorShell: React.FC = () => {
             </div>
 
             <div className="space-y-1" style={{ padding: '10px 12px 12px', borderTop: DIVISOR }}>
-              {ehAdmin && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
-                  onClick={() => navigate('/admin')}
-                >
-                  <Icon name="settings" size={16} />
-                  Portal do Admin
-                </Button>
-              )}
-              <GoToStudentButton
-                variant="ghost"
-                size="sm"
-                className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
-              />
+              {/* Troca de experiência: substitui os antigos botões avulsos
+                  ("Portal do Admin", "Ir para versão aluno"). Aluno/Admin/CX
+                  são experiências, não itens de navegação. */}
+              <div className="pb-1">
+                <ExperienceSwitcher variant="compact" />
+              </div>
+
               <Button
                 variant="ghost"
                 size="sm"
