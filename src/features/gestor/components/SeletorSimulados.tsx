@@ -349,39 +349,52 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
             boxShadow: 'var(--gp-shadow-drawer)',
           }}
         >
-          <div
-            className="flex items-center gap-2"
-            style={{
-              padding: '8px 10px',
-              background: 'var(--gp-surface-2)',
-              borderBottom: '1px solid var(--gp-border-strong)',
-            }}
-          >
-            <Icon name="search" size={14} className="text-[color:var(--gp-text-3)]" aria-hidden="true" />
-            <input
-              ref={campoBusca}
-              value={busca}
-              onChange={(evento) => setBusca(evento.target.value)}
-              type="text"
-              aria-label="Buscar simulado por nome"
-              placeholder="Buscar simulado"
-              className="flex-1 bg-transparent outline-none placeholder:text-[color:var(--gp-text-3)]"
-              style={{ fontSize: 13, color: 'var(--gp-text-1)' }}
-            />
-            {podeCompararRecentes && (
-              <button
-                type="button"
-                onClick={() => onChange(doisMaisRecentes)}
-                className="whitespace-nowrap rounded-sm px-2 py-1 transition-colors hover:bg-[var(--gp-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                style={{ fontSize: 11, fontWeight: 700, color: 'var(--gp-brand-on-dark, var(--gp-brand))' }}
+          {/* Atalho de um clique. Fica no topo, mostra QUAIS dois simulados vai
+              marcar: comparar às cegas é a fonte de erro aqui. */}
+          {podeCompararRecentes && (
+            <button
+              type="button"
+              onClick={() => onChange(doisMaisRecentes)}
+              className="flex w-full items-center gap-2.5 text-left transition-colors hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              style={{
+                padding: '10px 12px',
+                background: 'var(--gp-brand-surface)',
+                borderBottom: '1px solid var(--gp-border-strong)',
+              }}
+            >
+              <span
+                aria-hidden="true"
+                className="flex items-center justify-center"
+                style={{
+                  width: 26,
+                  height: 26,
+                  flex: 'none',
+                  borderRadius: 'var(--gp-radius-sm)',
+                  background: 'var(--gp-brand)',
+                  color: 'var(--gp-on-brand)',
+                }}
               >
-                Comparar os 2 mais recentes
-              </button>
-            )}
-          </div>
+                <Icon name="equalizer" size={15} />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+                  Comparar os 2 mais recentes
+                </span>
+                <span className="truncate" style={{ fontSize: 11, color: 'var(--gp-text-2)' }}>
+                  {rotulosMaisRecentes.join('  ·vs·  ')}
+                </span>
+              </span>
+              <Icon
+                name="arrow_forward"
+                size={14}
+                aria-hidden="true"
+                className="ml-auto text-[color:var(--gp-text-3)]"
+              />
+            </button>
+          )}
 
           <div className="max-h-[52vh] overflow-y-auto">
-            {disponiveisVisiveis.length > 0 && (
+            {disponiveis.length > 0 && (
               <>
                 <p
                   style={{
@@ -396,11 +409,11 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
                 >
                   Disponíveis · marque 1 ou mais
                 </p>
-                {disponiveisVisiveis.map((item, indice) => linhaItem(item, indice))}
+                {disponiveis.map((item, indice) => linhaItem(item, indice))}
               </>
             )}
 
-            {indisponiveisVisiveis.length > 0 && (
+            {indisponiveis.length > 0 && (
               <>
                 <p
                   style={{
@@ -417,16 +430,17 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
                 >
                   Ainda sem resultado
                 </p>
-                {indisponiveisVisiveis.map((item, indice) => linhaItem(item, indice))}
+                {indisponiveis.map((item, indice) => linhaItem(item, indice))}
               </>
             )}
 
-            {nadaEncontrado && (
+            {itens.length === 0 && (
               <p style={{ padding: '18px 12px', fontSize: 12, color: 'var(--gp-text-3)' }}>
-                Nenhum simulado com esse nome no cronograma desta instituição.
+                Nenhum simulado no cronograma desta instituição.
               </p>
             )}
           </div>
+
 
           <div
             className="flex items-center justify-between gap-2"
