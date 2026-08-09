@@ -1155,59 +1155,54 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
               </div>
             ) : null}
 
-            {areasDoAluno.length > 0 && entradaDasAreas ? (
-              <div data-testid="drawer-areas" className="space-y-2">
-                <TituloSecao>Comparativo entre grandes áreas · % de acerto</TituloSecao>
-                {/* De QUAL simulado saem estas barras. Sem esta linha, quatro
-                    barras sem procedência viram média imaginária na cabeça de
-                    quem lê. */}
+            {/*
+              UM único bloco de desempenho por área (decisão de produto,
+              09/08): o comparativo de barras por grande área e a cascata de
+              especialidade/tema eram dois blocos sobre o mesmo assunto, e o
+              segundo perdia o % ao abrir a granularidade. Agora a barra e o %
+              acompanham os três níveis, e o detalhe aparece pela interação.
+
+              Consulta PRÓPRIA (`useAlunoDesempenhoPorArea`), independente de
+              `consulta`: uma falha aqui nunca esconde as notas/evolução acima.
+            */}
+            <div data-testid="drawer-areas" className="space-y-2">
+              <TituloSecao>Desempenho por área · % de acerto</TituloSecao>
+              {/* De QUAL simulado sai o bloco. Sem esta linha, barras sem
+                  procedência viram média imaginária na cabeça de quem lê. */}
+              {entradaDasAreas || entradaAreaDetalhada ? (
                 <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                  {`${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)}`}
+                  {entradaDasAreas
+                    ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)} · toque para expandir`
+                    : `${entradaAreaDetalhada?.nome} · toque para expandir`}
                 </p>
-                <div className="flex flex-col gap-2 pt-0.5">
-                  {areasDoAluno.map((area) => (
-                    <BarraArea
-                      key={area.area}
-                      area={area.area}
-                      acertoPct={area.acertoPct}
-                      critica={area.critica}
-                    />
-                  ))}
-                </div>
+              ) : null}
+
+              <div data-testid="drawer-desempenho-area" className="space-y-2">
+                {desempenhoArea.isLoading ? (
+                  <GestorSkeleton altura={64} rotulo="Carregando desempenho por área" />
+                ) : desempenhoArea.isError ? (
+                  <EstadoErro
+                    titulo="Não foi possível carregar o desempenho por área."
+                    onRetry={desempenhoArea.refetch}
+                    className="py-3"
+                  />
+                ) : entradaAreaDetalhada ? (
+                  <CascataDesempenhoAluno
+                    areas={entradaAreaDetalhada.areas}
+                    acertoOficialPorArea={acertoOficialPorArea}
+                  />
+                ) : (
+                  <EstadoVazio compacto titulo="Sem classificação por tema neste recorte" />
+                )}
+              </div>
+
+              {areasDoAluno.length > 0 && entradaDasAreas ? (
                 <div className="pt-1">
                   <InsightArea areas={areasDoAluno} simuladoId={entradaDasAreas.simuladoId} />
                 </div>
-              </div>
-            ) : null}
-
-            {/*
-              Drill-down grande área → especialidade → tema (task 09/08).
-              Consulta PRÓPRIA (`useAlunoDesempenhoPorArea`), independente de
-              `consulta`: uma falha aqui nunca esconde as notas/evolução/
-              comparativo acima, que já carregaram com sucesso.
-            */}
-            <div data-testid="drawer-desempenho-area" className="space-y-2">
-              <TituloSecao>Desempenho por área, especialidade e tema</TituloSecao>
-              {desempenhoArea.isLoading ? (
-                <GestorSkeleton altura={64} rotulo="Carregando desempenho por área" />
-              ) : desempenhoArea.isError ? (
-                <EstadoErro
-                  titulo="Não foi possível carregar o desempenho por área."
-                  onRetry={desempenhoArea.refetch}
-                  className="py-3"
-                />
-              ) : entradaAreaDetalhada ? (
-                <>
-                  {/* De QUAL simulado sai a cascata — mesma âncora de proveniência do comparativo acima. */}
-                  <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                    {`${entradaAreaDetalhada.nome} · toque para expandir`}
-                  </p>
-                  <CascataDesempenhoAluno areas={entradaAreaDetalhada.areas} />
-                </>
-              ) : (
-                <EstadoVazio compacto titulo="Sem classificação por tema neste recorte" />
-              )}
+              ) : null}
             </div>
+
 
             {/*
               Insight do aluno por IA (task 09/08) — sempre por último: é a
