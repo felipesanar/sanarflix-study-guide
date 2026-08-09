@@ -39,6 +39,32 @@ const ROTULO_PAPEL: Record<ContextoGestor['usuario']['papel'], string> = {
 const DIVISOR = '1px solid var(--gp-border-subtle)';
 
 /**
+ * Carregamento da TELA (não de um bloco): é o que aparece no lugar do
+ * conteúdo no instante do clique na navegação, enquanto o chunk da rota e a
+ * primeira consulta dela chegam.
+ *
+ * Silhueta genérica de propósito — título, faixa de KPIs e um bloco alto —,
+ * porque é a mesma para as três telas: reserva altura suficiente para não
+ * haver salto quando o conteúdo real entra, sem prometer um layout que
+ * aquela rota específica pode não ter.
+ */
+const EsqueletoDeRota: React.FC = () => (
+  <div className="mx-auto w-full max-w-[1120px] px-6 py-8" role="status" aria-busy="true">
+    <span className="sr-only">Carregando a tela</span>
+    <GestorSkeleton altura={20} rotulo="Carregando o título" className="max-w-[260px]" />
+    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {[0, 1, 2, 3].map((indice) => (
+        <GestorSkeleton key={indice} altura={104} forma="cartao" rotulo="Carregando indicador" />
+      ))}
+    </div>
+    <div className="mt-6">
+      <GestorSkeleton altura={280} forma="cartao" rotulo="Carregando o conteúdo" />
+    </div>
+  </div>
+);
+
+
+/**
  * Container do Portal do Radix para quem vive dentro do shell (Task 65,
  * decisão do Felipe de 05/08).
  *
