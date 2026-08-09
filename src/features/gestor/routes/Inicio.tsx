@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { AvisosSanar } from '@/features/gestor/components/AvisosSanar';
 import { BlocoErrorBoundary } from '@/features/gestor/components/BlocoErrorBoundary';
+import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
+
 import { CronogramaSimulados } from '@/features/gestor/components/CronogramaSimulados';
 import { DirecionadoresGestor } from '@/features/gestor/components/DirecionadoresGestor';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
