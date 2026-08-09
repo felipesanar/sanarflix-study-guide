@@ -14,7 +14,6 @@ import {
   SHIMMER,
   TileIes,
   iniciaisDaIes,
-  normalizar,
 } from '@/features/gestor/shell/ies/cartao';
 import { lerRecentes, registrarRecente } from '@/features/gestor/shell/ies/recentes';
 
@@ -22,16 +21,14 @@ import { lerRecentes, registrarRecente } from '@/features/gestor/shell/ies/recen
  * Instituição em foco na sidebar (spec §3).
  *
  * Quem pode trocar de IES (`podeTrocarIes`, decidido no servidor) abre um
- * painel de busca; quem tem uma só vê o mesmo cartão como rótulo — sem borda de
- * campo, sem chevron, sem afordância de clique e sem controle desabilitado.
+ * painel com a lista; quem tem uma só vê o mesmo cartão como rótulo — sem borda
+ * de campo, sem chevron, sem afordância de clique e sem controle desabilitado.
  *
  * O switch é sempre `podeTrocarIes`: nenhum comportamento aqui olha papel
  * literal (o papel só escolhe a FRASE da linha de contexto). E o `iesId` na URL
  * é hint de UI — a autorização é da RPC.
  */
 
-/** Acima disto a lista não cabe na tela sem busca — e sem busca é inutilizável. */
-const LIMIAR_BUSCA = 8;
 
 /** Superfície de um item do painel, por estado. */
 const itemStyle = (ativo: boolean): React.CSSProperties => ({
