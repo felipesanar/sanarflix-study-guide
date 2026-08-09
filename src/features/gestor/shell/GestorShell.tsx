@@ -105,7 +105,9 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
 export const GestorShell: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { data: contexto } = useGestorContexto();
+
   const papel = contexto?.usuario.papel;
   const ehAdmin = papel === 'admin';
 
