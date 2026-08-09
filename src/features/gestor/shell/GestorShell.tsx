@@ -112,20 +112,12 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
  * itens → rodapé com perfil e avisos, e abaixo as ações do portal. A área de
  * conteúdo é a única que rola.
  *
- * "Ir para versão aluno" reusa {@link GoToStudentButton} (mesmo componente do
- * portal legado e do Admin) — apenas com `variant="ghost"` para caber no
- * rodapé compacto (Task 25, decisão do Felipe de 03/08).
- *
- * "Portal do Admin" (achado 108 da revisão de 03/08): sem ele, uma conta
- * `admin` que entra no portal v2 — o que SEMPRE acontece, porque
- * `get_effective_features` devolve todas as features como `true` para quem
- * tem bypass de papel (admin/atendimento) — não tinha nenhum caminho de UI de
- * volta ao `/admin`; precisava digitar a URL ou colar `?legado=1`, exatamente
- * a edição manual de URL que o rollback da spec §9 devia evitar. Visível
- * SÓ para quem `get_gestor_contexto()` (a MESMA RPC que resolve
- * `podeTrocarIes` em {@link SidebarIes}) devolve `usuario.papel === 'admin'`
- * — decisão de papel vinda do servidor, nunca de role lida no cliente
- * (`useAuth().access`/`user.roles` são espelho client-side, não a fonte).
+ * A troca de portal (aluno / admin / atendimento) vive no
+ * {@link ExperienceSwitcher} do rodapé — os antigos botões avulsos "Portal do
+ * Admin" e "Ir para versão aluno" saíram: portal não é item de navegação, é
+ * troca de experiência, e o alternador é o mesmo controle em todos os portais.
+ * Quais experiências ele oferece vem de `access.experiences` (RPC
+ * `get_access`), e cada uma continua protegida pelo `ExperienceGuard`.
  *
  * Marca: duas `<img>` (clara/branca) alternadas por `dark:` — nunca
  * `filter: invert()`, nunca redesenho, nunca sombra colorida.
@@ -137,7 +129,6 @@ export const GestorShell: React.FC = () => {
   const { data: contexto } = useGestorContexto();
 
   const papel = contexto?.usuario.papel;
-  const ehAdmin = papel === 'admin';
 
   /**
    * `useState`, não `useRef`: só uma mudança de STATE re-renderiza os
