@@ -192,12 +192,13 @@ export function TabelaQuestoes({
           aria-hidden="true"
           className="flex h-8 w-8 shrink-0 items-center justify-center"
           style={{
-            background: 'var(--gp-brand-surface)',
-            color: 'var(--gp-brand-on-dark)',
+            background: 'var(--gp-surface-2)',
+            color: 'var(--gp-text-2)',
+            border: '1px solid var(--gp-border)',
             borderRadius: 'var(--gp-radius-sm)',
           }}
         >
-          <Icon name="quiz" size={17} />
+          <Icon name="list_alt" size={16} />
         </span>
         <h3 id="questoes-titulo" style={{ fontSize: 15, fontWeight: 700, color: 'var(--gp-text-1)' }}>
           Detalhamento das questões
