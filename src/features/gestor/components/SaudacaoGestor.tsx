@@ -91,50 +91,24 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
           {dataLonga(agora)}
         </p>
 
-        {/* Título de tela ampliado, com o astro do momento em selo luminoso. */}
+        {/* Título de tela ampliado, com o astro do momento em movimento leve. */}
         <h1
-          className="mt-2.5 flex items-center gap-3.5 text-foreground"
-          style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: '46px' }}
+          className="mt-2 flex items-center gap-2.5 text-foreground"
+          style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: '42px' }}
         >
-          <span aria-hidden className="relative inline-flex shrink-0 items-center justify-center">
-            {/* Halo suave que respira — dá profundidade sem pesar o fundo. */}
-            <motion.span
-              className="absolute rounded-full"
-              style={{
-                width: 58,
-                height: 58,
-                background:
-                  'radial-gradient(circle, color-mix(in srgb, var(--gp-brand-on-dark) 26%, transparent) 0%, transparent 70%)',
-              }}
-              animate={{ opacity: [0.5, 0.9, 0.5], scale: [0.94, 1.06, 0.94] }}
-              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-            />
-            {/* Selo de vidro com borda fina de marca. */}
-            <span
-              className="relative inline-flex items-center justify-center rounded-full"
-              style={{
-                width: 44,
-                height: 44,
-                background:
-                  'linear-gradient(145deg, color-mix(in srgb, var(--gp-brand-on-dark) 14%, transparent), transparent)',
-                border: '1px solid color-mix(in srgb, var(--gp-brand-on-dark) 24%, transparent)',
-                boxShadow: 'inset 0 1px 0 color-mix(in srgb, white 18%, transparent)',
-              }}
-            >
-              <motion.span
-                className="inline-flex"
-                style={{ color: 'var(--gp-brand-on-dark)' }}
-                animate={
-                  ehDia
-                    ? { rotate: [0, 10, 0, -10, 0], scale: [1, 1.07, 1, 1.07, 1] }
-                    : { y: [0, -2.5, 0], rotate: [-7, 5, -7] }
-                }
-                transition={{ duration: ehDia ? 9 : 7, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <Icon name={ehDia ? 'light-mode' : 'dark-mode'} size={24} />
-              </motion.span>
-            </span>
-          </span>
+          <motion.span
+            aria-hidden
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{ color: 'var(--gp-brand-on-dark)' }}
+            animate={
+              ehDia
+                ? { rotate: [0, 8, 0, -8, 0], scale: [1, 1.06, 1, 1.06, 1] }
+                : { y: [0, -3, 0], rotate: [-6, 4, -6] }
+            }
+            transition={{ duration: ehDia ? 8 : 6, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Icon name={ehDia ? 'light-mode' : 'dark-mode'} size={30} />
+          </motion.span>
           <span>
             {`${saudacaoPorHora(agora)}, `}
             <span style={{ color: 'var(--gp-brand-on-dark)' }}>
@@ -142,7 +116,6 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
             </span>
           </span>
         </h1>
-
 
 
         {/* Subtítulo de ORIENTAÇÃO (spec §2.1), em uma linha curta: diz apenas
