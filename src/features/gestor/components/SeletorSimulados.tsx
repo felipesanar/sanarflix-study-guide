@@ -346,49 +346,53 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
             boxShadow: 'var(--gp-shadow-drawer)',
           }}
         >
-          {/* Atalho de um clique. Fica no topo, mostra QUAIS dois simulados vai
+          {/* Sugestão discreta de um clique. Diz QUAIS dois simulados vai
               marcar: comparar às cegas é a fonte de erro aqui. */}
           {podeCompararRecentes && (
-            <button
-              type="button"
-              onClick={() => onChange(doisMaisRecentes)}
-              className="flex w-full items-center gap-2.5 text-left transition-colors hover:brightness-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            <div
+              className="flex items-center gap-2"
               style={{
-                padding: '10px 12px',
-                background: 'var(--gp-brand-surface)',
-                borderBottom: '1px solid var(--gp-border-strong)',
+                padding: '7px 12px',
+                borderBottom: '1px solid var(--gp-border-subtle)',
               }}
             >
               <span
-                aria-hidden="true"
-                className="flex items-center justify-center"
+                className="shrink-0"
                 style={{
-                  width: 26,
-                  height: 26,
-                  flex: 'none',
-                  borderRadius: 'var(--gp-radius-sm)',
-                  background: 'var(--gp-brand)',
-                  color: 'var(--gp-on-brand)',
+                  fontSize: 10,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  color: 'var(--gp-text-3)',
                 }}
               >
-                <Icon name="equalizer" size={15} />
+                Sugestão
               </span>
-              <span className="flex min-w-0 flex-col">
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+              <button
+                type="button"
+                onClick={() => onChange(doisMaisRecentes)}
+                title={rotulosMaisRecentes.join('  ·vs·  ')}
+                className="flex min-w-0 items-center gap-1.5 transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                style={{
+                  padding: '3px 8px',
+                  borderRadius: 999,
+                  border: '1px solid var(--gp-border-strong)',
+                  background: 'var(--gp-surface-2)',
+                }}
+              >
+                <Icon
+                  name="equalizer"
+                  size={13}
+                  aria-hidden="true"
+                  className="shrink-0 text-[color:var(--gp-text-2)]"
+                />
+                <span className="truncate" style={{ fontSize: 11, fontWeight: 600, color: 'var(--gp-text-1)' }}>
                   Comparar os 2 mais recentes
                 </span>
-                <span className="truncate" style={{ fontSize: 11, color: 'var(--gp-text-2)' }}>
-                  {rotulosMaisRecentes.join('  ·vs·  ')}
-                </span>
-              </span>
-              <Icon
-                name="arrow_forward"
-                size={14}
-                aria-hidden="true"
-                className="ml-auto text-[color:var(--gp-text-3)]"
-              />
-            </button>
+              </button>
+            </div>
           )}
+
 
           <div className="max-h-[52vh] overflow-y-auto">
             {disponiveis.length > 0 && (
