@@ -13,13 +13,14 @@ import { Icon } from '@/features/gestor/components/Icon';
  * mesma leitura em qualquer ponto da árvore, sem depender de onde o componente
  * foi montado.
  *
- * A escolha é do gestor e vale para a sessão inteira, então persiste em
- * `localStorage`. Nada aqui é dado de aluno — é preferência de exibição.
+ * A escolha é do gestor e vale enquanto a aba estiver aberta: NÃO persiste em
+ * `localStorage`/`sessionStorage`. O guard de LGPD §7.7 proíbe qualquer uso de
+ * storage dentro de `src/features/gestor` — o portal lida com dado de aluno, e
+ * a regra é de superfície inteira, não "só onde tem PII". Preferência de
+ * exibição não vale abrir exceção nessa regra.
  */
 
 export type Densidade = 'compacta' | 'confortavel';
-
-const CHAVE = 'gestor:densidade-tabela';
 
 /** Régua de padding por densidade. Fonte única: `TabelaGestor` só lê daqui. */
 export const PADDING_DENSIDADE: Record<Densidade, { cabecalho: string; celula: string }> = {
@@ -35,23 +36,8 @@ export const ROTULO_DENSIDADE: Record<Densidade, string> = {
   compacta: 'Compacta',
 };
 
-function ehDensidade(valor: string | null): valor is Densidade {
-  return valor === 'compacta' || valor === 'confortavel';
-}
-
-function lerInicial(): Densidade {
-  if (typeof window === 'undefined') return 'confortavel';
-  try {
-    const salvo = window.localStorage.getItem(CHAVE);
-    return ehDensidade(salvo) ? salvo : 'confortavel';
-  } catch {
-    // `localStorage` pode lançar (modo restrito/quota). Preferência de
-    // exibição nunca deve derrubar a tabela: cai no padrão.
-    return 'confortavel';
-  }
-}
-
-let atual: Densidade = lerInicial();
+// Estado só em memória: recarregar a página volta ao padrão confortável.
+let atual: Densidade = 'confortavel';
 const inscritos = new Set<() => void>();
 
 function inscrever(callback: () => void): () => void {
@@ -66,18 +52,11 @@ function ler(): Densidade {
 export function definirDensidade(nova: Densidade): void {
   if (nova === atual) return;
   atual = nova;
-  try {
-    window.localStorage.setItem(CHAVE, nova);
-  } catch {
-    // Sem persistência: a sessão em memória continua valendo.
-  }
   for (const callback of inscritos) callback();
 }
 
 export function useDensidadeTabela(): Densidade {
-  // O terceiro argumento (`getServerSnapshot`) evita o erro de hidratação em
-  // qualquer render fora do browser.
-  return React.useSyncExternalStore(inscrever, ler, () => 'confortavel' as Densidade);
+  return React.useSyncExternalStore(inscrever, ler, ler);
 }
 
 /**
