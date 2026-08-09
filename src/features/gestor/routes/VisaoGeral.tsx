@@ -376,17 +376,18 @@ export default function VisaoGeral() {
   );
 
   return (
-    <div className="space-y-6 p-8 pb-12" data-testid="gestor-visao-geral" aria-busy={emTransicao}>
-      {/* Cabeçalho + filtros: o mesmo esqueleto do Detalhamento (título à
-          esquerda, recorte alinhado à direita), para que a troca de tela não
-          mexa a barra de lugar. */}
-      <div data-testid="barra-filtros" className="space-y-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>Visão Geral</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">Leitura macro da evolução institucional</p>
-          </div>
-          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+    <ContainerRota className="pb-12" data-testid="gestor-visao-geral" aria-busy={emTransicao}>
+      {/* Cabeçalho + filtros: agora a faixa canônica do portal
+          (`CabecalhoTela`), a mesma do Detalhamento — título e apoio na escala
+          tipográfica, controles à direita, e a barra de contexto colada no topo
+          da área rolável, para o corte em exibição não sumir no primeiro
+          scroll desta tela (que passa de 3000px). */}
+      <CabecalhoTela
+        testId="barra-filtros"
+        titulo="Visão Geral"
+        apoio="Leitura macro da evolução institucional"
+        acoes={
+          <>
             {/* Único caminho de UI para o glossário no produto: sem este gatilho o
                 componente existia e era inalcançável em produção. */}
             <Glossario />
@@ -395,10 +396,18 @@ export default function VisaoGeral() {
                 consegue responder. Enquanto a query não volta, `undefined`
                 mantém a lista completa em vez de piscar um dropdown vazio. */}
             <FiltroSemestre semestresDisponiveis={semestresComResultado} />
-          </div>
-        </div>
+          </>
+        }
+        /* O semestre NÃO entra como chip: ele já é dito, com o período do dado
+           ao lado, pelo `ContextoDoRecorte` logo abaixo — dois lugares para o
+           mesmo fato seria ruído, não reforço. */
+        contexto={
+          iesNomeAtiva ? <ChipRecorte testId="chip-ies" rotulo="Instituição" valor={iesNomeAtiva} /> : null
+        }
+      >
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
-      </div>
+      </CabecalhoTela>
+
 
       {emTransicao ? (
         <p
