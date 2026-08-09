@@ -456,35 +456,56 @@ function InsightArea({
 interface EspecialidadeAgrupada {
   especialidade: string;
   temas: AreaDesempenhoAluno[];
+  /** % de acerto ponderado pelas questões respondidas dos temas. `null` sem questão respondida. */
+  acertoPct: number | null;
+  criticos: number;
 }
 
-/** Uma grande área agrupada, com as especialidades e a contagem honesta de temas/críticos. */
+/** Uma grande área agrupada, com as especialidades e o % de acerto do nível. */
 interface GrandeAreaAgrupada {
   grandeArea: string;
   especialidades: EspecialidadeAgrupada[];
+  acertoPct: number | null;
   totalTemas: number;
   totalCriticos: number;
+}
+
+/**
+ * % de acerto de um conjunto de temas — ponderado pelas questões RESPONDIDAS,
+ * nunca média simples dos percentuais (que daria peso igual a um tema de 1
+ * questão e a outro de 20). Sem questão respondida, `null`: a UI mostra TRAÇO
+ * em vez de inventar zero (§4.10).
+ */
+function acertoPonderado(temas: AreaDesempenhoAluno[]): number | null {
+  let acertos = 0;
+  let respondidas = 0;
+  for (const tema of temas) {
+    if (tema.questoesRespondidas <= 0) continue;
+    acertos += (tema.acertoPct / 100) * tema.questoesRespondidas;
+    respondidas += tema.questoesRespondidas;
+  }
+  return respondidas === 0 ? null : (acertos / respondidas) * 100;
 }
 
 /**
  * Agrupa as linhas de tema (a granularidade que `get_gestor_aluno_desempenho_por_area`
  * devolve) em grande área → especialidade → tema para o drill-down.
  *
- * Nenhum `acertoPct` é calculado para os níveis de grande área/especialidade
- * aqui — a RPC não devolve essa média, e inventá-la (seja por média simples
- * dos temas, seja por qualquer outra conta) seria a mesma classe de erro que
- * a "regra de agregação honesta" do drawer já proíbe para simulados
- * (`InsightArea`/comparativo abaixo). Os dois níveis de cima são só
- * AGRUPAMENTO visual — contagem de tema e de tema crítico, que são contagens
- * diretas sobre o dado recebido, nunca um número sintetizado.
+ * Cada nível carrega o SEU % de acerto, ponderado pelas questões respondidas
+ * dos temas que estão abaixo dele — a conta que a própria RPC faria, não uma
+ * média de percentuais. Quando o payload de `acertoPorArea` do simulado traz o
+ * % da grande área, é ELE que prevalece no nível 1 (`acertoOficialPorArea`):
+ * número da RPC ganha de número recalculado.
  *
  * Temas dentro de uma especialidade saem ordenados do PIOR para o melhor
- * acerto — "comece pela pior" é o mesmo critério já usado em
- * `DiagnosticoCriticoVazio` (`CascataDiagnostico.tsx`). Grande área e
- * especialidade saem em ordem alfabética: sem um número de nível para
- * ordenar por severidade, alfabética é a única ordem estável.
+ * acerto — "comece pela pior", mesmo critério de `DiagnosticoCriticoVazio`.
+ * Especialidades e grandes áreas também: agora existe um número por nível
+ * para ordenar por severidade.
  */
-function agruparPorArea(areas: AreaDesempenhoAluno[]): GrandeAreaAgrupada[] {
+function agruparPorArea(
+  areas: AreaDesempenhoAluno[],
+  acertoOficialPorArea?: Map<string, number>,
+): GrandeAreaAgrupada[] {
   const porGrandeArea = new Map<string, Map<string, AreaDesempenhoAluno[]>>();
 
   for (const area of areas) {
@@ -494,53 +515,127 @@ function agruparPorArea(areas: AreaDesempenhoAluno[]): GrandeAreaAgrupada[] {
     porEspecialidade.get(area.especialidade)!.push(area);
   }
 
+  const ordenarPorAcerto = <T extends { acertoPct: number | null }>(a: T, b: T) =>
+    (a.acertoPct ?? 101) - (b.acertoPct ?? 101);
+
   return [...porGrandeArea.entries()]
     .map(([grandeArea, especialidadesMapa]) => {
       const especialidades: EspecialidadeAgrupada[] = [...especialidadesMapa.entries()]
-        .map(([especialidade, temas]) => ({
-          especialidade,
-          temas: [...temas].sort((a, b) => a.acertoPct - b.acertoPct),
-        }))
-        .sort((a, b) => a.especialidade.localeCompare(b.especialidade, 'pt-BR'));
+        .map(([especialidade, temas]) => {
+          const ordenados = [...temas].sort((a, b) => a.acertoPct - b.acertoPct);
+          return {
+            especialidade,
+            temas: ordenados,
+            acertoPct: acertoPonderado(ordenados),
+            criticos: ordenados.filter((t) => t.critica).length,
+          };
+        })
+        .sort(ordenarPorAcerto);
 
-      const totalTemas = especialidades.reduce((soma, e) => soma + e.temas.length, 0);
-      const totalCriticos = especialidades.reduce(
-        (soma, e) => soma + e.temas.filter((t) => t.critica).length,
-        0,
-      );
+      const todosOsTemas = especialidades.flatMap((e) => e.temas);
+      const oficial = acertoOficialPorArea?.get(grandeArea);
 
-      return { grandeArea, especialidades, totalTemas, totalCriticos };
+      return {
+        grandeArea,
+        especialidades,
+        acertoPct: oficial ?? acertoPonderado(todosOsTemas),
+        totalTemas: todosOsTemas.length,
+        totalCriticos: todosOsTemas.filter((t) => t.critica).length,
+      };
     })
-    .sort((a, b) => a.grandeArea.localeCompare(b.grandeArea, 'pt-BR'));
+    .sort(ordenarPorAcerto);
 }
 
-/** Nível 3 (folha) do drill-down: o tema, com as métricas cruas da RPC. */
+/**
+ * Barra + % de um nível da cascata. É a MESMA leitura em todos os três níveis
+ * (grande área, especialidade, tema) — o que muda é só a escala tipográfica e
+ * o recuo, para que a granularidade se leia sem trocar de vocabulário visual.
+ */
+function BarraNivel({
+  rotulo,
+  acertoPct,
+  critica,
+  peso,
+  tamanho,
+}: {
+  rotulo: string;
+  acertoPct: number | null;
+  critica: boolean;
+  peso: number;
+  tamanho: number;
+}) {
+  const cor = critica ? 'var(--gp-danger-on)' : 'var(--gp-text-2)';
+  return (
+    <>
+      <span
+        className="min-w-0 flex-1 truncate"
+        style={{ fontSize: tamanho, fontWeight: peso, color: critica ? cor : 'var(--gp-text-1)' }}
+      >
+        {rotulo}
+        {/* Cor nunca é canal único: a criticidade também sai por texto. */}
+        {critica ? <span className="sr-only"> (crítico)</span> : null}
+      </span>
+      <span
+        role="progressbar"
+        aria-label={`Percentual de acerto em ${rotulo}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={acertoPct === null ? undefined : Math.round(acertoPct)}
+        style={{
+          width: 88,
+          flex: 'none',
+          height: 6,
+          background: 'var(--gp-surface-3)',
+          borderRadius: 'var(--gp-radius-pill)',
+          overflow: 'hidden',
+        }}
+      >
+        <span
+          style={{
+            display: 'block',
+            width: `${acertoPct ?? 0}%`,
+            height: '100%',
+            background: critica ? 'var(--gp-danger)' : 'var(--gp-text-1)',
+            borderRadius: 'var(--gp-radius-pill)',
+          }}
+        />
+      </span>
+      <span
+        style={{
+          fontFamily: FONTE_MONO,
+          fontSize: tamanho,
+          fontWeight: 600,
+          width: 36,
+          flex: 'none',
+          textAlign: 'right',
+          color: critica ? cor : 'var(--gp-text-1)',
+        }}
+      >
+        {acertoPct === null ? TRACO : formatPct(acertoPct)}
+      </span>
+    </>
+  );
+}
+
+/** Nível 3 (folha) do drill-down: o tema, sempre com o seu % de acerto. */
 function LinhaTema({ tema }: { tema: AreaDesempenhoAluno }) {
-  const cor = tema.critica ? 'var(--gp-danger-on)' : 'var(--gp-text-2)';
   return (
     <li
       data-testid={`drawer-tema-${tema.tema}`}
-      className="flex items-center justify-between gap-2 py-1.5 pl-1"
-      style={{ fontSize: 12 }}
+      className="flex items-center gap-2 py-1.5 pl-2 pr-2"
     >
-      <span className="min-w-0 truncate" style={{ color: cor, fontWeight: tema.critica ? 600 : undefined }}>
-        {tema.tema}
-        {/* Cor nunca é canal único: a criticidade também sai por texto, mesma regra da BarraArea. */}
-        {tema.critica ? <span className="sr-only"> (tema crítico)</span> : null}
-      </span>
-      <span className="flex flex-none items-center gap-2.5" style={{ color: 'var(--gp-text-3)' }}>
-        <span style={{ fontFamily: FONTE_MONO }}>
-          {`${formatNumero(tema.questoesRespondidas)}/${formatNumero(tema.questoesTotal)}`}
-        </span>
-        <span style={{ fontFamily: FONTE_MONO, color: cor, fontWeight: 600, width: 34, textAlign: 'right' }}>
-          {formatPct(tema.acertoPct)}
-        </span>
-      </span>
+      <BarraNivel
+        rotulo={tema.tema}
+        acertoPct={tema.acertoPct}
+        critica={tema.critica}
+        peso={400}
+        tamanho={11}
+      />
     </li>
   );
 }
 
-/** Nível 2 do drill-down: a especialidade, expandindo para a lista de temas. */
+/** Nível 2 do drill-down: a especialidade, com o seu % e expandindo nos temas. */
 function LinhaEspecialidade({
   grupo,
   aberto,
@@ -550,7 +645,6 @@ function LinhaEspecialidade({
   aberto: boolean;
   onClick: () => void;
 }) {
-  const criticos = grupo.temas.filter((t) => t.critica).length;
   return (
     <li>
       <button
@@ -560,7 +654,6 @@ function LinhaEspecialidade({
         aria-expanded={aberto}
         data-testid={`drawer-especialidade-${grupo.especialidade}`}
         className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        style={{ fontSize: 12, fontWeight: 600 }}
       >
         <Icon
           name={aberto ? 'expand_more' : 'chevron_right'}
@@ -569,18 +662,18 @@ function LinhaEspecialidade({
           box={14}
           className={aberto ? 'text-foreground' : 'text-muted-foreground'}
         />
-        <span className="min-w-0 flex-1 truncate">{grupo.especialidade}</span>
-        <span style={{ fontWeight: 400, color: 'var(--gp-text-3)' }}>
-          {`${grupo.temas.length} ${grupo.temas.length === 1 ? 'tema' : 'temas'}`}
-        </span>
-        {criticos > 0 ? (
-          <span style={{ color: 'var(--gp-danger-on)' }}>{`${criticos} ${criticos === 1 ? 'crítico' : 'críticos'}`}</span>
-        ) : null}
+        <BarraNivel
+          rotulo={grupo.especialidade}
+          acertoPct={grupo.acertoPct}
+          critica={grupo.criticos > 0}
+          peso={600}
+          tamanho={12}
+        />
       </button>
       {aberto ? (
         <ul
           data-testid={`drawer-temas-de-${grupo.especialidade}`}
-          className="ml-4 border-l pl-2"
+          className="ml-4 border-l pl-1"
           style={{ borderColor: 'var(--gp-border-subtle)' }}
         >
           {grupo.temas.map((tema) => (
@@ -593,18 +686,30 @@ function LinhaEspecialidade({
 }
 
 /**
- * Drill-down grande área → especialidade → tema de UM simulado do aluno
- * (spec da task, 09/08) — reaproveita o padrão visual de cascata de
- * `CascataDiagnostico.tsx`/`DrawerTemas.tsx` (disclosure por chevron, um
- * ramo aberto por nível) na escala do drawer: dois níveis de acordeão
- * (grande área e, dentro dela, especialidade) que revelam a folha (tema).
+ * Cascata ÚNICA de desempenho do aluno: grande área → especialidade → tema,
+ * com % de acerto em TODOS os níveis (decisão de produto, 09/08).
+ *
+ * Antes eram dois blocos: um comparativo de barras por grande área e, logo
+ * abaixo, uma cascata que só contava temas e temas críticos. O gestor lia o
+ * mesmo assunto duas vezes e, ao abrir a granularidade, PERDIA a métrica que
+ * viera no bloco de cima. Agora é um só: a barra e o % acompanham cada nível,
+ * e a granularidade é revelada pela interação, nunca por outro bloco.
  *
  * Acordeão de UM aberto por nível — clicar outra grande área fecha a
- * especialidade que estivesse aberta dentro da anterior, mesma exclusividade
- * de `nodeAberto` na cascata do Diagnóstico.
+ * especialidade aberta na anterior, mesma exclusividade da cascata do
+ * Diagnóstico.
  */
-function CascataDesempenhoAluno({ areas }: { areas: AreaDesempenhoAluno[] }) {
-  const grupos = React.useMemo(() => agruparPorArea(areas), [areas]);
+function CascataDesempenhoAluno({
+  areas,
+  acertoOficialPorArea,
+}: {
+  areas: AreaDesempenhoAluno[];
+  acertoOficialPorArea?: Map<string, number>;
+}) {
+  const grupos = React.useMemo(
+    () => agruparPorArea(areas, acertoOficialPorArea),
+    [areas, acertoOficialPorArea],
+  );
   const [grandeAreaAberta, setGrandeAreaAberta] = React.useState<string | null>(null);
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<string | null>(null);
 
@@ -626,7 +731,6 @@ function CascataDesempenhoAluno({ areas }: { areas: AreaDesempenhoAluno[] }) {
               aria-expanded={aberto}
               data-testid={`drawer-grande-area-${grupo.grandeArea}`}
               className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{ fontSize: 13, fontWeight: 700, color: 'var(--gp-text-1)' }}
             >
               <Icon
                 name={aberto ? 'expand_more' : 'chevron_right'}
@@ -635,20 +739,18 @@ function CascataDesempenhoAluno({ areas }: { areas: AreaDesempenhoAluno[] }) {
                 box={16}
                 className={aberto ? 'text-foreground' : 'text-muted-foreground'}
               />
-              <span className="min-w-0 flex-1 truncate">{grupo.grandeArea}</span>
-              <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--gp-text-3)' }}>
-                {`${grupo.totalTemas} ${grupo.totalTemas === 1 ? 'tema' : 'temas'}`}
-              </span>
-              {grupo.totalCriticos > 0 ? (
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gp-danger-on)' }}>
-                  {`${grupo.totalCriticos} ${grupo.totalCriticos === 1 ? 'crítico' : 'críticos'}`}
-                </span>
-              ) : null}
+              <BarraNivel
+                rotulo={grupo.grandeArea}
+                acertoPct={grupo.acertoPct}
+                critica={grupo.totalCriticos > 0}
+                peso={700}
+                tamanho={13}
+              />
             </button>
             {aberto ? (
               <ul
                 data-testid={`drawer-especialidades-de-${grupo.grandeArea}`}
-                className="ml-4 border-l pl-2"
+                className="ml-4 border-l pl-1"
                 style={{ borderColor: 'var(--gp-border-subtle)' }}
               >
                 {grupo.especialidades.map((especialidade) => (
@@ -671,6 +773,7 @@ function CascataDesempenhoAluno({ areas }: { areas: AreaDesempenhoAluno[] }) {
     </ul>
   );
 }
+
 
 /**
  * Ocultado por decisão de produto em 09/08 — a RPC/edge function seguem no ar
