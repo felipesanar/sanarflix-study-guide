@@ -8,10 +8,7 @@ import type { ItemCronograma } from '../api/types';
  * Acima disso a leitura dos gráficos degrada — aviso, nunca bloqueio (§4.7.2).
  *
  * Limiar mantido em "acima de 5" (`>`), como mandam docs/02-regras-de-negocio.md §4.2
- * e docs/04-componentes.md §1.2. A cópia do mockup diz "5 ou mais", mas é a
- * legenda de um estado ilustrativo, não a regra — e as duas fontes normativas
- * concordam entre si. O texto do aviso abaixo foi escrito para o limiar real,
- * para não anunciar uma regra que o componente não cumpre.
+ * e docs/04-componentes.md §1.2.
  */
 export const LIMITE_LEGIBILIDADE = 5;
 
@@ -57,29 +54,55 @@ export interface SeletorSimuladosProps {
   onChange: (ids: string[]) => void;
 }
 
+/** Ordena por data desc (sem data vai para o fim) — usado no atalho de recentes. */
+function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
+  return (b.data ?? '').localeCompare(a.data ?? '');
+}
+
+function normalizar(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 /**
  * Multi-seleção de simulados do Detalhamento (§4.7, handoff §10.4).
  *
- * Campo com os selecionados em CHIPS REMOVÍVEIS + painel de checkboxes. A
- * forma importa: antes daqui a lista era um `ToggleGroup` sempre expandido, e
- * um simulado que ficasse indisponível DEPOIS de selecionado virava um botão
- * marcado e desabilitado — sem nenhum caminho para desmarcá-lo. O "×" do chip
- * é esse caminho (a outra metade da correção, o filtro de ids indisponíveis,
- * mora em `routes/Detalhamento.tsx`).
+ * Anatomia: cabeçalho com rótulo + contador + "Limpar", campo com os
+ * selecionados em CHIPS REMOVÍVEIS e um painel flutuante (dentro da subárvore
+ * `.gestor-portal`, sem Portal, para os tokens `--gp-*` e o
+ * `prefers-reduced-motion` do tema alcançarem) com busca, atalho para os 2 mais
+ * recentes e a lista de checkboxes separada em disponíveis × indisponíveis.
  *
- * Sem Portal de propósito: o painel é um bloco no fluxo, dentro da subárvore
- * `.gestor-portal`, onde os tokens `--gp-*` e o `prefers-reduced-motion` do
- * tema alcançam. Um popover portalizado em `document.body` sairia do escopo.
+ * O "×" do chip é o único caminho para desmarcar um simulado que ficou
+ * indisponível DEPOIS de selecionado (a outra metade da correção, o filtro de
+ * ids indisponíveis, mora em `routes/Detalhamento.tsx`).
  */
 export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimuladosProps) {
   const [aberto, setAberto] = React.useState(false);
+  const [busca, setBusca] = React.useState('');
   const idPainel = React.useId();
+  const raiz = React.useRef<HTMLDivElement>(null);
+  const campoBusca = React.useRef<HTMLInputElement>(null);
 
   const semSelecao = selecionados.length === 0;
   const excedeLegibilidade = selecionados.length > LIMITE_LEGIBILIDADE;
 
   // Chips na ordem do cronograma, não na ordem de clique: a mesma leitura da lista.
   const escolhidos = itens.filter((item) => selecionados.includes(item.id));
+
+  const disponiveis = itens.filter((item) => motivoIndisponivel(item) === null);
+  const indisponiveis = itens.filter((item) => motivoIndisponivel(item) !== null);
+
+  const filtrar = (lista: ItemCronograma[]) => {
+    const alvo = normalizar(busca.trim());
+    if (alvo === '') return lista;
+    return lista.filter((item) => normalizar(rotuloItem(item)).includes(alvo));
+  };
+  const disponiveisVisiveis = filtrar(disponiveis);
+  const indisponiveisVisiveis = filtrar(indisponiveis);
+  const nadaEncontrado = disponiveisVisiveis.length === 0 && indisponiveisVisiveis.length === 0;
 
   const alternar = (id: string) => {
     onChange(
@@ -89,35 +112,193 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
     );
   };
 
+  // Fecha no ESC e no clique fora: o painel flutua sobre o conteúdo, então
+  // precisa das duas saídas que todo mundo já espera de um popover.
+  React.useEffect(() => {
+    if (!aberto) return;
+    const noEsc = (evento: KeyboardEvent) => {
+      if (evento.key === 'Escape') setAberto(false);
+    };
+    const noClique = (evento: MouseEvent) => {
+      if (raiz.current && !raiz.current.contains(evento.target as Node)) setAberto(false);
+    };
+    document.addEventListener('keydown', noEsc);
+    document.addEventListener('mousedown', noClique);
+    return () => {
+      document.removeEventListener('keydown', noEsc);
+      document.removeEventListener('mousedown', noClique);
+    };
+  }, [aberto]);
+
+  // Abriu = já pode digitar. Economiza um clique em cronogramas longos.
+  React.useEffect(() => {
+    if (aberto) campoBusca.current?.focus();
+    else setBusca('');
+  }, [aberto]);
+
+  const doisMaisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2).map((item) => item.id);
+  const podeCompararRecentes =
+    doisMaisRecentes.length === 2 &&
+    doisMaisRecentes.join(',') !== [...selecionados].sort().join(',');
+
+  const linhaItem = (item: ItemCronograma, indice: number) => {
+    const motivo = motivoIndisponivel(item);
+    const marcado = selecionados.includes(item.id);
+    const rotulo = rotuloItem(item);
+    return (
+      <label
+        key={item.id}
+        className={cn(
+          'group flex items-center gap-3 transition-colors',
+          motivo === null ? 'gp-hover-surface cursor-pointer' : 'cursor-not-allowed',
+        )}
+        style={{
+          padding: '10px 12px',
+          fontSize: 13,
+          borderTop: indice === 0 ? undefined : '1px solid var(--gp-border-subtle)',
+          background: marcado ? 'var(--gp-brand-surface)' : undefined,
+          boxShadow: marcado ? 'inset 2px 0 0 var(--gp-brand)' : undefined,
+          opacity: motivo === null ? undefined : 0.65,
+        }}
+      >
+        <input
+          type="checkbox"
+          className="peer sr-only"
+          checked={marcado}
+          disabled={motivo !== null}
+          onChange={() => alternar(item.id)}
+          aria-label={motivo === null ? rotulo : `${rotulo} — ${motivo}`}
+        />
+        <span
+          aria-hidden="true"
+          // O input real é `sr-only`: sem isto o foco de teclado ficaria
+          // invisível, porque o anel nasceria num nó de 1px.
+          className="flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+          style={{
+            width: 16,
+            height: 16,
+            flex: 'none',
+            borderRadius: RAIO_CHECKBOX,
+            border: `1.5px ${motivo === null ? 'solid' : 'dashed'} ${
+              marcado ? 'var(--gp-brand)' : 'var(--gp-border-input)'
+            }`,
+            background: marcado ? 'var(--gp-brand)' : 'transparent',
+            color: 'var(--gp-on-brand)',
+            transitionProperty: 'background-color, border-color',
+            transitionDuration: 'var(--gp-motion-2)',
+            transitionTimingFunction: 'var(--gp-ease)',
+          }}
+        >
+          {/*
+            Comportamento 17 (spec de motion, Parte IV §11): a marca de "check"
+            entra com `scale(0.6 → 1)` + fade, 140ms (`--gp-motion-2`). O ícone
+            fica SEMPRE montado — uma transição CSS não roda em elemento que
+            nunca existiu antes.
+          */}
+          <span
+            aria-hidden="true"
+            className="inline-flex"
+            style={{
+              transform: marcado ? 'scale(1)' : 'scale(0.6)',
+              opacity: marcado ? 1 : 0,
+              transitionProperty: 'transform, opacity',
+              transitionDuration: 'var(--gp-motion-2)',
+              transitionTimingFunction: 'var(--gp-ease)',
+            }}
+          >
+            <Icon name="check" size={11} />
+          </span>
+        </span>
+
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span
+            className="truncate"
+            style={{
+              color: marcado ? 'var(--gp-text-1)' : 'var(--gp-text-1)',
+              fontWeight: marcado ? 600 : 500,
+            }}
+          >
+            {item.nome}
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+            {[dataCurta(item.data), item.modalidade, typeof item.participantes === 'number' ? `${item.participantes} participantes` : null]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+
+        {motivo !== null && <Tag variant="qualificador">{motivo}</Tag>}
+      </label>
+    );
+  };
+
   return (
     <div
+      ref={raiz}
       data-testid="seletor-simulados"
       className={cn(
-        'rounded-lg border border-border bg-card p-3',
+        'relative rounded-xl border border-border bg-card p-3.5',
         semSelecao && 'border-destructive ring-2 ring-destructive/20',
       )}
     >
+      {/* Cabeçalho: o que é isto, quantos entraram e a saída rápida. */}
+      <div className="mb-2 flex items-center gap-2">
+        <Icon name="checklist" size={15} className="text-[color:var(--gp-text-3)]" aria-hidden="true" />
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+          Simulados no recorte
+        </span>
+        <span
+          aria-hidden="true"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '1px 7px',
+            borderRadius: 'var(--gp-radius-pill)',
+            background: semSelecao ? 'var(--gp-surface-3)' : 'var(--gp-brand)',
+            color: semSelecao ? 'var(--gp-text-3)' : 'var(--gp-on-brand)',
+          }}
+        >
+          {selecionados.length}
+        </span>
+        {!semSelecao && (
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="ml-auto rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={{ fontSize: 11, fontWeight: 600, color: 'var(--gp-text-3)' }}
+          >
+            Limpar seleção
+          </button>
+        )}
+      </div>
+
+      {/* Campo: chips removíveis + gatilho do painel. O clique em qualquer área
+          vazia do campo abre — alvo grande em vez de só o chevron. */}
       <div
-        className="flex flex-wrap items-center gap-2"
+        onClick={(evento) => {
+          if (evento.target === evento.currentTarget) setAberto((estava) => !estava);
+        }}
+        className="flex flex-wrap items-center gap-1.5 transition-colors"
         style={{
-          border: '1.5px solid var(--gp-text-2)',
+          border: `1.5px solid ${aberto ? 'var(--gp-brand)' : 'var(--gp-border-input)'}`,
           borderRadius: 'var(--gp-radius-sm)',
-          padding: '9px 12px',
+          padding: '7px 8px 7px 10px',
           fontSize: 13,
           color: 'var(--gp-text-1)',
+          background: 'var(--gp-surface-1, transparent)',
+          cursor: 'pointer',
         }}
       >
-        <span>Simulados:</span>
-
         {escolhidos.map((item) => (
           <span
             key={item.id}
             className="inline-flex items-center gap-1.5 whitespace-nowrap leading-none"
             style={{
-              border: '1px solid var(--gp-border-input)',
-              background: 'var(--gp-surface-3)',
+              border: '1px solid var(--gp-brand)',
+              background: 'var(--gp-brand-surface)',
+              color: 'var(--gp-text-1)',
               borderRadius: 'var(--gp-radius-pill)',
-              padding: '3px 6px 3px 10px',
+              padding: '4px 5px 4px 10px',
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -127,7 +308,7 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
               type="button"
               onClick={() => alternar(item.id)}
               aria-label={`Remover ${item.nome} do recorte`}
-              className="inline-flex items-center rounded-full text-[color:var(--gp-text-3)] hover:text-[color:var(--gp-text-1)]"
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[color:var(--gp-text-3)] transition-colors hover:bg-[var(--gp-surface-3)] hover:text-[color:var(--gp-text-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Icon name="close" size={12} />
             </button>
@@ -142,14 +323,14 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
           // para um id ausente é atributo inválido para a AT (e para o axe).
           aria-controls={aberto ? idPainel : undefined}
           aria-label="Escolher simulados"
-          className="flex flex-1 items-center justify-between gap-2"
+          className="flex flex-1 items-center justify-between gap-2 rounded-sm py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="text-[color:var(--gp-text-3)]">
-            {semSelecao ? 'selecione 1 ou mais' : ''}
+            {semSelecao ? 'Selecione 1 ou mais simulados' : 'Adicionar outro'}
           </span>
           <Icon
             name={aberto ? 'expand_less' : 'expand_more'}
-            size={15}
+            size={16}
             className="text-[color:var(--gp-text-3)]"
           />
         </button>
@@ -160,104 +341,119 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
           id={idPainel}
           role="group"
           aria-label="Simulados do recorte"
-          className="mt-3 overflow-hidden"
+          className="absolute left-3.5 right-3.5 z-30 mt-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]"
           style={{
             border: '1px solid var(--gp-border-strong)',
-            borderRadius: 'var(--gp-radius-sm)',
+            borderRadius: 'var(--gp-radius-md, 10px)',
+            background: 'var(--gp-surface-1, var(--gp-surface-2))',
+            boxShadow: 'var(--gp-shadow-2, 0 12px 32px -12px rgb(0 0 0 / 0.35))',
           }}
         >
-          <p
+          <div
+            className="flex items-center gap-2"
             style={{
-              padding: '9px 12px',
-              fontSize: 11,
-              color: 'var(--gp-text-3)',
+              padding: '8px 10px',
               background: 'var(--gp-surface-2)',
               borderBottom: '1px solid var(--gp-border-strong)',
             }}
           >
-            Simulados do recorte · marque 1 ou mais
-          </p>
-
-          {itens.map((item, indice) => {
-            const motivo = motivoIndisponivel(item);
-            const marcado = selecionados.includes(item.id);
-            const rotulo = rotuloItem(item);
-            return (
-              <label
-                key={item.id}
-                className={cn(
-                  'flex items-center gap-3',
-                  motivo === null ? 'gp-hover-surface cursor-pointer' : 'cursor-not-allowed',
-                )}
-                style={{
-                  padding: '11px 12px',
-                  fontSize: 13,
-                  borderTop: indice === 0 ? undefined : '1px solid var(--gp-border-subtle)',
-                  background: marcado ? 'var(--gp-brand-surface)' : undefined,
-                  opacity: motivo === null ? undefined : 0.6,
-                }}
+            <Icon name="search" size={14} className="text-[color:var(--gp-text-3)]" aria-hidden="true" />
+            <input
+              ref={campoBusca}
+              value={busca}
+              onChange={(evento) => setBusca(evento.target.value)}
+              type="text"
+              aria-label="Buscar simulado por nome"
+              placeholder="Buscar simulado"
+              className="flex-1 bg-transparent outline-none placeholder:text-[color:var(--gp-text-3)]"
+              style={{ fontSize: 13, color: 'var(--gp-text-1)' }}
+            />
+            {podeCompararRecentes && (
+              <button
+                type="button"
+                onClick={() => onChange(doisMaisRecentes)}
+                className="whitespace-nowrap rounded-sm px-2 py-1 transition-colors hover:bg-[var(--gp-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                style={{ fontSize: 11, fontWeight: 700, color: 'var(--gp-brand-on-dark, var(--gp-brand))' }}
               >
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
-                  checked={marcado}
-                  disabled={motivo !== null}
-                  onChange={() => alternar(item.id)}
-                  aria-label={motivo === null ? rotulo : `${rotulo} — ${motivo}`}
-                />
-                <span
-                  aria-hidden="true"
-                  // O input real é `sr-only`: sem isto o foco de teclado ficaria
-                  // invisível, porque o anel nasceria num nó de 1px.
-                  className="flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+                Comparar os 2 mais recentes
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-[52vh] overflow-y-auto">
+            {disponiveisVisiveis.length > 0 && (
+              <>
+                <p
                   style={{
-                    width: 16,
-                    height: 16,
-                    flex: 'none',
-                    borderRadius: RAIO_CHECKBOX,
-                    border: `1.5px ${motivo === null ? 'solid' : 'dashed'} ${
-                      marcado ? 'var(--gp-brand)' : 'var(--gp-border-input)'
-                    }`,
-                    background: marcado ? 'var(--gp-brand)' : 'transparent',
-                    color: 'var(--gp-on-brand)',
+                    padding: '7px 12px',
+                    fontSize: 10,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    fontWeight: 700,
+                    color: 'var(--gp-text-3)',
+                    borderBottom: '1px solid var(--gp-border-subtle)',
                   }}
                 >
-                  {/*
-                    Comportamento 17 (spec de motion, Parte IV §11): a marca
-                    de "check" entra com `scale(0.6 → 1)` + fade, 140ms
-                    (`--gp-motion-2`). O ícone fica SEMPRE montado — uma
-                    transição CSS não roda em elemento que nunca existiu
-                    antes — e a visibilidade vira só `transform`/`opacity`,
-                    nunca a montagem condicional `{marcado && <Icon .../>}`
-                    de antes.
-                  */}
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex"
-                    style={{
-                      transform: marcado ? 'scale(1)' : 'scale(0.6)',
-                      opacity: marcado ? 1 : 0,
-                      transitionProperty: 'transform, opacity',
-                      transitionDuration: 'var(--gp-motion-2)',
-                      transitionTimingFunction: 'var(--gp-ease)',
-                    }}
-                  >
-                    <Icon name="check" size={11} />
-                  </span>
-                </span>
-                <span
+                  Disponíveis · marque 1 ou mais
+                </p>
+                {disponiveisVisiveis.map((item, indice) => linhaItem(item, indice))}
+              </>
+            )}
+
+            {indisponiveisVisiveis.length > 0 && (
+              <>
+                <p
                   style={{
-                    flex: 1,
-                    color: marcado ? 'var(--gp-text-1)' : 'var(--gp-text-2)',
-                    fontWeight: marcado ? 600 : 400,
+                    padding: '7px 12px',
+                    fontSize: 10,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    fontWeight: 700,
+                    color: 'var(--gp-text-3)',
+                    borderTop: '1px solid var(--gp-border-strong)',
+                    borderBottom: '1px solid var(--gp-border-subtle)',
+                    background: 'var(--gp-surface-2)',
                   }}
                 >
-                  {rotulo}
-                </span>
-                {motivo !== null && <Tag variant="qualificador">{motivo}</Tag>}
-              </label>
-            );
-          })}
+                  Ainda sem resultado
+                </p>
+                {indisponiveisVisiveis.map((item, indice) => linhaItem(item, indice))}
+              </>
+            )}
+
+            {nadaEncontrado && (
+              <p style={{ padding: '18px 12px', fontSize: 12, color: 'var(--gp-text-3)' }}>
+                Nenhum simulado com esse nome no cronograma desta instituição.
+              </p>
+            )}
+          </div>
+
+          <div
+            className="flex items-center justify-between gap-2"
+            style={{
+              padding: '8px 10px',
+              borderTop: '1px solid var(--gp-border-strong)',
+              background: 'var(--gp-surface-2)',
+            }}
+          >
+            <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+              {selecionados.length} selecionado{selecionados.length === 1 ? '' : 's'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setAberto(false)}
+              className="rounded-sm px-2.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                background: 'var(--gp-brand)',
+                color: 'var(--gp-on-brand)',
+                borderRadius: 'var(--gp-radius-sm)',
+              }}
+            >
+              Concluir
+            </button>
+          </div>
         </div>
       )}
 
@@ -270,11 +466,8 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
       </p>
 
       {semSelecao && (
-        // Task: contraste AA de "Escolha ao menos um simulado" (texto real, text-sm — mínimo
-        // 4,5:1; o ícone é aria-hidden e redundante com este texto, só herda a cor por
-        // currentColor). text-destructive contra o bg-card deste <div> dava 3,78:1 no claro e
-        // 3,48:1 no escuro (reprova AA) — mesmo achado do KpiCard. gp-text-danger
-        // (--gp-danger-on) dá 11,09:1 no claro e 7,15:1 no escuro. Ver contrasteDestructive.test.tsx.
+        // Contraste AA: `text-destructive` reprovava sobre o bg-card (3,78:1 no
+        // claro). `gp-text-danger` (--gp-danger-on) dá 11,09:1 / 7,15:1.
         <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm gp-text-danger">
           {/* `error_outline`, não `info`: a gramática do handoff §3 reserva
               `info-outlined` para informação — erro nunca sai de informativo. */}
