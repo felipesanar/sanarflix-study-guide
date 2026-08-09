@@ -245,8 +245,9 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                 fontWeight: 600,
                 borderRadius: 'var(--gp-radius-md)',
                 color: 'var(--gp-brand-on-dark)',
-                background: 'var(--gp-brand-surface)',
-                border: '1px solid var(--gp-brand-border)',
+                background: 'transparent',
+                border: '1px solid var(--gp-border)',
+
               }}
             >
               {aberto ? 'Ocultar comparativo completo' : 'Ver comparativo completo · questões e alunos'}
