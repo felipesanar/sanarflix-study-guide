@@ -7,7 +7,7 @@ import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
 import { BlocoGestor, type EstadoBloco } from '../components/BlocoGestor';
 import { ComparativoSimulados } from '../components/ComparativoSimulados';
-import { ContainerRota } from '../components/CabecalhoTela';
+import { CabecalhoTela, ContainerRota } from '../components/CabecalhoTela';
 import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
 
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
@@ -349,14 +349,15 @@ export default function Detalhamento() {
 
   return (
     <ContainerRota data-testid="gestor-detalhamento" aria-busy={emTransicao}>
-      {/* SEM cabeçalho de tela (pedido de 09/08): nem título, nem linha de
-          apoio, nem chips de recorte (Instituição/Simulados). A sidebar já diz
-          em que tela a pessoa está, e a instituição ativa já vive no cartão da
-          própria sidebar — repetir isso aqui só empurrava o dado para baixo.
-          O que sobra é a BARRA DE CONTROLES: filtro de semestre, cronograma e
-          o seletor de simulados, que é o controle primário desta tela. */}
+      {/* Cabeçalho de página (não sticky, sem chips de recorte): título, uma
+          linha de apoio e os controles da tela — filtro de semestre e
+          cronograma — à direita. */}
       <div data-testid="bloco-filtros" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <CabecalhoTela
+          testId="cabecalho-detalhamento"
+          titulo="Detalhamento de simulados"
+          apoio="Escolha um ou mais simulados para ver o desempenho questão por questão."
+          acoes={<>
           {/* `acertoPorAreaESemestre.semestres` já é a lista de semestres
               que produziram acerto no recorte — não oferecer os outros. */}
           <FiltroSemestre semestresDisponiveis={semestresComResultado} />
@@ -403,7 +404,8 @@ export default function Detalhamento() {
               </div>
             </SheetContent>
           </Sheet>
-        </div>
+          </>}
+        />
 
         <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />

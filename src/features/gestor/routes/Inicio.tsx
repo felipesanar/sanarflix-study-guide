@@ -2,6 +2,7 @@ import * as React from 'react';
 import { AvisosSanar } from '@/features/gestor/components/AvisosSanar';
 import { BlocoErrorBoundary } from '@/features/gestor/components/BlocoErrorBoundary';
 import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
+import { SaudacaoGestor } from '@/features/gestor/components/SaudacaoGestor';
 
 import { CronogramaSimulados } from '@/features/gestor/components/CronogramaSimulados';
 import { DirecionadoresGestor } from '@/features/gestor/components/DirecionadoresGestor';
@@ -74,9 +75,11 @@ export default function Inicio() {
   return (
     <ContainerRota data-testid="gestor-inicio">
 
-      {/* SEM saudação/cabeçalho (pedido de 09/08): o Início abre direto nos
-          direcionadores. A instituição em foco continua dita pelo cartão da
-          sidebar, que está sempre em tela. */}
+      {/* Saudação de volta (pedido de 09/08): cabeçalho da página, no fluxo do
+          scroll e sem chips de recorte. */}
+      <div className={classeRevelacao(0)}>
+        <SaudacaoGestor iesId={iesAtivaId} />
+      </div>
 
 
       {/* Overline do bloco de direcionadores — a referência nunca solta a grade

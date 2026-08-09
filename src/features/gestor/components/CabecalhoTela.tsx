@@ -43,97 +43,32 @@ export function ContainerRota({
   );
 }
 
-/**
- * Chip de leitura do recorte: rótulo em caixa alta + valor. Não é controle —
- * quem troca o corte continua sendo o seletor de IES (sidebar), o
- * `FiltroSemestre` e o `SeletorSimulados`, cada um no seu lugar. O chip
- * responde "que corte é este?", que é uma pergunta de leitura.
- */
-export function ChipRecorte({
-  rotulo,
-  valor,
-  testId,
-}: {
-  rotulo: string;
-  valor: string;
-  testId?: string;
-}) {
-  return (
-    <span
-      data-testid={testId}
-      className="inline-flex max-w-full items-center gap-1.5 truncate border"
-      style={{
-        padding: '3px var(--gp-space-2)',
-        borderRadius: 'var(--gp-radius-pill)',
-        borderColor: 'var(--gp-border-subtle)',
-        background: 'var(--gp-surface-2)',
-        fontSize: 'var(--gp-font-size-apoio)',
-        color: 'var(--gp-text-1)',
-      }}
-    >
-      <span
-        className="uppercase"
-        style={{
-          fontSize: 'var(--gp-font-size-micro)',
-          fontWeight: 'var(--gp-font-weight-medio)' as unknown as number,
-          letterSpacing: 'var(--gp-font-tracking-micro)',
-          color: 'var(--gp-text-3)',
-        }}
-      >
-        {rotulo}
-      </span>
-      <span className="truncate">{valor}</span>
-    </span>
-  );
-}
-
 export interface CabecalhoTelaProps {
   titulo: string;
   /** Uma linha de apoio, no tom do portal: o que a tela responde. */
   apoio?: string;
   /** Controles da tela (filtro de semestre, glossário, cronograma). */
   acoes?: React.ReactNode;
-  /** Chips de leitura do recorte — normalmente `ChipRecorte`. */
-  contexto?: React.ReactNode;
-  /** Conteúdo abaixo da barra, ainda dentro da faixa sticky (ex.: seletor primário). */
+  /** Conteúdo abaixo do título (ex.: seletor primário). */
   children?: React.ReactNode;
   testId?: string;
 }
 
 /**
- * Faixa de cabeçalho. As margens negativas cancelam o padding do
- * `ContainerRota` para a faixa pintar de ponta a ponta enquanto o conteúdo
- * passa por baixo — sem elas o fundo sticky ficaria com 32px transparentes
- * de cada lado e o conteúdo apareceria por trás nas beiradas.
+ * Cabeçalho de tela: título, uma linha de apoio e um slot de ações à direita.
  *
- * `backgroundColor` sólido (`--gp-bg-app`), não semi-transparente: o fundo da
- * área de conteúdo é um gradiente (`--gp-bg-app-gradient`), e qualquer alfa
- * aqui deixaria o texto rolando visível por baixo do título.
+ * Não é sticky (pedido de 09/08): ele faz parte da página e sai de cena com o
+ * scroll, como qualquer outro bloco. Também não carrega chips de recorte —
+ * instituição e simulados continuam ditos onde são controle (cartão da
+ * sidebar, filtro de semestre, seletor de simulados).
  */
-export function CabecalhoTela({
-  titulo,
-  apoio,
-  acoes,
-  contexto,
-  children,
-  testId,
-}: CabecalhoTelaProps) {
+export function CabecalhoTela({ titulo, apoio, acoes, children, testId }: CabecalhoTelaProps) {
   return (
-    <div
-      data-testid={testId}
-      /* As margens negativas precisam bater com o padding do `ContainerRota`
-         em CADA degrau (20/24/32px) — se destoarem, a faixa sticky deixa de
-         cobrir a largura toda e o conteúdo rola visível pelas beiradas. */
-      className="sticky top-0 z-20 -mx-5 -mt-5 px-5 pb-3 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-5 lg:-mx-8 lg:-mt-8 lg:px-8 lg:pt-6"
-
-      style={{
-        backgroundColor: 'var(--gp-bg-app)',
-        borderBottom: '1px solid var(--gp-border-subtle)',
-      }}
-    >
+    <div data-testid={testId} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start gap-4">
         <div className="min-w-0">
           <h1
+            className="text-foreground"
             style={{
               fontSize: 'var(--gp-font-size-display)',
               fontWeight: 'var(--gp-font-weight-forte)' as unknown as number,
@@ -144,7 +79,7 @@ export function CabecalhoTela({
           </h1>
           {apoio ? (
             <p
-              className="mt-0.5 text-muted-foreground"
+              className="mt-1 text-muted-foreground"
               style={{ fontSize: 'var(--gp-font-size-apoio)' }}
             >
               {apoio}
@@ -153,21 +88,7 @@ export function CabecalhoTela({
         </div>
         {acoes ? <div className="ml-auto flex flex-wrap items-center gap-2.5">{acoes}</div> : null}
       </div>
-
-      {contexto ? (
-        <div
-          data-testid="barra-contexto"
-          className="mt-2.5 flex flex-wrap items-center gap-1.5"
-          /* Leitura, não navegação: o leitor de tela anuncia como grupo com
-             nome, para o corte não virar uma sequência de chips soltos. */
-          role="group"
-          aria-label="Recorte em exibição"
-        >
-          {contexto}
-        </div>
-      ) : null}
-
-      {children ? <div className="mt-3">{children}</div> : null}
+      {children}
     </div>
   );
 }
