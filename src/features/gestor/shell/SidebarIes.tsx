@@ -125,7 +125,7 @@ export const SidebarIes: React.FC = () => {
       setIesId(id);
       setSimulados([]);
       setAberto(false);
-      setBusca('');
+
       setAnuncio(`Instituição alterada para ${nome}`);
       if (usuarioId) setRecentes(registrarRecente(usuarioId, id));
       // Estado ocupado curto: o painel fecha na hora e o cartão assume o nome
