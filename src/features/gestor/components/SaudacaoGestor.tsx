@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { motion } from 'framer-motion';
+
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { useGestorContexto } from '@/features/gestor/api/queries';
@@ -66,6 +68,8 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
     contexto.iesDisponiveis.find((ies) => ies.id === iesFocoId)?.nome ?? contexto.iesAtual.nome;
 
   const agora = new Date();
+  const ehDia = agora.getHours() >= 6 && agora.getHours() < 18;
+
 
   return (
     <header data-testid="saudacao" className="relative">
@@ -87,18 +91,32 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
           {dataLonga(agora)}
         </p>
 
-        {/* Título de tela da referência: 26px/700, tracking -0.01em, 32px de
-            linha. O nome sai em cor de marca — é a única palavra da tela que
-            fala com a pessoa, e não com a instituição. */}
+        {/* Título de tela ampliado, com o astro do momento em movimento leve. */}
         <h1
-          className="mt-1.5 text-foreground"
-          style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: '32px' }}
+          className="mt-2 flex items-center gap-2.5 text-foreground"
+          style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: '42px' }}
         >
-          {`${saudacaoPorHora(agora)}, `}
-          <span style={{ color: 'var(--gp-brand-on-dark)' }}>
-            {primeiroNome(contexto.usuario.nome)}
+          <motion.span
+            aria-hidden
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{ color: 'var(--gp-brand-on-dark)' }}
+            animate={
+              ehDia
+                ? { rotate: [0, 8, 0, -8, 0], scale: [1, 1.06, 1, 1.06, 1] }
+                : { y: [0, -3, 0], rotate: [-6, 4, -6] }
+            }
+            transition={{ duration: ehDia ? 8 : 6, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Icon name={ehDia ? 'light-mode' : 'dark-mode'} size={30} />
+          </motion.span>
+          <span>
+            {`${saudacaoPorHora(agora)}, `}
+            <span style={{ color: 'var(--gp-brand-on-dark)' }}>
+              {primeiroNome(contexto.usuario.nome)}
+            </span>
           </span>
         </h1>
+
 
         {/* Subtítulo de ORIENTAÇÃO (spec §2.1), em uma linha curta: diz apenas
             onde a pessoa está. Nome da IES, vigência e nº de simulados
