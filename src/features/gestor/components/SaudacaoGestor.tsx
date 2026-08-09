@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { motion } from 'framer-motion';
+
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { useGestorContexto } from '@/features/gestor/api/queries';
