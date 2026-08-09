@@ -123,83 +123,20 @@ export interface CascataDiagnosticoProps {
  * nunca escrito na mão) e aponta por onde começar: as áreas medianas, da
  * pior para a melhor.
  */
-/**
- * Quantas áreas medianas a sugestão lista. "Comece pela pior" é um conselho
- * de PRIMEIRO passo — as sete de uma vez não são um começo, são a lista
- * inteira de novo, e eram elas que faziam o card crítico ficar três vezes
- * mais alto que os irmãos (e, no grid, esticar os três juntos). O restante
- * continua alcançável na cascata, que é onde a lista completa vive.
- */
-const SUGESTOES_MEDIANAS = 3;
 
 function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
-  const piorParaMelhor = [...mediano].sort((a, b) => a.acertoPct - b.acertoPct);
-  const primeiras = piorParaMelhor.slice(0, SUGESTOES_MEDIANAS);
-  const restantes = piorParaMelhor.length - primeiras.length;
+  void mediano;
 
   return (
     <div data-testid="diagnostico-critico-vazio" className="space-y-2">
       <EstadoVazio
         compacto
         titulo={`Nenhuma área abaixo de ${NIVEL_CRITICO_MAX}% de acerto neste recorte`}
-        descricao={
-          piorParaMelhor.length > 0
-            ? 'Comece pelas áreas medianas a seguir, da pior para a melhor.'
-            : undefined
-        }
       />
-      {primeiras.length > 0 ? (
-        <ol data-testid="sugestao-mediano" className="space-y-2">
-          {primeiras.map((area, indice) => (
-            <li key={area.id} className="space-y-1">
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  {/* Ordem de ataque explícita: 1º, 2º, 3º. */}
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex shrink-0 items-center justify-center tabular-nums"
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: 5,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      background: 'var(--gp-warning-surface)',
-                      color: 'var(--gp-warning-on)',
-                    }}
-                  >
-                    {indice + 1}
-                  </span>
-                  <span className="min-w-0 break-words text-foreground">{area.nome}</span>
-                </span>
-                <span className="shrink-0 tabular-nums font-semibold text-foreground">
-                  {formatPct(area.acertoPct)}
-                </span>
-              </div>
-              {/* Barra da própria % de acerto — a distância até a meta fica
-                  visível, não só numérica. */}
-              <span aria-hidden="true" className="block h-1 overflow-hidden rounded-full bg-muted">
-                <span
-                  className="block h-full rounded-full"
-                  style={{
-                    width: `${Math.max(0, Math.min(100, area.acertoPct))}%`,
-                    background: 'var(--gp-warning)',
-                  }}
-                />
-              </span>
-            </li>
-          ))}
-          {restantes > 0 ? (
-            <li data-testid="sugestao-mediano-restantes" className="text-xs text-muted-foreground">
-              {`+ ${restantes} ${restantes === 1 ? 'outra área mediana' : 'outras áreas medianas'}`}
-            </li>
-          ) : null}
-        </ol>
-      ) : null}
-
     </div>
   );
 }
+
 
 /** Linha de um nó da cascata (grande área ou especialidade). */
 function LinhaNo({
