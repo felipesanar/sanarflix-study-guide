@@ -404,9 +404,11 @@ export default function Detalhamento() {
           </div>
         </div>
 
-        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
-
+        {/* O seletor é o controle primário desta tela — vem antes do resumo do
+            recorte, que é leitura sobre a escolha já feita. */}
         <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
+
+        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
       </div>
 
       {emTransicao ? (
