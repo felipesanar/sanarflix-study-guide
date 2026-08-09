@@ -439,7 +439,7 @@ describe('rota VisaoGeral', () => {
     expect(useDiagnosticoTemas).toHaveBeenCalledWith(expect.anything(), 'esp-cardio', 'Clínica Médica');
   });
 
-  it('clicar em "Exportar recorte" no DrawerTemas produz um efeito observável — nunca um clique engolido em silêncio (achados 1 e 3)', async () => {
+  it('clicar em "Exportar recorte" no DrawerTemas gera um arquivo CSV de verdade e confirma (achados 1 e 3 · auditoria 09/08 B4)', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     vi.mocked(useDiagnostico).mockImplementation(((_filtros: unknown, node: string | null) =>
       ({
@@ -480,16 +480,29 @@ describe('rota VisaoGeral', () => {
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
     await user.click(screen.getByRole('button', { name: /Cardiologia/ }));
 
-    // Antes da correção este botão chamava `() => undefined`: nenhum
-    // download, toast, erro ou estado de carregamento — clique engolido em
-    // silêncio, ao lado de "Copiar resumo", que funciona de verdade.
-    await user.click(screen.getByRole('button', { name: 'Exportar recorte' }));
+    // Antes este clique era um no-op (`() => undefined`) e depois um toast de
+    // "ainda não disponível". Agora tem de produzir DUAS provas: o download do
+    // arquivo (espionado em `URL.createObjectURL`) e a confirmação na tela.
+    const criarUrl = vi.fn(() => 'blob:csv');
+    const revogarUrl = vi.fn();
+    const urlOriginal = { criar: URL.createObjectURL, revogar: URL.revokeObjectURL };
+    URL.createObjectURL = criarUrl as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = revogarUrl as unknown as typeof URL.revokeObjectURL;
 
+    try {
+      await user.click(screen.getByRole('button', { name: 'Exportar recorte' }));
+    } finally {
+      URL.createObjectURL = urlOriginal.criar;
+      URL.revokeObjectURL = urlOriginal.revogar;
+    }
+
+    expect(criarUrl).toHaveBeenCalledTimes(1);
     expect(mockToast).toHaveBeenCalledTimes(1);
     expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({ description: expect.stringContaining('não está disponível') }),
+      expect.objectContaining({ description: expect.stringContaining('CSV') }),
     );
   });
+
 
   it('sem ?ies na URL e com o contexto do gestor ainda carregando, mostra loading — nunca afirma "sem dados" antes de perguntar (achados 2 e 4)', () => {
     mockUseFiltrosGestor.mockReturnValue(filtrosFake({ iesId: null }));

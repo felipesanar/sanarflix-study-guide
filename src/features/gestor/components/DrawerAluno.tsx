@@ -11,7 +11,9 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { FONTE_MONO, TagSituacao } from '@/features/gestor/components/tabela';
 import { useAluno, useAlunoContato, useAlunoDesempenhoPorArea } from '@/features/gestor/api/queries';
+import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
+
 import {
   TRACO,
   formatData,
@@ -26,6 +28,28 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AlunoSimuladoEntry } from '@/features/gestor/api/types';
 import type { AreaDesempenhoAluno, DesempenhoPorAreaSimulado } from '@/features/gestor/api/types-aluno-area';
 
+/**
+ * Colunas do CSV do recorte do aluno: uma linha por SIMULADO, a mesma série
+ * cronológica que a tela desenha. Célula vazia onde a tela mostra `—` (nota
+ * ainda não processada) — nunca zero, que afirmaria um desempenho que ninguém
+ * mediu.
+ *
+ * Decimal com vírgula e sem sufixo de unidade: com "%" ou ponto decimal o
+ * Excel em pt-BR importa a coluna como texto e nenhuma média funciona depois.
+ */
+const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
+  { cabecalho: 'Simulado', valor: (entrada) => entrada.simuladoNome },
+  { cabecalho: 'Data', valor: (entrada) => formatData(entrada.simuladoData) },
+  { cabecalho: 'Participou', valor: (entrada) => (entrada.participou ? 'sim' : 'não') },
+  {
+    cabecalho: 'Proficiência',
+    valor: (entrada) => (entrada.proficiencia === null ? '' : String(entrada.proficiencia).replace('.', ',')),
+  },
+  { cabecalho: 'Acertos', valor: (entrada) => (entrada.acertos === null ? '' : entrada.acertos) },
+  { cabecalho: 'Situação', valor: (entrada) => rotuloSituacao(entrada.situacao) },
+];
+
+
 export interface DrawerAlunoProps {
   alunoId: string | null;
   nome: string;
@@ -33,13 +57,13 @@ export interface DrawerAlunoProps {
   simulados: string[];
   onFechar: () => void;
   /**
-   * Exportação do recorte do aluno. Opcional: as duas telas que montam este
-   * drawer (Visão Geral e Detalhamento) ainda não têm export de verdade — o
-   * §7.7 exige auditoria de quem/quando/escopo/formato, que nenhuma task
-   * implementou. Sem o callback, o clique avisa que a exportação não está
-   * disponível, como já faz o `DrawerTemas`; o que nunca acontece é o clique
-   * ser engolido em silêncio.
+   * Exportação do recorte do aluno. Opcional e, desde a auditoria de 09/08,
+   * apenas um OVERRIDE: sem callback o próprio drawer gera o CSV local (uma
+   * linha por simulado, os mesmos números da tela) e confirma por toast.
+   * Passe `onExportar` quando a tela quiser tratar o clique (telemetria
+   * própria, escopo diferente, export no servidor com a auditoria do §7.7).
    */
+
   onExportar?: (escopo: string) => void;
 }
 
@@ -1004,13 +1028,30 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
 
   const linkWhatsApp = linkWhatsAppAluno(contato.data?.telefone, resumoTexto);
 
+  /**
+   * Export do recorte DESTE aluno: uma linha por simulado, o mesmo agregado
+   * cronológico que a tela mostra (nunca resposta a resposta, nunca outro
+   * aluno). Quem monta é este drawer, que é onde o dado está; `AcoesRecorte`
+   * segue sem receber lista (§7.7) e o gate de `podeExportar` continua sendo
+   * dele.
+   *
+   * `onExportar` continua tendo prioridade quando quem compõe a tela quer
+   * tratar o clique (telemetria própria, escopo diferente) — o arquivo local é
+   * o padrão, não uma imposição.
+   */
   const exportar = () => {
     if (onExportar) {
       onExportar(`aluno:${alunoId}`);
       return;
     }
-    toast({ description: 'Exportação ainda não está disponível.' });
+    const gerou = baixarCsv(nomeArquivoCsv(['aluno', nomeExibido]), COLUNAS_ALUNO, cronologicas);
+    toast(
+      gerou
+        ? { description: 'Arquivo CSV gerado com o recorte deste aluno.' }
+        : { description: 'Não foi possível gerar o arquivo neste navegador.' },
+    );
   };
+
 
   return (
     <Sheet

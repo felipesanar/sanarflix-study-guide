@@ -366,27 +366,27 @@ export default function VisaoGeral() {
   );
 
   /**
-   * Rodapé de ações do `DrawerTemas` (Task 46): a exportação de verdade
-   * ainda não existe no produto — spec §7.7 pede export com auditoria de
-   * quem/quando/escopo/formato, e nenhuma task implementa isso. O achado 1/3
-   * da revisão de 04/08 apontou o clique como um no-op silencioso
-   * (`() => undefined`): nenhum download, toast ou erro, ao lado de "Copiar
-   * resumo", que funciona. Enquanto o export real não entra nesta fase,
-   * avisamos — nunca engolimos o clique em silêncio.
+   * Rodapé de ações do `DrawerTemas` (Task 46 / auditoria de 09/08, B4).
    *
-   * `gestor_export_solicitado` (spec §10, "valor percebido") dispara ANTES do
-   * toast — a §10 pede o clique em si, não o resultado (que hoje nem existe).
-   * `escopo` é sempre `'visao_geral'`: é a única tela com export hoje (via
-   * `DrawerTemas`/`AcoesRecorte`); o parâmetro recebido aqui identifica a
-   * especialidade, não o escopo da telemetria (que é por TELA, spec §10).
+   * O ARQUIVO é gerado pelo próprio `DrawerTemas`, que é quem tem os temas do
+   * recorte em mão (`lib/exportarCsv.ts`); esta função roda DEPOIS e responde
+   * pela TELA: telemetria e confirmação. Antes, era um toast de "ainda não
+   * disponível" — o achado 1/3 da revisão de 04/08 tinha tirado o clique do
+   * silêncio, mas o ciclo continuava aberto: o gestor não terminava a tarefa
+   * dentro do produto.
+   *
+   * `gestor_export_solicitado` (spec §10, "valor percebido") continua com
+   * `escopo: 'visao_geral'` — a §10 mede por TELA; o parâmetro recebido aqui
+   * identifica a especialidade, não o escopo da telemetria.
    */
   const aoExportarRecorte = React.useCallback(
     (_escopo: string) => {
       exportSolicitado('visao_geral');
-      toast({ description: 'Exportação ainda não está disponível.' });
+      toast({ description: 'Arquivo CSV gerado com os temas deste recorte.' });
     },
     [toast, exportSolicitado],
   );
+
 
   return (
     <ContainerRota className="pb-12" data-testid="gestor-visao-geral" aria-busy={emTransicao}>

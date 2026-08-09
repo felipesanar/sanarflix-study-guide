@@ -8,7 +8,9 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { TagCoberturaParcial } from '@/features/gestor/components/Tag';
 import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
+import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
 import { formatPct } from '@/features/gestor/lib/formatters';
+
 import { nivelDesempenho } from '@/features/gestor/lib/regras';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
@@ -46,6 +48,25 @@ export interface DrawerTemasProps {
   onFechar: () => void;
   onExportarRecorte: (escopo: string) => void;
 }
+
+/**
+ * Colunas do CSV de temas. Espelho fiel do que a lista mostra — mesma ordem,
+ * mesmos rótulos, mesmo número — mais as duas ressalvas que a tela dá por
+ * cor/legenda e que um arquivo perderia: `amostra` (alunos) separada de
+ * `respostas`, e a marca de amostra pequena.
+ *
+ * `acertoPct` sai como número cru com vírgula decimal, não `formatPct`: o "%"
+ * no valor faria o Excel tratar a coluna como texto e impediria qualquer
+ * cálculo. A unidade fica no CABEÇALHO, onde não contamina a célula.
+ */
+const COLUNAS_TEMAS: ReadonlyArray<ColunaCsv<TemaCritico>> = [
+  { cabecalho: 'Tema', valor: (tema) => tema.nome },
+  { cabecalho: 'Acerto (%)', valor: (tema) => String(tema.acertoPct).replace('.', ',') },
+  { cabecalho: 'Alunos', valor: (tema) => tema.amostra },
+  { cabecalho: 'Respostas', valor: (tema) => tema.respostas },
+  { cabecalho: 'Amostra pequena', valor: (tema) => (tema.lowSample ? 'sim' : 'não') },
+];
+
 
 /**
  * Cor de preenchimento da barra do tema. A cor é REFORÇO do número já
@@ -283,8 +304,23 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
           <AcoesRecorte
             escopo={especialidade.nome}
             resumoTexto={resumoTexto}
-            onExportar={() => onExportarRecorte(`especialidade:${especialidade.id}`)}
+            /*
+              O ARQUIVO é montado aqui, onde o dado do recorte já está, e não em
+              `AcoesRecorte` (que segue sem receber lista nenhuma, §7.7) nem na
+              rota (que não conhece os temas). `onExportarRecorte` continua
+              sendo chamado depois: é a telemetria e o toast de confirmação da
+              tela, agora sobre um arquivo que existe de verdade.
+            */
+            onExportar={() => {
+              baixarCsv(
+                nomeArquivoCsv(['temas', especialidade.grandeArea, especialidade.nome]),
+                COLUNAS_TEMAS,
+                temas,
+              );
+              onExportarRecorte(`especialidade:${especialidade.id}`);
+            }}
           />
+
         </div>
 
         {/* Proveniência do recorte — vem do `meta` do envelope (mesma fonte do
