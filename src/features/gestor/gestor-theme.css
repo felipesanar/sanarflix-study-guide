@@ -136,6 +136,50 @@
   --gp-font-sans: 'Inter', system-ui, sans-serif;
   --gp-font-mono: 'Roboto Mono', ui-monospace, monospace;
 
+  /* Escala tipográfica nomeada (auditoria de 09/08, item B1).
+     Antes desta escala o mesmo papel visual aparecia como três coisas
+     diferentes no código — `style={{fontSize:16,fontWeight:700}}`,
+     `style={{fontSize:15}}` e `text-base font-semibold` —, e cada tela
+     driftava sozinha. Sete degraus, e só eles:
+
+       display  20/700  título de TELA (h1)
+       h2       16/700  título de bloco/card
+       h3       13/600  título de sub-bloco dentro de um card
+       body     13/400  texto corrido
+       apoio    12/400  legenda, descrição, célula de tabela
+       label    11/600  overline e rótulo em caixa alta (letter-spacing 0.1em)
+       micro    10/600  cabeçalho de tabela (letter-spacing 0.04em)
+
+     Prefixo `--gp-font-*` de propósito: tamanho e peso não são função do
+     tema (o guard de `tema.test.tsx` isenta `radius|motion|ease|font|space`
+     de exigir par escuro justamente porque duplicá-los criaria duas fontes
+     de verdade para o mesmo valor). */
+  --gp-font-size-display: 20px;
+  --gp-font-size-h2: 16px;
+  --gp-font-size-h3: 13px;
+  --gp-font-size-body: 13px;
+  --gp-font-size-apoio: 12px;
+  --gp-font-size-label: 11px;
+  --gp-font-size-micro: 10px;
+  --gp-font-weight-forte: 700;
+  --gp-font-weight-medio: 600;
+  --gp-font-weight-normal: 400;
+  --gp-font-tracking-display: -0.01em;
+  --gp-font-tracking-label: 0.1em;
+  --gp-font-tracking-micro: 0.04em;
+
+  /* Escala de espaçamento — múltiplos de 4, um nome por degrau. Mesma razão
+     da escala tipográfica: o portal media padding em número cru (8, 12, 14,
+     16, 18, 20, 22...) e cada bloco escolhia o seu. */
+  --gp-space-1: 4px;
+  --gp-space-2: 8px;
+  --gp-space-3: 12px;
+  --gp-space-4: 16px;
+  --gp-space-5: 20px;
+  --gp-space-6: 24px;
+  --gp-space-8: 32px;
+
+
   /* Superfície de marca mais suave — linha selecionada e card em foco.
      Faltava, e o estado "selecionado" das tabelas (§6: fundo brand-surface-soft
      + barra de 3px) não tinha token de origem. */

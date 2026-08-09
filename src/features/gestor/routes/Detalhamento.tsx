@@ -7,7 +7,9 @@ import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
 import { BlocoGestor, type EstadoBloco } from '../components/BlocoGestor';
 import { ComparativoSimulados } from '../components/ComparativoSimulados';
+import { CabecalhoTela, ChipRecorte, ContainerRota } from '../components/CabecalhoTela';
 import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
+
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
 import { DrawerAluno } from '../components/DrawerAluno';
 import { DrawerTemasDetalhamento } from '../components/DrawerTemasDetalhamento';
@@ -346,19 +348,13 @@ export default function Detalhamento() {
   const alunoSelecionado = dados?.alunos?.find((a) => a.id === alunoSelecionadoId) ?? null;
 
   return (
-    <div className="space-y-6 p-8" data-testid="gestor-detalhamento" aria-busy={emTransicao}>
-      <div data-testid="bloco-filtros" className="space-y-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>
-              Detalhamento por simulados
-            </h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Camada investigativa · métricas por simulado específico
-            </p>
-          </div>
-
-          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+    <ContainerRota data-testid="gestor-detalhamento" aria-busy={emTransicao}>
+      <CabecalhoTela
+        testId="bloco-filtros"
+        titulo="Detalhamento por simulados"
+        apoio="Camada investigativa · métricas por simulado específico"
+        acoes={
+          <>
             {/* `acertoPorAreaESemestre.semestres` já é a lista de semestres
                 que produziram acerto no recorte — não oferecer os outros. */}
             <FiltroSemestre semestresDisponiveis={semestresComResultado} />
@@ -370,7 +366,11 @@ export default function Detalhamento() {
                 <button
                   type="button"
                   className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm underline-offset-4 hover:underline focus-visible:outline-none"
-                  style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+                  style={{
+                    fontSize: 'var(--gp-font-size-apoio)',
+                    fontWeight: 'var(--gp-font-weight-medio)' as unknown as number,
+                    color: 'var(--gp-brand-on-dark)',
+                  }}
                 >
                   Ver cronograma
                   <Icon name="chevron_right" size={14} />
@@ -401,15 +401,35 @@ export default function Detalhamento() {
                 </div>
               </SheetContent>
             </Sheet>
-          </div>
-        </div>
-
+          </>
+        }
+        /* Instituição e quantidade de simulados no corte. O semestre fica com o
+           `ContextoDoRecorte` abaixo, que já o diz junto do período do dado. */
+        contexto={
+          <>
+            {iesNomeAtiva ? <ChipRecorte testId="chip-ies" rotulo="Instituição" valor={iesNomeAtiva} /> : null}
+            <ChipRecorte
+              testId="chip-simulados"
+              rotulo="Simulados"
+              valor={
+                simuladosNoRecorte.length === 0
+                  ? 'nenhum selecionado'
+                  : simuladosNoRecorte.length === 1
+                    ? '1 selecionado'
+                    : `${simuladosNoRecorte.length} selecionados`
+              }
+            />
+          </>
+        }
+      >
         {/* O seletor é o controle primário desta tela — vem antes do resumo do
             recorte, que é leitura sobre a escolha já feita. */}
-        <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
+        <div className="space-y-3">
+          <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
+          <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
+        </div>
+      </CabecalhoTela>
 
-        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
-      </div>
 
       {emTransicao ? (
         <p
@@ -647,6 +667,7 @@ export default function Detalhamento() {
           />
         </>
       )}
-    </div>
+    </ContainerRota>
+
   );
 }

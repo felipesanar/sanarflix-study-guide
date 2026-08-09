@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
@@ -78,12 +78,18 @@ function CardInsightIA() {
         </div>
 
         {estado === 'loading' ? (
+          /* `GestorSkeleton`, não o `Skeleton` do shadcn: este era o ÚNICO
+             lugar do portal que carregava com o pulso de opacidade do
+             primitivo compartilhado, em vez do shimmer calibrado nos dois
+             temas (`--gp-skeleton`/`--gp-skeleton-brilho`) que todo o resto
+             usa — dois sistemas de carregamento na mesma tela. */
           <div className="space-y-2" role="status" aria-live="polite" aria-busy="true">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-4/5" />
-            <Skeleton className="h-3 w-3/5" />
+            <GestorSkeleton altura={12} rotulo="Gerando insight por IA" />
+            <GestorSkeleton altura={12} rotulo="Gerando insight por IA" className="w-4/5" />
+            <GestorSkeleton altura={12} rotulo="Gerando insight por IA" className="w-3/5" />
             <span className="sr-only">Gerando insight por IA…</span>
           </div>
+
         ) : estado === 'sucesso' ? (
           <>
             <p style={{ fontSize: 13, lineHeight: '20px' }}>{texto}</p>
