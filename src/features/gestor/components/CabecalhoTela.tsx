@@ -31,7 +31,12 @@ export function ContainerRota({
   ...rest
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('space-y-6 p-8', className)} {...rest}>
+    {/* Padding responsivo (auditoria de 09/08, B7): 32px é a moldura da
+        referência em desktop, mas em telefone ela come 64px dos ~390px de
+        largura — abaixo de `lg` a moldura cai para 20/24px. O cabeçalho
+        sticky compensa com os mesmos degraus (ver CabecalhoTela). */}
+    <div className={cn('space-y-6 p-5 sm:p-6 lg:p-8', className)} {...rest}>
+
       {children}
     </div>
   );
