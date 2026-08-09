@@ -35,6 +35,21 @@ const META_VAZIA: Meta = {
 };
 
 /**
+ * Reveal em cascata na MONTAGEM da rota (spec de motion §16) — mesma
+ * implementação de `VisaoGeral.tsx` (ver o comentário lá para o raciocínio
+ * completo de CSS puro vs. Framer Motion e de `prefers-reduced-motion`).
+ * Duplicada aqui em vez de extraída para um módulo compartilhado: o escopo
+ * desta rodada é só estes 3 arquivos de rota, sem tocar em nada mais.
+ */
+function classeRevelacao(indice: number): string {
+  const BASE =
+    'animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-backwards [animation-duration:320ms] [animation-timing-function:var(--gp-ease-in)]';
+  if (indice <= 0) return `${BASE} [animation-delay:0ms]`;
+  if (indice === 1) return `${BASE} [animation-delay:40ms]`;
+  return `${BASE} [animation-delay:80ms]`;
+}
+
+/**
  * /gestor/detalhamento — "O que exatamente aconteceu neste simulado?" (spec
  * §2.1, §4.7). 3 sub-estados: sem simulado selecionado (nenhuma requisição de
  * métrica), carregando, e com dado. Segue o mesmo padrão de bloco
@@ -405,9 +420,11 @@ export default function Detalhamento() {
       ) : null}
 
       {semSelecao ? (
-        <EstadoVazioDetalhamento />
+        <div className={classeRevelacao(0)}>
+          <EstadoVazioDetalhamento />
+        </div>
       ) : todosSelecionados ? (
-        <div data-testid="detalhamento-todos-selecionados">
+        <div data-testid="detalhamento-todos-selecionados" className={classeRevelacao(0)}>
           <EstadoVazio
             glifo="insights"
             titulo="Todos os simulados estão selecionados"
@@ -423,7 +440,7 @@ export default function Detalhamento() {
           {/* A nota é LEGENDA do grupo de métricas, não parágrafo da barra de
               filtros: 11px, colada no topo do que ela explica. Em 14px dentro do
               bloco de filtros ela competia com os próprios KPIs que legenda. */}
-          <div className="space-y-0.5" data-testid="bloco-kpis">
+          <div className={`space-y-0.5 ${classeRevelacao(0)}`} data-testid="bloco-kpis">
             <p data-testid="nota-reatividade" className="text-muted-foreground" style={{ fontSize: 11, lineHeight: '16px' }}>
               Os indicadores abaixo reagem ao semestre e aos simulados selecionados. Com 2 ou mais simulados as médias são
               recalculadas e o conceito ENAMED vira comparativo, nunca média.
@@ -441,7 +458,7 @@ export default function Detalhamento() {
           </div>
 
           {multiSimulado && (
-            <div data-testid="bloco-comparativo">
+            <div data-testid="bloco-comparativo" className={classeRevelacao(1)}>
               <BlocoGestor
                 estado={estado}
                 parcial={parcial}
@@ -473,7 +490,7 @@ export default function Detalhamento() {
             faz sentido com um simulado só e por isso continua aparecendo.
           */}
           {ehSemestreEspecifico(filtros.semestre) || simuladosNoRecorte.length > 1 ? (
-            <div data-testid="bloco-evolucao">
+            <div data-testid="bloco-evolucao" className={classeRevelacao(2)}>
               <BlocoGestor
                 estado={estado}
                 parcial={parcial}
@@ -492,7 +509,7 @@ export default function Detalhamento() {
           {/* Área × semestre e dispersão são o MESMO movimento de exploração — a
               referência os põe lado a lado (1.15fr/1fr). Empilhados, a dispersão
               caía um scroll inteiro depois da leitura que ela complementa. */}
-          <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <div className={`grid items-start gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}>
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
                 estado={estado}
@@ -531,7 +548,7 @@ export default function Detalhamento() {
             </div>
           </div>
 
-          <div data-testid="bloco-alunos">
+          <div data-testid="bloco-alunos" className={classeRevelacao(4)}>
             <BlocoGestor
               estado={estado}
               parcial={parcial}
@@ -569,7 +586,7 @@ export default function Detalhamento() {
 
           {/* §4.7.3-4: último componente da página e ausente com 2+ simulados. */}
           {mostrarQuestoes && (
-            <div data-testid="bloco-questoes">
+            <div data-testid="bloco-questoes" className={classeRevelacao(5)}>
               <BlocoGestor
                 estado={estadoQuestoes}
                 alturaSkeleton={360}

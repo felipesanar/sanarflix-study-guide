@@ -98,7 +98,16 @@ export function Tag({ variant, children, className, style, ...rest }: TagProps) 
     <span
       {...rest}
       className={cn('inline-flex items-center gap-1 whitespace-nowrap leading-none', className)}
-      style={{ borderRadius: 'var(--gp-radius-pill)', ...ANATOMIA[variant], ...style }}
+      style={{
+        borderRadius: 'var(--gp-radius-pill)',
+        // Cross-fade de estado (comportamento 21 do movimento): troca de
+        // variant no mesmo nó monta é `background-color`/`color` transicionando
+        // em 200ms, nunca corte seco. Tamanho e padding continuam fixos por
+        // ANATOMIA — a transição não pode "empurrar o texto ao lado".
+        transition: 'background-color var(--gp-motion-3) var(--gp-ease), color var(--gp-motion-3) var(--gp-ease)',
+        ...ANATOMIA[variant],
+        ...style,
+      }}
     >
       {children}
     </span>

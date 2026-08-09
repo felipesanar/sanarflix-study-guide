@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // `@/test/utils` e não o `render` cru: o rodapé do drawer é o `AcoesRecorte`,
 // que lê o recorte da URL (`useFiltrosGestor` → `useSearchParams`) e portanto
 // exige um Router montado. Mesmo wrapper de DrawerTemas.test.tsx.
-import { render, screen, userEvent, waitFor, within } from '@/test/utils';
+import { act, render, screen, userEvent, waitFor, within } from '@/test/utils';
 import { DrawerAluno, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
+import { ATRASO_SKELETON_MS } from '@/features/gestor/hooks/useDelayedLoading';
 import {
   useAluno,
   useAlunoContato,
@@ -240,10 +241,32 @@ describe('DrawerAluno — telefone do aluno', () => {
 });
 
 describe('DrawerAluno — carregando e erro', () => {
-  it('loading: skeleton acessível, sem número ainda', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Regra dos 400ms (spec de motion §7, `useDelayedLoading`): o skeleton só
+   * aparece depois do atraso — antes disso, resposta rápida não pisca nada.
+   */
+  it('loading: antes dos 400ms não mostra skeleton (regra dos 400ms)', () => {
     mockUseAluno.mockReturnValue(resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useAluno>);
+    vi.useFakeTimers();
     montar();
     expect(screen.getByRole('dialog')).toHaveAccessibleName(/Ana Prado/);
+    expect(screen.queryByTestId('drawer-aluno-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByText('Proficiência')).not.toBeInTheDocument();
+  });
+
+  it('loading: skeleton acessível em grade 2×2 + barras, depois dos 400ms', () => {
+    mockUseAluno.mockReturnValue(resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useAluno>);
+    vi.useFakeTimers();
+    montar();
+    act(() => {
+      vi.advanceTimersByTime(ATRASO_SKELETON_MS + 1);
+    });
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(/Ana Prado/);
+    expect(screen.getByTestId('drawer-aluno-skeleton')).toBeInTheDocument();
     expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
     expect(screen.queryByText('Proficiência')).not.toBeInTheDocument();
   });

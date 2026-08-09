@@ -414,12 +414,22 @@ describe('DirecionadoresGestor — anatomia da referência (§4.4)', () => {
    *
    * A sintaxe de propriedade explícita não tem essa ambiguidade, e
    * `tema.test.tsx` passou a proibir as duas formas ambíguas em todo o portal.
+   *
+   * Duração/curva migraram de `[transition-duration:140ms]
+   * [transition-timing-function:cubic-bezier(0.2,0,0,1)]` (achado da
+   * auditoria de movimento de 09/08: valor hardcoded, não token) para
+   * `style` lendo `--gp-motion-2`/`--gp-ease` — mesmo padrão de
+   * `FiltroSemestre.tsx`. Migrar para `duration-[var(--gp-motion-2))]`/
+   * `ease-[var(--gp-ease)]` no Tailwind arbitrário reintroduziria a MESMA
+   * ambiguidade que este teste existe para proibir: `tema.test.tsx` reprova
+   * qualquer `ease-[` no código do portal.
    */
-  it('o cartão declara sombra em repouso e a duração, em sintaxe não-ambígua', () => {
+  it('o cartão declara sombra em repouso e a duração/curva por token, em sintaxe não-ambígua', () => {
     montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
     const cartao = screen.getByTestId('direcionador-visao-geral');
     expect(cartao.className).toContain('[box-shadow:var(--gp-shadow-card)]');
-    expect(cartao.className).toContain('[transition-duration:140ms]');
+    expect(cartao.style.transitionDuration).toBe('var(--gp-motion-2)');
+    expect(cartao.style.transitionTimingFunction).toBe('var(--gp-ease)');
   });
 });
 

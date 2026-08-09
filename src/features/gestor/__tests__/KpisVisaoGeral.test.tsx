@@ -176,9 +176,20 @@ describe('KpisVisaoGeral', () => {
     expect(screen.queryAllByTestId('kpi-regua')).toHaveLength(0);
   });
 
+  /**
+   * `KpiCard` só materializa o skeleton depois da regra dos 400ms
+   * (`useDelayedLoading`, spec de motion §7) — sem avançar o relógio o
+   * cartão fica em branco (ver `KpiCard.test.tsx`), então este teste precisa
+   * vencer o atraso antes de contar os skeletons.
+   */
   it('propaga o estado de loading para os quatro cards', () => {
+    vi.useFakeTimers();
     render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} estado="loading" />);
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
     expect(screen.queryAllByTestId('kpi-skeleton')).toHaveLength(4);
+    vi.useRealTimers();
   });
 
   it('com delta negativo, o card de Percentual de acerto mostra o sinal explícito e a base de comparação', () => {

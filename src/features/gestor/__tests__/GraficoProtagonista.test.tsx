@@ -37,7 +37,7 @@ const META: Meta = {
 
 const VISAO_GERAL_FAKE: VisaoGeral = {
   kpis: {
-    enamedProjetado: { valor: 3, delta: 1, serie: [], criterio: 'Conceito 1–5' },
+    enamedProjetado: { valor: 3, delta: 1, serie: [], criterio: 'Conceito 1–5', origem: 'oficial' },
     proficientesPct: { valor: 62, delta: 4, serie: [], criterio: 'Proficiente = proficiência >= 60' },
     acertoPct: { valor: 57, delta: -2, serie: [], criterio: 'Acertos sobre questões respondidas' },
     simulados: { realizados: 3, contratados: 7 },
@@ -72,6 +72,7 @@ const VISAO_GERAL_FAKE: VisaoGeral = {
     { nivel: 'mediano', areas: [{ id: 'ga-cirurgia', nome: 'Cirurgia', acertoPct: 61 }] },
     { nivel: 'critico', areas: [{ id: 'ga-clinica', nome: 'Clínica Médica', acertoPct: 27 }] },
   ],
+  alunosMatriculadosNoRecorte: 118,
   distribuicaoAlunos: [
     { grupo: 'consistentemente_proficiente', quantidade: 48, percentual: 42 },
     { grupo: 'em_variacao', quantidade: 39, percentual: 34 },
@@ -262,7 +263,15 @@ describe('GraficoProtagonista', () => {
       );
     });
 
-    it('trocar de modo REMONTA o contêiner de fade (key={modo}) — cada modo ganha seu próprio ciclo de fade-in', async () => {
+    /**
+     * Achado do passe de conformidade de 09/08 (spec §10/§15: "eixos
+     * permanecem"/"moldura estável"): até então este contêiner levava
+     * `key={modo}` no componente pai, o que forçava REMOUNT total do wrapper
+     * a cada troca de modo — não só o conteúdo interno, o próprio nó do DOM.
+     * Corrigido: `modo` chega como prop, o fade é retriggado por efeito, e o
+     * wrapper é o MESMO nó antes e depois da troca.
+     */
+    it('trocar de modo NÃO remonta o contêiner de fade — o wrapper persiste, e o cross-fade roda de novo', async () => {
       const user = userEvent.setup();
       render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
       await waitFor(() =>
@@ -273,7 +282,7 @@ describe('GraficoProtagonista', () => {
       await user.click(screen.getByRole('button', { name: 'Grande área' }));
 
       const conteudoDepois = screen.getByTestId('grafico-protagonista-conteudo');
-      expect(conteudoDepois).not.toBe(contedoAntes);
+      expect(conteudoDepois).toBe(contedoAntes);
       await waitFor(() => expect(conteudoDepois.style.opacity).toBe('1'));
     });
 

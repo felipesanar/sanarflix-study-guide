@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach } from 'vitest';
 import * as React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { ContextoGestor } from '@/features/gestor/api/types';
 
@@ -51,6 +51,7 @@ describe('SidebarIes (spec §3)', () => {
   });
 
   beforeEach(() => vi.clearAllMocks());
+  afterEach(() => vi.useRealTimers());
 
   const comContexto = (ctx: ContextoGestor) =>
     mockUseGestorContexto.mockReturnValue({
@@ -121,7 +122,8 @@ describe('SidebarIes (spec §3)', () => {
     });
   });
 
-  it('carregando: reserva a MESMA altura do cartão final (48px), sem número nem rótulo falso', () => {
+  it('carregando por MENOS que a regra dos 400ms: nenhum skeleton chega a aparecer (o flash que `useDelayedLoading` elimina)', () => {
+    vi.useFakeTimers();
     mockUseGestorContexto.mockReturnValue({
       data: undefined,
       meta: undefined,
@@ -130,12 +132,43 @@ describe('SidebarIes (spec §3)', () => {
       refetch: vi.fn(),
     });
     renderizar();
+
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('carregando por MAIS que 400ms: reserva a MESMA altura do cartão final (48px) e mostra DUAS barras de shimmer (nome + linha de contexto), sem número nem rótulo falso', () => {
+    vi.useFakeTimers();
+    mockUseGestorContexto.mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderizar();
+
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
+
     const skeleton = screen.getByRole('status');
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
     // A regra de doc 04 §7 é a ALTURA FINAL: antes o skeleton tinha 36px e o
     // rótulo estático do `gestor` ~20px, então a sidebar pulava ao responder.
     expect(skeleton.style.height).toBe('48px');
     expect(screen.queryByRole('combobox')).toBeNull();
+
+    // DUAS barras (nome 13px/70% + linha de contexto 10px/50%) — não mais o
+    // retângulo único de antes.
+    const barras = Array.from(skeleton.children) as HTMLElement[];
+    expect(barras).toHaveLength(2);
+    expect(barras[0].style.height).toBe('13px');
+    expect(barras[0].style.width).toBe('70%');
+    expect(barras[1].style.height).toBe('10px');
+    expect(barras[1].style.width).toBe('50%');
   });
 
   it('não existe rótulo "Instituição" acima do cartão — o nome acessível vem do aria-label', () => {

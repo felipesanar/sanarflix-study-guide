@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, userEvent } from '@/test/utils';
+import { act, fireEvent, render, screen, userEvent } from '@/test/utils';
 import VisaoGeralRoute from '@/features/gestor/routes/VisaoGeral';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import {
@@ -38,6 +38,25 @@ vi.mock('@/features/gestor/components/FiltroSemestre', () => ({
   FiltroSemestre: () => <div data-testid="filtro-semestre" />,
 }));
 
+/**
+ * `TabelaAlunos` (renderizada de verdade por esta rota) passou a ler
+ * `useAuth().user?.id` (spec de motion §22 — prefetch no hover de linha).
+ * `useAuth` real lança fora de um `<AuthProvider>` — `@/test/utils`'s
+ * `MockAuthProvider` é só um passthrough — então precisa do mesmo mock que
+ * `TabelaAlunos.test.tsx`/`Direcionadores.test.tsx` já usam.
+ */
+// `CascataDiagnostico` (Onda 2/B5, 09/08) lê `AuthContext` (o objeto de
+// contexto em si, via `useContext`, não só o hook `useAuth`) para resolver o
+// `userId` do prefetch sem exigir provider — precisa do Context REAL aqui,
+// não só de uma função mockada, senão `useContext(undefined)` lança.
+vi.mock('@/contexts/AuthContext', async () => {
+  const real = await vi.importActual<typeof import('@/contexts/AuthContext')>('@/contexts/AuthContext');
+  return {
+    ...real,
+    useAuth: () => ({ user: { id: 'test-user-id' } }),
+  };
+});
+
 // `AcoesRecorte`/`DrawerTemas` são componentes REAIS nestes testes (só a
 // camada de dados é mockada) — para provar que "Exportar recorte" produz um
 // efeito observável (achados 1 e 3), espionamos o `toast` chamado pela rota.
@@ -67,6 +86,10 @@ function ordemNoDom(ids: string[]) {
 
 describe('rota VisaoGeral', () => {
   beforeEach(() => {
+    // "Ver visão detalhada" rola até o bloco com `scrollIntoView` (jsdom não
+    // implementa) — mesmo stub de `TabelaQuestoes.test.tsx`/`FiltroSemestre.test.tsx`.
+    Element.prototype.scrollIntoView = vi.fn();
+
     mockToast.mockClear();
 
     mockUseFiltrosGestor.mockReturnValue(filtrosFake());
@@ -333,11 +356,21 @@ describe('rota VisaoGeral', () => {
       isError: false,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useVisaoGeral>);
+    vi.useFakeTimers();
     render(<VisaoGeralRoute />);
 
+    // A barra de filtros é moldura estática — nunca espera a regra dos 400ms.
     expect(screen.getByTestId('barra-filtros')).toBeInTheDocument();
+
+    /* `KpiCard` só materializa o skeleton composto (spec §5, item 1) depois
+       que `useDelayedLoading` vence os 400ms (spec de motion §7) — ver
+       `KpiCard.test.tsx`. */
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
     expect(screen.getAllByTestId('kpi-skeleton')).toHaveLength(4);
     expect(screen.getByTestId('bloco-grafico-loading')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('faixa de recorte parcial aparece quando meta.partial é true', () => {
@@ -479,12 +512,17 @@ describe('rota VisaoGeral', () => {
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useVisaoGeral>);
 
+    vi.useFakeTimers();
     render(<VisaoGeralRoute />);
 
     expect(screen.getByTestId('barra-filtros')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
     expect(screen.getAllByTestId('kpi-skeleton')).toHaveLength(4);
     expect(screen.getByTestId('bloco-grafico-loading')).toBeInTheDocument();
     expect(screen.queryByText('Sem simulados realizados neste recorte.')).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('erro ao carregar o contexto do gestor aparece como erro na tela, nunca como "sem dados" — o retry refaz o contexto (achados 2 e 4)', async () => {

@@ -58,6 +58,81 @@ export interface AcoesRecorteProps {
    */
   resumoTexto: string;
   onExportar: () => void;
+  /**
+   * Loading do "Exportar recorte" (spec §9). Hoje `onExportar` é um no-op com
+   * toast de "ainda não disponível" — nada aqui dispara uma ação assíncrona,
+   * então esta prop nunca chega `true` na prática. É infraestrutura: quando a
+   * exportação de verdade existir, quem chama este componente passa o estado
+   * de loading da própria mutação, e o botão já sabe desenhar o spinner sem
+   * mudar de largura.
+   */
+  carregando?: boolean;
+}
+
+/**
+ * Largura mínima do "Exportar recorte" — reservada para o estado com spinner
+ * (spec §9: "botão... mantém a largura, sem salto"). Sem isso, o ícone
+ * `download` (15px) trocando pelo spinner (14px) ainda é quase imperceptível,
+ * mas a largura do botão passaria a depender do que está montado dentro dele
+ * em vez de ser um valor estável — `min-width` fixo é o que a spec pede
+ * explicitamente em vez de confiar no acaso dos dois ícones terem tamanho
+ * parecido.
+ */
+const LARGURA_MIN_EXPORTAR = 172;
+
+/** Spinner de botão — o único `animation: linear infinite` permitido no produto (spec §4). */
+function SpinnerBotao({ size }: { size: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+/**
+ * Keyframe da entrada do ícone de "Copiar resumo" — `@keyframes` em vez de
+ * `transition` porque a animação precisa disparar sozinha quando o `<span>`
+ * MONTA (troca de `key`), sem um segundo render para "chegar" no valor final.
+ * Uma `transition` exigiria um estado de React que muda um tick depois do
+ * mount (efeito + `requestAnimationFrame`) só para acionar a mudança de
+ * propriedade — estado extra que não corresponde a nada visível e que os
+ * testes precisariam embrulhar em `act()`. CSS puro evita isso.
+ */
+const KEYFRAME_ENTRADA_ICONE_COPIAR = `
+@keyframes gp-icone-copiar-entrada {
+  from { transform: scale(0.8); }
+  to { transform: scale(1); }
+}
+`;
+
+/**
+ * Ícone de "Copiar resumo" (spec §20): ao copiar com sucesso, troca para
+ * `check` com entrada em `scale(0.8 → 1)` (140ms, curva padrão) e volta ao
+ * ícone original 1.6s depois (efeito no componente pai). O `key` força um nó
+ * NOVO a cada troca — é o que faz a animação de entrada rodar de novo em
+ * cada toggle, inclusive na volta.
+ */
+function IconeCopiarResumo({ copiado }: { copiado: boolean }) {
+  return (
+    <>
+      <style>{KEYFRAME_ENTRADA_ICONE_COPIAR}</style>
+      <span
+        key={copiado ? 'check' : 'copy'}
+        aria-hidden="true"
+        className="inline-flex shrink-0"
+        style={{
+          animationName: 'gp-icone-copiar-entrada',
+          animationDuration: 'var(--gp-motion-2)',
+          animationTimingFunction: 'var(--gp-ease)',
+          animationFillMode: 'both',
+        }}
+      >
+        <Icon name={copiado ? 'check' : 'content_copy'} size={15} />
+      </span>
+    </>
+  );
 }
 
 /**
@@ -76,10 +151,25 @@ export interface AcoesRecorteProps {
  * anunciaria uma funcionalidade que a IES não contratou; aqui o componente
  * simplesmente não renderiza nada.
  */
-export function AcoesRecorte({ escopo, resumoTexto, onExportar }: AcoesRecorteProps) {
+export function AcoesRecorte({
+  escopo,
+  resumoTexto,
+  onExportar,
+  carregando = false,
+}: AcoesRecorteProps) {
   const { data: contexto } = useGestorContexto();
   const { iesId } = useFiltrosGestor();
   const { toast } = useToast();
+  const [copiado, setCopiado] = React.useState(false);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout>>();
+
+  // Limpa o timer de "voltar ao ícone original" se o componente desmontar
+  // (drawer fechado) antes dos 1.6s — spec pede o cleanup explicitamente.
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   if (!contexto?.podeExportar) return null;
 
@@ -99,6 +189,9 @@ export function AcoesRecorte({ escopo, resumoTexto, onExportar }: AcoesRecortePr
     try {
       await navigator.clipboard.writeText(`${cabecalho}\n${resumoTexto}`);
       toast({ description: 'Resumo copiado.' });
+      setCopiado(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopiado(false), 1600);
     } catch {
       toast({
         variant: 'destructive',
@@ -114,10 +207,11 @@ export function AcoesRecorte({ escopo, resumoTexto, onExportar }: AcoesRecortePr
         variant="outline"
         size="sm"
         onClick={onExportar}
+        disabled={carregando}
         className={CLASSES_SECUNDARIA}
-        style={ESTILO_ACAO}
+        style={{ ...ESTILO_ACAO, minWidth: LARGURA_MIN_EXPORTAR }}
       >
-        <Icon name="download" size={15} />
+        {carregando ? <SpinnerBotao size={14} /> : <Icon name="download" size={15} />}
         Exportar recorte
       </Button>
       <Button
@@ -128,7 +222,7 @@ export function AcoesRecorte({ escopo, resumoTexto, onExportar }: AcoesRecortePr
         className={CLASSES_TERCIARIA}
         style={ESTILO_ACAO}
       >
-        <Icon name="content_copy" size={15} />
+        <IconeCopiarResumo copiado={copiado} />
         Copiar resumo
       </Button>
     </div>

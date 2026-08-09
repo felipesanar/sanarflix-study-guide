@@ -61,6 +61,17 @@ vi.mock('@/features/gestor/components/FiltroSemestre', () => ({
   FiltroSemestre: () => <div data-testid="filtro-semestre" />,
 }));
 
+/**
+ * `TabelaAlunos` (renderizada de verdade por esta rota) passou a ler
+ * `useAuth().user?.id` (spec de motion §22 — prefetch no hover de linha).
+ * `useAuth` real lança fora de um `<AuthProvider>` — `@/test/utils`'s
+ * `MockAuthProvider` é só um passthrough — então precisa do mesmo mock que
+ * `TabelaAlunos.test.tsx`/`VisaoGeral.test.tsx` já usam.
+ */
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'test-user-id' } }),
+}));
+
 const mockToast = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 
@@ -107,6 +118,10 @@ function arquivoFonte(caminhoRelativo: string): string {
 }
 
 beforeEach(() => {
+  // "Ver visão detalhada" rola até o bloco com `scrollIntoView` (jsdom não
+  // implementa) — mesmo stub de `TabelaQuestoes.test.tsx`/`FiltroSemestre.test.tsx`.
+  Element.prototype.scrollIntoView = vi.fn();
+
   mockToast.mockClear();
 
   mockUseFiltrosGestor.mockReturnValue(filtrosFake());

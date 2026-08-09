@@ -61,6 +61,10 @@ export const EstadoVazio: React.FC<EstadoVazioProps> = ({
   className,
 }) => (
   <div
+    // Spec §24: vazio se anuncia como `role="status"` — não há outro `role`
+    // no elemento raiz para colidir (a versão `compacto` também é um vazio,
+    // mesma semântica).
+    role="status"
     style={altura ? { minHeight: typeof altura === 'number' ? `${altura}px` : altura } : undefined}
     className={cn(
       'flex w-full flex-col rounded-xl border border-dashed border-border',

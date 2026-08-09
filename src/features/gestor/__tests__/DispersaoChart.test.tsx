@@ -204,4 +204,38 @@ describe('DispersaoChart (modo Aluno)', () => {
     expect(screen.getByTestId('dispersao-tabela')).toBeInTheDocument();
     expect(screen.getByText(/Mediana do semestre: 55/i)).toBeInTheDocument();
   });
+
+  /**
+   * Spec de movimento §5, item 3: "nunca um retângulo cinza" — o skeleton da
+   * dispersão desenha eixos reais e uma nuvem de pontos fixa em opacidade
+   * 0.18, não um bloco genérico.
+   */
+  describe('carregando (skeleton com eixos reais e nuvem fixa, spec de movimento §5)', () => {
+    it('ignora pontos e desenha os eixos reais (grade, eixo Y 0–100) com uma nuvem fixa a 0.18 de opacidade', () => {
+      const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} carregando {...DIM} />);
+
+      const status = screen.getByRole('status');
+      expect(status).toHaveAttribute('aria-busy', 'true');
+
+      const ticksY = Array.from(
+        container.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick-value'),
+      ).map((no) => no.textContent);
+      expect(ticksY).toEqual(['0', '20', '40', '80', '100']);
+
+      const simbolos = Array.from(container.querySelectorAll('.recharts-scatter-symbol path'));
+      expect(simbolos.length).toBeGreaterThan(0);
+      simbolos.forEach((simbolo) => expect(simbolo.getAttribute('fill-opacity')).toBe('0.18'));
+
+      // Nenhum dado real chega ao DOM enquanto carrega, e nenhum alunoId dos
+      // pontos reais aparece na nuvem fixa.
+      expect(screen.queryByTestId('dispersao-tabela')).not.toBeInTheDocument();
+      DOIS_SEMESTRES.forEach((ponto) => expect(container.innerHTML).not.toContain(ponto.alunoId));
+    });
+
+    it('não mostra o estado vazio quando carregando, mesmo com pontos=[]', () => {
+      render(<DispersaoChart pontos={[]} carregando {...DIM} />);
+      expect(screen.queryByTestId('dispersao-vazio')).not.toBeInTheDocument();
+      expect(screen.getByTestId('dispersao-carregando')).toBeInTheDocument();
+    });
+  });
 });

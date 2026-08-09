@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { DistribuicaoAlternativas } from '../charts/DistribuicaoAlternativas';
 import { Icon } from './Icon';
 import type { DendeIconName } from './icon-names';
@@ -18,6 +19,7 @@ import {
   CorpoTabela,
   FONTE_MONO,
   LinhaTabela,
+  LinhasSkeleton,
   Paginacao,
   RodapeTabela,
   TabelaGestor,
@@ -109,6 +111,15 @@ export interface TabelaQuestoesProps {
    * sem ele o rodapé mostra só a contagem, nunca uma proveniência inventada.
    */
   meta?: Meta;
+  /**
+   * Skeleton próprio do bloco (spec de motion, Parte III §5 item 11): toolbar
+   * REAL (dropdown de área + toggle de ordenação, desabilitados/inertes) +
+   * cabeçalho REAL + 5 linhas na altura exata da linha real, em skeleton — nunca
+   * o bloco inteiro trocado por um retângulo genérico. Gate: `useDelayedLoading`
+   * (400ms) por dentro deste componente, então quem chama só passa o `isLoading`
+   * crú da query — resposta rápida não chega a piscar skeleton nenhum.
+   */
+  carregando?: boolean;
 }
 
 export function TabelaQuestoes({
@@ -124,10 +135,43 @@ export function TabelaQuestoes({
   onAreaChange,
   processando = false,
   meta,
+  carregando = false,
 }: TabelaQuestoesProps) {
   const [expandida, setExpandida] = React.useState<number | null>(null);
+  /**
+   * Achado da auditoria (linhas ~388-441 antes desta mudança): a linha de
+   * detalhe só tinha ENTRADA (`animate-in fade-in-0 slide-in-from-top-1`,
+   * tailwindcss-animate) — ao fechar, o React desmontava no mesmo frame, sem
+   * transição de saída. `saindo` guarda o número da questão cuja linha está
+   * a caminho de desmontar: ela continua RENDERIZADA (com `animate-out
+   * fade-out-0`, mesma duração de 200ms/`--gp-motion-3` da entrada) até o
+   * timeout consumar a remoção de verdade. Só uma questão por vez pode estar
+   * "saindo" — abrir outra questão antes do timeout vencer cancela a saída
+   * pendente e remove aquela linha na hora (mesma lógica de "a última ação
+   * vence" do resto do produto).
+   */
+  const [saindo, setSaindo] = React.useState<number | null>(null);
+  const timeoutSaidaRef = React.useRef<ReturnType<typeof setTimeout>>();
+
+  React.useEffect(() => () => clearTimeout(timeoutSaidaRef.current), []);
+
+  const alternarExpandida = (numero: number) => {
+    clearTimeout(timeoutSaidaRef.current);
+    if (expandida === numero) {
+      setSaindo(numero);
+      setExpandida(null);
+      timeoutSaidaRef.current = setTimeout(() => {
+        setSaindo((atual) => (atual === numero ? null : atual));
+      }, 200);
+    } else {
+      setSaindo(null);
+      setExpandida(numero);
+    }
+  };
+
   const portalContainer = useGestorPortalContainer();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const mostrarSkeleton = useDelayedLoading(carregando);
 
   const atualizadoEm = meta?.atualizadoEm ? formatData(meta.atualizadoEm) : TRACO;
   const temRastreabilidade = Boolean(meta) && meta?.fonte !== TRACO;
@@ -158,14 +202,94 @@ export function TabelaQuestoes({
         <h3 id="questoes-titulo" style={{ fontSize: 15, fontWeight: 700, color: 'var(--gp-text-1)' }}>
           Detalhamento das questões
         </h3>
-        {!processando && (
+        {!processando && !mostrarSkeleton && (
           <span className="ml-auto tabular-nums" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
             {total} {total === 1 ? 'questão' : 'questões'}
           </span>
         )}
       </div>
 
-      {processando ? (
+      {mostrarSkeleton ? (
+        <>
+          <p role="status" className="sr-only">
+            Carregando questões
+          </p>
+
+          {/*
+            Spec de motion, Parte III §5 item 11: toolbar REAL (dropdown de
+            área + toggle de ordenação) desabilitados/inertes, não uma barra
+            genérica — a moldura não pisca, só o conteúdo dela fica inerte
+            enquanto o dado não chega.
+          */}
+          <div className="flex flex-wrap items-center gap-3" aria-hidden="true">
+            <Select value={areaSelecionada ?? TODAS_AS_AREAS} onValueChange={() => undefined} disabled>
+              <SelectTrigger
+                aria-label="Filtrar por grande área"
+                className="h-auto w-auto gap-1.5 px-3 py-1.5 text-xs"
+                style={{ borderRadius: 'var(--gp-radius-sm)' }}
+                icon={<Icon name="expand_more" size={15} className="opacity-70" />}
+              >
+                <span className="flex items-center gap-1 whitespace-nowrap">
+                  Grande área:
+                  <span className="font-semibold">
+                    <SelectValue />
+                  </span>
+                </span>
+              </SelectTrigger>
+              <SelectContent container={portalContainer}>
+                <SelectItem value={TODAS_AS_AREAS}>Todas</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <ToggleGroup
+              type="single"
+              value={ordenacao}
+              onValueChange={() => undefined}
+              disabled
+              aria-label="Ordenação das questões"
+              className="ml-auto gap-0 border p-[3px]"
+              style={{
+                background: 'var(--gp-surface-3)',
+                borderColor: 'var(--gp-border-subtle)',
+                borderRadius: 'var(--gp-radius-sm)',
+              }}
+            >
+              {ORDENACOES_QUESTOES.map((o) => (
+                <ToggleGroupItem key={o.valor} value={o.valor} className="h-auto gap-1 px-3 py-1 text-[11px]">
+                  {o.icone ? <Icon name={o.icone} size={12} className="opacity-80" /> : null}
+                  {o.rotulo}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+
+          <div
+            style={{
+              border: '1px solid var(--gp-border-strong)',
+              borderRadius: 'var(--gp-radius-md)',
+              overflow: 'hidden',
+            }}
+          >
+            <TabelaGestor rotulo="Detalhamento das questões">
+              <CabecalhoTabela>
+                <tr>
+                  <CelulaCabecalho largura={LARGURA_NUMERO}>Nº</CelulaCabecalho>
+                  <CelulaCabecalho>Grande área</CelulaCabecalho>
+                  <CelulaCabecalho>Especialidade</CelulaCabecalho>
+                  <CelulaCabecalho>Tema</CelulaCabecalho>
+                  <CelulaCabecalho largura={LARGURA_BARRA}>Índice de acerto</CelulaCabecalho>
+                  <CelulaCabecalho numerica largura={LARGURA_VALOR}>
+                    <span className="sr-only">Percentual de acerto</span>
+                  </CelulaCabecalho>
+                </tr>
+              </CabecalhoTabela>
+              <CorpoTabela>
+                <LinhasSkeleton colunas={6} />
+              </CorpoTabela>
+            </TabelaGestor>
+          </div>
+        </>
+      ) : processando ? (
         <div
           data-testid="questoes-processando"
           className="flex flex-col items-center gap-2 border-2 border-dashed p-8 text-center"
@@ -275,6 +399,7 @@ export function TabelaQuestoes({
               <CorpoTabela>
                 {questoes.map((q, i) => {
                   const aberta = expandida === q.numero;
+                  const saindoAgora = saindo === q.numero;
                   const nivel = nivelDesempenho(q.acertoPct);
                   const ultima = i === questoes.length - 1;
                   return (
@@ -282,9 +407,11 @@ export function TabelaQuestoes({
                       <LinhaTabela
                         data-testid={`linha-questao-${q.numero}`}
                         selecionada={aberta}
-                        // Com o detalhe aberto embaixo, o divisor da linha-gatilho
-                        // vira o `border-top` que a referência desenha entre os dois.
-                        ultima={ultima && !aberta}
+                        // Com o detalhe aberto (ou ainda saindo) embaixo, o
+                        // divisor da linha-gatilho vira o `border-top` que a
+                        // referência desenha entre os dois — só volta a ser a
+                        // última linha depois que a saída de fato termina.
+                        ultima={ultima && !aberta && !saindoAgora}
                         /*
                           A LINHA INTEIRA abre o detalhe, não só a setinha
                           (reunião de 07/08: "tem que abrir clicando em qualquer
@@ -300,7 +427,7 @@ export function TabelaQuestoes({
                         */
                         onSelecionar={(evento: React.MouseEvent<HTMLTableRowElement>) => {
                           if ((evento.target as HTMLElement).closest('button')) return;
-                          setExpandida(aberta ? null : q.numero);
+                          alternarExpandida(q.numero);
                         }}
                       >
                         <Celula>
@@ -309,7 +436,7 @@ export function TabelaQuestoes({
                             aria-expanded={aberta}
                             aria-controls={`detalhe-questao-${q.numero}`}
                             aria-label={`Ver detalhe da questão ${q.numero}`}
-                            onClick={() => setExpandida(aberta ? null : q.numero)}
+                            onClick={() => alternarExpandida(q.numero)}
                             className={cn('inline-flex items-center gap-1 tabular-nums', aberta && 'font-semibold')}
                             style={{ fontFamily: FONTE_MONO }}
                           >
@@ -385,16 +512,24 @@ export function TabelaQuestoes({
                           </span>
                         </Celula>
                       </LinhaTabela>
-                      {aberta && (
+                      {(aberta || saindoAgora) && (
                         <LinhaTabela selecionada ultima={ultima}>
                           <Celula colSpan={6} id={`detalhe-questao-${q.numero}`} data-testid={`detalhe-questao-${q.numero}`}>
-                            {/* `animate-in` do tailwindcss-animate = opacity + translate
-                                (nunca altura), 200ms = motion-3. O bloco
-                                prefers-reduced-motion de gestor-theme.css já zera isto.
-                                Fundo branco + borda do card (revisão de estilo): mesma
+                            {/* `animate-in`/`animate-out` do tailwindcss-animate = opacity +
+                                translate (nunca altura), 200ms = motion-3, nos dois sentidos —
+                                achado da auditoria: antes só havia entrada; ao fechar, a linha
+                                desmontava no mesmo frame. `aberta`/`saindoAgora` são mutuamente
+                                exclusivos (`alternarExpandida` acima) — nunca as duas classes
+                                juntas. O bloco prefers-reduced-motion de gestor-theme.css já zera
+                                isto. Fundo branco + borda do card (revisão de estilo): mesma
                                 classe de AcertoPorAreaESemestre.tsx, em vez dos tokens
                                 --gp-* usados antes aqui. */}
-                            <div className="flex flex-col gap-3.5 rounded-lg border border-border bg-card p-4 duration-200 animate-in fade-in-0 slide-in-from-top-1">
+                            <div
+                              className={cn(
+                                'flex flex-col gap-3.5 rounded-lg border border-border bg-card p-4 duration-200',
+                                aberta ? 'animate-in fade-in-0 slide-in-from-top-1' : 'animate-out fade-out-0',
+                              )}
+                            >
                               <p className="whitespace-pre-line text-xs leading-5" style={{ color: 'var(--gp-text-2)' }}>
                                 <span className="font-semibold" style={{ color: 'var(--gp-text-1)' }}>
                                   Enunciado.

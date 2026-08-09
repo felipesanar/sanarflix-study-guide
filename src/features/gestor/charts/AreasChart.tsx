@@ -92,8 +92,14 @@ export function coresDasAreas(areas: VisaoGeral['evolucaoPorArea']): string[] {
 const CRITICA_STROKE_WIDTH = 3;
 const DEMAIS_STROKE_WIDTH = 1.5;
 const DEMAIS_STROKE_OPACITY = 0.7;
-/** Opacidade das séries que NÃO estão sob o cursor (docs/06, princípio 2.2). */
-const ESMAECIDA_STROKE_OPACITY = 0.18;
+/**
+ * Opacidade das séries que NÃO estão sob o cursor (docs/06, princípio 2.2).
+ * Corrigido de 0.18 para 0.4 (spec de movimento §11, item 7 dos 22
+ * comportamentos / item 3 dos 9 de dataviz): 0.18 esmaecia demais, a ponto de
+ * a linha quase desaparecer — 40% ainda deixa a forma da série legível
+ * enquanto isola visualmente a que está em foco.
+ */
+const ESMAECIDA_STROKE_OPACITY = 0.4;
 
 /**
  * Marcador por simulado. A série crítica ganha ponto maior e, no ÚLTIMO ponto

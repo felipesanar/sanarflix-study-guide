@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { render } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const RAIZ = resolve(__dirname, '..');
 const CSS = readFileSync(join(RAIZ, 'gestor-theme.css'), 'utf-8');
@@ -281,16 +282,21 @@ describe('classe gestor-portal e tokens --gp-* no GestorShell, claro e escuro', 
 
   const renderShell = (tema: 'light' | 'dark') => {
     if (tema === 'dark') document.documentElement.classList.add('dark');
+    // `SidebarNav` (Onda 2/B1) chama `useQueryClient()` pro prefetch no hover
+    // de "Visão Geral" — sem Provider aqui, `GestorShell` (que monta
+    // `SidebarNav`) explode em qualquer render deste describe.
     return render(
-      <ThemeProvider attribute="class" defaultTheme={tema} enableSystem={false} forcedTheme={tema}>
-        <MemoryRouter initialEntries={['/gestor']}>
-          <Routes>
-            <Route path="/gestor" element={<GestorShell />}>
-              <Route index element={<div>conteúdo do início</div>} />
-            </Route>
-          </Routes>
-        </MemoryRouter>
-      </ThemeProvider>,
+      <QueryClientProvider client={new QueryClient()}>
+        <ThemeProvider attribute="class" defaultTheme={tema} enableSystem={false} forcedTheme={tema}>
+          <MemoryRouter initialEntries={['/gestor']}>
+            <Routes>
+              <Route path="/gestor" element={<GestorShell />}>
+                <Route index element={<div>conteúdo do início</div>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
   };
 

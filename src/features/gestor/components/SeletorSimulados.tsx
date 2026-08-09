@@ -222,7 +222,28 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
                     color: 'var(--gp-on-brand)',
                   }}
                 >
-                  {marcado && <Icon name="check" size={11} />}
+                  {/*
+                    Comportamento 17 (spec de motion, Parte IV §11): a marca
+                    de "check" entra com `scale(0.6 → 1)` + fade, 140ms
+                    (`--gp-motion-2`). O ícone fica SEMPRE montado — uma
+                    transição CSS não roda em elemento que nunca existiu
+                    antes — e a visibilidade vira só `transform`/`opacity`,
+                    nunca a montagem condicional `{marcado && <Icon .../>}`
+                    de antes.
+                  */}
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex"
+                    style={{
+                      transform: marcado ? 'scale(1)' : 'scale(0.6)',
+                      opacity: marcado ? 1 : 0,
+                      transitionProperty: 'transform, opacity',
+                      transitionDuration: 'var(--gp-motion-2)',
+                      transitionTimingFunction: 'var(--gp-ease)',
+                    }}
+                  >
+                    <Icon name="check" size={11} />
+                  </span>
                 </span>
                 <span
                   style={{

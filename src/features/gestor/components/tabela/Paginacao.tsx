@@ -69,9 +69,27 @@ export interface PaginacaoProps {
   /** Nome acessível da navegação, ex.: "Paginação de alunos". */
   rotulo: string;
   className?: string;
+  /**
+   * Prefetch no hover do botão "Próxima página" (spec de motion, Parte
+   * VIII §22: "hover na página seguinte da paginação → prefetch daquela
+   * página"). Recebe a página que o hover aquece (`atual + 1`) — quem chama
+   * decide QUAL query aquecer (ex.: `prefetchProximaPaginaAlunos`), porque
+   * `Paginacao` é compartilhado por três tabelas com RPCs diferentes
+   * (`TabelaAlunos`, `TabelaAlunosSimulado`, `TabelaQuestoes`) e não deveria
+   * conhecer nenhuma delas. Opcional e sem efeito em quem não passa —
+   * `TabelaAlunosSimulado`/`TabelaQuestoes` continuam sem prefetch de página.
+   */
+  onHoverProximaPagina?: (proximaPagina: number) => void;
 }
 
-export function Paginacao({ page, totalPages, onPageChange, rotulo, className }: PaginacaoProps) {
+export function Paginacao({
+  page,
+  totalPages,
+  onPageChange,
+  rotulo,
+  className,
+  onHoverProximaPagina,
+}: PaginacaoProps) {
   const total = Math.max(1, totalPages);
   const atual = Math.min(Math.max(1, page), total);
   const naPrimeira = atual <= 1;
@@ -113,6 +131,7 @@ export function Paginacao({ page, totalPages, onPageChange, rotulo, className }:
         aria-label="Próxima página"
         disabled={naUltima}
         onClick={() => onPageChange(atual + 1)}
+        onMouseEnter={naUltima ? undefined : () => onHoverProximaPagina?.(atual + 1)}
         style={estiloBotao(naUltima ? 'desabilitado' : 'normal')}
       >
         <Icon name="chevron_right" size={16} />

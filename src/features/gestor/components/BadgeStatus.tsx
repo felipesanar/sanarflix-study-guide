@@ -82,6 +82,10 @@ export const BadgeStatus: React.FC<{ status: StatusSimulado; className?: string 
       className={cn('inline-flex items-center gap-1 whitespace-nowrap leading-none', className)}
       style={{
         fontSize: 11,
+        // Cross-fade de estado (comportamento 21): status troca no mesmo nó
+        // (ex.: `agendado` → `reagendado`) sem corte seco; 200ms, sem mudar
+        // tamanho/padding — quem decide isso é `pilula`/`estilo`, intocados.
+        transition: 'background-color var(--gp-motion-3) var(--gp-ease), color var(--gp-motion-3) var(--gp-ease)',
         ...(pilula ? { borderRadius: 'var(--gp-radius-pill)', padding: '3px 10px' } : null),
         ...estilo,
       }}

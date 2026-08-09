@@ -219,7 +219,7 @@ describe('AreasChart (modo Grande área)', () => {
 
     const cirurgia = screen.getByRole('button', { name: /Cirurgia/ });
     fireEvent.mouseEnter(cirurgia);
-    expect(opacidades(container)).toEqual(['0.18', '0.7', '0.18']);
+    expect(opacidades(container)).toEqual(['0.4', '0.7', '0.4']);
 
     fireEvent.mouseLeave(cirurgia);
     expect(opacidades(container)).toEqual(['1', '0.7', '0.7']);
@@ -228,7 +228,7 @@ describe('AreasChart (modo Grande área)', () => {
   it('o mesmo destaque acontece pelo teclado, ao focar o item da legenda', () => {
     const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
     fireEvent.focus(screen.getByRole('button', { name: /Pediatria/ }));
-    expect(opacidades(container)).toEqual(['0.18', '0.18', '0.7']);
+    expect(opacidades(container)).toEqual(['0.4', '0.4', '0.7']);
   });
 
   it('legenda clicável isola a área e o segundo clique reativa todas', async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -435,10 +435,16 @@ describe('CronogramaSimulados — proveniência escopada à IES consultada (acha
 });
 
 describe('CronogramaSimulados — estados (§8.4)', () => {
-  it('loading: skeleton que reserva altura, sem itens', () => {
+  it('loading: skeleton que reserva altura, sem itens', async () => {
     mocks.useCronograma.mockReturnValue(resultado({ isLoading: true }));
     montar();
-    expect(screen.getAllByTestId('cronograma-skeleton')).toHaveLength(4);
+    expect(screen.queryByTestId('cronograma-item-s1')).not.toBeInTheDocument();
+    // Regra dos 400ms (spec §7, `useDelayedLoading`): o skeleton só aparece
+    // depois do atraso — não é mais imediato, então o teste espera por ele
+    // em vez de exigi-lo no primeiro render.
+    await waitFor(() => {
+      expect(screen.getAllByTestId('cronograma-skeleton')).toHaveLength(4);
+    });
     expect(screen.queryByTestId('cronograma-item-s1')).not.toBeInTheDocument();
   });
 

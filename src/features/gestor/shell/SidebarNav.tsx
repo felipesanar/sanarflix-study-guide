@@ -1,8 +1,14 @@
 import * as React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { Icon } from '@/features/gestor/components/Icon';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import { cn } from '@/lib/utils';
+import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
+import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
+import { usePrefersReducedMotion } from '@/features/gestor/hooks/usePrefersReducedMotion';
 
 export interface GestorV2NavItem {
   title: string;
@@ -74,6 +80,50 @@ const BARRA_ATIVA: React.CSSProperties = {
 };
 
 /**
+ * `layoutId` compartilhado da barra ativa entre os 3 itens (plano de motion,
+ * Onda 2/B1: "indicador de página ativa que DESLIZA entre itens ao navegar",
+ * mesmo pedido que o segmentado de `FiltroSemestre.tsx` resolve com
+ * `transform`/`getBoundingClientRect`).
+ *
+ * Aqui a geometria é vertical (itens em coluna, com o overline "Desempenho
+ * Institucional" alterando o espaçamento entre o 1º e o 2º item) — medir com
+ * `ref`+`getBoundingClientRect` exigiria reproduzir esse layout à mão. A
+ * própria spec já lista a alternativa aceitável para este caso: `layoutId`
+ * do Framer Motion (já instalado no repo) num elemento absoluto que só
+ * existe no item ativo — quando `isActive` migra de um `NavLink` pro outro
+ * NA MESMA atualização de `location`, o Framer detecta a barra antiga saindo
+ * e a nova entrando com o MESMO `layoutId` e anima a transição de posição
+ * (FLIP) entre as duas, em vez de cada uma aparecer/desaparecer sozinha.
+ */
+const LAYOUT_ID_BARRA_ATIVA = 'gestor-sidebar-nav-barra-ativa';
+
+/**
+ * Curva/duração do deslize da barra: os MESMOS números de `--gp-motion-3`
+ * (200ms) e `--gp-ease` (`cubic-bezier(0.2,0,0,1)`) de `gestor-theme.css` —
+ * a prop `transition` do Framer Motion não lê variável CSS, só valor
+ * literal, por isso os números entram crus aqui (mesmo padrão de
+ * `DirecionadoresGestor.tsx`, que hardcoda o mesmo cubic-bezier em Tailwind
+ * arbitrário pelo mesmo motivo).
+ */
+const TRANSICAO_BARRA_ATIVA = { duration: 0.2, ease: [0.2, 0, 0, 1] as [number, number, number, number] };
+
+/** Sem movimento algum quando a pessoa pede `prefers-reduced-motion: reduce`
+ *  — a barra ainda troca de item, só que sem a animação de deslize. */
+const TRANSICAO_BARRA_SEM_MOVIMENTO = { duration: 0 };
+
+/**
+ * Transição de `color` do ícone (80ms = `--gp-motion-1`, `--gp-ease`) — sem
+ * isto a troca entre `text-3`/outlined (repouso) e `brand`/filled (ativo) era
+ * instantânea. Sintaxe de propriedade explícita (`[transition-duration:...]`,
+ * `[transition-timing-function:...]`), não a classe abreviada `duration-[…]`/
+ * `ease-[…]` do Tailwind — essas duas são ambíguas pro Tailwind (não sabe se
+ * são de `transition-*` ou `animation-*`) e o guard estático de
+ * `tema.test.tsx` reprova exatamente essa forma.
+ */
+const TRANSICAO_COR_ICONE =
+  'transition-[color] [transition-duration:80ms] [transition-timing-function:cubic-bezier(0.2,0,0,1)]';
+
+/**
  * Navegação da sidebar. Cada link carrega a query string atual, para que o
  * recorte global (semestre/simulados/IES) sobreviva à troca de tela — caso de
  * teste 12 da spec §12.
@@ -89,6 +139,32 @@ const BARRA_ATIVA: React.CSSProperties = {
  */
 export const SidebarNav: React.FC = () => {
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { iesId, semestre } = useFiltrosGestor();
+  const reduzido = usePrefersReducedMotion();
+
+  /**
+   * Prefetch no hover/foco de cada item (Parte VIII/§22 do handoff): só a
+   * Visão Geral tem função de prefetch pronta na Onda 1
+   * (`prefetchVisaoGeral`, o MESMO gatilho que já aquece
+   * `DirecionadoresGestor.tsx` no cartão equivalente da Início). `iesId`
+   * ainda pode ser `null` no primeiro acesso (antes de `SidebarIes` semear a
+   * URL) — sem seleção de IES não há o que aquecer.
+   *
+   * Início não entra aqui de propósito: não tem dado próprio pra aquecer, só
+   * os dois direcionadores que já fazem o próprio prefetch.
+   *
+   * TODO: prefetch de Detalhamento pendente de função dedicada — Onda 1 só
+   * criou prefetch de aluno/nível da cascata/próxima página (`prefetch.ts`),
+   * nenhuma para a tela de Detalhamento em si (que depende dos simulados
+   * selecionados, algo que a sidebar não conhece). Inventar uma chave aqui
+   * aqueceria um cache que nenhum hook de Detalhamento chega a observar.
+   */
+  const aquecerVisaoGeral = React.useCallback(() => {
+    if (iesId === null) return;
+    void prefetchVisaoGeral(queryClient, user?.id, iesId, semestre);
+  }, [queryClient, user?.id, iesId, semestre]);
 
   return (
     <nav
@@ -96,7 +172,10 @@ export const SidebarNav: React.FC = () => {
       className="flex flex-col"
       style={{ padding: '16px 12px', gap: 2 }}
     >
-      {GESTOR_V2_NAV.map(({ title, url, icon }, indice) => (
+      {GESTOR_V2_NAV.map(({ title, url, icon }, indice) => {
+        const aoPassarMouse = url === '/gestor/visao-geral' ? aquecerVisaoGeral : undefined;
+
+        return (
         <React.Fragment key={url}>
           {indice === PRIMEIRO_DO_GRUPO && (
             <div style={{ ...TITULO_GRUPO_NAV, padding: '18px 12px 8px' }}>
@@ -106,6 +185,8 @@ export const SidebarNav: React.FC = () => {
           <NavLink
             to={{ pathname: url, search: location.search }}
             end={url === '/gestor'}
+            onMouseEnter={aoPassarMouse}
+            onFocus={aoPassarMouse}
             className={({ isActive }) =>
               cn(
                 'relative flex items-center text-sm',
@@ -135,24 +216,33 @@ export const SidebarNav: React.FC = () => {
           >
             {({ isActive }) => (
               <>
-                {isActive && <span aria-hidden="true" style={BARRA_ATIVA} />}
+                {isActive && (
+                  <motion.span
+                    aria-hidden="true"
+                    layoutId={LAYOUT_ID_BARRA_ATIVA}
+                    style={BARRA_ATIVA}
+                    transition={reduzido ? TRANSICAO_BARRA_SEM_MOVIMENTO : TRANSICAO_BARRA_ATIVA}
+                  />
+                )}
                 <Icon
                   name={icon}
                   variant={isActive ? 'filled' : 'outlined'}
                   size={18}
                   box={20}
-                  className={
+                  className={cn(
+                    TRANSICAO_COR_ICONE,
                     isActive
                       ? 'text-[color:var(--gp-brand)]'
-                      : 'text-[color:var(--gp-text-3)]'
-                  }
+                      : 'text-[color:var(--gp-text-3)]',
+                  )}
                 />
                 {title}
               </>
             )}
           </NavLink>
         </React.Fragment>
-      ))}
+        );
+      })}
     </nav>
   );
 };

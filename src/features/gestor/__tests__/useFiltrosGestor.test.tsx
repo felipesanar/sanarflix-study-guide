@@ -2,8 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import * as React from 'react';
 import { render, renderHook, act, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
+
+// `SidebarNav` (Onda 2/B1, 09/08) passou a chamar `useQueryClient()`/`useAuth()`
+// (prefetch no hover de "Visão Geral") — mesmo mock/provider que
+// `SidebarNav.test.tsx` já usa como referência.
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'user-1' } }) }));
 
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
@@ -113,15 +119,18 @@ describe('useFiltrosGestor (spec §4.5, §8.2)', () => {
       return <span data-testid="filtros">{`${semestre}|${simulados.join('+')}`}</span>;
     };
 
+    const queryClient = new QueryClient();
     render(
-      <MemoryRouter initialEntries={['/gestor/visao-geral?semestre=11&simulados=s1,s2']}>
-        <SidebarNav />
-        <Routes>
-          <Route path="/gestor/visao-geral" element={<Tela />} />
-          <Route path="/gestor/detalhamento" element={<Tela />} />
-        </Routes>
-        <Sonda />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/gestor/visao-geral?semestre=11&simulados=s1,s2']}>
+          <SidebarNav />
+          <Routes>
+            <Route path="/gestor/visao-geral" element={<Tela />} />
+            <Route path="/gestor/detalhamento" element={<Tela />} />
+          </Routes>
+          <Sonda />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     expect(screen.getByTestId('filtros').textContent).toBe('11|s1+s2');

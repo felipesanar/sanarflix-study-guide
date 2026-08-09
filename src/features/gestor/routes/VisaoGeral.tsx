@@ -1,7 +1,9 @@
 import * as React from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useGestorContexto, useVisaoGeral } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
@@ -9,13 +11,15 @@ import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/c
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
 import { Dica } from '@/features/gestor/components/Dica';
 import { DrawerTemas, type EspecialidadeSelecionada } from '@/features/gestor/components/DrawerTemas';
+import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Glossario } from '@/features/gestor/components/Glossario';
 import { GraficoProtagonista } from '@/features/gestor/components/GraficoProtagonista';
 import { KpisVisaoGeral } from '@/features/gestor/components/KpisVisaoGeral';
 import { TabelaAlunos } from '@/features/gestor/components/TabelaAlunos';
-import { VisaoDeAlunos } from '@/features/gestor/components/VisaoDeAlunos';
+import { VisaoDeAlunos, VisaoDeAlunosCarregando } from '@/features/gestor/components/VisaoDeAlunos';
 import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';
-import type { FiltrosGestor, Meta } from '@/features/gestor/api/types';
+import type { FiltrosGestor, Meta, NivelDesempenho } from '@/features/gestor/api/types';
+import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
 
 const META_VAZIA: Meta = {
   periodo: '—',
@@ -25,6 +29,127 @@ const META_VAZIA: Meta = {
   partial: false,
   lowSample: false,
 };
+
+/**
+ * Reveal em cascata na MONTAGEM da rota (spec de motion §16): `opacity 0→1` +
+ * `translateY(8px→0)`, 320ms, curva de entrada (`--gp-ease-in`), 40ms de
+ * defasagem entre blocos, no máximo 3 níveis — do 4º bloco em diante (índice
+ * ≥ 2) o delay fica cravado em 80ms, nunca cresce.
+ *
+ * CSS puro (`tailwindcss-animate`), não Framer Motion, por dois motivos: (1)
+ * o `animate-in`/`fade-in-0`/`slide-in-from-bottom-2` já é o padrão usado
+ * nesta mesma tela para a entrada do detalhe micro (`animate-in
+ * [animation-duration:320ms] fade-in-0 slide-in-from-top-2`, abaixo) — usar a
+ * mesma família de classe para os blocos de nível superior não introduz uma
+ * segunda linguagem de motion nem uma dependência nova neste arquivo; (2) a
+ * keyframe do plugin dispara uma única vez, na CRIAÇÃO do nó — trocar filtro,
+ * paginar ou voltar de um drawer nunca desmonta estes blocos, então nada
+ * disso redispara o reveal, sem precisar de nenhum controle de estado extra.
+ * `fill-mode-backwards` evita o flash de conteúdo cheio durante o delay: sem
+ * ele, o bloco fica visível no estado final por 40/80ms antes de "saltar"
+ * para opacidade 0/translateY(8px) no instante em que a animação começa.
+ *
+ * `prefers-reduced-motion` já está coberto: o bloco global de
+ * `gestor-theme.css` zera `animation-duration` (`!important`) para todo
+ * descendente de `.gestor-portal` — que é onde `GestorShell` monta esta rota
+ * — então não é preciso nenhum tratamento extra em JS (isso só seria
+ * necessário com Framer Motion, que não passa por CSS `animation-duration`).
+ */
+function classeRevelacao(indice: number): string {
+  const BASE =
+    'animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-backwards [animation-duration:320ms] [animation-timing-function:var(--gp-ease-in)]';
+  if (indice <= 0) return `${BASE} [animation-delay:0ms]`;
+  if (indice === 1) return `${BASE} [animation-delay:40ms]`;
+  return `${BASE} [animation-delay:80ms]`;
+}
+
+/** Ordem fixa dos 3 grupos de nível no skeleton — mesma de `CascataDiagnostico`. */
+const ORDEM_NIVEL_SKELETON: NivelDesempenho[] = ['critico', 'mediano', 'excelente'];
+
+/**
+ * Quantas linhas de "área" o skeleton de cada nível desenha — não é a
+ * contagem real (que ainda não chegou), só o suficiente para comunicar
+ * "isto vai ser uma lista", sem virar 3 retângulos idênticos.
+ */
+const LINHAS_SKELETON_POR_NIVEL: Record<NivelDesempenho, number> = {
+  critico: 2,
+  mediano: 3,
+  excelente: 1,
+};
+
+/**
+ * Skeleton do card-resumo do Diagnóstico Curricular (spec §5, item 10): 3
+ * grupos de nível (crítico/mediano/excelente), cada um com 1 a 3 linhas de
+ * área em skeleton (nome + trilho + %) — não precisa ser pixel-perfect (o
+ * card real, em `CascataDiagnostico`, desenha chips soltos por área, não
+ * trilho+%), só precisa comunicar a FORMA "lista de áreas por nível", nunca
+ * um retângulo genérico.
+ *
+ * Vive aqui, e não em `CascataDiagnostico.tsx`: o loading desta seção é
+ * decidido pela query da TELA (`estado`, calculado nesta rota) ANTES de
+ * `CascataDiagnostico` chegar a montar — exatamente por isso o skeleton
+ * genérico de sempre vinha de `BlocoGestor`, não do componente real. Este
+ * substitui aquele, só para este bloco.
+ *
+ * `useDelayedLoading` (Onda 1, spec de motion §7): o chamador só monta este
+ * componente enquanto `estado === 'loading'`, e cada montagem nova rearma os
+ * 400ms do hook — o mesmo comportamento de `VisaoDeAlunosCarregando`.
+ */
+function DiagnosticoResumoCarregando() {
+  const mostrarSkeleton = useDelayedLoading(true);
+
+  return (
+    <section data-testid="bloco-diagnostico" aria-labelledby="titulo-diagnostico" aria-busy="true">
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center gap-2 pb-4">
+          <h2 id="titulo-diagnostico" style={{ fontSize: 16, fontWeight: 700 }}>
+            Diagnóstico Curricular
+          </h2>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {mostrarSkeleton ? (
+            <div data-testid="bloco-diagnostico-loading" className="grid gap-3.5 sm:grid-cols-3">
+              {ORDEM_NIVEL_SKELETON.map((nivel) => (
+                <div
+                  key={nivel}
+                  className="flex flex-col gap-2.5 border border-border p-4"
+                  style={{ borderRadius: 12 }}
+                >
+                  {/* Contagem + classificação do nível, em skeleton. */}
+                  <GestorSkeleton altura={22} rotulo={`Carregando ${ROTULO_NIVEL[nivel]}`} className="w-8" />
+                  <span className="flex items-center gap-[7px]">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block shrink-0"
+                      style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--gp-skeleton-brilho)' }}
+                    />
+                    <GestorSkeleton altura={12} rotulo={`Carregando ${ROTULO_NIVEL[nivel]}`} className="w-16" />
+                  </span>
+                  {/* Linhas de área: nome + trilho + % — a forma que diz
+                      "lista", não um bloco só. */}
+                  <ul className="flex flex-col gap-1.5">
+                    {Array.from({ length: LINHAS_SKELETON_POR_NIVEL[nivel] }, (_, indice) => (
+                      <li key={indice} className="flex items-center gap-2">
+                        <GestorSkeleton
+                          altura={10}
+                          rotulo={`Carregando ${ROTULO_NIVEL[nivel]}`}
+                          className="flex-1"
+                        />
+                        <GestorSkeleton altura={10} rotulo={`Carregando ${ROTULO_NIVEL[nivel]}`} className="w-8" />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div aria-hidden="true" style={{ minHeight: 150 }} />
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
 
 /**
  * /gestor/visao-geral — "Como estamos e onde dói?" (spec §2.1, §4.8).
@@ -286,7 +411,7 @@ export default function VisaoGeral() {
       ) : null}
 
       {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
-      <div className="flex flex-col gap-3">
+      <div className={`flex flex-col gap-3 ${classeRevelacao(0)}`}>
         {/*
          * A nota da régua vive num "i", não na linha do overline.
          *
@@ -316,7 +441,7 @@ export default function VisaoGeral() {
         <KpisVisaoGeral
           kpis={
             visao?.kpis ?? {
-              enamedProjetado: { valor: null, delta: null, serie: [], criterio: meta.criterio },
+              enamedProjetado: { valor: null, delta: null, serie: [], criterio: meta.criterio, origem: 'estimado' },
               proficientesPct: { valor: null, delta: null, serie: [], criterio: meta.criterio },
               acertoPct: { valor: null, delta: null, serie: [], criterio: meta.criterio },
               simulados: { realizados: 0, contratados: null },
@@ -329,17 +454,19 @@ export default function VisaoGeral() {
       </div>
 
       {/* 2. Gráfico protagonista com 3 modos (Geral / Por grande área / Por aluno). */}
-      <BlocoGestor
-        estado={estado}
-        parcial={parcial}
-        alturaSkeleton={360}
-        bloco="grafico"
-        testIdLoading="bloco-grafico-loading"
-        aoTentarNovamente={aoTentarNovamente}
-        mensagemVazio="Sem simulados realizados neste recorte."
-      >
-        {visao ? <GraficoProtagonista visao={visao} /> : null}
-      </BlocoGestor>
+      <div className={classeRevelacao(1)}>
+        <BlocoGestor
+          estado={estado}
+          parcial={parcial}
+          alturaSkeleton={360}
+          bloco="grafico"
+          testIdLoading="bloco-grafico-loading"
+          aoTentarNovamente={aoTentarNovamente}
+          mensagemVazio="Sem simulados realizados neste recorte."
+        >
+          {visao ? <GraficoProtagonista visao={visao} /> : null}
+        </BlocoGestor>
+      </div>
 
       {/* 3. Diagnóstico Curricular (por grande área) + cascata ao lado. A referência
           o PROMOVE para logo abaixo do gráfico protagonista (`<!-- Diagnóstico
@@ -347,54 +474,72 @@ export default function VisaoGeral() {
           antes de "quem dói?". O vazio do grupo crítico é o CAMINHO PRINCIPAL
           (87,9% dos recortes reais, NIVEL_CRITICO_MAX em lib/regras.ts) —
           CascataDiagnostico já trata isso, nunca escondendo a seção. */}
-      <BlocoGestor
-        estado={estado}
-        parcial={parcial}
-        alturaSkeleton={220}
-        bloco="diagnostico"
-        testIdLoading="bloco-diagnostico-loading"
-        aoTentarNovamente={aoTentarNovamente}
-        mensagemVazio="Sem classificação por grande área neste recorte."
-      >
-        {visao ? (
-          <CascataDiagnostico
-            resumo={visao.diagnosticoResumo}
-            recorte={recorteDiagnostico}
-            onAbrirTemas={aoAbrirTemas}
-          />
-        ) : null}
-      </BlocoGestor>
+      <div className={classeRevelacao(2)}>
+        {estado === 'loading' ? (
+          /* Skeleton composto do card-resumo (spec §5, item 10) em vez do
+             bloco genérico de `BlocoGestor` — ver `DiagnosticoResumoCarregando`
+             acima neste arquivo. */
+          <DiagnosticoResumoCarregando />
+        ) : (
+          <BlocoGestor
+            estado={estado}
+            parcial={parcial}
+            alturaSkeleton={220}
+            bloco="diagnostico"
+            testIdLoading="bloco-diagnostico-loading"
+            aoTentarNovamente={aoTentarNovamente}
+            mensagemVazio="Sem classificação por grande área neste recorte."
+          >
+            {visao ? (
+              <CascataDiagnostico
+                resumo={visao.diagnosticoResumo}
+                recorte={recorteDiagnostico}
+                onAbrirTemas={aoAbrirTemas}
+              />
+            ) : null}
+          </BlocoGestor>
+        )}
+      </div>
 
       {/* 4. Visão de Alunos — faixa larga, com o CTA "Ver visão detalhada" apontando
           para a tabela de alunos lá embaixo (nunca "drill-down"). */}
-      <BlocoGestor
-        estado={estado}
-        parcial={parcial}
-        alturaSkeleton={320}
-        bloco="visao-alunos"
-        testIdLoading="bloco-visao-alunos-loading"
-        aoTentarNovamente={aoTentarNovamente}
-        mensagemVazio="Sem alunos com resultado neste recorte."
-      >
-        {visao ? (
-          <VisaoDeAlunos
-            distribuicao={visao.distribuicaoAlunos}
-            /* Mesma contagem que o KPI "Simulados realizados" exibe
-               (`contarSimuladosComNotaReal`, já aplicada por `useVisaoGeral`):
-               a nota de contexto do bloco e o indicador do topo não podem
-               dizer números diferentes sobre a mesma pergunta. */
-            totalSimulados={visao.kpis.simulados.realizados}
-            /* Campo novo confirmado em produção em `get_gestor_visao_geral`
-               (mesmo nível de `kpis`/`evolucao`): a população matriculada da
-               IES no recorte vigente, sem o corte que `distribuicaoAlunos`
-               aplica — ver o comentário de `totalMatriculados` em
-               `VisaoDeAlunos.tsx`. */
-            totalMatriculados={visao.alunosMatriculadosNoRecorte}
-            onAlternarDetalhe={aoAlternarDetalhe}
-            detalheAberto={detalheAberto}
-          />
-        ) : null}
-      </BlocoGestor>
+      <div className={classeRevelacao(3)}>
+        {estado === 'loading' ? (
+          /* Skeleton composto do card-resumo de alunos (spec §5, item 9) em
+             vez do bloco genérico de `BlocoGestor` — ver
+             `VisaoDeAlunosCarregando` em `components/VisaoDeAlunos.tsx`. */
+          <VisaoDeAlunosCarregando />
+        ) : (
+          <BlocoGestor
+            estado={estado}
+            parcial={parcial}
+            alturaSkeleton={320}
+            bloco="visao-alunos"
+            testIdLoading="bloco-visao-alunos-loading"
+            aoTentarNovamente={aoTentarNovamente}
+            mensagemVazio="Sem alunos com resultado neste recorte."
+          >
+            {visao ? (
+              <VisaoDeAlunos
+                distribuicao={visao.distribuicaoAlunos}
+                /* Mesma contagem que o KPI "Simulados realizados" exibe
+                   (`contarSimuladosComNotaReal`, já aplicada por `useVisaoGeral`):
+                   a nota de contexto do bloco e o indicador do topo não podem
+                   dizer números diferentes sobre a mesma pergunta. */
+                totalSimulados={visao.kpis.simulados.realizados}
+                /* Campo novo confirmado em produção em `get_gestor_visao_geral`
+                   (mesmo nível de `kpis`/`evolucao`): a população matriculada da
+                   IES no recorte vigente, sem o corte que `distribuicaoAlunos`
+                   aplica — ver o comentário de `totalMatriculados` em
+                   `VisaoDeAlunos.tsx`. */
+                totalMatriculados={visao.alunosMatriculadosNoRecorte}
+                onAlternarDetalhe={aoAlternarDetalhe}
+                detalheAberto={detalheAberto}
+              />
+            ) : null}
+          </BlocoGestor>
+        )}
+      </div>
 
       {/*
         4b. O detalhe micro é EXTENSÃO da Visão de Alunos, não rodapé da tela.
@@ -434,16 +579,18 @@ export default function VisaoGeral() {
       ) : null}
 
       {/* 5. Insights autogerados (1 por área, 1 por aluno). */}
-      <BlocoGestor
-        estado={estado}
-        alturaSkeleton={120}
-        bloco="insights"
-        testIdLoading="bloco-insights-loading"
-        aoTentarNovamente={aoTentarNovamente}
-        mensagemVazio="Sem insights para este recorte."
-      >
-        {visao ? <BlocoInsights insights={visao.insights} /> : null}
-      </BlocoGestor>
+      <div className={classeRevelacao(4)}>
+        <BlocoGestor
+          estado={estado}
+          alturaSkeleton={120}
+          bloco="insights"
+          testIdLoading="bloco-insights-loading"
+          aoTentarNovamente={aoTentarNovamente}
+          mensagemVazio="Sem insights para este recorte."
+        >
+          {visao ? <BlocoInsights insights={visao.insights} /> : null}
+        </BlocoGestor>
+      </div>
 
       <DrawerTemas
         especialidade={especialidadeAberta}

@@ -25,6 +25,14 @@ export interface DispersaoChartProps {
    * coordenadora projeta esta tela em reunião de colegiado).
    */
   onSelecionarAluno?: (alunoId: string) => void;
+  /**
+   * Modo de loading PRÓPRIO do gráfico (spec de movimento §5, item 3: "nunca
+   * um retângulo cinza"). Quando `true`, ignora `pontos`/`tendencia` e
+   * desenha os MESMOS eixos reais do modo carregado (grade, eixo Y 0–100)
+   * com uma nuvem de pontos fixa em opacidade 0.18 nas posições que os dados
+   * ocupariam — não é dado real, é um padrão determinístico.
+   */
+  carregando?: boolean;
 }
 
 /** Sem o valor da meta: a linha tracejada já ocupa essa faixa (handoff §7). */
@@ -44,6 +52,28 @@ const JITTER = 0.3;
 
 /** Quantas faixas o jitter usa antes de repetir. Ímpar, para haver coluna central. */
 const FAIXAS_JITTER = 9;
+
+/**
+ * Domínio genérico do eixo X durante o carregamento — o recorte real de
+ * semestres ainda não chegou. "11º"/"12º" é o caso mais comum do produto
+ * (6º ano, ver `bug-tri-filtro-semestre`); a moldura do skeleton não precisa
+ * do domínio exato, só de um eixo real e plausível.
+ */
+const SEMESTRES_ESQUELETO = [11, 12];
+
+/**
+ * Nuvem fixa para o skeleton (spec §5, item 3: "posições aproximadas que os
+ * dados ocupariam... pode ser um padrão fixo"). Determinístico — nunca
+ * `Math.random()` — para não gerar um dado diferente por render.
+ */
+const NUVEM_ESQUELETO: { x: number; y: number }[] = Array.from({ length: 28 }, (_, indice) => {
+  const semestre = SEMESTRES_ESQUELETO[indice % SEMESTRES_ESQUELETO.length];
+  const faixa = ((indice * 7) % 9) - 4;
+  return {
+    x: Math.round((semestre + (faixa / 4) * JITTER) * 1e4) / 1e4,
+    y: 20 + ((indice * 13) % 70),
+  };
+});
 
 /**
  * Converte os pontos brutos em coordenadas de plotagem.
@@ -123,7 +153,75 @@ export function AnelDeFoco(props: { cx?: number; cy?: number }) {
  * Gráfico de dispersão do modo "Aluno" do gráfico protagonista da Visão
  * Geral (spec §4.8) — cada ponto é um aluno, nunca identificado em tela.
  */
-export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSelecionarAluno }: DispersaoChartProps) {
+export function DispersaoChart({
+  pontos,
+  tendencia,
+  largura,
+  altura = 300,
+  onSelecionarAluno,
+  carregando = false,
+}: DispersaoChartProps) {
+  if (carregando) {
+    const graficoEsqueleto = (
+      <ScatterChart
+        width={largura}
+        height={largura ? altura : undefined}
+        margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
+      >
+        <CartesianGrid stroke="var(--gp-border-subtle)" strokeWidth={1} />
+        <XAxis
+          type="number"
+          dataKey="x"
+          domain={[SEMESTRES_ESQUELETO[0] - 0.5, SEMESTRES_ESQUELETO[SEMESTRES_ESQUELETO.length - 1] + 0.5]}
+          ticks={SEMESTRES_ESQUELETO}
+          tickFormatter={(valor: number) => `${Math.round(valor)}º`}
+          tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
+          axisLine={{ stroke: 'var(--gp-border-strong)' }}
+          tickLine={false}
+        />
+        <YAxis
+          type="number"
+          dataKey="y"
+          domain={[0, 100]}
+          ticks={TICKS_Y}
+          width={36}
+          tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <ReferenceLine y={PROFICIENCIA_MINIMA} stroke="var(--gp-brand)" strokeWidth={2} strokeOpacity={0.35} />
+        <Scatter
+          data={NUVEM_ESQUELETO}
+          fill="var(--gp-text-3)"
+          fillOpacity={0.18}
+          className="animate-pulse"
+          isAnimationActive={false}
+        />
+      </ScatterChart>
+    );
+
+    return (
+      <figure className="m-0">
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label={`Carregando ${TITULO.toLowerCase()}`}
+          data-testid="dispersao-carregando"
+        >
+          {largura ? (
+            graficoEsqueleto
+          ) : (
+            <div style={{ height: altura }}>
+              <ResponsiveContainer width="100%" height="100%">
+                {graficoEsqueleto}
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </figure>
+    );
+  }
+
   if (pontos.length === 0) {
     return (
       <MolduraVazia

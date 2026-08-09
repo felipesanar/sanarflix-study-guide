@@ -1,9 +1,12 @@
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/features/gestor/components/Icon';
 import { DrawerAluno } from '@/features/gestor/components/DrawerAluno';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
+import { prefetchAluno, prefetchProximaPaginaAlunos } from '@/features/gestor/api/prefetch';
 import {
   CabecalhoTabela,
   Celula,
@@ -85,7 +88,13 @@ function FiltroGrupoAlunos({
       aria-pressed={selecionado}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full transition-colors duration-200',
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full',
+        // Comportamento 13 (spec de motion, Parte IV §11 — "pílula/chip"):
+        // `scale(0.96)` no press, 80ms. Propriedades explícitas na lista
+        // (`transition-[...]`), nunca as classes arbitrárias curtas de duração
+        // ou curva do Tailwind — guard de `tema.test.tsx` reprova essa forma
+        // ambígua; a duração/curva de cada propriedade vem por `style` abaixo.
+        'transition-[color,background-color,border-color,transform] active:scale-[0.96]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
       style={{
@@ -95,6 +104,8 @@ function FiltroGrupoAlunos({
         border: `1.5px solid ${selecionado ? 'var(--gp-text-1)' : 'var(--gp-border-strong)'}`,
         color: selecionado ? 'var(--gp-text-1)' : 'var(--gp-text-2)',
         background: selecionado ? 'var(--gp-surface-2)' : 'var(--gp-surface-1)',
+        transitionDuration: 'var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-1)',
+        transitionTimingFunction: 'var(--gp-ease)',
       }}
     >
       {corBolinha ? (
@@ -172,6 +183,8 @@ interface Ordenacao {
  * `tendencia` que o servidor já manda calculados.
  */
 export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: TabelaAlunosProps) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [busca, setBusca] = React.useState('');
   const [q, setQ] = React.useState('');
   const [page, setPage] = React.useState(1);
@@ -224,6 +237,72 @@ export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: 
   const linhas = pagina?.data ?? [];
   const totalPaginas = pagina?.totalPages ?? 0;
   const simuladosIds = colunasSimulados.map((coluna) => coluna.id);
+
+  /**
+   * Prefetch no hover de linha (spec de motion, Parte VIII §22): "hover na
+   * linha de aluno → prefetch do detalhe, com 150ms de atraso, para não
+   * disparar em varredura". Um único timeout (não um por linha): o mouse só
+   * pode estar sobre UMA linha por vez, e uma varredura rápida dispara
+   * `onMouseLeave` antes do timeout de 150ms da linha anterior vencer,
+   * cancelando-o — o prefetch só chega a rodar quando o cursor PARA sobre
+   * uma linha por tempo suficiente.
+   */
+  const timeoutPrefetchAlunoRef = React.useRef<ReturnType<typeof setTimeout>>();
+
+  React.useEffect(() => () => clearTimeout(timeoutPrefetchAlunoRef.current), []);
+
+  /**
+   * Prefetch é best-effort por definição (spec §22: "a fluidez invisível") —
+   * uma falha aqui NUNCA pode ser visível ao gestor nem derrubar a tela: o
+   * clique de verdade ainda busca o dado do jeito normal, só sem o cache
+   * aquecido. `try/catch` porque `prefetchAluno`/`prefetchProximaPaginaAlunos`
+   * podem lançar de forma SÍNCRONA (antes de qualquer Promise existir) se
+   * `queryClient` estiver num estado inesperado; `.catch()` cobre a rejeição
+   * ASSÍNCRONA normal (RPC falhou, rede caiu).
+   */
+  const aquecerComSeguranca = (prefetch: () => Promise<void>) => {
+    try {
+      prefetch().catch(() => undefined);
+    } catch {
+      // Silencioso de propósito — ver comentário acima.
+    }
+  };
+
+  const agendarPrefetchAluno = (alunoId: string) => {
+    clearTimeout(timeoutPrefetchAlunoRef.current);
+    timeoutPrefetchAlunoRef.current = setTimeout(() => {
+      aquecerComSeguranca(() => prefetchAluno(queryClient, user?.id, recorte.iesId, alunoId, simuladosIds));
+    }, 150);
+  };
+
+  const cancelarPrefetchAluno = () => clearTimeout(timeoutPrefetchAlunoRef.current);
+
+  /**
+   * Prefetch no hover da próxima página (mesmo §22 — "hover na página
+   * seguinte da paginação → prefetch daquela página"), repassado como
+   * `onHoverProximaPagina` para o `Paginacao` compartilhado. `recorte.iesId`
+   * pode ser `null` só enquanto o contexto ainda resolve a IES — nesse
+   * estado a própria `useAlunos` já está `enabled: false` e não há página
+   * seguinte de verdade para aquecer.
+   */
+  const aquecerProximaPagina = (proximaPagina: number) => {
+    if (recorte.iesId === null) return;
+    const iesId = recorte.iesId;
+    aquecerComSeguranca(() =>
+      prefetchProximaPaginaAlunos(
+        queryClient,
+        user?.id,
+        iesId,
+        recorte.semestre,
+        proximaPagina,
+        TAMANHO_PAGINA,
+        ordenacao.coluna,
+        ordenacao.ordem,
+        q,
+        grupoAtivo,
+      ),
+    );
+  };
 
   /**
    * Trocar de coluna começa DESCENDENTE nas numéricas (a leitura que interessa
@@ -375,6 +454,7 @@ export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: 
                 page={pagina?.page ?? page}
                 totalPages={totalPaginas}
                 onPageChange={setPage}
+                onHoverProximaPagina={aquecerProximaPagina}
               />
             </RodapeTabela>
           ) : null}
@@ -429,6 +509,8 @@ export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: 
                       selecionada={selecionada}
                       ultima={indice === linhas.length - 1}
                       onSelecionar={() => setAlunoAberto({ id: linha.id, nome: linha.nome })}
+                      onMouseEnter={() => agendarPrefetchAluno(linha.id)}
+                      onMouseLeave={cancelarPrefetchAluno}
                     >
                       <Celula marcada={selecionada} data-testid={`celula-nome-${linha.id}`}>
                         <button
@@ -520,6 +602,7 @@ export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: 
                 page={pagina?.page ?? page}
                 totalPages={totalPaginas}
                 onPageChange={setPage}
+                onHoverProximaPagina={aquecerProximaPagina}
               />
             </RodapeTabela>
           )}

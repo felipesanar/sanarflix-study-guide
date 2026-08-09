@@ -135,6 +135,7 @@ export const VISAO_GERAL: VisaoGeral = {
         { rotulo: 'atual', valor: 3 },
       ],
       criterio: 'concept de resultados_ies_tri',
+      origem: 'oficial',
     },
     proficientesPct: {
       valor: 62,
@@ -171,6 +172,7 @@ export const VISAO_GERAL: VisaoGeral = {
     { nivel: 'mediano', areas: [{ id: 'a2', nome: 'Cirurgia', acertoPct: 55 }] },
     { nivel: 'critico', areas: [{ id: 'a3', nome: 'Pediatria', acertoPct: 26 }] },
   ],
+  alunosMatriculadosNoRecorte: 100,
   distribuicaoAlunos: [
     { grupo: 'consistentemente_proficiente', quantidade: 40, percentual: 40 },
     { grupo: 'em_variacao', quantidade: 35, percentual: 35 },
@@ -233,8 +235,8 @@ export const ALUNOS_SIMULADO: AlunoNoSimulado[] = [ALUNO_PARTICIPOU, ALUNO_NAO_P
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TEMAS_CRITICOS: TemaCritico[] = [
-  { id: 't1', nome: 'Icterícia neonatal', acertoPct: 22, amostra: 118, lowSample: false },
-  { id: 't2', nome: 'Aleitamento materno', acertoPct: 31, amostra: 6, lowSample: true },
+  { id: 't1', nome: 'Icterícia neonatal', acertoPct: 22, amostra: 118, respostas: 944, lowSample: false },
+  { id: 't2', nome: 'Aleitamento materno', acertoPct: 31, amostra: 6, respostas: 48, lowSample: true },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -298,6 +300,9 @@ const QUESTAO_1: Questao = {
   tema: 'Icterícia neonatal',
   acertoPct: 22,
   enunciado: 'Recém-nascido de 3 dias com icterícia...',
+  imagemEnunciado: null,
+  imagemEnunciado2: null,
+  imagemComentario: null,
   alternativas: [
     { letra: 'A', texto: 'Fototerapia', correta: true, marcadaPct: 22 },
     { letra: 'B', texto: 'Exsanguineotransfusão', correta: false, marcadaPct: 51 },

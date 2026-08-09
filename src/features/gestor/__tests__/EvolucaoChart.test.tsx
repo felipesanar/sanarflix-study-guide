@@ -222,4 +222,35 @@ describe('EvolucaoChart (modo Geral)', () => {
       ).toBeInTheDocument();
     });
   });
+
+  /**
+   * Spec de movimento §5, item 2: "nunca um retângulo cinza" — o skeleton do
+   * gráfico de evolução tem que desenhar eixos reais (grade, eixo Y 0–100,
+   * linha de meta), não um bloco genérico.
+   */
+  describe('carregando (skeleton com eixos reais, spec de movimento §5)', () => {
+    it('ignora pontos e desenha os eixos reais (grade, eixo Y 0–100, linha de meta) com aria-busy', () => {
+      const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} carregando {...DIM} />);
+
+      const status = screen.getByRole('status');
+      expect(status).toHaveAttribute('aria-busy', 'true');
+
+      const ticks = Array.from(
+        container.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick-value'),
+      ).map((no) => no.textContent);
+      expect(ticks).toEqual(['0', '20', '40', '80', '100']);
+      expect(container.querySelector('.recharts-reference-line-line')).not.toBeNull();
+
+      // Nenhum dado real chega ao DOM enquanto carrega: nem a linha da série,
+      // nem a tabela colapsável de dados reais.
+      expect(container.querySelector('.recharts-line-curve')).toBeNull();
+      expect(screen.queryByTestId('evolucao-tabela')).not.toBeInTheDocument();
+    });
+
+    it('não mostra o estado vazio nem o de um-simulado-só quando carregando, mesmo com pontos=[]', () => {
+      render(<EvolucaoChart pontos={[]} carregando {...DIM} />);
+      expect(screen.queryByTestId('evolucao-vazio')).not.toBeInTheDocument();
+      expect(screen.getByTestId('evolucao-carregando')).toBeInTheDocument();
+    });
+  });
 });

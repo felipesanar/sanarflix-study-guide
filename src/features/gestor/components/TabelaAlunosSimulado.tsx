@@ -153,7 +153,10 @@ function FiltroProficienciaAlunos({
       aria-pressed={selecionado}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full transition-colors duration-200',
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full',
+        // Comportamento 13 (spec de motion, Parte IV §11): `scale(0.96)` no
+        // press, 80ms — mesma implementação de `TabelaAlunos.tsx` (`FiltroGrupoAlunos`).
+        'transition-[color,background-color,border-color,transform] active:scale-[0.96]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
       style={{
@@ -163,6 +166,8 @@ function FiltroProficienciaAlunos({
         border: `1.5px solid ${selecionado ? 'var(--gp-text-1)' : 'var(--gp-border-strong)'}`,
         color: selecionado ? 'var(--gp-text-1)' : 'var(--gp-text-2)',
         background: selecionado ? 'var(--gp-surface-2)' : 'var(--gp-surface-1)',
+        transitionDuration: 'var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-3), var(--gp-motion-1)',
+        transitionTimingFunction: 'var(--gp-ease)',
       }}
     >
       {corBolinha ? (

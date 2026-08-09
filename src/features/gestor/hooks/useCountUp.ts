@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { prefereMovimentoReduzido } from '@/features/gestor/hooks/usePrefersReducedMotion';
 
 /**
  * Duração do count-up de KPI (handoff `docs/07-motion.md:13,43`,
@@ -90,16 +91,6 @@ export function resolverCubicBezier(
   }
 
   return componenteBezier(candidato, p1y, p2y);
-}
-
-function prefereMovimentoReduzido(): boolean {
-  // jsdom não implementa a media feature de verdade (ver cabeçalho de
-  // `__tests__/movimento.test.tsx`) — os testes deste hook mockam
-  // `window.matchMedia` (mesmo padrão de `src/test/setup.ts`), e é isso que
-  // esta checagem lê. Guard de ambiente (SSR, ou teste sem o mock global)
-  // devolve `false` — nunca lançar por falta de `matchMedia`.
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**

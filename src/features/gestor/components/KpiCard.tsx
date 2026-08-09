@@ -7,6 +7,7 @@ import { Tag, TagDelta } from '@/features/gestor/components/Tag';
 import { TooltipRastreabilidade } from '@/features/gestor/components/TooltipRastreabilidade';
 import { TRACO, formatNumero } from '@/features/gestor/lib/formatters';
 import { useCountUp } from '@/features/gestor/hooks/useCountUp';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { FONTE_MONO } from '@/features/gestor/components/tabela/TabelaGestor';
 import type { Meta, PontoSerie } from '@/features/gestor/api/types';
 
@@ -75,8 +76,12 @@ export interface KpiCardProps {
   testId?: string;
 }
 
-/** Altura reservada pelo skeleton de carregamento, abaixo do título+tooltip. */
-const ALTURA_SKELETON = 76;
+/**
+ * Quantos pips o skeleton da trilha desenha quando o cartão real usa trilha
+ * (em vez de régua) — não o `trilha.total` verdadeiro, que ainda não chegou.
+ * Um número fixo, só para comunicar "isto vai ser uma trilha segmentada".
+ */
+const PIPS_SKELETON_TRILHA = 5;
 
 /**
  * Cartão de KPI, reusado 4x na Visão Geral e 3x no Detalhamento.
@@ -121,6 +126,14 @@ export function KpiCard({
   // animar", e é a própria `useCountUp` que decide não agendar frame nenhum
   // nesse caso — ver seu cabeçalho.
   const valorAnimado = useCountUp(typeof valorNumerico === 'number' ? valorNumerico : null);
+  /**
+   * Regra dos 400ms (spec de motion §7, Onda 1): o skeleton só aparece se o
+   * carregamento persistir por mais de 400ms — abaixo disso, mostrá-lo a
+   * cada troca de recorte seria o "flash" que a regra existe para eliminar.
+   * Enquanto o atraso não vence, o corpo do cartão fica em branco (a moldura
+   * — título e hint, já reais e imediatos, ver abaixo — não pisca).
+   */
+  const mostrarSkeleton = useDelayedLoading(estado === 'loading');
   /**
    * Count-up só liga com os DOIS ingredientes presentes — o número bruto E o
    * formatador de quadro. Um sem o outro cai no `valor` já formatado de
@@ -174,9 +187,64 @@ export function KpiCard({
         </div>
 
         {estado === 'loading' ? (
-          <div data-testid="kpi-skeleton" className="flex-1">
-            <GestorSkeleton altura={ALTURA_SKELETON} rotulo={`Carregando ${titulo}`} />
-          </div>
+          mostrarSkeleton ? (
+            /*
+             * Composição que reproduz a ANATOMIA real do cartão (spec §5,
+             * item 1) — não mais um bloco só. Título e hint FICAM DE FORA
+             * desta composição: são props estáticas (a string já chega no
+             * primeiro render, nunca é buscada), então já aparecem reais e
+             * imediatos no bloco acima, como manda a decisão #2 da Onda 1
+             * ("a moldura estática entra com o reveal, independente do
+             * delay do skeleton"). Só o número e a régua/trilha dependem do
+             * dado que ainda não chegou — são eles que ficam em skeleton.
+             */
+            <div data-testid="kpi-skeleton" className="flex flex-1 flex-col" style={{ gap: 14 }}>
+              {/* Bloco do número: mesma altura (44px) que `kpi-valor` ocupa. */}
+              <GestorSkeleton altura={44} rotulo={`Carregando ${titulo}`} className="w-24" />
+
+              {serie !== undefined ? (
+                /* Faixa da régua com 3 colunas — a mesma moldura emoldurada
+                   (borda + raio 9) de `kpi-regua`, com rótulo+valor de cada
+                   célula em skeleton no lugar do texto. */
+                <div
+                  data-testid="kpi-regua-skeleton"
+                  className="mt-auto flex overflow-hidden"
+                  style={{ border: '1px solid var(--gp-border-subtle)', borderRadius: 9 }}
+                >
+                  {[0, 1, 2].map((indice) => (
+                    <div
+                      key={indice}
+                      className="flex flex-1 flex-col items-center"
+                      style={{
+                        padding: '7px 6px',
+                        gap: 4,
+                        borderLeft: indice === 0 ? undefined : '1px solid var(--gp-border-subtle)',
+                      }}
+                    >
+                      <GestorSkeleton altura={8} rotulo={`Carregando ${titulo}`} className="w-8" />
+                      <GestorSkeleton altura={14} rotulo={`Carregando ${titulo}`} className="w-10" />
+                    </div>
+                  ))}
+                </div>
+              ) : trilha !== undefined ? (
+                /* Cartões sem régua (ex.: "Simulados realizados") fecham no
+                   rodapé com trilha — os mesmos pips segmentados do
+                   progressbar real, em skeleton. */
+                <div data-testid="kpi-trilha-skeleton" className="mt-auto flex" style={{ gap: 5 }}>
+                  {Array.from({ length: PIPS_SKELETON_TRILHA }, (_, indice) => (
+                    <GestorSkeleton
+                      key={indice}
+                      altura={8}
+                      rotulo={`Carregando ${titulo}`}
+                      className="flex-1 !rounded-full"
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex-1" aria-hidden="true" />
+          )
         ) : estado === 'error' ? (
           <div className="flex-1">
             <EstadoErro

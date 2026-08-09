@@ -19,11 +19,37 @@ export function semestresEmEvidencia(semestre: FiltroSemestre, disponiveis: numb
 }
 
 export interface AcertoPorAreaESemestreProps {
-  dados: AcertoPorAreaESemestreDados;
+  /**
+   * Opcional para acomodar `carregando` (abaixo): o chamador pode montar o
+   * componente já em loading, antes do dado do recorte chegar — nesse caso
+   * `dados` fica de fora e o skeleton próprio entra no lugar. Fora do modo
+   * `carregando`, o chamador sempre passa `dados` (ver `routes/Detalhamento.tsx`,
+   * que só monta este componente quando o bloco tem dado).
+   */
+  dados?: AcertoPorAreaESemestreDados;
   semestre: FiltroSemestre;
   matriz?: CelulaAreaSemestre[];
   recorte?: RecorteCruzado | null;
   onRecorteChange?: (recorte: RecorteCruzado | null) => void;
+  /**
+   * Drill-down de área → drawer de especialidades/temas (Task A4). Faltava
+   * nesta interface — o componente já desestruturava e usava a prop (linha
+   * do botão de drill-down abaixo), e `Detalhamento.tsx` já a passava; só o
+   * TIPO não a declarava.
+   */
+  onAbrirArea?: (area: { id: string; nome: string }) => void;
+  /**
+   * Skeleton PRÓPRIO do bloco (spec §5 item 4): quando `true`, o componente
+   * desenha sua própria silhueta — rótulos de área/semestre reais (se
+   * `dados` ainda tiver o recorte anterior, via `placeholderData`) ou
+   * placeholders de texto, trilhos visíveis (`--gp-surface-2`) e barras em
+   * skeleton com larguras variadas — no lugar do bloco genérico de 280px que
+   * `BlocoGestor` (`routes/Detalhamento.tsx`) desenha hoje a partir de fora.
+   * Trocar `BlocoGestor` por este skeleton no chamador é mudança de outro
+   * arquivo, fora do escopo desta tarefa — esta prop só habilita a
+   * capacidade aqui dentro.
+   */
+  carregando?: boolean;
 }
 
 const MOTIVO_SEM_MATRIZ = 'Recorte cruzado indisponível para esta seleção';
@@ -92,6 +118,136 @@ function DicaDeClique({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Shimmer do skeleton (mesmos tons de `GestorSkeleton`/`gestor-theme.css`,
+ * spec §6), duplicado aqui pela mesma razão de `CronogramaSimulados.tsx`:
+ * cada linha/coluna do skeleton próprio combina VÁRIAS formas (rótulo, trilho,
+ * barra), e a seção inteira já carrega um único `role="status"` — não faz
+ * sentido um por mancha.
+ */
+const SKELETON_SHIMMER: React.CSSProperties = {
+  background:
+    'linear-gradient(90deg, var(--gp-skeleton) 25%, var(--gp-skeleton-brilho) 50%, var(--gp-skeleton) 75%)',
+  backgroundSize: '200% 100%',
+};
+
+/** Mancha de skeleton — barra de texto ou preenchimento de trilho, no mesmo shimmer do resto do portal. */
+function BarraSkeleton({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn('block animate-shimmer', className)}
+      style={{ ...SKELETON_SHIMMER, borderRadius: 'var(--gp-radius-pill)', ...style }}
+    />
+  );
+}
+
+/** Linhas/colunas do skeleton quando não há dado nenhum ainda (nem placeholder). */
+const LINHAS_SKELETON_AREA = 5;
+const COLUNAS_SKELETON_SEMESTRE = 4;
+
+/** Larguras/alturas variadas — nunca uniformes, senão a silhueta lê como grade, não como "carregando". */
+const LARGURAS_SKELETON_AREA = [72, 45, 60, 38, 55];
+const ALTURAS_SKELETON_SEMESTRE = [55, 85, 40, 68];
+
+/**
+ * Skeleton próprio do bloco (spec §5 item 4, prop `carregando`): reproduz as
+ * DUAS seções reais — "Acerto por grande área" (rótulo real à esquerda
+ * quando disponível + trilho `--gp-surface-2` + barra em skeleton) e "Acerto
+ * por semestre" (mesma anatomia, na vertical) — nunca um bloco genérico
+ * único.
+ */
+function SkeletonAreaESemestre({ dados }: { dados?: AcertoPorAreaESemestreDados }) {
+  const areasReais = dados?.areas && dados.areas.length > 0 ? dados.areas : null;
+  const semestresReais = dados?.semestres && dados.semestres.length > 0 ? dados.semestres : null;
+  const indicesArea = areasReais
+    ? areasReais.map((_, indice) => indice)
+    : Array.from({ length: LINHAS_SKELETON_AREA }, (_, indice) => indice);
+  const indicesSemestre = semestresReais
+    ? semestresReais.map((_, indice) => indice)
+    : Array.from({ length: COLUNAS_SKELETON_SEMESTRE }, (_, indice) => indice);
+
+  return (
+    <section
+      role="status"
+      aria-busy="true"
+      aria-label="Carregando acerto por grande área e por semestre"
+      className="space-y-6 rounded-lg border border-border bg-card p-4"
+    >
+      <div>
+        <h2 className="mb-3 text-base font-semibold text-foreground">Acerto por grande área</h2>
+        <ul className="space-y-2">
+          {indicesArea.map((indice) => {
+            const area = areasReais?.[indice];
+            return (
+              <li key={area?.id ?? `skeleton-area-${indice}`} className="flex items-center gap-1 rounded">
+                <span className="grid min-w-0 flex-1 grid-cols-[10rem_1fr_3.5rem] items-center gap-3 px-1 py-1">
+                  {area ? (
+                    <span className="truncate text-left text-sm text-foreground">{area.nome}</span>
+                  ) : (
+                    <BarraSkeleton className="h-3.5 w-24" />
+                  )}
+                  <span
+                    className="w-full overflow-hidden"
+                    style={{ height: 8, borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-surface-2)' }}
+                  >
+                    <BarraSkeleton
+                      className="h-full"
+                      style={{ width: `${LARGURAS_SKELETON_AREA[indice % LARGURAS_SKELETON_AREA.length]}%` }}
+                    />
+                  </span>
+                  <BarraSkeleton className="h-3.5 w-8 justify-self-end" />
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-base font-semibold text-foreground">Acerto por semestre</h2>
+        <ul className="flex items-end justify-start gap-3">
+          {indicesSemestre.map((indice) => {
+            const semestreReal = semestresReais?.[indice];
+            return (
+              <li
+                key={semestreReal?.semestre ?? `skeleton-semestre-${indice}`}
+                style={{ maxWidth: LARGURA_MAX_COLUNA }}
+                className="flex flex-1 flex-col items-center gap-1"
+              >
+                <BarraSkeleton className="h-3 w-8" />
+                <span
+                  className="flex h-32 w-full items-end overflow-hidden"
+                  style={{ borderRadius: RAIO_BARRA_SEMESTRE, background: 'var(--gp-surface-2)' }}
+                >
+                  <BarraSkeleton
+                    className="w-full"
+                    style={{
+                      height: `${ALTURAS_SKELETON_SEMESTRE[indice % ALTURAS_SKELETON_SEMESTRE.length]}%`,
+                      borderRadius: RAIO_BARRA_SEMESTRE,
+                    }}
+                  />
+                </span>
+                {semestreReal ? (
+                  <span className="text-xs text-muted-foreground">{`${semestreReal.semestre}º semestre`}</span>
+                ) : (
+                  <BarraSkeleton className="h-3 w-14" />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export function AcertoPorAreaESemestre({
   dados,
   semestre,
@@ -99,7 +255,14 @@ export function AcertoPorAreaESemestre({
   recorte = null,
   onRecorteChange,
   onAbrirArea,
+  carregando = false,
 }: AcertoPorAreaESemestreProps) {
+  if (carregando) return <SkeletonAreaESemestre dados={dados} />;
+  // Fora do modo `carregando`, o chamador sempre passa `dados` (ver o
+  // comentário da prop, acima) — a guarda é só para o narrowing do
+  // TypeScript, já que `dados` ficou opcional na assinatura.
+  if (!dados) return null;
+
   const interativo = typeof onRecorteChange === 'function';
   const cruzamentoDisponivel = Boolean(matriz && matriz.length > 0);
   const idMotivo = React.useId();
@@ -263,7 +426,10 @@ export function AcertoPorAreaESemestre({
                   className={cn(
                     'flex items-center gap-1 rounded transition-opacity duration-200',
                     ativo && 'bg-primary/5 ring-1 ring-primary/30',
-                    esmaecida ? 'opacity-40' : 'opacity-100',
+                    // 35% (spec §11, comportamento 18) — não 40%: `opacity-40`
+                    // não é o valor da régua da spec, `opacity-[0.35]` é o
+                    // arbitrário do Tailwind pro 0.35 exato.
+                    esmaecida ? 'opacity-[0.35]' : 'opacity-100',
                   )}
                 >
                   {interativo ? (
@@ -399,7 +565,9 @@ export function AcertoPorAreaESemestre({
                   style={{ maxWidth: LARGURA_MAX_COLUNA }}
                   className={cn(
                     'flex flex-1 transition-opacity duration-200',
-                    esmaecida ? 'opacity-40' : 'opacity-100',
+                    // 35% (spec §11, comportamento 18) — mesma correção da
+                    // linha de área, acima.
+                    esmaecida ? 'opacity-[0.35]' : 'opacity-100',
                     ativo && 'rounded bg-primary/5 ring-1 ring-primary/30',
                   )}
                 >

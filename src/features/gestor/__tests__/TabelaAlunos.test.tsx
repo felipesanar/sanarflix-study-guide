@@ -8,6 +8,17 @@ import { TabelaAlunos } from '@/features/gestor/components/TabelaAlunos';
 import { normalizarLinhaAluno, useAluno, useAlunos } from '@/features/gestor/api/queries';
 import type { AlunoSimuladoEntry, FiltrosGestor, LinhaAluno, Meta } from '@/features/gestor/api/types';
 
+/**
+ * `TabelaAlunos` passou a ler `useAuth().user?.id` (spec de motion §22 —
+ * prefetch no hover de linha, mesmo `userId` que `alunoQueryKey` precisa).
+ * `useAuth` real lança fora de um `<AuthProvider>` — `@/test/utils`'s
+ * `MockAuthProvider` é só um passthrough, não um Provider de verdade — então
+ * este arquivo precisa do mesmo mock que `Direcionadores.test.tsx` já usa.
+ */
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'test-user-id' } }),
+}));
+
 // `useAlunos`/`useAluno` continuam mockados (todo o resto do arquivo depende
 // disso), mas `normalizarLinhaAluno` passa pelo módulo REAL — é a função que
 // os testes abaixo exercitam diretamente, mesmo padrão de `queries.test.tsx`
@@ -392,7 +403,9 @@ describe('TabelaAlunos', () => {
     // primeira célula. Sem isso, fechar o drawer perde o lugar na lista.
     const linha = screen.getByTestId('linha-aluno-a1');
     expect(linha).toHaveAttribute('data-selecionado', 'true');
-    expect(linha.getAttribute('style')).toContain('background: var(--gp-brand-surface)');
+    // Token dedicado à seleção (comportamento 16, spec de motion): --gp-brand-surface
+    // é opaco (item A4) e serve outros usos; a linha selecionada usa a versão suave.
+    expect(linha.getAttribute('style')).toContain('background: var(--gp-brand-surface-soft)');
     expect(screen.getByTestId('celula-nome-a1')).toHaveAttribute('data-marca-selecao', 'true');
     expect(screen.getByTestId('linha-aluno-a2')).toHaveAttribute('data-selecionado', 'false');
   });

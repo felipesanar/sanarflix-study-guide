@@ -91,7 +91,7 @@
   --gp-shadow-panel: -12px 0 28px -20px hsl(var(--foreground) / 0.25);
   --gp-shadow-drawer: -28px 0 64px -30px hsl(var(--foreground) / 0.42);
   --gp-scrim: hsl(220 13% 6% / 0.42);
-  --gp-focus-ring: 0 0 0 3px hsl(var(--ring) / 0.35);
+  --gp-focus-ring: 0 0 0 3px hsl(var(--ring) / 0.16);
 
   /* Skeleton — no claro, um degrau acima do card */
   --gp-skeleton: hsl(var(--muted));
@@ -202,8 +202,14 @@
   --gp-skeleton-brilho: hsl(220 13% 18%);
 }
 
-/* Hover: no claro ESCURECE de leve; no escuro CLAREIA — nunca o contrário. */
-.gestor-portal .gp-hover-surface { transition: background-color 140ms cubic-bezier(0.2, 0, 0, 1); }
+/* Hover: no claro ESCURECE de leve; no escuro CLAREIA — nunca o contrário.
+   Ajuste de conformidade com a spec de motion de 09/08 (§2.1 da tabela de
+   durações): hover de linha/item de navegação é "resposta imediata"
+   (--gp-motion-1, 80ms), não "reação tátil" (--gp-motion-2, 140ms) — o
+   literal antigo usava a duração errada da escala. A curva também passa a
+   ser --gp-ease em vez do valor hardcoded (mesmo cubic-bezier(0.2,0,0,1)),
+   por consistência com o resto do arquivo. */
+.gestor-portal .gp-hover-surface { transition: background-color var(--gp-motion-1) var(--gp-ease); }
 .gestor-portal .gp-hover-surface:hover { background-color: hsl(var(--accent)); }
 .dark .gestor-portal .gp-hover-surface:hover { background-color: hsl(220 13% 16%); }
 
@@ -280,6 +286,59 @@
    irmãos adjacentes, ver sheet.tsx) — sem afetar o overlay do Dialog. */
 .gestor-portal [class*="bg-black/80"]:has(+ [class*="duration-500"]) {
   animation-duration: var(--gp-motion-4);
+}
+
+/* B10 — Botão: press CLAREIA, nunca escurece (regra do Dendê; comportamento
+   11 da spec de movimento). `buttonVariants`/`Button` (`src/components/ui/
+   button.tsx`) são compartilhados com aluno/admin — por isso o `:active` não
+   entra no componente, entra aqui, escopado a `.gestor-portal`. `transition`
+   fica na base (`button`), não só no `:active`: declarada só ali, a SAÍDA do
+   press (voltar ao estado normal) não teria transição disponível e seria
+   instantânea — o mesmo motivo por que `.gp-card` no §12 da spec declara a
+   `transition` fora do `:hover`/`:active`. */
+.gestor-portal button {
+  transition: transform var(--gp-motion-2) var(--gp-ease), filter var(--gp-motion-2) var(--gp-ease);
+}
+.gestor-portal button:active {
+  transform: scale(0.97);
+  filter: brightness(1.08);
+}
+
+/* B10 — Tooltip (comportamento 20): abre em 80ms, fecha em 140ms, só
+   `translateY(4px → 0)` — nunca zoom, nunca os 8px de `slide-in-from-*-2`.
+   `TooltipContent` (`src/components/ui/tooltip.tsx`) é o único primitivo
+   Radix do portal que nunca embrulhou o conteúdo em `<Primitive.Portal>`
+   (ver comentário do Item A7 acima) — já mora dentro da subárvore
+   `.gestor-portal` sem precisar de `container`, e por isso pode ser
+   interceptado por seletor de atributo sem tocar no tsx compartilhado com
+   aluno/admin, do mesmo jeito que o Item A7 faz para o Sheet.
+
+   `[class~="zoom-in-95"]` usa correspondência de TOKEN EXATO (`~=`), não
+   substring (`*=`, como no Sheet acima): `SelectContent`/`DialogContent`
+   (Task 65 — também dentro de `.gestor-portal` via prop `container`, ver
+   comentário do Item A7) carregam o MESMO efeito de zoom, só que como token
+   `data-[state=open]:zoom-in-95` — uma string diferente de `zoom-in-95` puro.
+   O Tooltip é o único que carrega o token nu, porque a entrada dele não é
+   condicionada por `data-state` (só a saída é, com `data-[state=closed]:`).
+   Um seletor `*=` pegaria os três primitivos; `~=` (token exato,
+   espaço-delimitado) pega só o Tooltip. `[class~="animate-in"]` no mesmo
+   composto reforça a especificidade para 3 partes — (0,3,0), mesmo grau do
+   `[class*="duration-500"][data-state]` do Sheet — e vence a utilidade do
+   Tailwind ((0,2,0)) em qualquer ordem de import entre esta folha e o
+   Tailwind. */
+.gestor-portal [class~="zoom-in-95"][class~="animate-in"] {
+  animation-duration: var(--gp-motion-1);
+  animation-timing-function: var(--gp-ease-in);
+  --tw-enter-scale: 1;
+  --tw-enter-translate-x: 0px;
+  --tw-enter-translate-y: 4px;
+}
+.gestor-portal [class~="zoom-in-95"][class~="animate-in"][data-state="closed"] {
+  animation-duration: var(--gp-motion-2);
+  animation-timing-function: var(--gp-ease-out);
+  --tw-exit-scale: 1;
+  --tw-exit-translate-x: 0px;
+  --tw-exit-translate-y: 4px;
 }
 
 /* prefers-reduced-motion (Task 59b; handoff docs/07-motion.md e docs/06-data-viz.md

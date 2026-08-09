@@ -152,8 +152,8 @@ const AVISOS: Aviso[] = [
 const PAGINADO_ALUNOS_VAZIO = { data: [], page: 1, pageSize: 25, total: 0, totalPages: 0 };
 
 const TEMAS: TemaCritico[] = [
-  { id: 'tema-ic', nome: 'Insuficiência cardíaca', acertoPct: 22, amostra: 118, lowSample: false },
-  { id: 'tema-arritmia', nome: 'Arritmias', acertoPct: 41, amostra: 7, lowSample: true },
+  { id: 'tema-ic', nome: 'Insuficiência cardíaca', acertoPct: 22, amostra: 118, respostas: 944, lowSample: false },
+  { id: 'tema-arritmia', nome: 'Arritmias', acertoPct: 41, amostra: 7, respostas: 56, lowSample: true },
 ];
 
 const ESPECIALIDADE: EspecialidadeSelecionada = { id: 'esp-cardio', nome: 'Cardiologia', grandeArea: 'Clínica Médica' };
@@ -203,6 +203,9 @@ const QUESTAO: Questao = {
   tema: 'Insuficiência cardíaca',
   acertoPct: 42,
   enunciado: 'Enunciado da questão 1',
+  imagemEnunciado: null,
+  imagemEnunciado2: null,
+  imagemComentario: null,
   alternativas: [
     { letra: 'A', texto: 'Alternativa A', correta: true, marcadaPct: 42 },
     { letra: 'B', texto: 'Alternativa B', correta: false, marcadaPct: 31 },

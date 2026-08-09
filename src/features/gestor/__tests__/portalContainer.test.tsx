@@ -135,15 +135,26 @@ beforeEach(() => {
    useGestorPortalContainer/GestorPortalContainerContext.                    */
 /* ------------------------------------------------------------------------ */
 
+/*
+ * `SidebarNav` (Onda 2/B1, 09/08) passou a chamar `useQueryClient()` — prefetch
+ * no hover de "Visão Geral" (`prefetchVisaoGeral`). `montarShell` monta o
+ * `GestorShell` de verdade (é o próprio ponto desta suíte), então precisa do
+ * mesmo `QueryClientProvider` que `GestorShell.test.tsx`/`tema.test.tsx` já
+ * ganharam — sem ele, todo teste aqui quebra ao montar a sidebar, não só o que
+ * exercita o prefetch.
+ */
 function montarShell(conteudoDaRota: React.ReactElement, rota = '/gestor') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[rota]}>
-      <Routes>
-        <Route path="/gestor" element={<GestorShell />}>
-          <Route index element={conteudoDaRota} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[rota]}>
+        <Routes>
+          <Route path="/gestor" element={<GestorShell />}>
+            <Route index element={conteudoDaRota} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

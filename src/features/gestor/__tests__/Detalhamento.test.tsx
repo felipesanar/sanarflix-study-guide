@@ -127,6 +127,9 @@ const questao: Questao = {
   tema: 'Insuficiência cardíaca',
   acertoPct: 42,
   enunciado: 'Enunciado da questão 1',
+  imagemEnunciado: null,
+  imagemEnunciado2: null,
+  imagemComentario: null,
   alternativas: [
     { letra: 'A', texto: 'a', correta: true, marcadaPct: 42 },
     { letra: 'B', texto: 'b', correta: false, marcadaPct: 31 },

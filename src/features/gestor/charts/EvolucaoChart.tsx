@@ -26,6 +26,15 @@ export interface EvolucaoChartProps {
   pontos: VisaoGeral['evolucao'];
   largura?: number;
   altura?: number;
+  /**
+   * Modo de loading PRÓPRIO do gráfico (spec de movimento §5, item 2: "nunca
+   * um retângulo cinza"). Quando `true`, ignora `pontos` e desenha os MESMOS
+   * eixos reais do modo carregado — grade, eixo Y de 0 a 100 e a linha de
+   * meta, todos conhecidos independente do dado ainda não ter chegado — com
+   * um traço em skeleton no lugar da série. Nunca um `GestorSkeleton`
+   * genérico sem eixo.
+   */
+  carregando?: boolean;
 }
 
 /**
@@ -35,6 +44,14 @@ export interface EvolucaoChartProps {
  */
 const TICKS_Y = [0, 20, 40, 80, 100];
 const TITULO = 'Evolução da proficiência institucional por simulado';
+
+/**
+ * Dataset mudo, só para o `<XAxis dataKey="rotulo">` ter algo a iterar
+ * durante o carregamento — nenhum rótulo é exibido (o nome do simulado ainda
+ * não existe), mas o eixo, a grade e a linha de meta são os MESMOS
+ * componentes Recharts do modo carregado, não uma imitação.
+ */
+const DADOS_ESQUELETO: { rotulo: string }[] = Array.from({ length: 5 }, () => ({ rotulo: '' }));
 
 interface DadoEvolucao {
   rotulo: string;
@@ -169,7 +186,71 @@ function LegendaEvolucao() {
   );
 }
 
-export function EvolucaoChart({ pontos, largura, altura = 300 }: EvolucaoChartProps) {
+export function EvolucaoChart({ pontos, largura, altura = 300, carregando = false }: EvolucaoChartProps) {
+  if (carregando) {
+    const graficoEsqueleto = (
+      <ComposedChart
+        data={DADOS_ESQUELETO}
+        width={largura}
+        height={largura ? altura : undefined}
+        margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
+      >
+        <CartesianGrid stroke="var(--gp-border-subtle)" strokeWidth={1} vertical={false} />
+        <XAxis
+          dataKey="rotulo"
+          tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
+          axisLine={{ stroke: 'var(--gp-border-strong)' }}
+          tickLine={false}
+        />
+        <YAxis
+          domain={[0, 100]}
+          ticks={TICKS_Y}
+          width={36}
+          tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <ReferenceLine
+          y={PROFICIENCIA_MINIMA}
+          stroke="var(--gp-border-input)"
+          strokeWidth={1.5}
+          strokeDasharray="6 5"
+        />
+        {/* O traço da série ainda não existe: uma barra em skeleton no meio
+            da faixa (spec §5, item 2), não um retângulo cinza cobrindo o
+            plot inteiro — a moldura (eixos, grade, meta) já está de pé. */}
+        <ReferenceLine
+          y={50}
+          stroke="var(--gp-skeleton)"
+          strokeWidth={6}
+          strokeLinecap="round"
+          className="animate-pulse"
+        />
+      </ComposedChart>
+    );
+
+    return (
+      <figure className="m-0">
+        <div
+          role="status"
+          aria-busy="true"
+          aria-label={`Carregando ${TITULO.toLowerCase()}`}
+          data-testid="evolucao-carregando"
+        >
+          {largura ? (
+            graficoEsqueleto
+          ) : (
+            <div style={{ height: altura }}>
+              <ResponsiveContainer width="100%" height="100%">
+                {graficoEsqueleto}
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </figure>
+    );
+  }
+
   const descricao = `Proficiência institucional por simulado, escala 0 a 100, com ${pontos.length} simulado(s) realizado(s). Meta institucional de ${PROFICIENCIA_MINIMA}.`;
 
   const tabela = (

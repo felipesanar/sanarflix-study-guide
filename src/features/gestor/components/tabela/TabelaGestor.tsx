@@ -111,13 +111,30 @@ export function LinhaTabela({
     <tr
       {...rest}
       onClick={onSelecionar}
-      // `gp-hover-surface` (gestor-theme.css) é o único hover do repositório
-      // com a curva do handoff, e no escuro CLAREIA. Não se aplica à linha
-      // selecionada: o tint de marca perderia para o tint de hover.
-      className={cn(!selecionada && onSelecionar && 'gp-hover-surface', onSelecionar && 'cursor-pointer', className)}
+      className={cn(
+        // `gp-hover-surface` (gestor-theme.css) é o único hover do repositório
+        // com a curva do handoff, e no escuro CLAREIA. Não se aplica à linha
+        // selecionada: o tint de marca perderia para o tint de hover.
+        !selecionada && onSelecionar && 'gp-hover-surface',
+        onSelecionar && 'cursor-pointer',
+        // Comportamento 10 (spec de motion, Parte IV §11): anel de foco
+        // INTERNO em qualquer controle focável dentro da linha — o anel
+        // externo padrão (`.gestor-portal :focus-visible`, `--gp-focus-ring`)
+        // pode ser cortado pela borda da célula ou pelo `overflow-x: auto` da
+        // moldura da tabela (`TabelaGestor`). Sintaxe de propriedade explícita
+        // (`[box-shadow:...]`), nunca a utilidade curta do Tailwind com um
+        // valor arbitrário que comece só por `var(`: guard de `tema.test.tsx`
+        // reprova esse padrão ambíguo, que resolveria para `--tw-shadow-color`
+        // em vez do box-shadow inteiro.
+        '[&_:focus-visible]:[box-shadow:inset_0_0_0_2px_var(--gp-brand)] [&_:focus-visible]:outline-none',
+        className,
+      )}
       style={{
         borderBottom: ultima ? undefined : '1px solid var(--gp-border-subtle)',
-        background: selecionada ? 'var(--gp-brand-surface)' : undefined,
+        // Token dedicado à linha selecionada (gestor-theme.css §"Superfície de
+        // marca mais suave") — `--gp-brand-surface` (opaco, item A4) é para
+        // outros usos; a tabela nunca o consumiu até aqui.
+        background: selecionada ? 'var(--gp-brand-surface-soft)' : undefined,
         ...style,
       }}
     >
@@ -184,10 +201,48 @@ export interface CelulaProps extends React.TdHTMLAttributes<HTMLTableCellElement
   /** Valor ausente: o `—` vai em text-3, nunca na cor do dado. */
   ausente?: boolean;
   /**
-   * Primeira célula da linha selecionada: recebe a barra de 3px da marca, com
-   * o padding-left compensado de 12px para 9px para o texto não deslocar.
+   * Primeira célula da linha selecionada: recebe a barra de marca (comportamento
+   * 16, Parte IV §11 da spec de motion). Nunca desloca o texto — ver comentário
+   * da barra abaixo.
    */
   marcada?: boolean;
+}
+
+/**
+ * Barra de 3px da linha selecionada, animada (comportamento 16): CRESCE por
+ * `scaleY(0 → 1)` a partir do centro em 200ms (`--gp-motion-3`/`--gp-ease`),
+ * nunca aparece de repente. Antes era um `border-left` estático — que também
+ * exigia compensar o `padding-left` (12px→9px) para o texto não deslocar.
+ * Como elemento absoluto sobreposto (não ocupa espaço no box), o padding da
+ * célula fica constante e a barra nunca desloca layout (regra de movimento:
+ * só `transform`/`opacity`, nunca `width`/`padding`).
+ *
+ * Renderizado em TODA `Celula` (não só a `marcada`) para a transição
+ * funcionar de verdade: uma transição CSS não roda em elemento que nunca
+ * existiu antes (mesmo motivo do comportamento 17, `SeletorSimulados.tsx`) —
+ * com `scaleY(0)` em repouso, a barra é invisível e o custo extra de DOM é
+ * uma `<span>` de 0 altura visual por célula.
+ */
+function BarraSelecao({ marcada }: { marcada: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="barra-selecao"
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 3,
+        background: 'var(--gp-brand)',
+        transformOrigin: 'center',
+        transform: marcada ? 'scaleY(1)' : 'scaleY(0)',
+        transitionProperty: 'transform',
+        transitionDuration: 'var(--gp-motion-3)',
+        transitionTimingFunction: 'var(--gp-ease)',
+      }}
+    />
+  );
 }
 
 export function Celula({
@@ -210,12 +265,11 @@ export function Celula({
         fontFamily: numerica ? FONTE_MONO : undefined,
         fontVariantNumeric: numerica ? 'tabular-nums' : undefined,
         color: ausente ? 'var(--gp-text-3)' : ESTILO_CELULA.color,
-        ...(marcada
-          ? { borderLeft: '3px solid var(--gp-brand)', paddingLeft: 9 }
-          : null),
+        position: 'relative',
         ...style,
       }}
     >
+      <BarraSelecao marcada={marcada} />
       {children}
     </td>
   );

@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
+import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { formatNumero, formatPct } from '@/features/gestor/lib/formatters';
 import { ROTULO_GRUPO_PLURAL, rotuloGrupo } from '@/features/gestor/lib/rotulos';
 import type { GrupoEvolucao, VisaoGeral } from '@/features/gestor/api/types';
@@ -75,6 +77,85 @@ const COR_GRUPO: Record<GrupoEvolucao, string> = {
   em_variacao: 'var(--gp-warning)',
   consistentemente_nao_proficiente: 'var(--gp-danger)',
 };
+
+/**
+ * Skeleton do card-resumo de alunos (spec §5, item 9): barra empilhada de
+ * 18px em skeleton + 3 cards de grupo, cada um com o quadradinho de cor e o
+ * número em skeleton — nunca o bloco genérico de sempre.
+ *
+ * `useDelayedLoading` (Onda 1, spec de motion §7) faz o skeleton só aparecer
+ * se o carregamento passar de 400ms — antes disso este componente fica em
+ * branco (reservando a altura mínima do card carregado, para não haver
+ * salto quando o skeleton composto entra). O título "Visão de Alunos" é
+ * moldura estática (decisão #2 da Onda 1: a moldura entra com o reveal,
+ * independente do atraso do skeleton) — é a mesma string real de sempre,
+ * nunca um `GestorSkeleton`, porque não depende de nenhum dado que ainda
+ * não chegou.
+ *
+ * O chamador (`VisaoGeral.tsx`) é quem decide QUANDO montar este componente
+ * (enquanto `estado === 'loading'`) — cada montagem nova rearma os 400ms do
+ * hook, exatamente como um novo ciclo de carregamento deve se comportar.
+ */
+export function VisaoDeAlunosCarregando() {
+  const mostrarSkeleton = useDelayedLoading(true);
+
+  return (
+    <section data-testid="bloco-visao-alunos" aria-labelledby="titulo-visao-alunos" aria-busy="true">
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center gap-2 pb-4">
+          <h2 id="titulo-visao-alunos" style={{ fontSize: 16, fontWeight: 700 }}>
+            Visão de Alunos
+          </h2>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mostrarSkeleton ? (
+            <div
+              data-testid="bloco-visao-alunos-loading"
+              className="grid items-center gap-6 lg:grid-cols-[1.1fr_2fr] lg:gap-7"
+            >
+              <div className="flex flex-col gap-3">
+                {/* Barra empilhada, 18px — mesma altura da real. */}
+                <GestorSkeleton
+                  altura={18}
+                  rotulo="Carregando distribuição dos alunos"
+                  className="!rounded-full"
+                />
+                <GestorSkeleton altura={30} rotulo="Carregando distribuição dos alunos" className="w-28" />
+              </div>
+              <ul className="grid gap-3.5 sm:grid-cols-3">
+                {ORDEM_GRUPO.map((grupo) => (
+                  <li key={grupo}>
+                    <div className="border border-border p-3.5" style={{ borderRadius: 12 }}>
+                      {/* Quadradinho de cor + número, em skeleton — mesma
+                          anatomia de `grupo-${grupo}` no bloco real. */}
+                      <span className="flex items-center gap-[7px]">
+                        <span
+                          aria-hidden="true"
+                          className="inline-block shrink-0"
+                          style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--gp-skeleton-brilho)' }}
+                        />
+                        <GestorSkeleton altura={20} rotulo="Carregando distribuição dos alunos" className="w-10" />
+                      </span>
+                      <div className="mt-1.5">
+                        <GestorSkeleton
+                          altura={11}
+                          rotulo="Carregando distribuição dos alunos"
+                          className="w-24"
+                        />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div aria-hidden="true" style={{ minHeight: 92 }} />
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
 
 /**
  * Bloco "Visão de Alunos" (resumo) da Visão Geral (spec §4.8): distribuição

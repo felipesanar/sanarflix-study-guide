@@ -46,13 +46,37 @@ const RAIO_SEGMENTO = 6;
  * Fade cruzado na troca de modo (item B2 do passe de conformidade;
  * `docs/06-data-viz.md:23`: "troca o conjunto de séries com fade cruzado").
  *
- * `key={modo}` no componente PAI força este componente a desmontar/remontar
- * a cada troca — é isso que dá a cada modo sua própria instância, e por
- * consequência seu próprio ciclo de fade. O truque do fade-in é: nascer em
- * `opacity: 0` e, um quadro depois (`requestAnimationFrame`, não um efeito
- * síncrono — senão o navegador nunca chega a pintar o quadro em opacity 0
- * para a transição CSS ter de onde partir), subir para `opacity: 1` — a
- * transição CSS entre os dois quadros É o fade.
+ * ATÉ 09/08 este componente levava `key={modo}` no componente PAI, o que
+ * forçava React a desmontar e RECRIAR este `<div>` a cada troca — não só o
+ * conteúdo interno, o próprio nó-wrapper. Isso violava a regra "eixos
+ * permanecem" da spec de movimento (§10/§15): o wrapper que deveria
+ * persistir como moldura estável desaparecia e reaparecia junto com o
+ * gráfico. Achado do passe de conformidade de 09/08.
+ *
+ * Correção: o `key` sai do nível do wrapper — `modo` agora chega como PROP,
+ * não como identidade do componente, e o fade é retriggado por um efeito
+ * (dependente de `modo`), não por remontagem. O `<div data-testid=
+ * "grafico-protagonista-conteudo">` abaixo é o MESMO nó do DOM antes e depois
+ * da troca (prova em `GraficoProtagonista.test.tsx`).
+ *
+ * Ressalva registrada aqui, não escondida: Geral/Grande área/Aluno são três
+ * visualizações Recharts genuinamente diferentes (`ComposedChart`/
+ * `LineChart`/`ScatterChart`, domínios de eixo X diferentes — categórico por
+ * simulado nos dois primeiros, numérico por semestre no terceiro) — os
+ * `<XAxis>`/`<YAxis>` internos de cada `Chart` continuam sendo desmontados e
+ * remontados pelo Recharts quando o COMPONENTE do gráfico troca (isso exigiria
+ * unificar os três em um único gráfico para deixar de acontecer, fora do
+ * escopo desta correção). O que esta correção resolve é o remount
+ * REDUNDANTE do WRAPPER, que não precisava acontecer e é a causa raiz
+ * apontada no achado: a moldura do CARD (título, toggle, borda — já fora
+ * deste componente) nunca remontava; agora o wrapper de conteúdo também não.
+ *
+ * O truque do fade-in é: nascer em `opacity: 0` e, um quadro depois
+ * (`requestAnimationFrame`, não um efeito síncrono — senão o navegador nunca
+ * chega a pintar o quadro em opacity 0 para a transição CSS ter de onde
+ * partir), subir para `opacity: 1` — a transição CSS entre os dois quadros É
+ * o fade. Isso roda de novo a cada troca de `modo` (não só na montagem),
+ * porque a dependência do efeito é `[modo]`.
  *
  * `--gp-motion-3` (200ms) e `--gp-ease` por `style`, nunca `duration-[...]`/
  * `ease-[...]`: guard de `tema.test.tsx` (classe arbitrária do Tailwind é
@@ -68,13 +92,15 @@ const RAIO_SEGMENTO = 6;
  * descendente de `.gestor-portal` com `!important` — esta transição comum
  * cai nesse guarda-chuva sem precisar de nenhum código extra aqui.
  */
-function FadeConteudoGrafico({ children }: { children: React.ReactNode }) {
+function FadeConteudoGrafico({ modo, children }: { modo: ModoGrafico; children: React.ReactNode }) {
   const [visivel, setVisivel] = React.useState(false);
 
   React.useEffect(() => {
+    setVisivel(false);
     const quadro = requestAnimationFrame(() => setVisivel(true));
     return () => cancelAnimationFrame(quadro);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- retrigger só quando o MODO muda, não a cada render.
+  }, [modo]);
 
   return (
     <div
@@ -167,7 +193,17 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
           <span
             aria-hidden="true"
             data-testid="grafico-modos-indicador"
-            className="pointer-events-none absolute z-0 bg-[var(--gp-text-1)] transition-transform duration-200 ease-out dark:bg-[var(--gp-brand)]"
+            /*
+             * `ease-out` (Tailwind, `cubic-bezier(0.4,0,0.2,1)`) saiu daqui —
+             * era a curva de SAÍDA (spec §2.2: "algo sai ou desaparece"), e
+             * este indicador nunca sai: ele desliza de um segmento para o
+             * outro, uma troca de estado bidirecional, que é exatamente a
+             * definição de `--gp-ease` (spec §2.2, achado do passe de
+             * conformidade de 09/08). A curva vai por `style` (não
+             * `ease-[...]`): guard de `tema.test.tsx` reprova classe
+             * arbitrária de curva/duração do Tailwind.
+             */
+            className="pointer-events-none absolute z-0 bg-[var(--gp-text-1)] transition-transform duration-200 dark:bg-[var(--gp-brand)]"
             style={{
               top: PADDING_TRILHO,
               bottom: PADDING_TRILHO,
@@ -175,6 +211,7 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
               borderRadius: RAIO_SEGMENTO,
               width: `calc((100% - ${PADDING_TRILHO * 2}px) / ${MODOS.length})`,
               transform: `translateX(${indiceAtivo * 100}%)`,
+              transitionTimingFunction: 'var(--gp-ease)',
             }}
           />
           {MODOS.map((opcao, indice) => {
@@ -209,7 +246,7 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <FadeConteudoGrafico key={modo}>
+        <FadeConteudoGrafico modo={modo}>
           {modo === 'geral' ? <EvolucaoChart pontos={visao.evolucao} /> : null}
           {modo === 'area' ? <AreasChart areas={visao.evolucaoPorArea} /> : null}
           {modo === 'aluno' ? <DispersaoChart pontos={visao.dispersao} /> : null}

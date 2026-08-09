@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useCronograma } from '@/features/gestor/api/queries';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { formatData } from '@/features/gestor/lib/formatters';
 import { BadgeStatus } from '@/features/gestor/components/BadgeStatus';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
-import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { Tag } from '@/features/gestor/components/Tag';
 import { formatDataHora } from '@/features/gestor/components/TooltipRastreabilidade';
@@ -77,6 +77,52 @@ const SELO_PROXIMO: React.CSSProperties = {
   background: 'var(--gp-brand)',
   padding: '2px 9px',
 };
+
+/**
+ * Shimmer do skeleton (mesmos tons de `GestorSkeleton`/`gestor-theme.css`,
+ * spec §6): gradiente que varre a superfície, calibrado nos dois temas via
+ * `--gp-skeleton`/`--gp-skeleton-brilho`. Duplicado aqui (em vez de reusar
+ * `GestorSkeleton`) porque cada linha do cronograma precisa de DUAS formas
+ * distintas lado a lado — nome + pílula de status —, e `GestorSkeleton`
+ * desenha uma mancha só por instância, cada uma com seu próprio
+ * `role="status"`; a linha inteira já carrega esse papel.
+ */
+const SKELETON_SHIMMER: React.CSSProperties = {
+  background:
+    'linear-gradient(90deg, var(--gp-skeleton) 25%, var(--gp-skeleton-brilho) 50%, var(--gp-skeleton) 75%)',
+  backgroundSize: '200% 100%',
+};
+
+/**
+ * Linha de skeleton do cronograma (spec §5 item 8): a linha real nunca é uma
+ * mancha só — tem o nome do simulado à esquerda e uma pílula de status
+ * separada à direita (agendado/em andamento/encerrado). O skeleton reproduz
+ * as DUAS formas, não uma barra única do tamanho da linha.
+ */
+function LinhaSkeleton() {
+  return (
+    <div
+      data-testid="cronograma-skeleton"
+      role="status"
+      aria-busy="true"
+      aria-label="Carregando cronograma"
+      className="flex items-center justify-between gap-3 px-3 py-3"
+    >
+      {/* Barra do nome do simulado — ~60% da largura, como o texto real. */}
+      <span
+        aria-hidden="true"
+        className="h-3.5 w-3/5 flex-none animate-shimmer"
+        style={{ ...SKELETON_SHIMMER, borderRadius: 'var(--gp-radius-pill)' }}
+      />
+      {/* Pílula de status, separada da barra de nome. */}
+      <span
+        aria-hidden="true"
+        className="h-5 w-16 flex-none animate-shimmer"
+        style={{ ...SKELETON_SHIMMER, borderRadius: 'var(--gp-radius-pill)' }}
+      />
+    </div>
+  );
+}
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -499,15 +545,23 @@ function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: ()
  */
 export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps) {
   const { data, meta, isLoading, isError, refetch } = useCronograma(iesId);
+  // Regra dos 400ms (spec §7, `useDelayedLoading`): numa carga fria (sem
+  // dado anterior em cache), `isLoading` fica `true` desde o primeiro
+  // render — sem o atraso, toda montagem piscaria o skeleton mesmo quando a
+  // rede responde em 150–300ms.
+  const mostrarSkeleton = useDelayedLoading(isLoading);
 
   if (isLoading) {
+    // Abaixo de 400ms a moldura já está de pé (título, borda, "i") mas o
+    // corpo fica vazio — nunca cai para "Nenhum simulado contratado", que
+    // seria um vazio inventado enquanto o dado real ainda está em voo.
+    if (!mostrarSkeleton) return <Moldura>{null}</Moldura>;
+
     return (
       <Moldura>
         <div className="space-y-3">
           {[0, 1, 2, 3].map((linha) => (
-            <div key={linha} data-testid="cronograma-skeleton">
-              <GestorSkeleton altura={64} rotulo="Carregando cronograma" />
-            </div>
+            <LinhaSkeleton key={linha} />
           ))}
         </div>
       </Moldura>

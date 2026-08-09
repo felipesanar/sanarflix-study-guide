@@ -7,6 +7,7 @@ import { Icon } from '@/features/gestor/components/Icon';
 import { TagCoberturaParcial, TagNivel } from '@/features/gestor/components/Tag';
 import { useDetalhamentoTemas, type NoDetalhamentoTemas } from '@/features/gestor/api/queries';
 import { formatPct } from '@/features/gestor/lib/formatters';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
@@ -45,6 +46,31 @@ function corDaBarra(no: NoDetalhamentoTemas): string {
 }
 
 /**
+ * Corpo do drawer em carregamento (spec de motion §5, item 7 — "Drawer /
+ * painel"): mesma anatomia de `DrawerTemas.tsx` — grade 2×2 de cartões na
+ * altura aproximada de um nó real (nome+tag+% / barra / rodapé com amostra e
+ * afordância de "Ver temas") seguida de um bloco de barras representando o
+ * resto da lista que continua na rolagem. Antes eram 3 barras genéricas.
+ */
+function CorpoDetalhamentoTemasSkeleton({ rotulo }: { rotulo: string }) {
+  return (
+    <div className="space-y-3" data-testid="drawer-detalhamento-temas-skeleton">
+      <div className="grid grid-cols-2 gap-2.5">
+        <GestorSkeleton forma="cartao" altura={90} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={90} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={90} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={90} rotulo={rotulo} />
+      </div>
+      <div className="space-y-2">
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Drill-down de área do Detalhamento (Task A4): especialidade → tema dentro
  * da grande área clicada em `AcertoPorAreaESemestre`.
  *
@@ -74,6 +100,8 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
   }, [area?.id]);
 
   const consulta = useDetalhamentoTemas(iesId, simulados, area?.nome ?? null, especialidadeAberta);
+  /** Regra dos 400ms (spec de motion §7) — evita o flash de skeleton em resposta rápida. */
+  const mostrarSkeleton = useDelayedLoading(consulta.isLoading);
   useDevolverFocoAoFechar(area !== null);
   const container = useGestorPortalContainer();
   const tituloRef = React.useRef<HTMLHeadingElement>(null);
@@ -144,11 +172,11 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
 
         <div className="flex-1">
           {consulta.isLoading ? (
-            <div className="space-y-2">
-              <GestorSkeleton altura={40} rotulo={`Carregando ${nivelTema ? 'temas' : 'especialidades'}`} />
-              <GestorSkeleton altura={40} rotulo={`Carregando ${nivelTema ? 'temas' : 'especialidades'}`} />
-              <GestorSkeleton altura={40} rotulo={`Carregando ${nivelTema ? 'temas' : 'especialidades'}`} />
-            </div>
+            mostrarSkeleton ? (
+              <CorpoDetalhamentoTemasSkeleton
+                rotulo={`Carregando ${nivelTema ? 'temas' : 'especialidades'}`}
+              />
+            ) : null
           ) : consulta.isError ? (
             <EstadoErro
               titulo={`Não foi possível carregar ${nivelTema ? 'os temas' : 'as especialidades'}.`}

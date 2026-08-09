@@ -11,6 +11,21 @@ import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';
 
 /**
+ * Reveal em cascata na MONTAGEM da rota (spec de motion §16) — mesma
+ * implementação de `VisaoGeral.tsx`/`Detalhamento.tsx` (ver o comentário em
+ * `VisaoGeral.tsx` para o raciocínio completo de CSS puro vs. Framer Motion e
+ * de `prefers-reduced-motion`). Duplicada aqui em vez de extraída para um
+ * módulo compartilhado: o escopo desta rodada é só estes 3 arquivos de rota.
+ */
+function classeRevelacao(indice: number): string {
+  const BASE =
+    'animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-backwards [animation-duration:320ms] [animation-timing-function:var(--gp-ease-in)]';
+  if (indice <= 0) return `${BASE} [animation-delay:0ms]`;
+  if (indice === 1) return `${BASE} [animation-delay:40ms]`;
+  return `${BASE} [animation-delay:80ms]`;
+}
+
+/**
  * Início do gestor — rota `/gestor` do portal v2 (spec §2.1).
  * Propósito: ORIENTAR. Nenhum indicador de desempenho vive aqui — sem
  * proficiência, sem % de acerto, sem conceito ENAMED, sem TRI. Quem quer
@@ -57,12 +72,14 @@ export default function Inicio() {
 
   return (
     <div className="space-y-6 p-8" data-testid="gestor-inicio">
-      <SaudacaoGestor iesId={iesAtivaId} />
+      <div className={classeRevelacao(0)}>
+        <SaudacaoGestor iesId={iesAtivaId} />
+      </div>
 
       {/* Overline do bloco de direcionadores — a referência nunca solta a grade
           direto sob a saudação; o rótulo é o que declara que ali se ESCOLHE um
           caminho, e não que ali se lê um resumo. */}
-      <div className="flex flex-col gap-3">
+      <div className={`flex flex-col gap-3 ${classeRevelacao(1)}`}>
         <span
           data-testid="overline-direcionadores"
           className="uppercase text-muted-foreground"
@@ -86,7 +103,10 @@ export default function Inicio() {
       {/* `items-start`: sem ele o card de Avisos estica até a altura do
           Cronograma (o `stretch` padrão da grade) e ganha um vazio no rodapé —
           na referência cada coluna tem a altura do próprio conteúdo. */}
-      <div className="grid items-start gap-4 lg:grid-cols-[2fr_1fr]" data-testid="inicio-grade">
+      <div
+        className={`grid items-start gap-4 lg:grid-cols-[2fr_1fr] ${classeRevelacao(2)}`}
+        data-testid="inicio-grade"
+      >
         {iesAtivaId && contexto ? (
           <>
             {/* Boundary por bloco (§8.4): um erro de render num bloco não derruba o outro. */}

@@ -3,7 +3,18 @@ import * as React from 'react';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ContextoGestor } from '@/features/gestor/api/types';
+
+/**
+ * `SidebarNav` (Onda 2/B1) passou a chamar `useQueryClient()` — prefetch no
+ * hover de "Visão Geral" (`prefetchVisaoGeral`). Sem um `QueryClientProvider`
+ * na árvore, `GestorShell` (que monta `SidebarNav`) explode em qualquer
+ * render deste arquivo. Uma instância nova por render, como qualquer outro
+ * teste do repo que precisa de QueryClient — sem cache compartilhado entre
+ * casos de teste.
+ */
+const criarQueryClient = () => new QueryClient();
 
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
@@ -37,17 +48,19 @@ const contextoComPapel = (papel: ContextoGestor['usuario']['papel']): ContextoGe
 
 const renderizar = (rota: string) =>
   render(
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-      <MemoryRouter initialEntries={[rota]}>
-        <Routes>
-          <Route path="/gestor" element={<GestorShell />}>
-            <Route index element={<div>conteúdo do início</div>} />
-            <Route path="visao-geral" element={<div>conteúdo da visão geral</div>} />
-            <Route path="detalhamento" element={<div>conteúdo do detalhamento</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>
-    </ThemeProvider>,
+    <QueryClientProvider client={criarQueryClient()}>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <MemoryRouter initialEntries={[rota]}>
+          <Routes>
+            <Route path="/gestor" element={<GestorShell />}>
+              <Route index element={<div>conteúdo do início</div>} />
+              <Route path="visao-geral" element={<div>conteúdo da visão geral</div>} />
+              <Route path="detalhamento" element={<div>conteúdo do detalhamento</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>
+    </QueryClientProvider>,
   );
 
 describe('GestorShell (spec §8.3)', () => {
@@ -291,16 +304,18 @@ describe('GestorShell (spec §8.3)', () => {
 
   it('clicar em "Ir para versão aluno" navega para a home do aluno', () => {
     render(
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-        <MemoryRouter initialEntries={['/gestor']}>
-          <Routes>
-            <Route path="/" element={<div>experiência do aluno</div>} />
-            <Route path="/gestor" element={<GestorShell />}>
-              <Route index element={<div>conteúdo do início</div>} />
-            </Route>
-          </Routes>
-        </MemoryRouter>
-      </ThemeProvider>,
+      <QueryClientProvider client={criarQueryClient()}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <MemoryRouter initialEntries={['/gestor']}>
+            <Routes>
+              <Route path="/" element={<div>experiência do aluno</div>} />
+              <Route path="/gestor" element={<GestorShell />}>
+                <Route index element={<div>conteúdo do início</div>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Ir para versão aluno' }));
@@ -368,16 +383,18 @@ describe('GestorShell (spec §8.3)', () => {
         refetch: vi.fn(),
       });
       render(
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <MemoryRouter initialEntries={['/gestor']}>
-            <Routes>
-              <Route path="/admin" element={<div>portal do admin</div>} />
-              <Route path="/gestor" element={<GestorShell />}>
-                <Route index element={<div>conteúdo do início</div>} />
-              </Route>
-            </Routes>
-          </MemoryRouter>
-        </ThemeProvider>,
+        <QueryClientProvider client={criarQueryClient()}>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+            <MemoryRouter initialEntries={['/gestor']}>
+              <Routes>
+                <Route path="/admin" element={<div>portal do admin</div>} />
+                <Route path="/gestor" element={<GestorShell />}>
+                  <Route index element={<div>conteúdo do início</div>} />
+                </Route>
+              </Routes>
+            </MemoryRouter>
+          </ThemeProvider>
+        </QueryClientProvider>,
       );
 
       fireEvent.click(screen.getByRole('button', { name: 'Portal do Admin' }));

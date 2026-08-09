@@ -114,9 +114,11 @@ export function AvisosSanar({ iesId }: AvisosSanarProps) {
                 aria-expanded={aberto}
                 onClick={() => abrir(aviso)}
                 className={cn(
-                  // 140ms = motion-2; o default do Tailwind (150ms) está fora
-                  // da régua de durações do handoff.
-                  'w-full px-3 py-2 text-left transition-colors [transition-duration:140ms]',
+                  // motion-3 (200ms): spec §20 — "fundo volta ao normal em
+                  // 200ms" ao marcar como lido. O default do Tailwind (150ms)
+                  // e o antigo 140ms (motion-2, reação tátil) estão fora da
+                  // duração que essa mudança de estado pede.
+                  'w-full px-3 py-2 text-left transition-colors [transition-duration:var(--gp-motion-3)]',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   // rounded-sm = --gp-radius-sm, o mesmo raio do não-lido
                   // abaixo. `rounded-md` resolvia para 10px, raio que a escala
@@ -137,19 +139,30 @@ export function AvisosSanar({ iesId }: AvisosSanarProps) {
                 }
               >
                 <span className="flex items-center gap-2">
-                  {!aviso.lido && (
-                    <span
-                      data-testid={`aviso-ponto-${aviso.id}`}
-                      aria-hidden="true"
-                      className="shrink-0"
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: 'var(--gp-radius-pill)',
-                        background: 'var(--gp-brand)',
-                      }}
-                    />
-                  )}
+                  {/*
+                   * O ponto SEMPRE monta (spec §20) — desmontar na hora ("marcar
+                   * como lido" otimista) era um corte seco. Some por
+                   * opacidade/escala em motion-2 (140ms), a mesma duração do
+                   * "ponto da marca desaparece com fade" da spec; quem controla
+                   * é só `!aviso.lido`, então o `data-testid` continua existindo
+                   * (em repouso, invisível) para o lido também.
+                   */}
+                  <span
+                    data-testid={`aviso-ponto-${aviso.id}`}
+                    aria-hidden="true"
+                    className="shrink-0"
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 'var(--gp-radius-pill)',
+                      background: 'var(--gp-brand)',
+                      opacity: aviso.lido ? 0 : 1,
+                      transform: aviso.lido ? 'scale(0)' : 'scale(1)',
+                      transitionProperty: 'opacity, transform',
+                      transitionDuration: 'var(--gp-motion-2)',
+                      transitionTimingFunction: 'var(--gp-ease)',
+                    }}
+                  />
                   <span className="truncate text-sm font-medium text-foreground">
                     {aviso.titulo}
                   </span>

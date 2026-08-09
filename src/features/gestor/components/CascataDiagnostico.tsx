@@ -1,13 +1,19 @@
 import * as React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { AuthContext } from '@/contexts/AuthContext';
 import { useDiagnostico } from '@/features/gestor/api/queries';
+import { prefetchDiagnosticoNivel } from '@/features/gestor/api/prefetch';
 import { Icon } from '@/features/gestor/components/Icon';
 import { TagCoberturaParcial, TagNivel } from '@/features/gestor/components/Tag';
 import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
+import { usePrefersReducedMotion } from '@/features/gestor/hooks/usePrefersReducedMotion';
 import { formatPct } from '@/features/gestor/lib/formatters';
 import { NIVEL_CRITICO_MAX } from '@/features/gestor/lib/regras';
 import type {
@@ -17,6 +23,27 @@ import type {
   NoDiagnostico,
   VisaoGeral,
 } from '@/features/gestor/api/types';
+
+/**
+ * Lê `user?.id` sem exigir `<AuthProvider>` real na árvore: `useAuth()`
+ * (contexts/AuthContext.tsx) LANÇA fora do provider, e os testes deste
+ * componente (`CascataDiagnostico.test.tsx`) montam sem um — só mockam
+ * `api/queries`. `useContext(AuthContext)` direto devolve `null` nesse caso
+ * (o valor padrão do contexto), nunca lança; o prefetch do item 6 (spec §22)
+ * simplesmente não aquece a chave com `userId`, o que é inofensivo (o
+ * pior caso é o cache aquecido não ser aproveitado por `useDiagnostico`).
+ */
+function useUserIdSemExigirProvider(): string | undefined {
+  return React.useContext(AuthContext)?.user?.id;
+}
+
+/**
+ * `Card` encaminha `ref` e espalha o resto das props no `<div>` (ver
+ * `components/ui/card.tsx`) — exatamente o que `motion.create` exige para
+ * animar um componente que não é `motion.div` direto. Usado só pela entrada
+ * do painel lateral (spec §13.3): fade + `translateX(12px → 0)`, 320ms.
+ */
+const CardAnimado = motion.create(Card);
 
 /** Ordem fixa de exibição dos 3 níveis de desempenho (spec §4.4). */
 const ORDEM_NIVEL: NivelDesempenho[] = ['excelente', 'mediano', 'critico'];
@@ -126,21 +153,30 @@ function LinhaNo({
   aberto,
   ehFolha,
   onClick,
+  onPrefetch,
 }: {
   no: NoDiagnostico;
   aberto: boolean;
   ehFolha: boolean;
   onClick: () => void;
+  /**
+   * Prefetch do próximo nível no hover (spec §22 / motion §11 comportamento
+   * 4): só passa a existir aqui quando `no.temFilhos` — hover num nó sem
+   * filho não tem o que aquecer.
+   */
+  onPrefetch?: () => void;
 }) {
   return (
     <button
       type="button"
       data-no-cascata=""
       onClick={onClick}
+      onMouseEnter={no.temFilhos ? onPrefetch : undefined}
       aria-expanded={ehFolha ? undefined : aberto}
       className={cn(
-        'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
-        'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'group flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
+        '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+        'hover:bg-[color:var(--gp-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
     >
       {/*
@@ -158,7 +194,11 @@ function LinhaNo({
           variant="outlined"
           size={16}
           box={16}
-          className={aberto ? 'text-foreground' : 'text-muted-foreground'}
+          className={cn(
+            'transition-colors [transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+            'group-hover:text-[color:var(--gp-text-2)]',
+            aberto ? 'text-foreground' : 'text-muted-foreground',
+          )}
         />
       )}
 
@@ -195,6 +235,39 @@ function LinhaNo({
         </span>
       ) : null}
     </button>
+  );
+}
+
+/**
+ * Skeleton de um nível da cascata (spec §5, item 6): 3 nós na altura final
+ * da linha real (`LinhaNo`, `px-2 py-2`), cada um com a MESMA anatomia —
+ * barra de nome (50% de largura) e barra de % (30px, alinhada à direita) —,
+ * nunca duas manchas genéricas soltas. Substitui as 2 barras de 36px sem
+ * anatomia (achado da auditoria de 09/08): aquele skeleton nem reservava o
+ * número certo de linhas (2, não 3) nem desenhava o que está chegando.
+ */
+function CascataNivelSkeleton() {
+  const rotulo = 'Carregando nível do diagnóstico';
+  return (
+    <div className="space-y-0.5 py-1" data-testid="cascata-nivel-skeleton">
+      {[0, 1, 2].map((indice) => (
+        <div key={indice} className="flex w-full items-center gap-2 px-2 py-2" style={{ minHeight: 36 }}>
+          {/* Wrapper com largura explícita, não `className` direto no
+              `GestorSkeleton`: o `bloco` dele já é `w-full` (para caber no
+              pai), e duas classes de largura na mesma string disputam a
+              MESMA propriedade CSS por ordem de definição no stylesheet do
+              Tailwind, não pela ordem em que aparecem aqui — o wrapper
+              elimina a disputa, o `w-full` de dentro só preenche os 50%/30px
+              que o próprio wrapper já reservou. */}
+          <div className="w-1/2">
+            <GestorSkeleton altura={12} rotulo={rotulo} />
+          </div>
+          <div className="ml-auto w-[30px] shrink-0">
+            <GestorSkeleton altura={12} rotulo={rotulo} />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -237,6 +310,11 @@ function NivelCascata({
   onAbrirTemas,
 }: NivelCascataProps) {
   const consulta = useDiagnostico(filtros, node);
+  /** Regra dos 400ms (spec de motion §7) — evita o flash de skeleton em resposta rápida. */
+  const mostrarSkeleton = useDelayedLoading(consulta.isLoading);
+  const reduzido = usePrefersReducedMotion();
+  const queryClient = useQueryClient();
+  const userId = useUserIdSemExigirProvider();
 
   const abrirTemas = (especialidade: NoDiagnostico) => {
     if (node === null) {
@@ -247,13 +325,34 @@ function NivelCascata({
     onAbrirTemas({ id: especialidade.id, nome: especialidade.nome, grandeArea: node });
   };
 
+  /**
+   * Prefetch no hover do nó (spec §22): aquece o PRÓXIMO nível da cascata
+   * antes do clique, para que a expansão rode sem skeleton. Sem `iesId`
+   * (recorte ainda não resolvido) não há o que aquecer.
+   *
+   * `try/catch` em volta da CHAMADA, não só de uma promise: `prefetchQuery`
+   * em si nunca rejeita (a lib engole o erro do `queryFn` internamente), mas
+   * um hover é gatilho de FUNDO, nunca deve poder derrubar a interação do
+   * gestor por nenhum motivo — nem um `queryFn` que lance de forma síncrona
+   * antes de devolver a promise (é exatamente o que acontece nos testes
+   * deste componente: `userEvent.click` dispara hover antes do clique, e o
+   * módulo `api/queries` costuma vir mockado sem `GESTOR_STALE_TIME`/
+   * `chamarRpcGestor` nesses arquivos — o Vitest LANÇA na leitura de um
+   * export ausente do mock, e essa leitura roda dentro de
+   * `prefetchDiagnosticoNivel`, antes de qualquer `.catch()` do React Query
+   * ter chance de agir).
+   */
+  const prefetchFilhos = (idDoNo: string) => {
+    if (!filtros.iesId) return;
+    try {
+      void prefetchDiagnosticoNivel(queryClient, userId, filtros.iesId, filtros.semestre, idDoNo);
+    } catch {
+      // Aquecimento best-effort — nunca propaga para a interação do gestor.
+    }
+  };
+
   if (consulta.isLoading) {
-    return (
-      <div className="space-y-1.5 py-1">
-        <GestorSkeleton altura={36} rotulo="Carregando nível do diagnóstico" />
-        <GestorSkeleton altura={36} rotulo="Carregando nível do diagnóstico" />
-      </div>
-    );
+    return mostrarSkeleton ? <CascataNivelSkeleton /> : null;
   }
 
   if (consulta.isError) {
@@ -284,23 +383,46 @@ function NivelCascata({
               aberto={aberto}
               ehFolha={ehEspecialidade}
               onClick={() => (ehEspecialidade ? abrirTemas(no) : onAlternar(no.id))}
+              onPrefetch={() => prefetchFilhos(no.id)}
             />
-            {/* Expande PARA BAIXO, no lugar, empurrando o conteúdo (spec §4.8). Especialidade nunca expande em cascata — abre o drawer de temas (§4.9, Task 43).
-                O ramo entra em `motion-4` (320ms): o mount continua condicional (é ele que
-                mantém o fetch preguiçoso e a exclusividade), a animação só cobre a entrada. */}
-            {!ehEspecialidade && aberto ? (
-              <div
-                data-testid={`filhos-${no.id}`}
-                className="ml-4 animate-in border-l border-border pl-2 [animation-duration:320ms] fade-in-0 slide-in-from-top-1"
-              >
-                <NivelCascata
-                  filtros={filtros}
-                  node={no.id}
-                  nodeAberto={null}
-                  onAlternar={() => undefined}
-                  onAbrirTemas={onAbrirTemas}
-                />
-              </div>
+            {/* Expande PARA BAIXO, no lugar, empurrando o conteúdo (spec §4.8, §13.2).
+                Especialidade nunca expande em cascata — abre o drawer de temas (§4.9,
+                Task 43). Accordion EXCLUSIVO: ao trocar de nó aberto, o ramo antigo (em
+                outro <li> desta mesma lista) sai e o novo entra nos MESMOS 320ms — por
+                isso `AnimatePresence` aqui, por nó, em vez de um desmonte condicional
+                simples: cada `<li>` tem sua própria `AnimatePresence`, mas como as duas
+                trocas (a que sai e a que entra) disparam no mesmo commit do React, as
+                animações rodam juntas. O mount continua condicional (é ele que mantém o
+                fetch preguiçoso), só a transição passou a cobrir entrada E saída. */}
+            {!ehEspecialidade ? (
+              <AnimatePresence initial={false}>
+                {aberto ? (
+                  <motion.div
+                    key={no.id}
+                    data-testid={`filhos-${no.id}`}
+                    className="ml-4 overflow-hidden border-l border-border pl-2"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      transition: { duration: reduzido ? 0.001 : 0.32, ease: [0, 0, 0, 1] }, // --gp-ease-in
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.98,
+                      transition: { duration: reduzido ? 0.001 : 0.32, ease: [0.4, 0, 1, 1] }, // --gp-ease-out
+                    }}
+                  >
+                    <NivelCascata
+                      filtros={filtros}
+                      node={no.id}
+                      nodeAberto={null}
+                      onAlternar={() => undefined}
+                      onAbrirTemas={onAbrirTemas}
+                    />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             ) : null}
           </li>
         );
@@ -342,6 +464,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
   const [cascataAberta, setCascataAberta] = React.useState(false);
   const [nivelOrigem, setNivelOrigem] = React.useState<NivelDesempenho | null>(null);
   const [nodeAberto, setNodeAberto] = React.useState<string | null>(null);
+  const reduzido = usePrefersReducedMotion();
 
   /**
    * `nivel === null` abre a cascata SEM recorte de nível — as grandes áreas
@@ -425,8 +548,12 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
             data-testid="diagnostico-ver-niveis"
             aria-expanded={cascataAberta && nivelOrigem === null}
             onClick={() => abrirCascata(null)}
-            className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+            className={cn(
+              'ml-auto inline-flex shrink-0 items-center gap-1 rounded-md text-[color:var(--gp-brand-on-dark)] transition-colors',
+              '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+              'hover:text-[color:var(--gp-brand-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            )}
+            style={{ fontSize: 12, fontWeight: 600 }}
           >
             {cascataAberta && nivelOrigem === null ? 'Fechar' : 'Ver por nível de desempenho'}
             <Icon
@@ -585,8 +712,18 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
           {cascataAberta ? (
             /* `shadow-none` porque a cascata agora vive DENTRO do card do
                bloco: a sombra do `Card` é do nível de fora, e repetida aqui
-               dentro dava a leitura de "card sobre card". */
-            <Card data-testid="cascata" className="max-h-[560px] overflow-y-auto shadow-none">
+               dentro dava a leitura de "card sobre card". Entrada do painel
+               lateral (spec §13.3): fade + `translateX(12px → 0)`, 320ms,
+               curva de entrada — o grid já reserva a coluna no mesmo frame
+               (é o `grid-cols-2` do wrapper acima, não esta animação, que
+               abre o espaço), então só o conteúdo do painel se move. */
+            <CardAnimado
+              data-testid="cascata"
+              className="max-h-[560px] overflow-y-auto shadow-none"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: reduzido ? 0.001 : 0.32, ease: [0, 0, 0, 1] }}
+            >
               {/* Cabeçalho e trilha ficam FIXOS ao rolar (handoff §04-componentes):
                   com um ramo aberto e a lista rolada, é a trilha que diz onde
                   a gestora está. */}
@@ -620,8 +757,11 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                       type="button"
                       data-testid="cascata-voltar"
                       onClick={() => setNodeAberto(null)}
-                      className="inline-flex items-center gap-0.5 rounded-md text-xs font-semibold transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      style={{ color: 'var(--gp-brand-on-dark)' }}
+                      className={cn(
+                        'inline-flex items-center gap-0.5 rounded-md text-xs font-semibold text-[color:var(--gp-brand-on-dark)] transition-colors',
+                        '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+                        'hover:text-[color:var(--gp-brand-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      )}
                     >
                       <Icon name="chevron_left" variant="outlined" size={14} box={14} />
                       Voltar para as grandes áreas
@@ -639,7 +779,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   onAbrirTemas={onAbrirTemas}
                 />
               </CardContent>
-            </Card>
+            </CardAnimado>
           ) : null}
         </div>
       )}

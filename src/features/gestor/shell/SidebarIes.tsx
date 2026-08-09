@@ -10,6 +10,7 @@ import { Icon } from '@/features/gestor/components/Icon';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 
 /**
  * Altura do cartão de IES: 9px de padding + o tile de 30px + 9px. É a MESMA
@@ -27,6 +28,22 @@ const CARTAO: React.CSSProperties = {
   padding: '9px 11px',
   minHeight: ALTURA_CARTAO,
   borderRadius: 'var(--gp-radius-sm)',
+};
+
+/**
+ * Shimmer do skeleton do cartão — os MESMOS tokens `--gp-skeleton`/
+ * `--gp-skeleton-brilho` (calibrados nos dois temas em `gestor-theme.css`) e o
+ * MESMO gradiente que `GestorSkeleton.tsx` usa. Duplicado em vez de
+ * reaproveitado: `GestorSkeleton` sempre embrulha o resultado num `role`
+ * `status` próprio (`forma="bloco"` × 2 renderizaria DOIS `role="status"`
+ * dentro do cartão, e o teste/leitor de tela só quer UM "Carregando
+ * instituição" por cartão) — replicar o gradiente aqui é o caminho mais
+ * simples que a Onda 2/B1 deixou em aberto para este caso.
+ */
+const SHIMMER: React.CSSProperties = {
+  background:
+    'linear-gradient(90deg, var(--gp-skeleton) 25%, var(--gp-skeleton-brilho) 50%, var(--gp-skeleton) 75%)',
+  backgroundSize: '200% 100%',
 };
 
 /** Partículas que não entram na sigla — "Fac. de Medicina" vira "FM", não "FD". */
@@ -102,6 +119,16 @@ export const SidebarIes: React.FC = () => {
   const { iesId, setIesId, setSimulados } = useFiltrosGestor();
   const container = useGestorPortalContainer();
 
+  /**
+   * Regra dos 400ms (spec de motion §7, `useDelayedLoading.ts`): antes disto
+   * o skeleton do cartão aparecia no INSTANTE em que `isLoading` virava
+   * `true` — num acesso com rede boa, `get_gestor_contexto` costuma responder
+   * bem antes disso, e o flash de skeleton só fazia o cartão parecer
+   * instável. `mostrarSkeleton` só vira `true` se `isLoading` permanecer
+   * assim por mais de 400ms.
+   */
+  const mostrarSkeleton = useDelayedLoading(isLoading);
+
   // `?ies=` só é aceito se apontar para uma IES que a pessoa de fato acessa.
   // Sem essa validação, um link colável para uma IES fora do escopo (ou um
   // bookmark de um gestor_grupo cuja IES saiu do grupo) deixaria o `<Select>`
@@ -146,15 +173,26 @@ export const SidebarIes: React.FC = () => {
     [setIesId, setSimulados],
   );
 
-  if (isLoading) {
+  if (mostrarSkeleton) {
     return (
       <div
         role="status"
         aria-busy="true"
         aria-label="Carregando instituição"
-        className="gp-skeleton animate-pulse bg-muted"
-        style={{ height: ALTURA_CARTAO, borderRadius: 'var(--gp-radius-sm)' }}
-      />
+        className="flex flex-col justify-center"
+        style={{ height: ALTURA_CARTAO, padding: '9px 11px', gap: 6, borderRadius: 'var(--gp-radius-sm)' }}
+      >
+        {/* Nome da IES: 13px de altura, 70% de largura. */}
+        <div
+          className="animate-shimmer"
+          style={{ height: 13, width: '70%', borderRadius: 'var(--gp-radius-pill)', ...SHIMMER }}
+        />
+        {/* Linha de contexto (papel/afiliação) sob o nome: 10px/50%. */}
+        <div
+          className="animate-shimmer"
+          style={{ height: 10, width: '50%', borderRadius: 'var(--gp-radius-pill)', ...SHIMMER }}
+        />
+      </div>
     );
   }
 

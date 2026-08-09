@@ -10,6 +10,7 @@ import { TagCoberturaParcial } from '@/features/gestor/components/Tag';
 import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
 import { formatPct } from '@/features/gestor/lib/formatters';
 import { nivelDesempenho } from '@/features/gestor/lib/regras';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import type { FiltrosGestor, TemaCritico } from '@/features/gestor/api/types';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
@@ -67,6 +68,32 @@ function corDaBarra(tema: TemaCritico): string {
 }
 
 /**
+ * Corpo do drawer em carregamento (spec de motion §5, item 7 — "Drawer /
+ * painel"): antes eram 3 barras genéricas do mesmo tamanho, que não diziam
+ * que tipo de item estava chegando. Agora é uma grade 2×2 de cartões — na
+ * altura aproximada de um item de `<li>` real (nome+% / barra / rodapé com
+ * amostra) — seguida de um bloco de barras, representando o resto da lista
+ * de temas que continua na rolagem.
+ */
+function CorpoTemasSkeleton({ rotulo }: { rotulo: string }) {
+  return (
+    <div className="space-y-3" data-testid="drawer-temas-skeleton">
+      <div className="grid grid-cols-2 gap-2.5">
+        <GestorSkeleton forma="cartao" altura={84} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={84} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={84} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={84} rotulo={rotulo} />
+      </div>
+      <div className="space-y-2">
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Último nível da hierarquia do Diagnóstico Curricular (spec §4.9): tema, em
  * % de acerto — tema e especialidade nunca usam a escala de proficiência
  * (§4.1, "Nota TRI" não existe como métrica).
@@ -86,6 +113,8 @@ function corDaBarra(tema: TemaCritico): string {
 export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecorte }: DrawerTemasProps) {
   const filtros: FiltrosGestor = { iesId: recorte.iesId, semestre: recorte.semestre, simulados: [] };
   const consulta = useDiagnosticoTemas(filtros, especialidade?.id ?? null, especialidade?.grandeArea ?? null);
+  /** Regra dos 400ms (spec de motion §7) — evita o flash de skeleton em resposta rápida. */
+  const mostrarSkeleton = useDelayedLoading(consulta.isLoading);
   useDevolverFocoAoFechar(especialidade !== null);
   const container = useGestorPortalContainer();
   const tituloRef = React.useRef<HTMLHeadingElement>(null);
@@ -169,11 +198,9 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
 
         <div className="flex-1">
           {consulta.isLoading ? (
-            <div className="space-y-2">
-              <GestorSkeleton altura={40} rotulo="Carregando temas" />
-              <GestorSkeleton altura={40} rotulo="Carregando temas" />
-              <GestorSkeleton altura={40} rotulo="Carregando temas" />
-            </div>
+            mostrarSkeleton ? (
+              <CorpoTemasSkeleton rotulo="Carregando temas" />
+            ) : null
           ) : consulta.isError ? (
             <EstadoErro titulo="Não foi possível carregar os temas." onRetry={consulta.refetch} />
           ) : temas.length === 0 ? (

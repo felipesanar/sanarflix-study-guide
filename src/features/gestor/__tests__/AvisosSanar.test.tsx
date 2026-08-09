@@ -134,10 +134,13 @@ describe('AvisosSanar — lido e não-lido', () => {
     montar();
 
     expect(screen.getByTestId('aviso-a1')).toHaveAttribute('data-lido', 'false');
-    expect(screen.getByTestId('aviso-ponto-a1')).toBeInTheDocument();
+    expect(screen.getByTestId('aviso-ponto-a1').style.opacity).toBe('1');
 
     expect(screen.getByTestId('aviso-a2')).toHaveAttribute('data-lido', 'true');
-    expect(screen.queryByTestId('aviso-ponto-a2')).not.toBeInTheDocument();
+    // Spec §20: o ponto SEMPRE monta — o que muda entre lido/não-lido é a
+    // visibilidade (opacidade/escala), nunca a desmontagem instantânea.
+    expect(screen.getByTestId('aviso-ponto-a2')).toBeInTheDocument();
+    expect(screen.getByTestId('aviso-ponto-a2').style.opacity).toBe('0');
   });
 
   it('expõe "não lido" textualmente, não só por cor (a11y)', () => {
@@ -166,7 +169,9 @@ describe('AvisosSanar — marcar como lido (otimista)', () => {
     await waitFor(() => {
       expect(screen.getByTestId('aviso-a1')).toHaveAttribute('data-lido', 'true');
     });
-    expect(screen.queryByTestId('aviso-ponto-a1')).not.toBeInTheDocument();
+    // O ponto segue montado, só invisível (spec §20: fade de saída, não desmontagem).
+    expect(screen.getByTestId('aviso-ponto-a1')).toBeInTheDocument();
+    expect(screen.getByTestId('aviso-ponto-a1').style.opacity).toBe('0');
 
     expect(mocks.from).toHaveBeenCalledWith('announcements_viewed');
     expect(mocks.insert).toHaveBeenCalledWith({

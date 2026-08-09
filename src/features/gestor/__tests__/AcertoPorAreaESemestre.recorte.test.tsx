@@ -231,7 +231,8 @@ describe('AcertoPorAreaESemestre — clique cruzado (§12 caso 11)', () => {
     );
 
     expect(screen.getByTestId('area-cirurgia').className).toContain('opacity-100');
-    expect(screen.getByTestId('area-clinica').className).toContain('opacity-40');
+    // 35% (spec §11, comportamento 18) — não mais 40%.
+    expect(screen.getByTestId('area-clinica').className).toContain('opacity-[0.35]');
   });
 
   /** §07-motion, regra de ouro nº1: animar só `transform` e `opacity`. */

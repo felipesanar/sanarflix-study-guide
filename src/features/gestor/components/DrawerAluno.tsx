@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
+import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -767,6 +768,33 @@ function InsightAlunoIA({ iesId, alunoId, simulados }: InsightAlunoIAProps) {
 }
 
 /**
+ * Corpo do drawer em carregamento (spec de motion §5, item 7 — "Drawer /
+ * painel"): não mais dois blocos genéricos do mesmo tamanho, e sim uma grade
+ * 2×2 de cartões (posto no lugar dos cartões de "Notas dos simulados" que o
+ * corpo real mostra primeiro) seguida de um bloco de barras (posto no lugar
+ * da evolução/comparativo/desempenho por área que vêm depois na rolagem). O
+ * cabeçalho (avatar + nome) já é real — segue montado fora deste bloco.
+ */
+function CorpoAlunoSkeleton() {
+  const rotulo = 'Carregando dados do aluno';
+  return (
+    <div className="flex-1 space-y-4" data-testid="drawer-aluno-skeleton">
+      <div className="grid grid-cols-2 gap-3">
+        <GestorSkeleton forma="cartao" altura={96} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={96} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={96} rotulo={rotulo} />
+        <GestorSkeleton forma="cartao" altura={96} rotulo={rotulo} />
+      </div>
+      <div className="space-y-2">
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+        <GestorSkeleton altura={40} rotulo={rotulo} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Visão detalhada de um aluno (handoff §4.8).
  *
  * `useAluno` devolve **uma entrada por simulado** (`AlunoSimuladoEntry[]`),
@@ -785,6 +813,12 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const contato = useAlunoContato(alunoId);
   const desempenhoArea = useAlunoDesempenhoPorArea(alunoId, simulados);
   const { iesId } = useFiltrosGestor();
+  /**
+   * Regra dos 400ms (spec de motion §7): abaixo disso, nada de skeleton — o
+   * corpo fica em branco por uma fração de segundo em vez de piscar um
+   * carregamento que a rede já resolveu.
+   */
+  const mostrarSkeleton = useDelayedLoading(consulta.isLoading);
   const entradas: AlunoSimuladoEntry[] = consulta.data ?? [];
 
   /**
@@ -964,10 +998,9 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
         </SheetHeader>
 
         {consulta.isLoading ? (
-          <div className="space-y-2">
-            <GestorSkeleton altura={96} rotulo="Carregando dados do aluno" />
-            <GestorSkeleton altura={96} rotulo="Carregando dados do aluno" />
-          </div>
+          mostrarSkeleton ? (
+            <CorpoAlunoSkeleton />
+          ) : null
         ) : consulta.isError ? (
           <EstadoErro titulo="Não foi possível carregar este aluno." onRetry={() => consulta.refetch()} />
         ) : entradas.length === 0 ? (

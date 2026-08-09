@@ -33,13 +33,32 @@ export interface DirecionadoresGestorProps {
  * Hover (docs/07-motion.md): sobe 1px, a sombra sobe um degrau e a borda vira
  * marca, em `motion-2` (140ms) com a curva padrão. O degrau de sombra exige uma
  * sombra em repouso — sem ela o hover não teria de onde subir.
+ *
+ * Duração e curva vinham hardcoded (`[transition-duration:140ms]
+ * [transition-timing-function:cubic-bezier(0.2,0,0,1)]`, achado da auditoria
+ * de movimento de 09/08): mesmo valor de `--gp-motion-2`/`--gp-ease`, mas sem
+ * ler o token — se a escala mudasse, este cartão ficaria desalinhado em
+ * silêncio. Movidos para `style` (mesmo padrão de `FiltroSemestre.tsx`) em vez
+ * de `duration-[var(--gp-motion-2)]`/`ease-[var(--gp-ease)]` no Tailwind
+ * arbitrário: sem precedente testado desse padrão neste projeto, e `style`
+ * já é usado ao lado (`borderRadius`, `padding`, `gap`) nos dois `<Link>`.
+ *
+ * Press (comportamento 12): `translateY(0)` (desfaz o hover) + `scale(0.995)`
+ * — item que faltava, só havia `:hover`.
  */
 const CARTAO =
   'group flex items-center bg-card border border-border ' +
   '[box-shadow:var(--gp-shadow-card)] hover:[box-shadow:0_12px_28px_-14px_hsl(var(--primary)/0.4)] ' +
-  'transition-[transform,box-shadow,border-color] [transition-duration:140ms] [transition-timing-function:cubic-bezier(0.2,0,0,1)] ' +
+  'transition-[transform,box-shadow,border-color] ' +
   'hover:-translate-y-px hover:border-primary ' +
+  'active:translate-y-0 active:scale-[0.995] ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/** Duração/curva do `CARTAO` — token em vez do valor hardcoded que a auditoria achou. */
+const TRANSICAO_CARTAO: React.CSSProperties = {
+  transitionDuration: 'var(--gp-motion-2)',
+  transitionTimingFunction: 'var(--gp-ease)',
+};
 
 /** 48×48, raio 12px: marca no direcionador primário, neutro no secundário (§4.4). */
 function TileIcone({ icone, tom }: { icone: DendeIconName; tom: 'marca' | 'neutro' }) {
@@ -105,7 +124,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           to={comFiltroAtual('/gestor/visao-geral')}
           data-testid="direcionador-visao-geral"
           className={CARTAO}
-          style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18 }}
+          style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18, ...TRANSICAO_CARTAO }}
           onMouseEnter={aquecer}
           onFocus={aquecer}
         >
@@ -128,7 +147,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           to={comFiltroAtual('/gestor/detalhamento')}
           data-testid="direcionador-detalhamento"
           className={CARTAO}
-          style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18 }}
+          style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18, ...TRANSICAO_CARTAO }}
         >
           <TileIcone icone="insights" tom="neutro" />
           <span className="min-w-0 flex-1">

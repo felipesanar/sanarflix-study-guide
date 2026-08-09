@@ -1,9 +1,10 @@
 // src/features/gestor/__tests__/DrawerTemas.test.tsx
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, userEvent, waitFor } from '@/test/utils';
+import { act, render, screen, userEvent, waitFor } from '@/test/utils';
 import { DrawerTemas } from '@/features/gestor/components/DrawerTemas';
 import { useDiagnosticoTemas, useGestorContexto } from '@/features/gestor/api/queries';
+import { ATRASO_SKELETON_MS } from '@/features/gestor/hooks/useDelayedLoading';
 import type { Meta, TemaCritico } from '@/features/gestor/api/types';
 
 vi.mock('@/features/gestor/api/queries', () => ({
@@ -98,6 +99,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe('DrawerTemas', () => {
@@ -277,9 +279,22 @@ describe('DrawerTemas', () => {
   });
 
   describe('estados de carregamento e erro', () => {
-    it('loading: mostra skeleton acessível, sem tema ainda', () => {
+    it('loading: antes dos 400ms não mostra skeleton (regra dos 400ms)', () => {
       mockUseTemas.mockReturnValue(resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useDiagnosticoTemas>);
+      vi.useFakeTimers();
       render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+      expect(screen.queryByTestId('drawer-temas-skeleton')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tema-tema-ic')).not.toBeInTheDocument();
+    });
+
+    it('loading: mostra skeleton acessível em grade 2×2 + barras, depois dos 400ms', () => {
+      mockUseTemas.mockReturnValue(resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useDiagnosticoTemas>);
+      vi.useFakeTimers();
+      render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+      act(() => {
+        vi.advanceTimersByTime(ATRASO_SKELETON_MS + 1);
+      });
+      expect(screen.getByTestId('drawer-temas-skeleton')).toBeInTheDocument();
       expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
       expect(screen.queryByTestId('tema-tema-ic')).not.toBeInTheDocument();
     });

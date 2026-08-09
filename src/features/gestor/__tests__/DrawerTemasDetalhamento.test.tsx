@@ -1,8 +1,9 @@
 // src/features/gestor/__tests__/DrawerTemasDetalhamento.test.tsx
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, userEvent, waitFor } from '@/test/utils';
+import { act, render, screen, userEvent, waitFor } from '@/test/utils';
 import { DrawerTemasDetalhamento } from '@/features/gestor/components/DrawerTemasDetalhamento';
 import { useDetalhamentoTemas, type NoDetalhamentoTemas } from '@/features/gestor/api/queries';
+import { ATRASO_SKELETON_MS } from '@/features/gestor/hooks/useDelayedLoading';
 
 vi.mock('@/features/gestor/api/queries', () => ({
   useDetalhamentoTemas: vi.fn(),
@@ -74,6 +75,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe('DrawerTemasDetalhamento', () => {
@@ -195,13 +197,30 @@ describe('DrawerTemasDetalhamento', () => {
   });
 
   describe('estados de carregamento e erro', () => {
-    it('loading: mostra skeleton acessível, sem nó ainda', () => {
+    it('loading: antes dos 400ms não mostra skeleton (regra dos 400ms)', () => {
       mockUseTemas.mockReturnValue(
         resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useDetalhamentoTemas>,
       );
+      vi.useFakeTimers();
       render(
         <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
       );
+      expect(screen.queryByTestId('drawer-detalhamento-temas-skeleton')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('detalhamento-no-Cardiologia')).not.toBeInTheDocument();
+    });
+
+    it('loading: mostra skeleton acessível em grade 2×2 + barras, depois dos 400ms', () => {
+      mockUseTemas.mockReturnValue(
+        resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useDetalhamentoTemas>,
+      );
+      vi.useFakeTimers();
+      render(
+        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(ATRASO_SKELETON_MS + 1);
+      });
+      expect(screen.getByTestId('drawer-detalhamento-temas-skeleton')).toBeInTheDocument();
       expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
       expect(screen.queryByTestId('detalhamento-no-Cardiologia')).not.toBeInTheDocument();
     });

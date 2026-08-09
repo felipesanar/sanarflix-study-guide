@@ -236,10 +236,67 @@ describe('KpiCard', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('no estado loading mostra skeleton com altura reservada e nenhum valor', () => {
+  /**
+   * Regra dos 400ms (spec de motion §7): `estado="loading"` só materializa o
+   * skeleton depois que `useDelayedLoading` vence o atraso — ver
+   * `useDelayedLoading.test.ts` para a prova isolada do hook. Aqui a prova é
+   * que o `KpiCard` real usa esse atraso (não mostra nada antes dele, e
+   * mostra o skeleton composto depois), e nunca `kpi-valor`.
+   */
+  it('no estado loading mostra skeleton com altura reservada e nenhum valor, só depois dos 400ms da regra de skeleton', () => {
+    vi.useFakeTimers();
     render(<KpiCard titulo="Alunos proficientes" valor="62%" meta={meta} estado="loading" />);
+
+    // Antes dos 400ms: nem skeleton nem valor — o flash que a regra evita.
+    expect(screen.queryByTestId('kpi-skeleton')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('kpi-valor')).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
+
     expect(screen.getByTestId('kpi-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('kpi-valor')).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
+  /**
+   * A composição do skeleton reproduz a anatomia real do cartão (spec §5,
+   * item 1): bloco do número (44px) sempre presente, e a régua/trilha só
+   * quando o cartão de fato carrega uma (heurística: prop `serie`/`trilha`
+   * informada, mesmo que ainda vazia).
+   */
+  it('o skeleton do KpiCard reproduz a régua de 3 colunas quando o cartão tem régua', () => {
+    vi.useFakeTimers();
+    render(
+      <KpiCard titulo="Alunos proficientes" valor="62%" meta={meta} estado="loading" serie={serieCompleta} />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
+    expect(screen.getByTestId('kpi-regua-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('kpi-trilha-skeleton')).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('o skeleton do KpiCard reproduz a trilha segmentada quando o cartão tem trilha em vez de régua', () => {
+    vi.useFakeTimers();
+    render(
+      <KpiCard
+        titulo="Simulados realizados"
+        valor="3"
+        meta={meta}
+        estado="loading"
+        trilha={{ feitos: 3, total: 7 }}
+      />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(401);
+    });
+    expect(screen.getByTestId('kpi-trilha-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('kpi-regua-skeleton')).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('no estado empty mostra o traço e não mostra régua', () => {

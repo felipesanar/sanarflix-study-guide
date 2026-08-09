@@ -111,6 +111,12 @@ describe('TabelaAlunosSimulado', () => {
    * selecionada precisa usar `--gp-text-2` em vez de `--gp-text-3` — nos DOIS
    * ramos (botão e span) e também na célula de semestre — sem perder a
    * atenuação quando a linha NÃO está selecionada.
+   *
+   * Nota (spec de motion, comportamento 16): `TabelaGestor.tsx` passou a
+   * pintar a linha selecionada com `--gp-brand-surface-soft` (bem mais claro
+   * que o opaco acima), não mais `--gp-brand-surface` — a matemática do F1
+   * ficou ainda mais folgada, nunca mais apertada, então a correção
+   * `--gp-text-2` continua válida (só deixou de ser o mínimo estrito).
    */
   it('na linha selecionada, o não participante vai para --gp-text-2 (AA), nunca --gp-text-3 — ramo botão', async () => {
     const user = userEvent.setup();
@@ -279,9 +285,9 @@ describe('TabelaAlunosSimulado', () => {
   });
 
   /**
-   * Seleção (referência, linha "Bruno Carvalho"): tint `--gp-brand-surface` na
-   * linha inteira e barra de 3px da marca na PRIMEIRA célula. É o rastro que
-   * diz de onde o drawer foi aberto quando ele fecha.
+   * Seleção (referência, linha "Bruno Carvalho"): tint `--gp-brand-surface-soft`
+   * na linha inteira e barra de marca (comportamento 16: cresce por `scaleY`) na
+   * PRIMEIRA célula. É o rastro que diz de onde o drawer foi aberto quando ele fecha.
    */
   it('marca a linha selecionada com tint e barra de marca, e avisa o pai', async () => {
     const user = userEvent.setup();
@@ -304,15 +310,23 @@ describe('TabelaAlunosSimulado', () => {
 
     const bruno = screen.getByTestId('linha-aluno-a2');
     expect(bruno).toHaveAttribute('data-selecionado', 'true');
-    expect(bruno.getAttribute('style')).toContain('background: var(--gp-brand-surface)');
+    // Token dedicado à seleção (comportamento 16, spec de motion): --gp-brand-surface
+    // é opaco (item A4) e serve outros usos; a linha selecionada usa a versão suave.
+    expect(bruno.getAttribute('style')).toContain('background: var(--gp-brand-surface-soft)');
 
     const primeiraCelula = within(bruno).getAllByRole('cell')[0];
     expect(primeiraCelula).toHaveAttribute('data-marca-selecao', 'true');
-    expect(primeiraCelula.getAttribute('style')).toContain('border-left: 3px solid var(--gp-brand)');
+    // A barra de 3px não é mais um `border-left` estático: ela CRESCE por
+    // `scaleY(0 → 1)` a partir do centro (comportamento 16) — a prova agora é
+    // no elemento overlay (`barra-selecao`), não no `style` da própria célula.
+    const barraBruno = within(primeiraCelula).getByTestId('barra-selecao');
+    expect(barraBruno.getAttribute('style')).toContain('transform: scaleY(1)');
 
     const ana = screen.getByTestId('linha-aluno-a1');
     expect(ana).toHaveAttribute('data-selecionado', 'false');
     expect(within(ana).getAllByRole('cell')[0]).not.toHaveAttribute('data-marca-selecao');
+    const barraAna = within(within(ana).getAllByRole('cell')[0]).getByTestId('barra-selecao');
+    expect(barraAna.getAttribute('style')).toContain('transform: scaleY(0)');
   });
 
   it('com 2+ simulados ganha a coluna Variação, só preenchida para quem participou de todos (§12 caso 8)', () => {

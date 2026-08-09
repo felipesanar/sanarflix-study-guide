@@ -1,7 +1,7 @@
 // src/features/gestor/__tests__/CascataDiagnostico.test.tsx
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, userEvent, within } from '@/test/utils';
+import { render, screen, userEvent, waitFor, within } from '@/test/utils';
 import { CascataDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { useDiagnostico } from '@/features/gestor/api/queries';
 import { NIVEL_CRITICO_MAX } from '@/features/gestor/lib/regras';
@@ -167,14 +167,19 @@ describe('CascataDiagnostico', () => {
     expect(clinica).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByTestId('filhos-ga-clinica')).toBeInTheDocument();
 
-    // exclusivo: abrir Cirurgia fecha Clínica Médica
+    // exclusivo: abrir Cirurgia fecha Clínica Médica. A saída de Clínica agora
+    // é animada (spec §13.2 — accordion exclusivo, ramo antigo e novo
+    // compartilham os mesmos 320ms via `AnimatePresence`), então o nó some do
+    // DOM só quando a animação de saída termina — daí o `waitFor` em vez de
+    // uma asserção síncrona. A entrada de Cirurgia continua imediata (só a
+    // SAÍDA é adiada pelo `AnimatePresence`).
     await user.click(screen.getByRole('button', { name: /Cirurgia/ }));
-    expect(screen.queryByTestId('filhos-ga-clinica')).not.toBeInTheDocument();
     expect(screen.getByTestId('filhos-ga-cirurgia')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('filhos-ga-clinica')).not.toBeInTheDocument());
 
     // segundo clique recolhe
     await user.click(screen.getByRole('button', { name: /Cirurgia/ }));
-    expect(screen.queryByTestId('filhos-ga-cirurgia')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId('filhos-ga-cirurgia')).not.toBeInTheDocument());
   });
 
   it('a cascata para no 2º nível: a especialidade abre o drawer de temas, repassando a grande área do nó pai', async () => {
