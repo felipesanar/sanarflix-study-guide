@@ -7,7 +7,6 @@ import { CronogramaSimulados } from '@/features/gestor/components/CronogramaSimu
 import { DirecionadoresGestor } from '@/features/gestor/components/DirecionadoresGestor';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
-import { SaudacaoGestor } from '@/features/gestor/components/SaudacaoGestor';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';

@@ -8,7 +8,7 @@ import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
-import { CabecalhoTela, ChipRecorte, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
+import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
 
 import { Dica } from '@/features/gestor/components/Dica';

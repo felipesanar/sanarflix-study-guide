@@ -7,7 +7,7 @@ import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
 import { BlocoGestor, type EstadoBloco } from '../components/BlocoGestor';
 import { ComparativoSimulados } from '../components/ComparativoSimulados';
-import { CabecalhoTela, ChipRecorte, ContainerRota } from '../components/CabecalhoTela';
+import { ContainerRota } from '../components/CabecalhoTela';
 import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
 
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
