@@ -68,6 +68,8 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
     contexto.iesDisponiveis.find((ies) => ies.id === iesFocoId)?.nome ?? contexto.iesAtual.nome;
 
   const agora = new Date();
+  const ehDia = agora.getHours() >= 6 && agora.getHours() < 18;
+
 
   return (
     <header data-testid="saudacao" className="relative">
