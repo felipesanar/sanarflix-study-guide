@@ -691,9 +691,9 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   data-testid={`cartao-nivel-${nivel}`}
                   data-selecionado={setaAberta ? 'true' : 'false'}
                   className={cn(
-                    'group/nivel relative flex flex-col gap-3 overflow-hidden border border-border p-4 transition-all',
+                    'group/nivel relative flex flex-col gap-3 overflow-hidden border border-border p-4 transition-colors',
                     '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
-                    'hover:-translate-y-0.5 hover:border-[color:var(--gp-brand-border)]',
+                    'hover:border-[color:var(--gp-brand-border)]',
                     setaAberta && 'ring-1 ring-[color:var(--gp-brand-border)]',
                   )}
                   style={{
@@ -701,23 +701,18 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                     background: setaAberta
                       ? 'var(--gp-brand-surface-soft)'
                       : 'var(--gp-surface-1, hsl(var(--card)))',
-                    boxShadow: 'var(--gp-shadow-card)',
+                    boxShadow: 'none',
                   }}
                 >
                   {/* Fio de status: a faixa de desempenho vira COR na aresta do
-                      cartão, legível antes de qualquer leitura de texto. */}
+                      cartão, legível antes de qualquer leitura de texto. Fino e
+                      em baixa opacidade — marcação, não destaque. */}
                   <span
                     aria-hidden="true"
-                    className="absolute inset-x-0 top-0 h-[3px]"
-                    style={{ background: COR_NIVEL[nivel].ponto, opacity: 0.9 }}
+                    className="absolute inset-x-0 top-0 h-[2px]"
+                    style={{ background: COR_NIVEL[nivel].ponto, opacity: 0.6 }}
                   />
-                  {/* Lavagem sutil da própria cor de status, só no topo. */}
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-x-0 top-0 h-20"
-                    style={{
-                      background: `linear-gradient(180deg, ${COR_NIVEL[nivel].superficie}, transparent)`,
-                      opacity: 0.6,
+
                     }}
                   />
 
