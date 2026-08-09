@@ -75,6 +75,8 @@
      --gp-brand-surface-soft (mais abaixo): continua alfa por decisão
      separada, documentada onde é declarado. */
   --gp-brand-surface: hsl(0 80.6% 93.9%);
+  /* Fio/aura de marca: usado em cabeçalhos de bloco e no fio de status do card. */
+  --gp-brand-gradient: linear-gradient(90deg, hsl(var(--primary)), hsl(0 80.6% 68%));
   --gp-brand-border: hsl(0 63.6% 87.1%);
   --gp-on-brand: hsl(var(--primary-foreground));
 
@@ -247,6 +249,7 @@
   --gp-brand-on-dark: hsl(2 76% 72%);
   /* Item A4: literal opaco — par escuro (handoff #2C1517 / #5A2426). */
   --gp-brand-surface: hsl(355 35.4% 12.7%);
+  --gp-brand-gradient: linear-gradient(90deg, hsl(var(--primary)), hsl(355 60% 45%));
   --gp-brand-border: hsl(358 42.9% 24.7%);
   /* No escuro a seleção precisa de mais corpo que os 4% do claro: sobre uma
      superfície escura, um tinte tão baixo simplesmente não aparece. */
