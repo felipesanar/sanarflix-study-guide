@@ -232,10 +232,9 @@ export const SidebarIes: React.FC = () => {
     );
   }
 
-  const comBusca = opcoes.length > LIMIAR_BUSCA;
-  const idsRecentes = comBusca
-    ? recentes.filter((id) => id !== iesSelecionada && opcoes.some((ies) => ies.id === id))
-    : [];
+  const idsRecentes = recentes.filter(
+    (id) => id !== iesSelecionada && opcoes.some((ies) => ies.id === id),
+  );
   const listaRecentes = idsRecentes
     .map((id) => opcoes.find((ies) => ies.id === id))
     .filter((ies): ies is { id: string; nome: string } => Boolean(ies));
@@ -243,13 +242,8 @@ export const SidebarIes: React.FC = () => {
 
   return (
     <>
-      <Popover
-        open={aberto}
-        onOpenChange={(proximo) => {
-          setAberto(proximo);
-          if (!proximo) setBusca('');
-        }}
-      >
+      <Popover open={aberto} onOpenChange={setAberto}>
+
         <PopoverTrigger asChild>
           <button
             type="button"
