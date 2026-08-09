@@ -467,6 +467,16 @@ export function AcertoPorAreaESemestre({
                     válido). É por isso que o cruzamento área × semestre e o
                     drill-down especialidade → tema convivem na MESMA linha
                     sem um roubar o clique do outro.
+
+                    Deixou de ser um chevron nu de 16px, cinza, sem rótulo
+                    (refino de 09/08): aquele glifo solto no fim da linha não
+                    dizia NADA sobre abrir especialidades e temas — lia como
+                    enfeite de fim de linha, ou como "próximo", e o único
+                    lugar onde a promessa existia era o `title`, invisível a
+                    quem não paira o mouse. Agora é um chip com palavra
+                    ("Detalhar"), moldura e cor de marca: um destino, não uma
+                    seta. O `aria-label` continua nomeando a área, para quem
+                    ouve a linha fora de contexto.
                   */}
                   {onAbrirArea ? (
                     <button
@@ -475,11 +485,23 @@ export function AcertoPorAreaESemestre({
                       aria-label={`Ver especialidades e temas de ${area.nome}`}
                       title="Ver especialidades e temas"
                       onClick={() => onAbrirArea({ id: area.id, nome: area.nome })}
-                      className="inline-flex shrink-0 items-center justify-center rounded p-1 text-muted-foreground transition-colors duration-200 hover:bg-[color:var(--gp-surface-3)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className={cn(
+                        'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1',
+                        'transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'hover:bg-[color:var(--gp-brand-surface-subtle,var(--gp-surface-3))]',
+                      )}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: 'var(--gp-brand-on-dark)',
+                        border: '1px solid var(--gp-border-subtle)',
+                      }}
                     >
-                      <Icon name="chevron_right" variant="outlined" size={16} />
+                      Detalhar
+                      <Icon name="chevron_right" variant="outlined" size={14} />
                     </button>
                   ) : null}
+
                 </li>
               );
             })}
