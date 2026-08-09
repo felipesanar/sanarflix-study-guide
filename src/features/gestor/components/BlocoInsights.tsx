@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
