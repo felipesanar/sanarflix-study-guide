@@ -544,21 +544,59 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
      * e ao gráfico protagonista logo acima.
      */
     <section data-testid="bloco-diagnostico" aria-labelledby="titulo-diagnostico">
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center gap-2 pb-4">
-          <h2 id="titulo-diagnostico" style={{ fontSize: 16, fontWeight: 700 }}>
-            Diagnóstico Curricular
-          </h2>
-          {/* Nota de contexto INLINE, ao lado do título — não uma segunda linha
-              de subtítulo. Na referência ela é um aposto de 11px que qualifica
-              o título, e é isso que mantém o cabeçalho em uma linha só. */}
-          <span className="ml-1.5 min-w-0 truncate text-[11px] text-muted-foreground">
-            {/* A UNIDADE fica na nota, não some com o encurtamento: área,
-                especialidade e tema são sempre percentual de acerto, nunca
-                proficiência (spec §4.1 / caso crítico nº14). É a única coisa
-                que este bloco afirma sobre como ler os números dele. */}
-            desempenho por grande área no período, em percentual de acerto
+      <Card className="relative overflow-hidden">
+        {/* Aura de marca no topo do bloco: um fio de 2px + um halo muito baixo
+            de opacidade. É o que dá a leitura "premium" sem inventar cor nova —
+            tudo derivado dos tokens de marca do portal. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent, var(--gp-brand-border) 22%, var(--gp-brand) 50%, var(--gp-brand-border) 78%, transparent)',
+            opacity: 0.75,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-32"
+          style={{
+            background:
+              'radial-gradient(120% 100% at 50% 0%, var(--gp-brand-surface-soft), transparent 70%)',
+          }}
+        />
+        <CardHeader className="relative flex flex-row flex-wrap items-center gap-3 pb-5">
+          {/* Medalhão do bloco: ancora o título e cria a hierarquia que faltava
+              entre o nome da seção e a nota de leitura. */}
+          <span
+            aria-hidden="true"
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'var(--gp-brand-surface)',
+              border: '1px solid var(--gp-brand-border)',
+              color: 'var(--gp-brand-on-dark)',
+            }}
+          >
+            <Icon name="stethoscope" variant="outlined" size={18} box={18} />
           </span>
+          <div className="min-w-0">
+            <h2
+              id="titulo-diagnostico"
+              className="truncate"
+              style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em' }}
+            >
+              Diagnóstico Curricular
+            </h2>
+            {/* A UNIDADE fica na nota: área, especialidade e tema são sempre
+                percentual de acerto, nunca proficiência (spec §4.1 / caso
+                crítico nº14). */}
+            <p className="truncate text-[11px] text-muted-foreground">
+              desempenho por grande área no período, em percentual de acerto
+            </p>
+          </div>
           {/* Entrada única para a cascata completa, sem recorte de nível — as
               setas por cartão continuam existindo (cada uma recortando ao seu
               grupo), esta abre TODAS as grandes áreas. */}
@@ -568,11 +606,17 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
             aria-expanded={cascataAberta && nivelOrigem === null}
             onClick={() => abrirCascata(null)}
             className={cn(
-              'ml-auto inline-flex shrink-0 items-center gap-1 rounded-md text-[color:var(--gp-brand-on-dark)] transition-colors',
+              'ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 transition-all',
               '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
-              'hover:text-[color:var(--gp-brand-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'text-[color:var(--gp-brand-on-dark)] hover:-translate-y-px hover:text-[color:var(--gp-brand-strong)]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
-            style={{ fontSize: 12, fontWeight: 600 }}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              borderColor: 'var(--gp-brand-border)',
+              background: 'var(--gp-brand-surface-soft)',
+            }}
           >
             {cascataAberta && nivelOrigem === null ? 'Fechar' : 'Ver por nível de desempenho'}
             <Icon
@@ -582,7 +626,41 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
               box={14}
             />
           </button>
+
+          {/* Barra de distribuição: em uma olhada, a proporção das 3 faixas no
+              recorte. Só aparece quando há classificação — sem dado, nada é
+              afirmado. */}
+          {totalAreas > 0 ? (
+            <div
+              data-testid="diagnostico-distribuicao"
+              className="flex w-full items-center gap-1.5"
+              role="img"
+              aria-label={ORDEM_NIVEL.map(
+                (n) => `${(porNivel.get(n) ?? []).length} ${ROTULO_NIVEL[n].toLowerCase()}`,
+              ).join(', ')}
+            >
+              <span className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                {ORDEM_NIVEL.map((nivel) => {
+                  const qtd = (porNivel.get(nivel) ?? []).length;
+                  if (qtd === 0) return null;
+                  return (
+                    <span
+                      key={nivel}
+                      style={{
+                        width: `${(qtd / totalAreas) * 100}%`,
+                        background: COR_NIVEL[nivel].ponto,
+                      }}
+                    />
+                  );
+                })}
+              </span>
+              <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
+                {totalAreas} {totalAreas === 1 ? 'área' : 'áreas'}
+              </span>
+            </div>
+          ) : null}
         </CardHeader>
+
         <CardContent className="pt-0">
       {totalAreas === 0 ? (
         <div data-testid="diagnostico-sem-classificacao">
