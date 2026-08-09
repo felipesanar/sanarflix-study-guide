@@ -218,6 +218,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
             end={url === '/gestor'}
             onMouseEnter={aoPassarMouse}
             onFocus={aoPassarMouse}
+            onClick={onNavegar}
+
             className={({ isActive }) =>
               cn(
                 'relative flex items-center text-sm',
