@@ -706,33 +706,79 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   data-testid={`cartao-nivel-${nivel}`}
                   data-selecionado={setaAberta ? 'true' : 'false'}
                   className={cn(
-                    'flex flex-col gap-2.5 border border-border p-4',
+                    'group/nivel relative flex flex-col gap-3 overflow-hidden border border-border p-4 transition-all',
+                    '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+                    'hover:-translate-y-0.5 hover:border-[color:var(--gp-brand-border)]',
                     setaAberta && 'ring-1 ring-[color:var(--gp-brand-border)]',
                   )}
                   style={{
-                    borderRadius: 12,
-                    background: setaAberta ? 'var(--gp-brand-surface-soft)' : undefined,
+                    borderRadius: 14,
+                    background: setaAberta
+                      ? 'var(--gp-brand-surface-soft)'
+                      : 'var(--gp-surface-1, hsl(var(--card)))',
+                    boxShadow: 'var(--gp-shadow-card)',
                   }}
                 >
-                  {/* A contagem + a classificação SÃO o gatilho da cascata.
-                      A referência não desenha nenhum "Ver áreas" no cartão —
-                      o CTA de texto migrou para o cabeçalho do bloco. Manter
-                      o controle (com o mesmo nome acessível de sempre) sobre
-                      o corpo do cartão preserva a entrada por NÍVEL, que é o
-                      que o painel ao lado recorta. */}
+                  {/* Fio de status: a faixa de desempenho vira COR na aresta do
+                      cartão, legível antes de qualquer leitura de texto. */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-0 top-0 h-[3px]"
+                    style={{ background: COR_NIVEL[nivel].ponto, opacity: 0.9 }}
+                  />
+                  {/* Lavagem sutil da própria cor de status, só no topo. */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-20"
+                    style={{
+                      background: `linear-gradient(180deg, ${COR_NIVEL[nivel].superficie}, transparent)`,
+                      opacity: 0.6,
+                    }}
+                  />
+
+                  {/* A contagem + a classificação SÃO o gatilho da cascata. */}
                   <button
                     type="button"
                     aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
                     aria-expanded={setaAberta}
                     onClick={() => abrirCascata(nivel)}
-                    className="-m-1 flex flex-col items-start gap-2.5 rounded-md p-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative -m-1 flex w-full flex-col items-start gap-2 rounded-lg p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="flex items-baseline gap-1.5">
-                      <span className="tabular-nums" style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>
-                        {areas.length}
+                    <span className="flex w-full items-start justify-between gap-2">
+                      <span className="flex items-baseline gap-1.5">
+                        <span
+                          className="tabular-nums"
+                          style={{
+                            fontSize: 34,
+                            fontWeight: 700,
+                            lineHeight: 1,
+                            letterSpacing: '-0.03em',
+                            color: areas.length > 0 ? COR_NIVEL[nivel].texto : 'var(--gp-text-3)',
+                          }}
+                        >
+                          {areas.length}
+                        </span>
+                        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {areas.length === 1 ? 'área' : 'áreas'}
+                        </span>
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {areas.length === 1 ? 'área' : 'áreas'}
+                      <span
+                        aria-hidden="true"
+                        className="inline-flex shrink-0 items-center justify-center transition-transform [transition-duration:var(--gp-motion-1)] group-hover/nivel:translate-x-0.5"
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 8,
+                          background: COR_NIVEL[nivel].superficie,
+                          color: COR_NIVEL[nivel].texto,
+                        }}
+                      >
+                        <Icon
+                          name={setaAberta ? 'expand_more' : COR_NIVEL[nivel].icone}
+                          variant="outlined"
+                          size={15}
+                          box={15}
+                        />
                       </span>
                     </span>
                     <span
@@ -745,40 +791,33 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                         style={{
                           width: 8,
                           height: 8,
-                          borderRadius: 2,
+                          borderRadius: 999,
                           background: COR_NIVEL[nivel].ponto,
+                          boxShadow: `0 0 0 3px ${COR_NIVEL[nivel].superficie}`,
                         }}
                       />
                       {ROTULO_NIVEL[nivel]}
                     </span>
                   </button>
 
-                  <div>
+                  <div className="relative">
                     {areas.length > 0 ? (
                       <ul className="flex flex-wrap gap-1.5">
                         {areas.map((area) => (
                           <li key={area.id}>
-                            {/*
-                              Chip é só o NOME da área. O % saiu de dentro dele
-                              porque o card já agrupa por nível — a faixa de
-                              desempenho é o que o chip comunica, e o número
-                              exato mora um clique adiante, na cascata, onde
-                              vem acompanhado de amostra e cobertura. Dois
-                              números concorrentes no mesmo cartão (o do chip e
-                              o da lista de sugestão logo abaixo) faziam a
-                              gestora comparar grandezas de recortes
-                              diferentes.
-                            */}
+                            {/* Chip é só o NOME da área — o % mora um clique
+                                adiante, na cascata, com amostra e cobertura. */}
                             <span
                               data-testid={`chip-${area.id}`}
-                              className="inline-flex items-center whitespace-nowrap"
+                              className="inline-flex items-center whitespace-nowrap transition-colors"
                               style={{
                                 fontSize: 12,
                                 fontWeight: 500,
-                                color: 'var(--gp-text-2)',
+                                color: COR_NIVEL[nivel].texto,
                                 border: '1px solid var(--gp-border-input)',
+                                background: COR_NIVEL[nivel].superficie,
                                 borderRadius: 'var(--gp-radius-pill)',
-                                padding: '3px 11px',
+                                padding: '4px 11px',
                               }}
                             >
                               {area.nome}
@@ -786,6 +825,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                           </li>
                         ))}
                       </ul>
+
                     ) : nivel === 'critico' ? (
                       <DiagnosticoCriticoVazio mediano={porNivel.get('mediano') ?? []} />
                     ) : (
