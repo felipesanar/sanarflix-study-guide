@@ -584,14 +584,27 @@ describe('DrawerAluno — rodapé de ações', () => {
     expect(screen.queryByRole('button', { name: 'Copiar resumo' })).not.toBeInTheDocument();
   });
 
-  it('sem `onExportar`, o clique avisa em vez de ser engolido em silêncio', async () => {
+  it('sem `onExportar`, o próprio drawer gera o CSV do recorte do aluno e confirma', async () => {
     const user = userEvent.setup();
+    const criarUrl = vi.fn(() => 'blob:csv');
+    const original = { criar: URL.createObjectURL, revogar: URL.revokeObjectURL };
+    URL.createObjectURL = criarUrl as unknown as typeof URL.createObjectURL;
+    URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL;
+
     montar();
-    await user.click(screen.getByRole('button', { name: 'Exportar recorte' }));
+    try {
+      await user.click(screen.getByRole('button', { name: 'Exportar recorte' }));
+    } finally {
+      URL.createObjectURL = original.criar;
+      URL.revokeObjectURL = original.revogar;
+    }
+
+    expect(criarUrl).toHaveBeenCalledTimes(1);
     expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({ description: expect.stringMatching(/não está disponível/i) }),
+      expect.objectContaining({ description: expect.stringContaining('CSV') }),
     );
   });
+
 
   it('com `onExportar`, entrega o escopo do aluno', async () => {
     const user = userEvent.setup();
