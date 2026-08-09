@@ -1095,15 +1095,19 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
               borderRadius: 'var(--gp-radius-sm)',
             }}
           >
-            <Icon
-              name="call"
-              variant="outlined"
-              size={16}
-              box={16}
-              className="text-[color:var(--gp-text-3)]"
-            />
             <div className="min-w-0 flex-1">
-              <div style={{ ...OVERLINE_CONTATO }}>Telefone</div>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--gp-text-3)',
+                }}
+              >
+                Telefone
+              </div>
+
               <div
                 data-testid="drawer-telefone"
                 style={{
