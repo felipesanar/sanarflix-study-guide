@@ -129,6 +129,7 @@ export default function Inicio() {
           </>
         )}
       </div>
-    </div>
+    </ContainerRota>
+
   );
 }
