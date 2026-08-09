@@ -57,13 +57,13 @@ export interface DrawerAlunoProps {
   simulados: string[];
   onFechar: () => void;
   /**
-   * Exportação do recorte do aluno. Opcional: as duas telas que montam este
-   * drawer (Visão Geral e Detalhamento) ainda não têm export de verdade — o
-   * §7.7 exige auditoria de quem/quando/escopo/formato, que nenhuma task
-   * implementou. Sem o callback, o clique avisa que a exportação não está
-   * disponível, como já faz o `DrawerTemas`; o que nunca acontece é o clique
-   * ser engolido em silêncio.
+   * Exportação do recorte do aluno. Opcional e, desde a auditoria de 09/08,
+   * apenas um OVERRIDE: sem callback o próprio drawer gera o CSV local (uma
+   * linha por simulado, os mesmos números da tela) e confirma por toast.
+   * Passe `onExportar` quando a tela quiser tratar o clique (telemetria
+   * própria, escopo diferente, export no servidor com a auditoria do §7.7).
    */
+
   onExportar?: (escopo: string) => void;
 }
 
