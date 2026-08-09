@@ -137,7 +137,18 @@ const TRANSICAO_COR_ICONE =
  * `-outlined` em text-3 e hover em surface-3 (`gp-hover-surface`, que já traz a
  * regra "no claro escurece, no escuro clareia" e a duração de 140ms do tema).
  */
-export const SidebarNav: React.FC = () => {
+export interface SidebarNavProps {
+  /**
+   * Avisa quem hospeda a nav que um item foi acionado. Existe para o drawer do
+   * shell responsivo (auditoria de 09/08, B7) se fechar no clique: no tablet o
+   * menu cobre o conteúdo, e sem isto a pessoa navegava e continuava olhando o
+   * menu por cima da tela que acabou de pedir. Na sidebar fixa não é passado.
+   */
+  onNavegar?: () => void;
+}
+
+export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
+
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -207,6 +218,8 @@ export const SidebarNav: React.FC = () => {
             end={url === '/gestor'}
             onMouseEnter={aoPassarMouse}
             onFocus={aoPassarMouse}
+            onClick={onNavegar}
+
             className={({ isActive }) =>
               cn(
                 'relative flex items-center text-sm',

@@ -1,46 +1,19 @@
 import * as React from 'react';
 import { Suspense } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { useAuth } from '@/contexts/AuthContext';
-import { ExperienceSwitcher } from '@/experiences/shared/ExperienceSwitcher';
-import { useGestorContexto } from '@/features/gestor/api/queries';
-import type { ContextoGestor } from '@/features/gestor/api/types';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 
 import { Icon } from '@/features/gestor/components/Icon';
 
-import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
-import { OVERLINE_SIDEBAR, SidebarNav } from '@/features/gestor/shell/SidebarNav';
+import { ConteudoSidebar } from '@/features/gestor/shell/ConteudoSidebar';
+import { OVERLINE_SIDEBAR } from '@/features/gestor/shell/SidebarNav';
 import '@/features/gestor/gestor-theme.css';
 // Fonte de ícones do Dendê. Precisa vir junto do tema: sem este import o
 // @font-face não entra no bundle e todo `<Icon>` renderiza tofu.
 import '@/features/gestor/dende-icons.css';
 
-/** Iniciais do nome (até 2), para o avatar do rodapé. */
-const iniciaisDe = (nome: string | undefined): string =>
-  (nome ?? '')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((parte) => parte[0]?.toUpperCase() ?? '')
-    .join('');
-
-/**
- * Segunda linha do rodapé: o PAPEL da pessoa, como na referência ("Gestora
- * acadêmica"), não o e-mail. Rótulos sem marca de gênero — a mesma conta serve
- * a qualquer pessoa. O e-mail continua alcançável, no `title` do bloco.
- */
-const ROTULO_PAPEL: Record<ContextoGestor['usuario']['papel'], string> = {
-  admin: 'Administração',
-  gestor_grupo: 'Gestão do grupo',
-  gestor: 'Gestão acadêmica',
-};
-
-/** Divisor entre os blocos da sidebar (lockup · IES · nav · rodapé). */
-const DIVISOR = '1px solid var(--gp-border-subtle)';
 
 /**
  * Carregamento da TELA (não de um bloco): é o que aparece no lugar do
@@ -112,29 +85,45 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
 /**
  * Shell do Portal do Gestor v2 (spec §8.3).
  *
- * Sidebar fixa de 240px (`w-60`), SEM header no topo do conteúdo. Quatro
- * blocos separados por divisor, como na referência: lockup SanarFlix Academy
- * (48px) + overline "Portal do Gestor" → cartão da instituição → nav de 3
- * itens → rodapé com perfil e avisos, e abaixo as ações do portal. A área de
- * conteúdo é a única que rola.
+ * Sidebar de 240px (`w-60`) com quatro blocos separados por divisor, como na
+ * referência: lockup SanarFlix Academy (48px) + overline "Portal do Gestor" →
+ * cartão da instituição → nav de 3 itens → rodapé com perfil e avisos, e
+ * abaixo as ações do portal (ver {@link ConteudoSidebar}). A área de conteúdo
+ * é a única que rola.
  *
- * A troca de portal (aluno / admin / atendimento) vive no
- * {@link ExperienceSwitcher} do rodapé — os antigos botões avulsos "Portal do
- * Admin" e "Ir para versão aluno" saíram: portal não é item de navegação, é
- * troca de experiência, e o alternador é o mesmo controle em todos os portais.
- * Quais experiências ele oferece vem de `access.experiences` (RPC
- * `get_access`), e cada uma continua protegida pelo `ExperienceGuard`.
+ * RESPONSIVIDADE (auditoria de 09/08, item B7 — o pior nota do portal, 3/10):
+ * a partir de `lg` (1024px) a sidebar é a coluna fixa de sempre; abaixo disso
+ * ela sai do fluxo e o MESMO conteúdo passa a viver num drawer, aberto por uma
+ * barra superior com o lockup e o botão "Menu". Antes deste passe não havia uma
+ * única classe responsiva no shell: em notebook estreito e tablet os 240px
+ * comiam a área útil das tabelas densas, e não havia rota de fuga além do
+ * `overflow-x-auto` de cada tabela.
  *
- * Marca: duas `<img>` (clara/branca) alternadas por `dark:` — nunca
- * `filter: invert()`, nunca redesenho, nunca sombra colorida.
+ * O drawer é o `Sheet` do repositório com o `container` do próprio portal (ver
+ * {@link GestorPortalContainerContext}) — sem isso o menu abriria fora do
+ * alcance de `gestor-theme.css`, sem nenhum token `--gp-*`.
+ *
+ * A troca de portal (aluno / admin / atendimento) vive no `ExperienceSwitcher`
+ * do rodapé — os antigos botões avulsos "Portal do Admin" e "Ir para versão
+ * aluno" saíram: portal não é item de navegação, é troca de experiência, e o
+ * alternador é o mesmo controle em todos os portais. Quais experiências ele
+ * oferece vem de `access.experiences` (RPC `get_access`), e cada uma continua
+ * protegida pelo `ExperienceGuard`.
  */
 export const GestorShell: React.FC = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { data: contexto } = useGestorContexto();
 
-  const papel = contexto?.usuario.papel;
+  /**
+   * Drawer da navegação abaixo de `lg`. Fecha ao trocar de rota: o `NavLink`
+   * já avisa via `aoNavegar`, e este efeito cobre o resto (voltar do
+   * navegador, redirecionos do `GestorFeatureGate`, links dentro do
+   * conteúdo) — um menu aberto sobre a tela nova seria um estado morto.
+   */
+  const [menuAberto, setMenuAberto] = React.useState(false);
+  React.useEffect(() => {
+    setMenuAberto(false);
+  }, [pathname]);
+
 
   /**
    * `useState`, não `useRef`: só uma mudança de STATE re-renderiza os
@@ -176,178 +165,148 @@ export const GestorShell: React.FC = () => {
         }}
 
       >
+        {/* Sidebar fixa — só de `lg` para cima. `hidden lg:flex`, não uma
+            largura que encolhe: a coluna tem anatomia própria (lockup de 48px,
+            cartão de IES, rótulos inteiros) e não sobrevive a 180px. */}
         <aside
           /* `overflow-y-auto`: o conteúdo da sidebar (lockup + IES + nav +
              perfil + ações + tema) passa de 650px, e sem scroll próprio ele
              era cortado em janela baixa — o rodapé com "Sair" ficava
              inalcançável. `min-h-0` porque um filho de flex não encolhe abaixo
              do conteúdo sem isso, e o `overflow` nunca chegaria a valer. */
-          className="relative flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r"
+          className="relative hidden h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r lg:flex"
           style={{
             background: 'var(--gp-surface-1)',
             borderColor: 'var(--gp-border-subtle)',
             color: 'var(--gp-text-2)',
           }}
         >
-          <div
-            className="flex flex-col"
-            style={{ padding: '22px 20px 18px', gap: 14, borderBottom: DIVISOR }}
-          >
-            <div className="flex items-center">
-              <img
-                src="/sanarflix-academy-lockup.svg"
-                alt="SanarFlix Academy"
-                width={533}
-                height={138}
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-                className="h-12 w-auto dark:hidden"
-              />
-              <img
-                src="/sanarflix-academy-lockup-white.svg"
-                alt=""
-                aria-hidden="true"
-                width={533}
-                height={138}
-                loading="eager"
-                decoding="sync"
-                fetchPriority="high"
-                className="hidden h-12 w-auto dark:block"
-              />
-
-            </div>
-            <span style={OVERLINE_SIDEBAR}>Portal do Gestor</span>
-          </div>
-
-          <div style={{ padding: '14px 16px', borderBottom: DIVISOR }}>
-            <SidebarIes />
-          </div>
-
-          <SidebarNav />
-
-          <div className="mt-auto" style={{ borderTop: DIVISOR }}>
-            <div className="flex items-center" style={{ padding: '14px 16px', gap: 10 }}>
-              <span
-                aria-hidden="true"
-                className="flex shrink-0 items-center justify-center rounded-full"
-                style={{
-                  width: 34,
-                  height: 34,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  // `lineHeight: 1` — ver TileIes em SidebarIes.tsx: com o
-                  // `normal` (≈1.21em na Inter) a caixa de linha não é
-                  // simétrica em torno das maiúsculas e a sigla assenta fora
-                  // do centro vertical do tile.
-                  lineHeight: 1,
-                  background: 'var(--gp-brand-surface)',
-                  // No claro este token É a marca; no escuro ele vira o tom
-                  // clareado que passa AA sobre superfície escura — nunca a
-                  // marca crua como cor de texto ali.
-                  color: 'var(--gp-brand-on-dark)',
-                }}
-              >
-                {iniciaisDe(user?.nome)}
-              </span>
-              <div className="min-w-0 flex-1" title={user?.email ?? undefined}>
-                <p
-                  className="truncate"
-                  style={{ fontSize: 13, fontWeight: 600, lineHeight: '16px', color: 'var(--gp-text-1)' }}
-                >
-                  {user?.nome ?? '—'}
-                </p>
-                {/* `minHeight` reserva a linha antes de o papel chegar do
-                    servidor — senão o rodapé cresce 14px no meio do carregamento. */}
-                <p
-                  className="truncate"
-                  style={{ fontSize: 11, lineHeight: '14px', minHeight: 14, color: 'var(--gp-text-3)' }}
-                >
-                  {papel ? ROTULO_PAPEL[papel] : ''}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Avisos da Sanar"
-                onClick={() => navigate('/gestor')}
-                className="gp-hover-surface flex shrink-0 items-center justify-center"
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 'var(--gp-radius-sm)',
-                  color: 'var(--gp-text-2)',
-                }}
-              >
-                <Icon name="notifications" size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-1" style={{ padding: '10px 12px 12px', borderTop: DIVISOR }}>
-              {/* Troca de experiência: substitui os antigos botões avulsos
-                  ("Portal do Admin", "Ir para versão aluno"). Aluno/Admin/CX
-                  são experiências, não itens de navegação. */}
-              <div className="pb-1">
-                <ExperienceSwitcher variant="compact" />
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
-                onClick={() => logout()}
-              >
-                <Icon name="logout" size={16} />
-                Sair
-              </Button>
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>Tema</span>
-                <ThemeToggle />
-              </div>
-            </div>
-          </div>
+          <ConteudoSidebar />
         </aside>
 
-        {/* `relative` não é decoração: é o que impede o conteúdo rolável de
-            esticar o DOCUMENTO.
+        {/* Coluna do conteúdo: abaixo de `lg` ela ganha uma barra superior
+            fixa (fora da área rolável, para não competir com o cabeçalho
+            sticky de cada tela) com o lockup e o gatilho do menu.
+            `min-w-0` é o que permite a tabela larga rolar dentro de si em vez
+            de esticar o shell inteiro. */}
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+          <div
+            className="flex shrink-0 items-center gap-3 border-b px-4 py-2.5 lg:hidden"
+            style={{
+              background: 'var(--gp-surface-1)',
+              borderColor: 'var(--gp-border-subtle)',
+            }}
+          >
+            <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Abrir menu do portal"
+                  className="gp-hover-surface flex h-9 w-9 shrink-0 items-center justify-center"
+                  style={{
+                    borderRadius: 'var(--gp-radius-sm)',
+                    border: '1px solid var(--gp-border-subtle)',
+                    color: 'var(--gp-text-2)',
+                  }}
+                >
+                  <Icon name="menu" size={18} />
+                </button>
+              </SheetTrigger>
+              {/* Sem padding próprio: o `ConteudoSidebar` já traz o padding e
+                  os divisores de cada bloco. `overflow-y-auto` porque em
+                  tablet deitado a coluna inteira não cabe na altura. */}
+              <SheetContent
+                container={portalContainer}
+                side="left"
+                className="flex w-[280px] flex-col gap-0 overflow-y-auto p-0"
+                style={{ background: 'var(--gp-surface-1)', color: 'var(--gp-text-2)' }}
+                closeIcon={<Icon name="close" size={16} />}
+                closeLabel="Fechar"
+              >
+                {/* O `Sheet` do repositório exige título acessível; aqui ele é
+                    só para leitor de tela — o lockup do próprio conteúdo já
+                    diz visualmente onde a pessoa está. */}
+                <SheetTitle className="sr-only">Menu do Portal do Gestor</SheetTitle>
+                <ConteudoSidebar aoNavegar={() => setMenuAberto(false)} />
+              </SheetContent>
+            </Sheet>
 
-            Sem um ancestral posicionado, todo descendente `position:absolute`
-            resolve contra o viewport inicial, não contra este `main`. O
-            `.sr-only` do Tailwind é justamente `position:absolute`, e a posição
-            estática dele fica onde ele aparece no fluxo — lá embaixo, num
-            conteúdo de 3400px. Resultado: o `<html>` crescia para 2486px num
-            viewport de 891, o documento ganhava barra de rolagem própria e
-            sobrava uma faixa vazia (preta) abaixo do app. Só acontecia no
-            Detalhamento porque é a tela cujo conteúdo passa da altura da
-            janela por margem suficiente.
+            {/* Marca da barra: DECORATIVA de ponta a ponta (`alt=""` +
+                `aria-hidden`). O nome acessível "SanarFlix Academy · Portal do
+                Gestor" já é anunciado pelo lockup do `ConteudoSidebar` — que
+                está no DOM nas duas resoluções (coluna no desktop, drawer no
+                mobile). Repetir aqui só criaria rótulo duplicado no leitor de
+                tela sem informar nada de novo. */}
+            <img
+              src="/sanarflix-academy-lockup.svg"
+              alt=""
+              aria-hidden="true"
+              width={533}
+              height={138}
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
+              className="h-7 w-auto dark:hidden"
+            />
+            <img
+              src="/sanarflix-academy-lockup-white.svg"
+              alt=""
+              aria-hidden="true"
+              width={533}
+              height={138}
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
+              className="hidden h-7 w-auto dark:block"
+            />
+            <span className="ml-auto truncate" aria-hidden="true" style={OVERLINE_SIDEBAR}>
+              Portal do Gestor
+            </span>
 
-            Medido no navegador: com `relative`, `documentElement.scrollHeight`
-            cai de 2486 para 891 — exatamente o viewport. */}
-        <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {/*
-            `key={pathname}` no Suspense não é detalhe: é o que faz a troca de
-            tela ser INSTANTÂNEA (achado 09/08).
+          </div>
 
-            O router roda com `v7_startTransition`, então navegar é um update
-            em transição — e o React, por definição, MANTÉM o conteúdo antigo
-            na tela enquanto uma boundary já montada suspende, em vez de trocar
-            pelo fallback. Com o chunk da rota destino ainda por baixar (lazy),
-            isso prendia o gestor na tela atual por segundos, sem nenhum sinal
-            de que o clique tinha valido — a sensação de travado que ele
-            relatou ao ir de Visão geral para Detalhamento na primeira vez da
-            sessão.
+          {/* `relative` não é decoração: é o que impede o conteúdo rolável de
+              esticar o DOCUMENTO.
 
-            Trocando a `key` a cada rota, a boundary do destino é uma boundary
-            NOVA: não tem conteúdo anterior para preservar, então o fallback
-            aparece de imediato. A navegação acontece no clique e o
-            carregamento passa a ser mostrado na tela de destino, que é a
-            ordem certa.
-          */}
-          <Suspense key={pathname} fallback={<EsqueletoDeRota />}>
-            <Outlet />
-          </Suspense>
-        </main>
+              Sem um ancestral posicionado, todo descendente `position:absolute`
+              resolve contra o viewport inicial, não contra este `main`. O
+              `.sr-only` do Tailwind é justamente `position:absolute`, e a posição
+              estática dele fica onde ele aparece no fluxo — lá embaixo, num
+              conteúdo de 3400px. Resultado: o `<html>` crescia para 2486px num
+              viewport de 891, o documento ganhava barra de rolagem própria e
+              sobrava uma faixa vazia (preta) abaixo do app. Só acontecia no
+              Detalhamento porque é a tela cujo conteúdo passa da altura da
+              janela por margem suficiente.
 
+              Medido no navegador: com `relative`, `documentElement.scrollHeight`
+              cai de 2486 para 891 — exatamente o viewport. */}
+          <main className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {/*
+              `key={pathname}` no Suspense não é detalhe: é o que faz a troca de
+              tela ser INSTANTÂNEA (achado 09/08).
+
+              O router roda com `v7_startTransition`, então navegar é um update
+              em transição — e o React, por definição, MANTÉM o conteúdo antigo
+              na tela enquanto uma boundary já montada suspende, em vez de trocar
+              pelo fallback. Com o chunk da rota destino ainda por baixar (lazy),
+              isso prendia o gestor na tela atual por segundos, sem nenhum sinal
+              de que o clique tinha valido — a sensação de travado que ele
+              relatou ao ir de Visão geral para Detalhamento na primeira vez da
+              sessão.
+
+              Trocando a `key` a cada rota, a boundary do destino é uma boundary
+              NOVA: não tem conteúdo anterior para preservar, então o fallback
+              aparece de imediato. A navegação acontece no clique e o
+              carregamento passa a ser mostrado na tela de destino, que é a
+              ordem certa.
+            */}
+            <Suspense key={pathname} fallback={<EsqueletoDeRota />}>
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
       </div>
+
     </GestorPortalContainerContext.Provider>
   );
 };

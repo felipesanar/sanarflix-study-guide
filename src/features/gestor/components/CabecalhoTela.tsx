@@ -30,8 +30,14 @@ export function ContainerRota({
   className,
   ...rest
 }: React.HTMLAttributes<HTMLDivElement>) {
+  // Padding responsivo (auditoria de 09/08, B7): 32px é a moldura da
+  // referência em desktop, mas em telefone ela come 64px dos ~390px de
+  // largura — abaixo de `lg` a moldura cai para 20/24px. O cabeçalho sticky
+  // compensa com os mesmos degraus (ver CabecalhoTela).
   return (
-    <div className={cn('space-y-6 p-8', className)} {...rest}>
+    <div className={cn('space-y-6 p-5 sm:p-6 lg:p-8', className)} {...rest}>
+
+
       {children}
     </div>
   );
@@ -115,7 +121,11 @@ export function CabecalhoTela({
   return (
     <div
       data-testid={testId}
-      className="sticky top-0 z-20 -mx-8 -mt-8 px-8 pb-3 pt-6"
+      /* As margens negativas precisam bater com o padding do `ContainerRota`
+         em CADA degrau (20/24/32px) — se destoarem, a faixa sticky deixa de
+         cobrir a largura toda e o conteúdo rola visível pelas beiradas. */
+      className="sticky top-0 z-20 -mx-5 -mt-5 px-5 pb-3 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-5 lg:-mx-8 lg:-mt-8 lg:px-8 lg:pt-6"
+
       style={{
         backgroundColor: 'var(--gp-bg-app)',
         borderBottom: '1px solid var(--gp-border-subtle)',

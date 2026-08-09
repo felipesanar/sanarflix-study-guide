@@ -315,7 +315,11 @@ describe('classe gestor-portal e tokens --gp-* no GestorShell, claro e escuro', 
     // shell é sempre o segundo filho, nunca o primeiro.
     expect(raiz?.tagName).toBe('DIV');
     expect(raiz?.children[0]?.tagName).toBe('ASIDE');
-    expect(raiz?.children[1]?.tagName).toBe('MAIN');
+    // Segundo filho é a COLUNA do conteúdo (barra superior do mobile + `main`),
+    // não o `main` cru: o shell ganhou o drawer responsivo (auditoria 09/08, B7).
+    expect(raiz?.children[1]?.tagName).toBe('DIV');
+    expect(raiz?.children[1]?.querySelector('main')).not.toBeNull();
+
   });
 
   it('o tema escuro ativa via classe .dark no <html>, nunca via [data-theme]', () => {
