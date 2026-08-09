@@ -81,8 +81,8 @@ export const SidebarIes: React.FC = () => {
   const container = useGestorPortalContainer();
 
   const [aberto, setAberto] = React.useState(false);
-  const [busca, setBusca] = React.useState('');
   const [trocando, setTrocando] = React.useState(false);
+
   const [anuncio, setAnuncio] = React.useState('');
   const [recentes, setRecentes] = React.useState<string[]>([]);
 
