@@ -183,28 +183,6 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
             <Icon name="notifications" size={16} />
           </button>
         </div>
-
-        {/* Ações: uma única faixa horizontal. O seletor de experiência ocupa
-            a largura sobrando; tema e sair são ícones (rótulo só no a11y —
-            "Tema" escrito ao lado do botão era texto sem função). */}
-        <div className="flex items-center" style={{ gap: 6 }}>
-          <ExperienceSwitcher variant="compact" className="min-w-0 flex-1" />
-          {/* ThemeToggle é compartilhado (h-10 por padrão); aqui ele desce a
-              32px para casar com a altura da faixa sem virar outro botão. */}
-          <div className="shrink-0 [&>button]:h-8 [&>button]:w-8">
-            <ThemeToggle />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Sair da conta"
-            title="Sair"
-            className="h-8 w-8 shrink-0 text-[color:var(--gp-text-3)]"
-            onClick={() => logout()}
-          >
-            <Icon name="logout" size={16} />
-          </Button>
-        </div>
       </div>
     </>
   );
