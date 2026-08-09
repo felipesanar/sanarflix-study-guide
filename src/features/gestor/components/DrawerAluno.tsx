@@ -1261,31 +1261,12 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
         <div className="flex flex-wrap gap-2 pt-3.5" style={{ borderTop: '1px solid var(--gp-border-subtle)' }}>
           <AcoesRecorte escopo={nomeExibido} resumoTexto={resumoTexto} onExportar={exportar} />
           {/*
-            "Falar no WhatsApp" (reunião de 07/08: "lembra de botar aqui a
-            mesma coisa de copiar e o botão que você botou lá antes? o de
-            levar para o WhatsApp").
-
-            Leva o MESMO resumo agregado do "Copiar resumo" — nunca lista
-            nominal de terceiros (§7.7) —, e vai para o telefone do PRÓPRIO
-            aluno, que já está no cabeçalho deste drawer (`useAlunoContato`).
-            Sem telefone cadastrado o botão não aparece: um "falar" que não
-            tem com quem falar é um clique que só pode frustrar. Fora do
-            `AcoesRecorte` de propósito — aquele componente é o par
-            Exportar/Copiar sob a capability de export, e falar com um aluno
-            não é exportar dado.
+            "Enviar no WhatsApp" NÃO fica mais aqui: subiu para a seção de
+            CONTATO no topo do drawer (pedido de 09/08), junto ao telefone que
+            ele usa. Este rodapé volta a ser só o par Exportar/Copiar sob a
+            capability de export.
           */}
-          {linkWhatsApp ? (
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="drawer-whatsapp"
-              className="h-auto gap-1.5 rounded-sm px-3.5 py-2 text-xs font-semibold"
-              onClick={() => window.open(linkWhatsApp, '_blank', 'noopener,noreferrer')}
-            >
-              <Icon name="whatsapp" size={14} />
-              Enviar no WhatsApp
-            </Button>
-          ) : null}
+
         </div>
       </SheetContent>
     </Sheet>
