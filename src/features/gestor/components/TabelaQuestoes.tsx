@@ -198,7 +198,7 @@ export function TabelaQuestoes({
             borderRadius: 'var(--gp-radius-sm)',
           }}
         >
-          <Icon name="list_alt" size={16} />
+          <Icon name="format-list-bullet" size={16} />
         </span>
         <h3 id="questoes-titulo" style={{ fontSize: 15, fontWeight: 700, color: 'var(--gp-text-1)' }}>
           Detalhamento das questões
