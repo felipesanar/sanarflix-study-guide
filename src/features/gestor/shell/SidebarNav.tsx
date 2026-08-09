@@ -166,6 +166,22 @@ export const SidebarNav: React.FC = () => {
     void prefetchVisaoGeral(queryClient, user?.id, iesId, semestre);
   }, [queryClient, user?.id, iesId, semestre]);
 
+  /**
+   * Prefetch do CHUNK da rota (não do dado) no hover/foco — as três telas são
+   * `lazy()` em `gestorV2Routes.tsx`, e o download do bundle só começava no
+   * clique. É a parte da espera que o gestor sentia como "travado" ao ir de
+   * Visão Geral para Detalhamento na primeira vez da sessão; baixando durante
+   * o hover, na hora do clique o módulo já está no cache do Vite/navegador e a
+   * tela troca sem passar pelo esqueleto.
+   *
+   * Falha de rede aqui é silenciosa de propósito: é otimização, e o clique
+   * real continua tendo o seu próprio carregamento com esqueleto.
+   */
+  const aquecerChunk = React.useCallback((url: string) => {
+    if (url === '/gestor/visao-geral') void import('@/features/gestor/routes/VisaoGeral').catch(() => undefined);
+    if (url === '/gestor/detalhamento') void import('@/features/gestor/routes/Detalhamento').catch(() => undefined);
+  }, []);
+
   return (
     <nav
       aria-label="Seções do portal do gestor"
@@ -173,7 +189,11 @@ export const SidebarNav: React.FC = () => {
       style={{ padding: '16px 12px', gap: 2 }}
     >
       {GESTOR_V2_NAV.map(({ title, url, icon }, indice) => {
-        const aoPassarMouse = url === '/gestor/visao-geral' ? aquecerVisaoGeral : undefined;
+        const aoPassarMouse = () => {
+          aquecerChunk(url);
+          if (url === '/gestor/visao-geral') aquecerVisaoGeral();
+        };
+
 
         return (
         <React.Fragment key={url}>
