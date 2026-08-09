@@ -446,7 +446,7 @@ export default function Detalhamento() {
             <details data-testid="nota-reatividade-toggle" className="group">
               <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" style={{ fontSize: 11, lineHeight: '16px' }}>
                 <Icon
-                  name="right-open"
+                  name="chevron_right"
                   size={11}
                   aria-hidden="true"
                   className="transition-transform group-open:rotate-90"
