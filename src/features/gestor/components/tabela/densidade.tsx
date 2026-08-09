@@ -13,11 +13,11 @@ import { Icon } from '@/features/gestor/components/Icon';
  * mesma leitura em qualquer ponto da árvore, sem depender de onde o componente
  * foi montado.
  *
- * A escolha é do gestor e vale enquanto a aba estiver aberta: NÃO persiste em
- * `localStorage`/`sessionStorage`. O guard de LGPD §7.7 proíbe qualquer uso de
- * storage dentro de `src/features/gestor` — o portal lida com dado de aluno, e
- * a regra é de superfície inteira, não "só onde tem PII". Preferência de
- * exibição não vale abrir exceção nessa regra.
+ * A escolha é do gestor e vale enquanto a aba estiver aberta: nada é gravado
+ * em storage do browser. O guard de LGPD §7.7 proíbe qualquer storage
+ * persistente dentro de `src/features/gestor` — o portal lida com dado de
+ * aluno, e a regra vale para a superfície inteira, não só onde há PII.
+ * Preferência de exibição não justifica abrir exceção.
  */
 
 export type Densidade = 'compacta' | 'confortavel';
