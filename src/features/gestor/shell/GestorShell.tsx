@@ -231,9 +231,16 @@ export const GestorShell: React.FC = () => {
               </SheetContent>
             </Sheet>
 
+            {/* Marca da barra: DECORATIVA de ponta a ponta (`alt=""` +
+                `aria-hidden`). O nome acessível "SanarFlix Academy · Portal do
+                Gestor" já é anunciado pelo lockup do `ConteudoSidebar` — que
+                está no DOM nas duas resoluções (coluna no desktop, drawer no
+                mobile). Repetir aqui só criaria rótulo duplicado no leitor de
+                tela sem informar nada de novo. */}
             <img
               src="/sanarflix-academy-lockup.svg"
-              alt="SanarFlix Academy"
+              alt=""
+              aria-hidden="true"
               width={533}
               height={138}
               loading="eager"
@@ -252,9 +259,10 @@ export const GestorShell: React.FC = () => {
               fetchPriority="high"
               className="hidden h-7 w-auto dark:block"
             />
-            <span className="ml-auto truncate" style={OVERLINE_SIDEBAR}>
+            <span className="ml-auto truncate" aria-hidden="true" style={OVERLINE_SIDEBAR}>
               Portal do Gestor
             </span>
+
           </div>
 
           {/* `relative` não é decoração: é o que impede o conteúdo rolável de
