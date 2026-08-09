@@ -439,7 +439,7 @@ describe('rota VisaoGeral', () => {
     expect(useDiagnosticoTemas).toHaveBeenCalledWith(expect.anything(), 'esp-cardio', 'Clínica Médica');
   });
 
-  it('clicar em "Exportar recorte" no DrawerTemas produz um efeito observável — nunca um clique engolido em silêncio (achados 1 e 3)', async () => {
+  it('clicar em "Exportar recorte" no DrawerTemas gera um arquivo CSV de verdade e confirma (achados 1 e 3 · auditoria 09/08 B4)', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     vi.mocked(useDiagnostico).mockImplementation(((_filtros: unknown, node: string | null) =>
       ({
