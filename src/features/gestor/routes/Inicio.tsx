@@ -75,9 +75,10 @@ export default function Inicio() {
   return (
     <ContainerRota data-testid="gestor-inicio">
 
-      <div className={classeRevelacao(0)}>
-        <SaudacaoGestor iesId={iesAtivaId} />
-      </div>
+      {/* SEM saudação/cabeçalho (pedido de 09/08): o Início abre direto nos
+          direcionadores. A instituição em foco continua dita pelo cartão da
+          sidebar, que está sempre em tela. */}
+
 
       {/* Overline do bloco de direcionadores — a referência nunca solta a grade
           direto sob a saudação; o rótulo é o que declara que ali se ESCOLHE um
