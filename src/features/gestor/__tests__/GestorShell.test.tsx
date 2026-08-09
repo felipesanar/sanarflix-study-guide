@@ -191,16 +191,22 @@ describe('GestorShell (spec §8.3)', () => {
   it('sidebar de 240px com lockup de altura mínima 48px (claro e escuro) e conteúdo rolável', () => {
     const { container } = renderizar('/gestor');
 
-    const aside = container.querySelector('aside');
+    const aside = container.querySelector('aside') as HTMLElement;
     expect(aside).not.toBeNull();
     expect(aside).toHaveClass('w-60'); // 240px via token, sem px solto
+    // Coluna fixa só de `lg` para cima: abaixo disso o mesmo conteúdo vai para
+    // o drawer da barra superior (auditoria de 09/08, B7).
+    expect(aside).toHaveClass('hidden');
+    expect(aside).toHaveClass('lg:flex');
 
-    const lockup = screen.getByAltText('SanarFlix Academy');
+    // Escopado ao `aside`: a barra superior do mobile repete a marca, mas lá
+    // ela é decorativa (`alt=""`), então só a da sidebar tem nome acessível.
+    const lockup = within(aside).getByAltText('SanarFlix Academy');
     expect(lockup).toHaveAttribute('src', '/sanarflix-academy-lockup.svg');
     expect(lockup).toHaveClass('h-12'); // 48px (spec §8.3)
     expect(lockup).toHaveClass('dark:hidden');
 
-    const lockupDark = container.querySelector('img[src="/sanarflix-academy-lockup-white.svg"]');
+    const lockupDark = aside.querySelector('img[src="/sanarflix-academy-lockup-white.svg"]');
     expect(lockupDark).not.toBeNull();
     expect(lockupDark).toHaveClass('dark:block');
     // Nunca filter: invert() na marca (spec §8.3).
@@ -211,9 +217,20 @@ describe('GestorShell (spec §8.3)', () => {
     expect(main?.textContent).toContain('conteúdo do início');
   });
 
+  it('a navegação do shell fica atrás de um drawer abaixo de lg', () => {
+    const { container } = renderizar('/gestor');
+
+    const gatilho = screen.getByRole('button', { name: 'Abrir menu do portal' });
+    // A barra que hospeda o gatilho desaparece de `lg` para cima, quando a
+    // sidebar volta a ser coluna fixa.
+    expect(gatilho.closest('div')?.parentElement).toHaveClass('lg:hidden');
+    expect(container.querySelector('aside')).toHaveClass('lg:flex');
+  });
+
   it('o lockup vem acompanhado do overline "Portal do Gestor" (11px/600/0.1em uppercase)', () => {
-    renderizar('/gestor');
-    const overline = screen.getByText('Portal do Gestor');
+    const { container } = renderizar('/gestor');
+    const aside = container.querySelector('aside') as HTMLElement;
+    const overline = within(aside).getByText('Portal do Gestor');
     expect(overline.style.fontSize).toBe('11px');
     expect(overline.style.fontWeight).toBe('600');
     expect(overline.style.letterSpacing).toBe('0.1em');
@@ -225,6 +242,7 @@ describe('GestorShell (spec §8.3)', () => {
     expect(bloco.querySelector('img[alt="SanarFlix Academy"]')).not.toBeNull();
     expect(bloco.style.borderBottom).toContain('var(--gp-border-subtle)');
   });
+
 
   it('rodapé traz o perfil do usuário: avatar de 34px, nome 13px/600 e o PAPEL abaixo (nunca o e-mail)', () => {
     renderizar('/gestor');
