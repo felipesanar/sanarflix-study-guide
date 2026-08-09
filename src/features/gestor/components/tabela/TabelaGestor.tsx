@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/features/gestor/components/Icon';
+import { PADDING_DENSIDADE, useDensidadeTabela } from './densidade';
 
 /**
  * Anatomia única de tabela do Portal do Gestor — handoff §6.
@@ -160,8 +161,14 @@ export function CelulaCabecalho({
   onOrdenar,
   largura,
 }: CelulaCabecalhoProps) {
+  const densidade = useDensidadeTabela();
   const alinhamento = numerica ? 'right' : 'left';
-  const estilo: React.CSSProperties = { ...ESTILO_CABECALHO, textAlign: alinhamento, width: largura };
+  const estilo: React.CSSProperties = {
+    ...ESTILO_CABECALHO,
+    padding: PADDING_DENSIDADE[densidade].cabecalho,
+    textAlign: alinhamento,
+    width: largura,
+  };
 
   if (!onOrdenar) {
     return (
@@ -254,6 +261,7 @@ export function Celula({
   children,
   ...rest
 }: CelulaProps) {
+  const densidade = useDensidadeTabela();
   return (
     <td
       {...rest}
@@ -261,6 +269,7 @@ export function Celula({
       data-marca-selecao={marcada ? 'true' : undefined}
       style={{
         ...ESTILO_CELULA,
+        padding: PADDING_DENSIDADE[densidade].celula,
         textAlign: numerica ? 'right' : 'left',
         fontFamily: numerica ? FONTE_MONO : undefined,
         fontVariantNumeric: numerica ? 'tabular-nums' : undefined,
