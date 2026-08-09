@@ -93,17 +93,52 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
       pendurado num link de 12px.
     */
     <section aria-labelledby="comparativo-titulo">
-      <Card>
-        <CardHeader className="pb-3">
-          <h3 id="comparativo-titulo" style={{ fontSize: 16, fontWeight: 700 }} className="text-foreground">
-            Comparativo entre simulados
-          </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            O que mudou de um simulado para o outro em acerto, conceito e proficiência.
-          </p>
+      <Card className="relative overflow-hidden">
+        {/* Aura de marca no canto do bloco: dá profundidade sem pintar o card
+            inteiro. Decorativa. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-24 h-48 w-72 rounded-full opacity-[0.12] blur-3xl"
+          style={{ background: 'var(--gp-brand-gradient, var(--gp-brand-on-dark))' }}
+        />
+        <CardHeader className="relative pb-3">
+          <div className="flex items-start gap-3">
+            {/* Medalhão: mesmo idioma visual do Diagnóstico Curricular. */}
+            <span
+              aria-hidden
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border"
+              style={{
+                background: 'var(--gp-brand-surface)',
+                borderColor: 'var(--gp-brand-border)',
+                color: 'var(--gp-brand-on-dark)',
+              }}
+            >
+              <Icon name="timeline" size={18} />
+            </span>
+            <div className="min-w-0">
+              <h3
+                id="comparativo-titulo"
+                style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' }}
+                className="text-foreground"
+              >
+                Comparativo entre simulados
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                O que mudou de um simulado para o outro em acerto, conceito e proficiência.
+              </p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="relative space-y-4">
+          {/* Com dois simulados a grade de 3 colunas deixava um vão vazio à
+              direita e os cartões desalinhados do resto do bloco: com 2, a
+              grade encolhe e CENTRALIZA. */}
+          <div
+            className={cn(
+              'grid gap-3 sm:grid-cols-2',
+              metricas.length === 2 ? 'mx-auto max-w-3xl' : 'lg:grid-cols-3',
+            )}
+          >
             {metricas.map((m, i) => {
               const anterior = i > 0 ? metricas[i - 1] : null;
               const ehAtual = i === indiceAtual;
@@ -124,7 +159,10 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                   data-atual={String(ehAtual)}
                   /* Destaque do atual é borda de marca fina + sombra de card — nunca
                      anel de 2px, que o handoff proíbe em card. */
-                  className={cn(ehAtual && 'border-[var(--gp-brand-border)]')}
+                  className={cn(
+                    'relative overflow-hidden transition-shadow duration-200',
+                    ehAtual && 'border-[var(--gp-brand-border)]',
+                  )}
                   /* Dentro da casca nova, um tile `bg-card` seria branco sobre
                      branco: os que não são o atual descem um degrau de superfície
                      para o contorno não ser o único sinal de que ali há um
@@ -136,14 +174,24 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                       : { background: 'var(--gp-surface-2)' }
                   }
                 >
+                  {/* Fio de status no topo: 3px de marca só no simulado atual —
+                      categoriza o cartão antes de qualquer leitura de texto. */}
+                  {ehAtual && (
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-0 top-0 h-[3px]"
+                      style={{ background: 'var(--gp-brand-gradient, var(--gp-brand-on-dark))' }}
+                    />
+                  )}
                   <CardContent className="space-y-3 p-4">
                     <div className="flex items-baseline gap-2">
-                      <p className="text-[13px] font-bold text-foreground">{m.nome}</p>
+                      <p className="truncate text-[13px] font-bold text-foreground">{m.nome}</p>
                       {ehAtual && <Tag variant="selo">atual</Tag>}
-                      <p className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
+                      <p className="ml-auto whitespace-nowrap text-[11px] tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
                         {dataCurta(m.data)} · {m.participantes} part.
                       </p>
                     </div>
+
 
                     <dl className="space-y-2.5">
                       <LinhaIndicador
