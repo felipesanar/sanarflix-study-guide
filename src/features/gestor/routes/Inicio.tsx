@@ -60,18 +60,19 @@ export default function Inicio() {
   // falha (ex.: 'IES not resolved', 'feature_not_enabled') — achado 5.
   if (isError) {
     return (
-      <div className="space-y-8 p-8" data-testid="gestor-inicio">
+      <ContainerRota className="space-y-8" data-testid="gestor-inicio">
         <EstadoErro
           titulo="Não foi possível carregar o Início."
           descricao="Tente novamente em alguns instantes."
           onRetry={refetch}
         />
-      </div>
+      </ContainerRota>
     );
   }
 
   return (
-    <div className="space-y-6 p-8" data-testid="gestor-inicio">
+    <ContainerRota data-testid="gestor-inicio">
+
       <div className={classeRevelacao(0)}>
         <SaudacaoGestor iesId={iesAtivaId} />
       </div>
