@@ -1,4 +1,5 @@
 import { UserCog, School, Headset, GraduationCap } from 'lucide-react';
+import type { ElementType } from 'react';
 import { hasExperience, type Access, type ExperienceId } from '@/experiences/access';
 
 export interface ExperienceOption {
@@ -9,7 +10,7 @@ export interface ExperienceOption {
   description: string;
   /** Entrypoint da experiência (ver EXPERIENCE_ENTRYPOINTS). */
   url: string;
-  icon: React.ElementType;
+  icon: ElementType;
 }
 
 /**
