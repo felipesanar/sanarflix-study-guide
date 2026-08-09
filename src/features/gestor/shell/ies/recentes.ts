@@ -2,11 +2,12 @@
  * Instituições recentes do seletor da sidebar.
  *
  * Só faz sentido para quem troca de IES (admin, gestor_grupo). É preferência de
- * UI de vida curta: mora em MEMÓRIA, não em `localStorage`/`sessionStorage` —
- * §7.7 proíbe qualquer persistência no navegador dentro do portal do gestor
- * (travado em `__tests__/seguranca-lgpd.test.tsx`). Some ao recarregar a página,
- * e é exatamente esse o contrato.
+ * UI de vida curta: mora em MEMÓRIA. §7.7 proíbe qualquer persistência no
+ * navegador dentro do portal do gestor (travado em
+ * `__tests__/seguranca-lgpd.test.tsx`), então a lista some ao recarregar a
+ * página — e é exatamente esse o contrato.
  */
+
 
 const LIMITE = 3;
 
