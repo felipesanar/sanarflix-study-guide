@@ -185,14 +185,25 @@ export const GestorShell: React.FC = () => {
               <img
                 src="/sanarflix-academy-lockup.svg"
                 alt="SanarFlix Academy"
+                width={533}
+                height={138}
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
                 className="h-12 w-auto dark:hidden"
               />
               <img
                 src="/sanarflix-academy-lockup-white.svg"
                 alt=""
                 aria-hidden="true"
+                width={533}
+                height={138}
+                loading="eager"
+                decoding="sync"
+                fetchPriority="high"
                 className="hidden h-12 w-auto dark:block"
               />
+
             </div>
             <span style={OVERLINE_SIDEBAR}>Portal do Gestor</span>
           </div>
