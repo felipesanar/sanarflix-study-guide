@@ -7,6 +7,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { useDiagnostico } from '@/features/gestor/api/queries';
 import { prefetchDiagnosticoNivel } from '@/features/gestor/api/prefetch';
 import { Icon } from '@/features/gestor/components/Icon';
+import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import { TagCoberturaParcial, TagNivel } from '@/features/gestor/components/Tag';
 import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
@@ -56,11 +57,30 @@ const ORDEM_NIVEL: NivelDesempenho[] = ['excelente', 'mediano', 'critico'];
  * paleta de GRÁFICO (`--chart-*`), que é cor de série, não de status, e nunca
  * hex cru, que não acompanharia o tema escuro.
  */
-const COR_NIVEL: Record<NivelDesempenho, { ponto: string; texto: string }> = {
-  excelente: { ponto: 'var(--gp-success)', texto: 'var(--gp-success-on)' },
-  mediano: { ponto: 'var(--gp-warning)', texto: 'var(--gp-warning-on)' },
-  critico: { ponto: 'var(--gp-danger)', texto: 'var(--gp-danger-on)' },
+const COR_NIVEL: Record<
+  NivelDesempenho,
+  { ponto: string; texto: string; superficie: string; icone: DendeIconName }
+> = {
+  excelente: {
+    ponto: 'var(--gp-success)',
+    texto: 'var(--gp-success-on)',
+    superficie: 'var(--gp-success-surface)',
+    icone: 'arrow_upward',
+  },
+  mediano: {
+    ponto: 'var(--gp-warning)',
+    texto: 'var(--gp-warning-on)',
+    superficie: 'var(--gp-warning-surface)',
+    icone: 'arrow_right',
+  },
+  critico: {
+    ponto: 'var(--gp-danger)',
+    texto: 'var(--gp-danger-on)',
+    superficie: 'var(--gp-danger-surface)',
+    icone: 'arrow_downward',
+  },
 };
+
 
 type AreaResumo = VisaoGeral['diagnosticoResumo'][number]['areas'][number];
 
@@ -129,11 +149,44 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
         }
       />
       {primeiras.length > 0 ? (
-        <ol data-testid="sugestao-mediano" className="space-y-1">
-          {primeiras.map((area) => (
-            <li key={area.id} className="flex items-center justify-between gap-2 text-xs">
-              <span className="truncate text-foreground">{area.nome}</span>
-              <span className="tabular-nums text-muted-foreground">{formatPct(area.acertoPct)}</span>
+        <ol data-testid="sugestao-mediano" className="space-y-2">
+          {primeiras.map((area, indice) => (
+            <li key={area.id} className="space-y-1">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {/* Ordem de ataque explícita: 1º, 2º, 3º. */}
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex shrink-0 items-center justify-center tabular-nums"
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 5,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      background: 'var(--gp-warning-surface)',
+                      color: 'var(--gp-warning-on)',
+                    }}
+                  >
+                    {indice + 1}
+                  </span>
+                  <span className="truncate text-foreground">{area.nome}</span>
+                </span>
+                <span className="shrink-0 tabular-nums font-semibold text-foreground">
+                  {formatPct(area.acertoPct)}
+                </span>
+              </div>
+              {/* Barra da própria % de acerto — a distância até a meta fica
+                  visível, não só numérica. */}
+              <span aria-hidden="true" className="block h-1 overflow-hidden rounded-full bg-muted">
+                <span
+                  className="block h-full rounded-full"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, area.acertoPct))}%`,
+                    background: 'var(--gp-warning)',
+                  }}
+                />
+              </span>
             </li>
           ))}
           {restantes > 0 ? (
@@ -143,6 +196,7 @@ function DiagnosticoCriticoVazio({ mediano }: { mediano: AreaResumo[] }) {
           ) : null}
         </ol>
       ) : null}
+
     </div>
   );
 }
@@ -525,21 +579,59 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
      * e ao gráfico protagonista logo acima.
      */
     <section data-testid="bloco-diagnostico" aria-labelledby="titulo-diagnostico">
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center gap-2 pb-4">
-          <h2 id="titulo-diagnostico" style={{ fontSize: 16, fontWeight: 700 }}>
-            Diagnóstico Curricular
-          </h2>
-          {/* Nota de contexto INLINE, ao lado do título — não uma segunda linha
-              de subtítulo. Na referência ela é um aposto de 11px que qualifica
-              o título, e é isso que mantém o cabeçalho em uma linha só. */}
-          <span className="ml-1.5 min-w-0 truncate text-[11px] text-muted-foreground">
-            {/* A UNIDADE fica na nota, não some com o encurtamento: área,
-                especialidade e tema são sempre percentual de acerto, nunca
-                proficiência (spec §4.1 / caso crítico nº14). É a única coisa
-                que este bloco afirma sobre como ler os números dele. */}
-            desempenho por grande área no período, em percentual de acerto
+      <Card className="relative overflow-hidden">
+        {/* Aura de marca no topo do bloco: um fio de 2px + um halo muito baixo
+            de opacidade. É o que dá a leitura "premium" sem inventar cor nova —
+            tudo derivado dos tokens de marca do portal. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent, var(--gp-brand-border) 22%, var(--gp-brand) 50%, var(--gp-brand-border) 78%, transparent)',
+            opacity: 0.75,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-32"
+          style={{
+            background:
+              'radial-gradient(120% 100% at 50% 0%, var(--gp-brand-surface-soft), transparent 70%)',
+          }}
+        />
+        <CardHeader className="relative flex flex-row flex-wrap items-center gap-3 pb-5">
+          {/* Medalhão do bloco: ancora o título e cria a hierarquia que faltava
+              entre o nome da seção e a nota de leitura. */}
+          <span
+            aria-hidden="true"
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'var(--gp-brand-surface)',
+              border: '1px solid var(--gp-brand-border)',
+              color: 'var(--gp-brand-on-dark)',
+            }}
+          >
+            <Icon name="insights" variant="outlined" size={18} box={18} />
           </span>
+          <div className="min-w-0">
+            <h2
+              id="titulo-diagnostico"
+              className="truncate"
+              style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em' }}
+            >
+              Diagnóstico Curricular
+            </h2>
+            {/* A UNIDADE fica na nota: área, especialidade e tema são sempre
+                percentual de acerto, nunca proficiência (spec §4.1 / caso
+                crítico nº14). */}
+            <p className="truncate text-[11px] text-muted-foreground">
+              desempenho por grande área no período, em percentual de acerto
+            </p>
+          </div>
           {/* Entrada única para a cascata completa, sem recorte de nível — as
               setas por cartão continuam existindo (cada uma recortando ao seu
               grupo), esta abre TODAS as grandes áreas. */}
@@ -549,11 +641,17 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
             aria-expanded={cascataAberta && nivelOrigem === null}
             onClick={() => abrirCascata(null)}
             className={cn(
-              'ml-auto inline-flex shrink-0 items-center gap-1 rounded-md text-[color:var(--gp-brand-on-dark)] transition-colors',
+              'ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 transition-all',
               '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
-              'hover:text-[color:var(--gp-brand-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'text-[color:var(--gp-brand-on-dark)] hover:-translate-y-px hover:text-[color:var(--gp-brand-strong)]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
-            style={{ fontSize: 12, fontWeight: 600 }}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              borderColor: 'var(--gp-brand-border)',
+              background: 'var(--gp-brand-surface-soft)',
+            }}
           >
             {cascataAberta && nivelOrigem === null ? 'Fechar' : 'Ver por nível de desempenho'}
             <Icon
@@ -563,7 +661,41 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
               box={14}
             />
           </button>
+
+          {/* Barra de distribuição: em uma olhada, a proporção das 3 faixas no
+              recorte. Só aparece quando há classificação — sem dado, nada é
+              afirmado. */}
+          {totalAreas > 0 ? (
+            <div
+              data-testid="diagnostico-distribuicao"
+              className="flex w-full items-center gap-1.5"
+              role="img"
+              aria-label={ORDEM_NIVEL.map(
+                (n) => `${(porNivel.get(n) ?? []).length} ${ROTULO_NIVEL[n].toLowerCase()}`,
+              ).join(', ')}
+            >
+              <span className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                {ORDEM_NIVEL.map((nivel) => {
+                  const qtd = (porNivel.get(nivel) ?? []).length;
+                  if (qtd === 0) return null;
+                  return (
+                    <span
+                      key={nivel}
+                      style={{
+                        width: `${(qtd / totalAreas) * 100}%`,
+                        background: COR_NIVEL[nivel].ponto,
+                      }}
+                    />
+                  );
+                })}
+              </span>
+              <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
+                {totalAreas} {totalAreas === 1 ? 'área' : 'áreas'}
+              </span>
+            </div>
+          ) : null}
         </CardHeader>
+
         <CardContent className="pt-0">
       {totalAreas === 0 ? (
         <div data-testid="diagnostico-sem-classificacao">
@@ -608,33 +740,79 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   data-testid={`cartao-nivel-${nivel}`}
                   data-selecionado={setaAberta ? 'true' : 'false'}
                   className={cn(
-                    'flex flex-col gap-2.5 border border-border p-4',
+                    'group/nivel relative flex flex-col gap-3 overflow-hidden border border-border p-4 transition-all',
+                    '[transition-duration:var(--gp-motion-1)] [transition-timing-function:var(--gp-ease)]',
+                    'hover:-translate-y-0.5 hover:border-[color:var(--gp-brand-border)]',
                     setaAberta && 'ring-1 ring-[color:var(--gp-brand-border)]',
                   )}
                   style={{
-                    borderRadius: 12,
-                    background: setaAberta ? 'var(--gp-brand-surface-soft)' : undefined,
+                    borderRadius: 14,
+                    background: setaAberta
+                      ? 'var(--gp-brand-surface-soft)'
+                      : 'var(--gp-surface-1, hsl(var(--card)))',
+                    boxShadow: 'var(--gp-shadow-card)',
                   }}
                 >
-                  {/* A contagem + a classificação SÃO o gatilho da cascata.
-                      A referência não desenha nenhum "Ver áreas" no cartão —
-                      o CTA de texto migrou para o cabeçalho do bloco. Manter
-                      o controle (com o mesmo nome acessível de sempre) sobre
-                      o corpo do cartão preserva a entrada por NÍVEL, que é o
-                      que o painel ao lado recorta. */}
+                  {/* Fio de status: a faixa de desempenho vira COR na aresta do
+                      cartão, legível antes de qualquer leitura de texto. */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-0 top-0 h-[3px]"
+                    style={{ background: COR_NIVEL[nivel].ponto, opacity: 0.9 }}
+                  />
+                  {/* Lavagem sutil da própria cor de status, só no topo. */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-20"
+                    style={{
+                      background: `linear-gradient(180deg, ${COR_NIVEL[nivel].superficie}, transparent)`,
+                      opacity: 0.6,
+                    }}
+                  />
+
+                  {/* A contagem + a classificação SÃO o gatilho da cascata. */}
                   <button
                     type="button"
                     aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
                     aria-expanded={setaAberta}
                     onClick={() => abrirCascata(nivel)}
-                    className="-m-1 flex flex-col items-start gap-2.5 rounded-md p-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative -m-1 flex w-full flex-col items-start gap-2 rounded-lg p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="flex items-baseline gap-1.5">
-                      <span className="tabular-nums" style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>
-                        {areas.length}
+                    <span className="flex w-full items-start justify-between gap-2">
+                      <span className="flex items-baseline gap-1.5">
+                        <span
+                          className="tabular-nums"
+                          style={{
+                            fontSize: 34,
+                            fontWeight: 700,
+                            lineHeight: 1,
+                            letterSpacing: '-0.03em',
+                            color: areas.length > 0 ? COR_NIVEL[nivel].texto : 'var(--gp-text-3)',
+                          }}
+                        >
+                          {areas.length}
+                        </span>
+                        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {areas.length === 1 ? 'área' : 'áreas'}
+                        </span>
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {areas.length === 1 ? 'área' : 'áreas'}
+                      <span
+                        aria-hidden="true"
+                        className="inline-flex shrink-0 items-center justify-center transition-transform [transition-duration:var(--gp-motion-1)] group-hover/nivel:translate-x-0.5"
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 8,
+                          background: COR_NIVEL[nivel].superficie,
+                          color: COR_NIVEL[nivel].texto,
+                        }}
+                      >
+                        <Icon
+                          name={setaAberta ? 'expand_more' : COR_NIVEL[nivel].icone}
+                          variant="outlined"
+                          size={15}
+                          box={15}
+                        />
                       </span>
                     </span>
                     <span
@@ -647,40 +825,33 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                         style={{
                           width: 8,
                           height: 8,
-                          borderRadius: 2,
+                          borderRadius: 999,
                           background: COR_NIVEL[nivel].ponto,
+                          boxShadow: `0 0 0 3px ${COR_NIVEL[nivel].superficie}`,
                         }}
                       />
                       {ROTULO_NIVEL[nivel]}
                     </span>
                   </button>
 
-                  <div>
+                  <div className="relative">
                     {areas.length > 0 ? (
                       <ul className="flex flex-wrap gap-1.5">
                         {areas.map((area) => (
                           <li key={area.id}>
-                            {/*
-                              Chip é só o NOME da área. O % saiu de dentro dele
-                              porque o card já agrupa por nível — a faixa de
-                              desempenho é o que o chip comunica, e o número
-                              exato mora um clique adiante, na cascata, onde
-                              vem acompanhado de amostra e cobertura. Dois
-                              números concorrentes no mesmo cartão (o do chip e
-                              o da lista de sugestão logo abaixo) faziam a
-                              gestora comparar grandezas de recortes
-                              diferentes.
-                            */}
+                            {/* Chip é só o NOME da área — o % mora um clique
+                                adiante, na cascata, com amostra e cobertura. */}
                             <span
                               data-testid={`chip-${area.id}`}
-                              className="inline-flex items-center whitespace-nowrap"
+                              className="inline-flex items-center whitespace-nowrap transition-colors"
                               style={{
                                 fontSize: 12,
                                 fontWeight: 500,
-                                color: 'var(--gp-text-2)',
+                                color: COR_NIVEL[nivel].texto,
                                 border: '1px solid var(--gp-border-input)',
+                                background: COR_NIVEL[nivel].superficie,
                                 borderRadius: 'var(--gp-radius-pill)',
-                                padding: '3px 11px',
+                                padding: '4px 11px',
                               }}
                             >
                               {area.nome}
@@ -688,6 +859,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                           </li>
                         ))}
                       </ul>
+
                     ) : nivel === 'critico' ? (
                       <DiagnosticoCriticoVazio mediano={porNivel.get('mediano') ?? []} />
                     ) : (
