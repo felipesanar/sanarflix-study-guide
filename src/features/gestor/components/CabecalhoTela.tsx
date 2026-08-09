@@ -65,8 +65,12 @@ export interface CabecalhoTelaProps {
 export function CabecalhoTela({ titulo, apoio, acoes, children, testId }: CabecalhoTelaProps) {
   return (
     <div data-testid={testId} className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="min-w-0">
+      {/* Título e ações na MESMA linha a partir de `sm` (`sm:flex-nowrap`): com
+          o wrap ativo em qualquer largura, as ações caíam para uma linha
+          solta abaixo do apoio mesmo quando havia espaço de sobra. O bloco de
+          título é o flexível (`flex-1 min-w-0`); as ações nunca encolhem. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 sm:flex-nowrap">
+        <div className="min-w-0 flex-1">
           <h1
             className="text-foreground"
             style={{
@@ -86,8 +90,11 @@ export function CabecalhoTela({ titulo, apoio, acoes, children, testId }: Cabeca
             </p>
           ) : null}
         </div>
-        {acoes ? <div className="ml-auto flex flex-wrap items-center gap-2.5">{acoes}</div> : null}
+        {acoes ? (
+          <div className="flex flex-wrap items-center justify-end gap-2.5 sm:shrink-0">{acoes}</div>
+        ) : null}
       </div>
+
       {children}
     </div>
   );
