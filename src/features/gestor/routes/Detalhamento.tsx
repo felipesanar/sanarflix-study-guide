@@ -8,7 +8,6 @@ import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
 import { BlocoGestor, type EstadoBloco } from '../components/BlocoGestor';
 import { ComparativoSimulados } from '../components/ComparativoSimulados';
 import { CabecalhoTela, ContainerRota } from '../components/CabecalhoTela';
-import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
 
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
 import { DrawerAluno } from '../components/DrawerAluno';
@@ -408,7 +407,7 @@ export default function Detalhamento() {
         />
 
         <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
-        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
+
       </div>
 
 
