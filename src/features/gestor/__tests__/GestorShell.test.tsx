@@ -223,7 +223,7 @@ describe('GestorShell (spec §8.3)', () => {
     const gatilho = screen.getByRole('button', { name: 'Abrir menu do portal' });
     // A barra que hospeda o gatilho desaparece de `lg` para cima, quando a
     // sidebar volta a ser coluna fixa.
-    expect(gatilho.closest('div')?.parentElement).toHaveClass('lg:hidden');
+    expect(gatilho.parentElement).toHaveClass('lg:hidden');
     expect(container.querySelector('aside')).toHaveClass('lg:flex');
   });
 
