@@ -49,21 +49,25 @@ const DIVISOR = '1px solid var(--gp-border-subtle)';
  * porque é a mesma para as três telas: reserva altura suficiente para não
  * haver salto quando o conteúdo real entra, sem prometer um layout que
  * aquela rota específica pode não ter.
+ *
+ * A moldura é a MESMA das rotas (`ContainerRota`, auditoria de 09/08): este
+ * esqueleto usava `mx-auto max-w-[1120px] px-6 py-8`, largura e padding que
+ * nenhuma tela replicava — o conteúdo real "saltava" de largura no instante
+ * em que o fallback saía.
  */
 const EsqueletoDeRota: React.FC = () => (
-  <div className="mx-auto w-full max-w-[1120px] px-6 py-8" role="status" aria-busy="true">
+  <ContainerRota role="status" aria-busy="true">
     <span className="sr-only">Carregando a tela</span>
     <GestorSkeleton altura={20} rotulo="Carregando o título" className="max-w-[260px]" />
-    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[0, 1, 2, 3].map((indice) => (
         <GestorSkeleton key={indice} altura={104} forma="cartao" rotulo="Carregando indicador" />
       ))}
     </div>
-    <div className="mt-6">
-      <GestorSkeleton altura={280} forma="cartao" rotulo="Carregando o conteúdo" />
-    </div>
-  </div>
+    <GestorSkeleton altura={280} forma="cartao" rotulo="Carregando o conteúdo" />
+  </ContainerRota>
 );
+
 
 
 /**
