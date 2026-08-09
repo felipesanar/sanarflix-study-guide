@@ -119,6 +119,9 @@
      Faltava, e o estado "selecionado" das tabelas (§6: fundo brand-surface-soft
      + barra de 3px) não tinha token de origem. */
   --gp-brand-surface-soft: hsl(var(--primary) / 0.04);
+  /* Chip "Detalhar": um degrau entre -soft e -surface, para o afiliado de marca
+     ficar visível sem competir com o item marcado. */
+  --gp-brand-surface-subtle: hsl(var(--primary) / 0.08);
 
   /* Item A6: tooltip de rastreabilidade. Superfície escura NOS DOIS TEMAS por
      decisão de design (referência LIGHT.html, bloco "Tooltip do 'i' ·
@@ -167,6 +170,7 @@
   /* No escuro a seleção precisa de mais corpo que os 4% do claro: sobre uma
      superfície escura, um tinte tão baixo simplesmente não aparece. */
   --gp-brand-surface-soft: hsl(var(--primary) / 0.10);
+  --gp-brand-surface-subtle: hsl(var(--primary) / 0.18);
 
   /* Item A6: tooltip de rastreabilidade — MESMOS valores do claro, de
      propósito (ver comentário no bloco `.gestor-portal`): é escuro nos dois
