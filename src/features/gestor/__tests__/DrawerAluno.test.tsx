@@ -720,7 +720,8 @@ describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)',
       resultado({ data: [DESEMPENHO_AREA_S2] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
     );
     montar();
-    expect(screen.getByTestId('drawer-desempenho-area')).toHaveTextContent('Simulado 2');
+    // A procedência ("de qual simulado") vive no cabeçalho do bloco único.
+    expect(screen.getByTestId('drawer-areas')).toHaveTextContent('Simulado 2');
   });
 
   it('grande área expande para especialidade, que expande para o tema — com % em todos os níveis', async () => {
@@ -741,7 +742,7 @@ describe('DrawerAluno — desempenho por área/especialidade/tema (drill-down)',
     // Nenhuma contagem de temas/especialidades: a métrica é sempre o % (09/08).
     const grandeArea = screen.getByTestId('drawer-grande-area-Clínica Médica');
     expect(grandeArea).toHaveTextContent('55%');
-    expect(grandeArea.textContent).not.toMatch(/tema|crítico/i);
+    expect(grandeArea.textContent).not.toMatch(/\d+\s+(temas?|especialidades?|críticos?)/i);
     expect(screen.queryByTestId('drawer-especialidade-Neonatologia')).not.toBeInTheDocument();
 
     await user.click(grandeArea);
