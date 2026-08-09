@@ -101,9 +101,31 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
 
       <div
         className="mt-auto flex flex-col"
-        style={{ borderTop: DIVISOR, padding: '10px 12px 12px', gap: 8 }}
+        style={{ borderTop: DIVISOR, padding: '12px 12px 12px', gap: 12 }}
       >
+        {/* Ações primeiro (acima do perfil): o seletor de experiência ocupa a
+            largura sobrando; tema e sair são ícones (rótulo só no a11y). */}
+        <div className="flex items-center" style={{ gap: 6 }}>
+          <ExperienceSwitcher variant="compact" className="min-w-0 flex-1" />
+          {/* ThemeToggle é compartilhado (h-10 por padrão); aqui ele desce a
+              32px para casar com a altura da faixa sem virar outro botão. */}
+          <div className="shrink-0 [&>button]:h-8 [&>button]:w-8">
+            <ThemeToggle />
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Sair da conta"
+            title="Sair"
+            className="h-8 w-8 shrink-0 text-[color:var(--gp-text-3)]"
+            onClick={() => logout()}
+          >
+            <Icon name="logout" size={16} />
+          </Button>
+        </div>
+
         {/* Identidade: avatar + nome/papel + avisos, tudo numa linha só. */}
+
         <div className="flex items-center" style={{ gap: 8 }}>
           <span
             aria-hidden="true"
