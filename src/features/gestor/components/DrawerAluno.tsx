@@ -1004,13 +1004,30 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
 
   const linkWhatsApp = linkWhatsAppAluno(contato.data?.telefone, resumoTexto);
 
+  /**
+   * Export do recorte DESTE aluno: uma linha por simulado, o mesmo agregado
+   * cronológico que a tela mostra (nunca resposta a resposta, nunca outro
+   * aluno). Quem monta é este drawer, que é onde o dado está; `AcoesRecorte`
+   * segue sem receber lista (§7.7) e o gate de `podeExportar` continua sendo
+   * dele.
+   *
+   * `onExportar` continua tendo prioridade quando quem compõe a tela quer
+   * tratar o clique (telemetria própria, escopo diferente) — o arquivo local é
+   * o padrão, não uma imposição.
+   */
   const exportar = () => {
     if (onExportar) {
       onExportar(`aluno:${alunoId}`);
       return;
     }
-    toast({ description: 'Exportação ainda não está disponível.' });
+    const gerou = baixarCsv(nomeArquivoCsv(['aluno', nomeExibido]), COLUNAS_ALUNO, cronologicas);
+    toast(
+      gerou
+        ? { description: 'Arquivo CSV gerado com o recorte deste aluno.' }
+        : { description: 'Não foi possível gerar o arquivo neste navegador.' },
+    );
   };
+
 
   return (
     <Sheet
