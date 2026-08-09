@@ -288,10 +288,30 @@ export const GestorShell: React.FC = () => {
             Medido no navegador: com `relative`, `documentElement.scrollHeight`
             cai de 2486 para 891 — exatamente o viewport. */}
         <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
+          {/*
+            `key={pathname}` no Suspense não é detalhe: é o que faz a troca de
+            tela ser INSTANTÂNEA (achado 09/08).
+
+            O router roda com `v7_startTransition`, então navegar é um update
+            em transição — e o React, por definição, MANTÉM o conteúdo antigo
+            na tela enquanto uma boundary já montada suspende, em vez de trocar
+            pelo fallback. Com o chunk da rota destino ainda por baixar (lazy),
+            isso prendia o gestor na tela atual por segundos, sem nenhum sinal
+            de que o clique tinha valido — a sensação de travado que ele
+            relatou ao ir de Visão geral para Detalhamento na primeira vez da
+            sessão.
+
+            Trocando a `key` a cada rota, a boundary do destino é uma boundary
+            NOVA: não tem conteúdo anterior para preservar, então o fallback
+            aparece de imediato. A navegação acontece no clique e o
+            carregamento passa a ser mostrado na tela de destino, que é a
+            ordem certa.
+          */}
+          <Suspense key={pathname} fallback={<EsqueletoDeRota />}>
             <Outlet />
           </Suspense>
         </main>
+
       </div>
     </GestorPortalContainerContext.Provider>
   );
