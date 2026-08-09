@@ -278,10 +278,11 @@ export const SidebarIes: React.FC = () => {
             </span>
             {trocando ? (
               <Icon
-                name="progress_activity"
+                name="refresh"
                 size={16}
                 className="shrink-0 animate-spin text-[color:var(--gp-text-3)]"
               />
+
             ) : (
               <Icon
                 name="unfold_more"
