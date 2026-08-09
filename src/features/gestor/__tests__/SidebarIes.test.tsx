@@ -302,35 +302,20 @@ describe('SidebarIes (spec §3)', () => {
     nome: i === 0 ? 'IES Alfa' : `Universidade ${String.fromCharCode(65 + i)}`,
   }));
 
-  it('admin com muitas IES: painel abre com busca, contador e filtro acento-insensível', async () => {
+  it('admin com muitas IES: painel abre com a lista inteira e o contador, sem busca', async () => {
     comContexto(contexto('admin', true, MUITAS_IES));
     renderizar();
 
     fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
-    const busca = await screen.findByLabelText(/buscar por nome ou sigla/i);
-    expect(screen.getByText('12 instituições disponíveis')).toBeInTheDocument();
-
-    fireEvent.change(busca, { target: { value: 'universidade c' } });
     await waitFor(() => {
       expect(screen.getByText('Universidade C')).toBeInTheDocument();
     });
-    expect(screen.queryByText('Universidade D')).not.toBeInTheDocument();
+    expect(screen.getByText('12 instituições disponíveis')).toBeInTheDocument();
+    expect(screen.getByText('Universidade D')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/buscar por nome ou sigla/i)).toBeNull();
   });
 
-  it('busca sem resultado mostra o estado vazio, não uma lista em branco', async () => {
-    comContexto(contexto('admin', true, MUITAS_IES));
-    renderizar();
-
-    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
-    const busca = await screen.findByLabelText(/buscar por nome ou sigla/i);
-    fireEvent.change(busca, { target: { value: 'zzzz' } });
-
-    await waitFor(() => {
-      expect(screen.getByText(/nenhuma institui[çc][ãa]o encontrada/i)).toBeInTheDocument();
-    });
-  });
-
-  it('poucas IES: sem campo de busca — a lista já cabe', async () => {
+  it('poucas IES: também sem campo de busca — a lista já cabe', async () => {
     comContexto(contexto('gestor_grupo', true, TRES_IES));
     renderizar();
 
@@ -338,6 +323,7 @@ describe('SidebarIes (spec §3)', () => {
     await screen.findByText('IES Beta', { selector: '[role="option"] *, [role="option"]' });
     expect(screen.queryByLabelText(/buscar por nome ou sigla/i)).toBeNull();
   });
+
 
   it('erro sem dado: mensagem e "Tentar novamente" chamando refetch — nunca um vão vazio na sidebar', () => {
     const refetch = vi.fn();
