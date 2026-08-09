@@ -7,11 +7,23 @@ const Popover = PopoverPrimitive.Root
 
 const PopoverTrigger = PopoverPrimitive.Trigger
 
+interface PopoverContentProps
+  extends React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> {
+  /**
+   * Nó de portal do conteúdo. Mesmo contrato da prop `container` de
+   * `SelectContent`: o Portal do Radix manda o painel para o `<body>` por
+   * padrão, o que o tira de dentro de um escopo de tema (ex. `.gestor-portal`)
+   * e faz os tokens `--gp-*` resolverem para nada. `undefined` mantém o
+   * comportamento padrão do Radix, então nenhum uso existente muda.
+   */
+  container?: HTMLElement | null
+}
+
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+  PopoverContentProps
+>(({ className, align = "center", sideOffset = 4, container, ...props }, ref) => (
+  <PopoverPrimitive.Portal container={container}>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}

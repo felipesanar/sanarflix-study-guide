@@ -400,3 +400,30 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Seletor de instituição da sidebar (SidebarIes) ──────────────────────────
+   Estados de hover/foco/seleção do gatilho e dos itens do painel. Ficam em CSS
+   e não em `style` inline porque hover, foco visível e o `data-selected` que o
+   cmdk escreve na navegação por teclado não são expressáveis em estilo inline. */
+.gestor-portal .gp-ies-trigger:hover {
+  background: var(--gp-surface-2) !important;
+  border-color: var(--gp-text-3) !important;
+}
+.gestor-portal .gp-ies-trigger:focus-visible {
+  outline: 2px solid var(--gp-brand);
+  outline-offset: 2px;
+}
+.gestor-portal .gp-ies-item[data-selected='true'] {
+  background: var(--gp-surface-2) !important;
+}
+.gestor-portal .gp-ies-item[aria-selected='true'] {
+  background: var(--gp-surface-2) !important;
+}
+.gestor-portal [cmdk-group-heading] {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gp-text-3);
+  padding: 8px 9px 4px;
+}

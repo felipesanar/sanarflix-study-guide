@@ -139,7 +139,7 @@ describe('SidebarIes (spec §3)', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('carregando por MAIS que 400ms: reserva a MESMA altura do cartão final (48px) e mostra DUAS barras de shimmer (nome + linha de contexto), sem número nem rótulo falso', () => {
+  it('carregando por MAIS que 400ms: reserva a MESMA caixa do cartão final (48px) e mostra o tile + DUAS barras de shimmer, sem número nem rótulo falso', () => {
     vi.useFakeTimers();
     mockUseGestorContexto.mockReturnValue({
       data: undefined,
@@ -156,19 +156,18 @@ describe('SidebarIes (spec §3)', () => {
 
     const skeleton = screen.getByRole('status');
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
-    // A regra de doc 04 §7 é a ALTURA FINAL: antes o skeleton tinha 36px e o
-    // rótulo estático do `gestor` ~20px, então a sidebar pulava ao responder.
-    expect(skeleton.style.height).toBe('48px');
+    // A regra de doc 04 §7 é a ALTURA FINAL: o skeleton usa a MESMA caixa
+    // (`CARTAO`) do gatilho e do rótulo estático, então a sidebar não pula.
+    expect(skeleton.style.minHeight).toBe('48px');
     expect(screen.queryByRole('combobox')).toBeNull();
 
-    // DUAS barras (nome 13px/70% + linha de contexto 10px/50%) — não mais o
-    // retângulo único de antes.
-    const barras = Array.from(skeleton.children) as HTMLElement[];
+    // Tile (32px) + coluna com duas barras (nome + linha de contexto).
+    const [tile, coluna] = Array.from(skeleton.children) as HTMLElement[];
+    expect(tile.style.width).toBe('32px');
+    const barras = Array.from(coluna.children) as HTMLElement[];
     expect(barras).toHaveLength(2);
-    expect(barras[0].style.height).toBe('13px');
-    expect(barras[0].style.width).toBe('70%');
-    expect(barras[1].style.height).toBe('10px');
-    expect(barras[1].style.width).toBe('50%');
+    expect(barras[0].style.height).toBe('12px');
+    expect(barras[1].style.height).toBe('9px');
   });
 
   it('não existe rótulo "Instituição" acima do cartão — o nome acessível vem do aria-label', () => {
@@ -178,33 +177,34 @@ describe('SidebarIes (spec §3)', () => {
     expect(screen.getByRole('combobox', { name: 'Instituição em foco' })).toBeInTheDocument();
   });
 
-  it('o cartão traz o tile de 30px com a sigla da IES e o chevron do Dendê', () => {
+  it('o cartão traz o tile de 32px com a sigla da IES e o glifo do Dendê', () => {
     comContexto(contexto('admin', true, TRES_IES));
     const { container } = renderizar();
 
     const gatilho = screen.getByRole('combobox', { name: /instituição/i });
     const tile = gatilho.firstElementChild as HTMLElement;
-    expect(tile.style.width).toBe('30px');
-    expect(tile.style.height).toBe('30px');
+    expect(tile.style.width).toBe('32px');
+    expect(tile.style.height).toBe('32px');
     expect(tile.getAttribute('aria-hidden')).toBe('true');
     expect(tile.textContent).toBe('IA'); // "IES Alfa"
 
-    // Chevron: glifo do Dendê de 16px, nunca o ChevronDown do Lucide.
-    const chevron = container.querySelector('.icon-dende-icons-expand_more-outlined') as HTMLElement;
-    expect(chevron).not.toBeNull();
-    expect(chevron.style.fontSize).toBe('16px');
+    // Indicador de troca: glifo do Dendê de 16px, nunca ícone do Lucide.
+    const glifo = container.querySelector('.icon-dende-icons-unfold_more-outlined') as HTMLElement;
+    expect(glifo).not.toBeNull();
+    expect(glifo.style.fontSize).toBe('16px');
     expect(gatilho.querySelectorAll('svg')).toHaveLength(0);
   });
 
-  it('gestor (rótulo estático) reserva a mesma caixa do cartão, sem borda nem chevron', () => {
+  it('gestor (rótulo estático) reserva a mesma caixa do cartão, sem borda nem afordância de troca', () => {
     comContexto(contexto('gestor', false, [{ id: 'ies-1', nome: 'IES Alfa' }]));
     const { container } = renderizar();
 
-    const cartao = screen.getByText('IES Alfa').parentElement as HTMLElement;
+    const cartao = screen.getByText('IES Alfa').closest('div[style*="min-height"]') as HTMLElement;
     expect(cartao.style.minHeight).toBe('48px');
     expect(cartao.style.border).toBe('');
-    expect(container.querySelector('.icon-dende-icons-expand_more-outlined')).toBeNull();
+    expect(container.querySelector('.icon-dende-icons-unfold_more-outlined')).toBeNull();
   });
+
 
   it('semeia o iesId na URL com a IES do contexto quando ainda não há seleção (achado do Felipe, item 3a — sem isso nenhum hook de dado dispara no primeiro acesso)', async () => {
     comContexto(contexto('gestor', false, [{ id: 'ies-1', nome: 'IES Alfa' }]));
@@ -296,4 +296,63 @@ describe('SidebarIes (spec §3)', () => {
     );
     expect(screen.getByText('IES Alfa')).toBeInTheDocument();
   });
+
+  const MUITAS_IES = Array.from({ length: 12 }, (_, i) => ({
+    id: `ies-${i + 1}`,
+    nome: i === 0 ? 'IES Alfa' : `Universidade ${String.fromCharCode(65 + i)}`,
+  }));
+
+  it('admin com muitas IES: painel abre com busca, contador e filtro acento-insensível', async () => {
+    comContexto(contexto('admin', true, MUITAS_IES));
+    renderizar();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    const busca = await screen.findByLabelText(/buscar por nome ou sigla/i);
+    expect(screen.getByText('12 instituições disponíveis')).toBeInTheDocument();
+
+    fireEvent.change(busca, { target: { value: 'universidade c' } });
+    await waitFor(() => {
+      expect(screen.getByText('Universidade C')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Universidade D')).not.toBeInTheDocument();
+  });
+
+  it('busca sem resultado mostra o estado vazio, não uma lista em branco', async () => {
+    comContexto(contexto('admin', true, MUITAS_IES));
+    renderizar();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    const busca = await screen.findByLabelText(/buscar por nome ou sigla/i);
+    fireEvent.change(busca, { target: { value: 'zzzz' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/nenhuma institui[çc][ãa]o encontrada/i)).toBeInTheDocument();
+    });
+  });
+
+  it('poucas IES: sem campo de busca — a lista já cabe', async () => {
+    comContexto(contexto('gestor_grupo', true, TRES_IES));
+    renderizar();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    await screen.findByText('IES Beta', { selector: '[role="option"] *, [role="option"]' });
+    expect(screen.queryByLabelText(/buscar por nome ou sigla/i)).toBeNull();
+  });
+
+  it('erro sem dado: mensagem e "Tentar novamente" chamando refetch — nunca um vão vazio na sidebar', () => {
+    const refetch = vi.fn();
+    mockUseGestorContexto.mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+    renderizar();
+
+    expect(screen.getByText(/não foi possível carregar a instituição/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /tentar novamente/i }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 });
+
