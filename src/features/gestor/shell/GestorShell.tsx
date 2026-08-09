@@ -7,7 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ExperienceSwitcher } from '@/experiences/shared/ExperienceSwitcher';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import type { ContextoGestor } from '@/features/gestor/api/types';
+import { ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+
 import { Icon } from '@/features/gestor/components/Icon';
 
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
