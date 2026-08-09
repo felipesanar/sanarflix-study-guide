@@ -806,7 +806,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                                 adiante, na cascata, com amostra e cobertura. */}
                             <span
                               data-testid={`chip-${area.id}`}
-                              className="inline-flex items-center whitespace-nowrap transition-colors"
+                              className="inline-flex items-center transition-colors"
                               style={{
                                 fontSize: 12,
                                 fontWeight: 500,
