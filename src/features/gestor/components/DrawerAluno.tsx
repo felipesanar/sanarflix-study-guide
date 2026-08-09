@@ -260,45 +260,12 @@ function TituloSecao({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Uma grande área: rótulo em coluna fixa, barra de 8px e % em mono à direita. */
-function BarraArea({ area, acertoPct, critica }: { area: string; acertoPct: number; critica: boolean }) {
-  const cor = critica ? 'var(--gp-danger-on)' : undefined;
-  return (
-    <div className="flex items-center gap-2" style={{ fontSize: 11, color: 'var(--gp-text-2)' }}>
-      <span style={{ width: 120, flex: 'none', color: cor, fontWeight: critica ? 600 : undefined }}>
-        {area}
-        {/* Cor nunca é canal único: a criticidade também sai por texto. */}
-        {critica ? <span className="sr-only"> (área crítica)</span> : null}
-      </span>
-      <div
-        role="progressbar"
-        aria-label={`Percentual de acerto em ${area}`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(acertoPct)}
-        style={{
-          flex: 1,
-          height: 8,
-          background: 'var(--gp-surface-3)',
-          borderRadius: 'var(--gp-radius-pill)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            width: `${acertoPct}%`,
-            height: '100%',
-            background: critica ? 'var(--gp-danger)' : 'var(--gp-text-1)',
-            borderRadius: 'var(--gp-radius-pill)',
-          }}
-        />
-      </div>
-      <span style={{ fontFamily: FONTE_MONO, width: 34, textAlign: 'right', color: cor }}>
-        {formatPct(acertoPct)}
-      </span>
-    </div>
-  );
-}
+/*
+ * `BarraArea` foi removida em 09/08: o comparativo de barras por grande área
+ * deixou de ser um bloco próprio e virou o nível 1 da cascata única
+ * (`BarraNivel`, abaixo), que desenha a mesma barra + % nos três níveis.
+ */
+
 
 /**
  * Uma linha da lista "Notas dos simulados".
