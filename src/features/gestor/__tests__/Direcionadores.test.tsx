@@ -148,7 +148,7 @@ describe('SaudacaoGestor (spec §2.1)', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Marina$/);
     expect(screen.getByTestId('saudacao')).toHaveTextContent(
-      'Acompanhe a visão institucional da Universidade do Estado do Amazonas: o cronograma de simulados, os avisos da Sanar e os caminhos para analisar o desempenho das suas turmas.',
+      'Sua vista é a Universidade do Estado do Amazonas. Comece pelo cronograma de simulados, confira os avisos da Sanar e siga para a análise de desempenho das suas turmas.',
     );
   });
 
@@ -178,7 +178,7 @@ describe('SaudacaoGestor (spec §2.1)', () => {
     montar(<SaudacaoGestor />);
 
     expect(screen.getByTestId('saudacao')).toHaveTextContent(
-      'Acompanhe a visão institucional da Universidade do Estado do Amazonas:',
+      'Sua vista é a Universidade do Estado do Amazonas.',
     );
     expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
   });
