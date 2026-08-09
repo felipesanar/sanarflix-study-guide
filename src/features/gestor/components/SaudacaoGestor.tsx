@@ -68,16 +68,9 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
   const agora = new Date();
 
   return (
-    <header data-testid="saudacao" className="relative overflow-hidden">
-      {/* Aura de marca: um halo largo e discreto atrás do título, para a
-          saudação ter luz própria sem virar um card. Puramente decorativa. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-24 -top-28 h-56 w-[520px] rounded-full opacity-[0.14] blur-3xl"
-        style={{ background: 'var(--gp-brand-gradient, var(--gp-brand-on-dark))' }}
-      />
-
+    <header data-testid="saudacao" className="relative">
       <div className="relative">
+
         {/* Linha do dia: dá contexto temporal ao número que vem depois e faz a
             home parecer viva a cada acesso, sem afirmar nenhuma métrica. */}
         <p
@@ -107,16 +100,16 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
           </span>
         </h1>
 
-        {/* Subtítulo de ORIENTAÇÃO (spec §2.1): diz onde a pessoa está e o que
-            a tela oferece, em ordem de uso. Nome da IES, vigência e nº de
-            simulados continuam ditos onde são dado, e não moldura: o cartão da
-            sidebar e o rodapé de proveniência do cronograma. */}
+        {/* Subtítulo de ORIENTAÇÃO (spec §2.1), em uma linha curta: diz apenas
+            onde a pessoa está. Nome da IES, vigência e nº de simulados
+            continuam ditos onde são dado, e não moldura. */}
         <p
           className="mt-1.5 max-w-2xl text-muted-foreground"
           style={{ fontSize: 'var(--gp-font-size-apoio)' }}
         >
-          {`Sua vista é a ${nomeIes}. Comece pelo cronograma de simulados, confira os avisos da Sanar e siga para a análise de desempenho das suas turmas.`}
+          {`Sua vista é a ${nomeIes}.`}
         </p>
+
       </div>
     </header>
   );
