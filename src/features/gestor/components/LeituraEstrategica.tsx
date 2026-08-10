@@ -197,13 +197,19 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
 
   /* Recorte novo dispara uma leitura nova (pedido explícito, 10/08): a
      superfície é automática, sem clique — o botão de "Ver leitura" saiu. A
-     leitura anterior nunca sobrevive à troca de recorte. */
+     leitura anterior nunca sobrevive à troca de recorte.
+     O ref evita a chamada em dobro da remontagem de desenvolvimento (StrictMode):
+     cada recorte paga no máximo uma geração. */
+  const recorteJaPedido = React.useRef<string | null>(null);
   React.useEffect(() => {
+    if (recorteJaPedido.current === chave) return;
+    recorteJaPedido.current = chave;
     setLeitura(null);
     carregar();
     // `carregar` já depende do mesmo recorte que compõe `chave`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
 
 
 
