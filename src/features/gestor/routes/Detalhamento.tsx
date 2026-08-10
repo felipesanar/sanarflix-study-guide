@@ -13,6 +13,7 @@ import { CronogramaSimulados } from '../components/CronogramaSimulados';
 import { DrawerAluno } from '../components/DrawerAluno';
 import { DrawerTemasDetalhamento } from '../components/DrawerTemasDetalhamento';
 import { ProficienciaPorSemestreChart } from '../charts/ProficienciaPorSemestreChart';
+import { LeituraEstrategica } from '../components/LeituraEstrategica';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
 import { EvolucaoRecorte, ehSemestreEspecifico } from '../components/EvolucaoRecorte';
