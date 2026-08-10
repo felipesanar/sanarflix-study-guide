@@ -2,7 +2,6 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Icon } from '@/features/gestor/components/Icon';
-import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 
 /**
  * "Leitura estratégica" do recorte de simulados — persona de consultoria
@@ -56,7 +55,6 @@ function extrairJson(bruto: string): Leitura | null {
  * superfície é uma leitura sendo montada, então o estado de espera fala o que
  * está sendo feito, uma etapa por vez, com o cursor piscando como quem
  * escreve. É narrativa de progresso, não placeholder de layout — e por isso
- * não usa `GestorSkeleton`.
  */
 const ETAPAS = [
   'Lendo o recorte de simulados…',
