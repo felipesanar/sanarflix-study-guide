@@ -166,7 +166,7 @@ describe('rota VisaoGeral', () => {
         'grafico-protagonista',
         'bloco-diagnostico',
         'bloco-visao-alunos',
-        'bloco-insights',
+        'bloco-leitura-estrategica',
       ])
     ).toBe(true);
   });
@@ -202,7 +202,7 @@ describe('rota VisaoGeral', () => {
     // bloco — vê-la surgir depois de um bloco sem relação fazia o clique
     // parecer não ter surtido efeito (decisão de 07/08, diverge da §4.8).
     expect(
-      ordemNoDom(['bloco-visao-alunos', 'bloco-tabela-alunos', 'bloco-insights']),
+      ordemNoDom(['bloco-visao-alunos', 'bloco-tabela-alunos', 'bloco-leitura-estrategica']),
     ).toBe(true);
     // E sem o divisor "Detalhe · micro": a tabela já tem cabeçalho próprio, e
     // um separador a devolveria à leitura de "seção nova".
