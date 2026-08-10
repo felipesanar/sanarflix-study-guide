@@ -1,6 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/env';
+import { fetchIa } from '@/features/gestor/lib/fetchIa';
 import type { CriterioCoorte } from '@/features/gestor/lib/planoMovimento';
+
 
 /**
  * Cache de módulo + PRÉ-CARREGAMENTO dos detalhes de movimento.
