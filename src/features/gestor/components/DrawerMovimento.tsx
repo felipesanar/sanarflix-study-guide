@@ -552,7 +552,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
                             className="inline-flex items-center gap-1 rounded-md text-[color:var(--gp-brand-on-dark)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             style={{ fontSize: 12, fontWeight: 600 }}
                           >
-                            <Icon name={verTodos ? 'chevron_up' : 'chevron_down'} size={12} />
+                            <Icon name={verTodos ? 'expand_less' : 'expand_more'} size={12} />
                             {verTodos
                               ? 'Mostrar menos'
                               : `Ver os ${formatNumero(Math.min(coorte.length, 60))} alunos`}
@@ -610,7 +610,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
                                     className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5"
                                     style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
                                   >
-                                    <Icon name="user" size={10} className="opacity-70" />
+                                    <Icon name="account_circle" size={10} className="opacity-70" />
                                     {passo.responsavel}
                                   </span>
                                 ) : null}
@@ -619,7 +619,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
                                     className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5"
                                     style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
                                   >
-                                    <Icon name="clock" size={10} className="opacity-70" />
+                                    <Icon name="schedule" size={10} className="opacity-70" />
                                     {passo.prazo}
                                   </span>
                                 ) : null}
