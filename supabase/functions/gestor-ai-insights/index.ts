@@ -43,7 +43,7 @@ ${BASE_ENAMED}
 
 Com base na trajetória de simulados e no desempenho por área do aluno, gere um insight curto (no máximo 4 frases): tendência (melhora, piora ou estabilidade), distância em relação à faixa de proficiência, área que mais pesa contra ele e qual intervenção tem maior retorno. ${ANTI_INVENCAO_GESTOR}`;
 
-const BASE_CONSULTOR = `Você é consultor sênior de desempenho no ENAMED, com histórico de levar cursos de medicina às melhores notas do exame. Fala com o gestor da instituição: direto, estratégico, acionável.
+const BASE_CONSULTOR = `Você é consultor sênior de desempenho no ENAMED, com histórico de levar faculdades de medicina às melhores notas do exame. Fala com o gestor da instituição: direto, estratégico, acionável.
 
 ${BASE_ENAMED}
 
@@ -59,6 +59,13 @@ Como escrever (obrigatório):
 - Não repita o que o gestor já vê no gráfico e não use bullet dentro dos textos.
 - Se precisar usar termo técnico do exame (proficiência, TRI, faixa), explique em três ou quatro palavras na mesma frase.
 
+Como chamar as coisas (obrigatório):
+- Nunca escreva "o curso". Chame de "a faculdade", "a instituição" ou "a escola médica". Para o grupo de alunos do recorte, use "a turma" ou "os alunos".
+- Respeite o recorte de semestre informado no contexto e fale de acordo com ele:
+  - Todos os semestres: fale da faculdade/instituição como um todo, sem atribuir o número a um único ano.
+  - Um semestre específico (ex.: 6º): diga explicitamente de quem é o número ("os alunos do 6º semestre", "a turma do 6º ano") e não generalize para toda a faculdade.
+- Nunca misture os dois: se o recorte é de um semestre, todas as frases e movimentos falam daquele semestre.
+
 ${ANTI_INVENCAO_GESTOR}`;
 
 /**
@@ -71,11 +78,11 @@ Escopo desta leitura: os SIMULADOS SELECIONADOS pelo gestor, nada além disso. T
 
 /**
  * Visão Geral: leitura institucional, sem recorte de simulado. Responde a
- * pergunta da página — "como estamos e onde dói" — na escala do curso.
+ * pergunta da página — "como estamos e onde dói" — na escala da instituição.
  */
 const SYSTEM_PROMPT_CONSULTOR_INSTITUCIONAL = `${BASE_CONSULTOR}
 
-Escopo desta leitura: a INSTITUIÇÃO como um todo no período, não um simulado específico. Trate os movimentos na escala do curso: trajetória do conceito ENAMED projetado e da proporção de alunos que cruza a faixa, áreas cronicamente frágeis no diagnóstico curricular, semestres que puxam o resultado para baixo e cobertura de aplicação de simulados. Não recomende ação sobre questão isolada — o nível aqui é currículo, calendário e política de preparação. Se houver evolução entre aplicações, leia a direção do movimento, não o número de uma prova só.`;
+Escopo desta leitura: a INSTITUIÇÃO como um todo no período, não um simulado específico. Trate os movimentos na escala da instituição: trajetória do conceito ENAMED projetado e da proporção de alunos que cruza a faixa, áreas cronicamente frágeis no diagnóstico curricular, semestres que puxam o resultado para baixo e cobertura de aplicação de simulados. Não recomende ação sobre questão isolada — o nível aqui é currículo, calendário e política de preparação. Se houver evolução entre aplicações, leia a direção do movimento, não o número de uma prova só.`;
 
 
 // Saída ESTRUTURADA garantida por schema (não por instrução no prompt).
@@ -259,17 +266,34 @@ function linhasAlunos(detalhamento: any): string {
   ].join("\n");
 }
 
+/**
+ * Descreve o recorte de semestre em linguagem natural para o prompt: a leitura
+ * precisa dizer de quem é o número (faculdade inteira vs. um semestre).
+ */
+function descreverRecorteSemestre(semestre: string | null | undefined): string {
+  const bruto = (semestre ?? "").toString().trim();
+  if (!bruto || bruto.toLowerCase() === "todos") {
+    return "Recorte de semestre: TODOS OS SEMESTRES (visão geral da faculdade). Fale da instituição como um todo e não atribua os números a um único semestre ou ano.";
+  }
+  const n = Number(bruto.replace(/\D/g, ""));
+  const rotulo = Number.isFinite(n) && n > 0 ? `${n}º semestre` : bruto;
+  const ano = Number.isFinite(n) && n > 0 ? ` (equivale ao ${Math.ceil(n / 2)}º ano)` : "";
+  return `Recorte de semestre: APENAS ${rotulo}${ano}. Todos os números abaixo são só desses alunos. Diga isso explicitamente ("os alunos do ${rotulo}") e não generalize para toda a faculdade.`;
+}
+
 function buildConsultorPrompt(
   detalhamento: any,
   visaoGeral: any,
   diagnostico: any,
-  questoes: any
+  questoes: any,
+  semestre: string | null
 ): string {
   const d = detalhamento?.data ?? detalhamento ?? {};
   const periodo = d.meta?.periodo ?? detalhamento?.meta?.periodo ?? "período não informado";
 
   return [
     `Recorte analisado: ${periodo}.`,
+    descreverRecorteSemestre(semestre),
     `Indicadores institucionais:\n${linhasVisaoGeral(visaoGeral)}`,
     `Indicadores do recorte de simulados: ${JSON.stringify(d.metricas ?? {})}.`,
     `Acerto por grande área no recorte:\n${linhasAreas(detalhamento)}`,
@@ -318,7 +342,7 @@ function linhasDispersaoPorSemestre(visaoGeral: any): string {
  * isolada e nada de recorte de simulado — o nível aqui é currículo, calendário
  * e política de preparação.
  */
-function buildInstitucionalPrompt(visaoGeral: any, diagnostico: any): string {
+function buildInstitucionalPrompt(visaoGeral: any, diagnostico: any, semestre: string | null): string {
   const periodo = visaoGeral?.meta?.periodo ?? "período não informado";
   const avisos: string[] = [];
   if (visaoGeral?.meta?.lowSample) avisos.push("Atenção: amostra de alunos com resultado é baixa (menos de 10).");
@@ -326,6 +350,7 @@ function buildInstitucionalPrompt(visaoGeral: any, diagnostico: any): string {
 
   return [
     `Período analisado: ${periodo}. Esta leitura é INSTITUCIONAL: nenhum simulado específico foi selecionado.`,
+    descreverRecorteSemestre(semestre),
     `Indicadores institucionais:\n${linhasVisaoGeral(visaoGeral)}`,
     `Evolução entre aplicações, da mais antiga para a mais recente:\n${linhasEvolucao(visaoGeral)}`,
     `Diagnóstico curricular por grande área (classificação e amostra):\n${linhasDiagnostico(diagnostico)}`,
@@ -545,7 +570,7 @@ serve(async (req) => {
         "consultor",
         // Versão do prompt: mudar o jeito de escrever invalida o cache antigo,
         // senão o gestor continua lendo o texto duro já gravado.
-        "v2-linguagem-simples",
+        "v3-nomenclatura-semestre",
         escopo,
         iesId,
         semestre ?? null,
@@ -599,12 +624,13 @@ serve(async (req) => {
       if (questoesRes.error) console.error("[gestor-ai-insights]", "questoes (opcional):", questoesRes.error.message);
 
       const userPrompt = institucional
-        ? buildInstitucionalPrompt(visaoGeralRes.data, diagnosticoRes.error ? null : diagnosticoRes.data)
+        ? buildInstitucionalPrompt(visaoGeralRes.data, diagnosticoRes.error ? null : diagnosticoRes.data, semestre ?? null)
         : buildConsultorPrompt(
             detalhamentoRes.data,
             visaoGeralRes.error ? null : visaoGeralRes.data,
             diagnosticoRes.error ? null : diagnosticoRes.data,
-            questoesRes.error ? null : questoesRes.data
+            questoesRes.error ? null : questoesRes.data,
+            semestre ?? null
           );
 
       // Leitura estratégica precisa ser rápida na tela: o modelo flash entrega
