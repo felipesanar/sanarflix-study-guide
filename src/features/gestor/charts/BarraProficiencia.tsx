@@ -67,7 +67,11 @@ export function LinhaMetaContinua({ meta = PROFICIENCIA_MINIMA }: { meta?: numbe
       <span className="relative h-full">
         <span
           className="absolute inset-y-0"
-          style={{ left: `${proporcao(meta) * 100}%`, width: 1.5, background: 'var(--gp-text-3)' }}
+          style={{
+            left: `${proporcao(meta) * 100}%`,
+            borderLeft: '1px dashed var(--gp-border-strong)',
+            opacity: 0.9,
+          }}
         />
       </span>
       <span />
