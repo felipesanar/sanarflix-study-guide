@@ -23,6 +23,21 @@ export interface ContextoDoRecorteProps {
    * recorte ainda, e um número velho aqui é pior que nenhum.
    */
   emTransicao?: boolean;
+  /**
+   * Nome do simulado MAIS RECENTE do recorte — o ponto "atual" da régua dos
+   * KPIs. Os quatro cartões do Panorama falam dele o tempo todo ("projetado
+   * no último simulado", "no simulado mais recente"), a régua o rotula como
+   * ATUAL e o delta compara contra o ANTERIOR — mas em lugar nenhum a tela
+   * dizia QUAL simulado é esse. Com 4 simulados no período, "o mais recente"
+   * é uma incógnita que só o gráfico logo abaixo resolvia, e só para quem
+   * fosse conferir o último ponto do eixo.
+   *
+   * Fica aqui, na linha do recorte, e não no rodapé de um dos cartões: é a
+   * mesma resposta para os quatro, e repetir o nome quatro vezes só encheria
+   * o Panorama. `undefined` quando o recorte não tem simulado nenhum com
+   * resultado — aí não há o que nomear.
+   */
+  simuladoAtual?: string;
 }
 
 /**
@@ -30,9 +45,17 @@ export interface ContextoDoRecorteProps {
  * rastreabilidade (Período · Fonte · Atualizado em · Critério) do bloco de
  * KPIs — a mesma pergunta "de onde vem este número" vale para a tela inteira.
  */
-export function ContextoDoRecorte({ semestre, meta, emTransicao = false }: ContextoDoRecorteProps) {
+export function ContextoDoRecorte({
+  semestre,
+  meta,
+  emTransicao = false,
+  simuladoAtual,
+}: ContextoDoRecorteProps) {
   return (
-    <p data-testid="contexto-recorte" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <p
+      data-testid="contexto-recorte"
+      className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground"
+    >
       Recorte: {rotuloSemestre(semestre)}
       {emTransicao ? (
         <span data-testid="contexto-recorte-atualizando"> · atualizando…</span>
@@ -40,6 +63,19 @@ export function ContextoDoRecorte({ semestre, meta, emTransicao = false }: Conte
         <>
           {' '}
           · Período {meta.periodo}
+          {/* O nome vem DEPOIS do período e antes da rastreabilidade: o "i"
+              fecha a linha, como já fechava. Em negrito porque é o único
+              dado próprio desta linha — recorte e período a gestora acabou
+              de escolher; o simulado é a consequência deles. */}
+          {simuladoAtual ? (
+            <>
+              {' '}
+              · Simulado mais recente:{' '}
+              <b data-testid="contexto-simulado-atual" className="font-semibold text-foreground">
+                {simuladoAtual}
+              </b>
+            </>
+          ) : null}
           <TooltipRastreabilidade meta={meta} />
         </>
       )}

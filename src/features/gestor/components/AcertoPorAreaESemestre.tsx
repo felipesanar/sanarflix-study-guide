@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { Dica } from './Dica';
 import { Icon } from './Icon';
 import { recalcularAreas, recalcularSemestres } from '../lib/agregarDetalhamento';
 import { formatPct } from '../lib/formatters';
@@ -359,9 +360,31 @@ export function AcertoPorAreaESemestre({
             sem nenhum h2 antes deles — o que acontece sempre que a "Evolução
             do recorte" não é montada, ou seja, com um simulado só —, o leitor
             de tela pula de h1 para h3 e o axe acusa heading-order (§11). */}
-        <h2 className={cn('text-base font-semibold text-foreground', interativo ? 'mb-1' : 'mb-3')}>
-          Acerto por grande área
-        </h2>
+        {/*
+          O "i" ao lado do título, além da dica de clique logo abaixo.
+
+          A linha de dica diz o GESTO ("clique numa área…"); o que ela não
+          cabia dizer é o RESULTADO — que o bloco de baixo, "Acerto por
+          semestre", se recalcula para a área escolhida. Sem isso o gestor lê
+          "recortar os semestres por ela" sem ligar a frase ao gráfico que
+          está a um scroll de distância, e a leitura cruzada — que é a razão
+          de existir deste bloco — continua invisível mesmo com a dica na
+          tela.
+
+          `Dica` é o mesmo "i" do Panorama e dos cabeçalhos de KPI: gatilho
+          alcançável por teclado e o texto espelhado em `sr-only`, então a
+          explicação não depende de hover.
+        */}
+        <div className={cn('flex items-center gap-1.5', interativo ? 'mb-1' : 'mb-3')}>
+          <h2 className="text-base font-semibold text-foreground">Acerto por grande área</h2>
+          {interativo && cruzamentoDisponivel ? (
+            <Dica
+              testId="dica-cruzamento-area"
+              rotulo="Como cruzar grande área e semestre"
+              texto="Clique numa grande área para ver, logo abaixo, como o acerto dela se distribui entre os semestres — o gráfico “Acerto por semestre” passa a mostrar só aquela área. Clicar num semestre faz o caminho inverso: a lista de áreas se recalcula para aquele semestre. Clique de novo no item selecionado para voltar ao recorte cheio."
+            />
+          ) : null}
+        </div>
         {interativo && cruzamentoDisponivel ? (
           <DicaDeClique>
             Clique numa área para recortar os semestres por ela. Clique de novo para limpar.

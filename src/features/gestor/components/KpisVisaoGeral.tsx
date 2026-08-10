@@ -39,6 +39,27 @@ function conceitoSemEscala(valor: number | null): string {
  * escopo desta mudança) só aceita `badge` como string simples, sem espaço
  * para um segundo selo com tooltip próprio.
  */
+/**
+ * O selo `estimado` fica DESLIGADO por ora (decisão do João, 10/08).
+ *
+ * Ele nasceu em 09/08 e nunca chegou a aparecer: `origem` era calculada como
+ * "existe linha em `resultados_ies_tri`?", verdadeiro para toda IES com
+ * resultado publicado, então saía sempre `'oficial'`. A correção do gate
+ * (`20260810120000_gestor_conceito_oficial_so_no_recorte_geral.sql`) faz
+ * `origem` virar `'estimado'` em todo recorte parcial — o que, com "6º ano"
+ * sendo o padrão da tela, estrearia o selo na ABERTURA do portal, ao lado da
+ * ressalva que o rodapé já carrega ("não é o conceito oficial do MEC"). Duas
+ * ressalvas na mesma linha, no primeiro contato, para uma distinção que ainda
+ * não foi decidida como comunicar.
+ *
+ * O valor e o `origem` do payload seguem CORRETOS — o que está suspenso é só
+ * a exibição. Para religar: `true` aqui. Vale revisar junto o texto do
+ * tooltip: "Nota oficial não disponível para este recorte" soa como dado
+ * faltando, e num recorte por semestre não é falta — conceito oficial é da
+ * instituição inteira, nunca de uma subpopulação.
+ */
+const MOSTRAR_SELO_ORIGEM = false;
+
 function SeloOrigemEstimada() {
   const explicacao =
     'Nota oficial não disponível para este recorte; valor estimado a partir do % de alunos proficientes.';
@@ -163,7 +184,9 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
         rodape={
           <span className="flex flex-wrap items-center gap-2">
             <span>projetado no último simulado · não é o conceito oficial do MEC</span>
-            {kpis.enamedProjetado.origem === 'estimado' ? <SeloOrigemEstimada /> : null}
+            {MOSTRAR_SELO_ORIGEM && kpis.enamedProjetado.origem === 'estimado' ? (
+              <SeloOrigemEstimada />
+            ) : null}
           </span>
         }
         estado={estado}

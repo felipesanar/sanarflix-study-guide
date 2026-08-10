@@ -351,6 +351,26 @@ export default function VisaoGeral() {
   );
 
   /**
+   * O simulado que os KPIs chamam de "atual" — o ÚLTIMO de `evolucao`.
+   *
+   * É a mesma fonte e a mesma ordem que a RPC usa para montar a régua: tanto
+   * `evolucao` quanto os pontos `primeiro`/`anterior`/`atual` saem da CTE
+   * `realizados` ordenada por `ord`, então o último item daqui é, por
+   * construção, o ponto rotulado ATUAL nos cartões. Derivar daqui (em vez de
+   * pedir um campo novo à RPC) mantém as duas leituras presas ao mesmo array
+   * — se a ordem mudar no servidor, elas mudam juntas.
+   *
+   * Deliberadamente NÃO filtra por `valor !== null` (o critério de
+   * `contarSimuladosComNotaReal`): a régua inclui o simulado sem nota TRI
+   * calculada, e é dele que os KPIs falam quando é ele o mais recente. Filtrar
+   * aqui nomearia um simulado diferente do que a régua está exibindo.
+   */
+  const simuladoAtual = React.useMemo(() => {
+    const pontos = visao?.evolucao ?? [];
+    return pontos.length > 0 ? pontos[pontos.length - 1].nome : undefined;
+  }, [visao?.evolucao]);
+
+  /**
    * `gestor_drawer_aberto('temas')` + `marcarPrimeiroInsight` (spec §10,
    * "profundidade de investigação" / "tempo até o primeiro insight"): a
    * abertura do `DrawerTemas` é decidida aqui (`setEspecialidadeAberta`), por
@@ -408,7 +428,12 @@ export default function VisaoGeral() {
           <FiltroSemestre semestresDisponiveis={semestresComResultado} />
           </>}
         />
-        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
+        <ContextoDoRecorte
+          semestre={filtros.semestre}
+          meta={meta}
+          emTransicao={emTransicao}
+          simuladoAtual={simuladoAtual}
+        />
       </div>
 
 
