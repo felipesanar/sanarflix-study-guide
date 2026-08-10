@@ -669,6 +669,8 @@ export default function Detalhamento() {
               </BlocoGestor>
               </div>
             </div>
+            )}
+
 
             <LeituraEstrategica
               iesId={iesAtivaId}
