@@ -2,8 +2,6 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/env';
 
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { Icon } from '@/features/gestor/components/Icon';
@@ -15,6 +13,13 @@ import { formatNumero, formatPct } from '@/features/gestor/lib/formatters';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
 import { TRACO } from '@/features/gestor/lib/rotulos';
 import {
+  chaveMovimento,
+  detalheEmCache,
+  obterDetalheMovimento,
+  type DetalheMovimento,
+  type PassoPlano,
+} from '@/features/gestor/lib/cacheMovimento';
+import {
   CORTE_PROFICIENCIA,
   DESCRITORES,
   inferirCriterio,
@@ -25,6 +30,7 @@ import {
   type CriterioCoorte,
   type Projecao,
 } from '@/features/gestor/lib/planoMovimento';
+
 
 /**
  * Drawer de DETALHE de um movimento da Leitura estratégica.
@@ -53,22 +59,10 @@ export interface DrawerMovimentoProps {
   onFechar: () => void;
 }
 
-interface PassoPlano {
-  acao?: string;
-  detalhe?: string;
-  responsavel?: string;
-  prazo?: string;
-  medir?: string;
-}
+/* `PassoPlano` e `DetalheMovimento` vivem em `lib/cacheMovimento` — o mesmo
+   contrato usado pelo pré-carregamento em segundo plano. */
 
-interface DetalheMovimento {
-  diagnostico: string;
-  criterioCoorte: CriterioCoorte | null;
-  semestreAlvo: number | null;
-  alvoAlunos: number | null;
-  passos: PassoPlano[];
-  risco: string | null;
-}
+
 
 type Estado = 'loading' | 'sucesso' | 'erro';
 
@@ -231,9 +225,6 @@ function BlocoProjecao({ projecao }: { projecao: Projecao }) {
 }
 
 export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados, onFechar }: DrawerMovimentoProps) {
-  const [estado, setEstado] = React.useState<Estado>('loading');
-  const [detalhe, setDetalhe] = React.useState<DetalheMovimento | null>(null);
-
   const container = useGestorPortalContainer();
   const isMobile = useIsMobile();
   const tituloRef = React.useRef<HTMLHeadingElement>(null);
@@ -245,85 +236,49 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
     { page: 1, pageSize: 500, sort: 'nome', order: 'asc', q: '' },
   );
 
-  const chave = `${escopo}|${iesId ?? ''}|${semestre ?? ''}|${[...simulados].sort().join(',')}|${movimento?.titulo ?? ''}`;
+  const pedido =
+    iesId && movimento ? { movimento, escopo, iesId, semestre, simulados } : null;
+  const chave = pedido ? chaveMovimento(pedido) : '';
+
+  /* Abre JÁ PRONTO quando o pré-carregamento da leitura terminou: o estado
+     inicial é o que está em cache, não `loading`. */
+  const prontoNoCache = chave ? detalheEmCache(chave) : null;
+  const [detalhe, setDetalhe] = React.useState<DetalheMovimento | null>(prontoNoCache);
+  const [estado, setEstado] = React.useState<Estado>(prontoNoCache ? 'sucesso' : 'loading');
 
   const carregar = React.useCallback(
     async (forcar = false) => {
-      if (!iesId || !movimento) {
+      if (!pedido) {
         setEstado('erro');
         return;
       }
+
+      if (!forcar) {
+        const emCache = detalheEmCache(chave);
+        if (emCache) {
+          setDetalhe(emCache);
+          setEstado('sucesso');
+          return;
+        }
+      }
+
       setEstado('loading');
       setDetalhe(null);
-
-      const corpo = {
-        modo: 'movimento' as const,
-        escopo,
-        iesId,
-        semestre,
-        simulados: escopo === 'institucional' ? null : simulados,
-        movimento,
-        refresh: forcar,
-      };
-
-      const aplicar = (evento: Record<string, unknown>) => {
-        if (evento?.tipo === 'erro') throw new Error(String(evento.error ?? 'ai_error'));
-        if (typeof evento?.diagnostico !== 'string') return false;
-        setDetalhe({
-          diagnostico: evento.diagnostico as string,
-          criterioCoorte: (evento.criterioCoorte as CriterioCoorte | null) ?? null,
-          semestreAlvo: typeof evento.semestreAlvo === 'number' ? evento.semestreAlvo : null,
-          alvoAlunos: typeof evento.alvoAlunos === 'number' ? evento.alvoAlunos : null,
-          passos: Array.isArray(evento.passos) ? (evento.passos as PassoPlano[]).slice(0, 5) : [],
-          risco: typeof evento.risco === 'string' ? evento.risco : null,
-        });
-        setEstado('sucesso');
-        return true;
-      };
-
       try {
-        const { data: sessao } = await supabase.auth.getSession();
-        const token = sessao.session?.access_token;
-        const resposta = await fetch(`${env.EDGE_FUNCTIONS_BASE_URL}/gestor-ai-insights`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: env.SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${token ?? env.SUPABASE_ANON_KEY}`,
+        /* Streaming quando a geração começa agora (o parcial já pinta a tela);
+           quando o pré-carregamento está no ar, `obterDetalheMovimento`
+           devolve a MESMA promessa e nenhuma segunda geração é paga. */
+        const final = await obterDetalheMovimento(pedido, {
+          refresh: forcar,
+          onParcial: (parcial) => {
+            setDetalhe(parcial);
+            setEstado('sucesso');
           },
-          body: JSON.stringify({ ...corpo, stream: true }),
         });
-        if (!resposta.ok || !resposta.body) throw new Error('stream_indisponivel');
-
-        const reader = resposta.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let recebeuAlgo = false;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const linhas = buffer.split('\n');
-          buffer = linhas.pop() ?? '';
-          for (const linha of linhas) {
-            const trimmed = linha.trim();
-            if (!trimmed.startsWith('data:')) continue;
-            const payload = trimmed.slice(5).trim();
-            if (!payload || payload === '[DONE]') continue;
-            if (aplicar(JSON.parse(payload))) recebeuAlgo = true;
-          }
-        }
-        if (!recebeuAlgo) throw new Error('resposta_invalida');
+        setDetalhe(final);
+        setEstado('sucesso');
       } catch {
-        // Fallback bufferizado, igual à leitura: onde o SSE não passa, o
-        // detalhe ainda chega.
-        try {
-          const { data, error } = await supabase.functions.invoke('gestor-ai-insights', { body: corpo });
-          if (error) throw error;
-          if (!aplicar((data ?? {}) as Record<string, unknown>)) throw new Error('resposta_invalida');
-        } catch {
-          setEstado('erro');
-        }
+        setEstado('erro');
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
@@ -339,6 +294,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
     if (jaPedido.current === chave) return;
     jaPedido.current = chave;
     carregar();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave, movimento !== null]);
 
