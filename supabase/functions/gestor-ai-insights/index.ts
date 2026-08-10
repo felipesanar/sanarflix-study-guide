@@ -143,6 +143,9 @@ interface ConsultorBody {
    */
   escopo?: "recorte" | "institucional";
   refresh?: boolean;
+  /** `true` = resposta em SSE (leitura aparecendo aos poucos na tela). */
+  stream?: boolean;
+
 }
 
 
