@@ -607,7 +607,15 @@ export default function Detalhamento() {
                 ) : null}
               </BlocoGestor>
             </div>
+
+            <LeituraEstrategica
+              iesId={filtros.iesId ?? null}
+              semestre={filtros.semestre ?? null}
+              simulados={simuladosNoRecorte}
+            />
+            </div>
           </div>
+
 
           <div data-testid="bloco-alunos" className={classeRevelacao(4)}>
             <BlocoGestor
