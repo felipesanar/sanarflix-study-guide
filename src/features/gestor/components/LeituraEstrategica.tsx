@@ -161,7 +161,15 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
   const listaSimulados = escopo === 'institucional' ? [] : (simulados ?? []);
   const chave = `${escopo}|${iesId ?? ''}|${semestre ?? ''}|${listaSimulados.join(',')}`;
 
-  const carregar = React.useCallback(async () => {
+  /**
+   * `forcar` = pedido EXPLÍCITO da gestora (ícone de recarregar / "tentar de
+   * novo"): manda `refresh: true` e o backend ignora `ai_response_cache`,
+   * gerando leitura nova. Sem isso o clique devolvia o mesmo texto em cache e
+   * parecia que o botão não fazia nada. A carga automática do recorte continua
+   * usando cache.
+   */
+  const carregar = React.useCallback(async (forcar = false) => {
+
     if (!iesId) {
       setEstado('erro');
       return;
