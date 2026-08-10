@@ -2378,26 +2378,16 @@ export type Database = {
         Args: { p_ies_id: string; p_semestre: string; p_simulados: string[] }
         Returns: Json
       }
-      get_gestor_detalhamento_temas:
-        | {
-            Args: {
-              p_especialidade?: string
-              p_grande_area: string
-              p_ies_id: string
-              p_simulados: string[]
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_especialidade?: string
-              p_grande_area: string
-              p_ies_id: string
-              p_semestre?: string
-              p_simulados: string[]
-            }
-            Returns: Json
-          }
+      get_gestor_detalhamento_temas: {
+        Args: {
+          p_especialidade?: string
+          p_grande_area: string
+          p_ies_id: string
+          p_semestre?: string
+          p_simulados: string[]
+        }
+        Returns: Json
+      }
       get_gestor_diagnostico: {
         Args: { p_ies_id: string; p_node: string; p_semestre: string }
         Returns: Json

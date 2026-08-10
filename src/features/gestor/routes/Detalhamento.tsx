@@ -24,7 +24,7 @@ import { TabelaAlunosSimulado } from '../components/TabelaAlunosSimulado';
 import { TabelaQuestoes, deveMostrarQuestoes, type OrdenacaoQuestoes } from '../components/TabelaQuestoes';
 import { useTelemetriaGestor } from '../lib/telemetria';
 import type { DetalhamentoComExtras, RecorteCruzado } from '../api/detalhamentoExtras';
-import type { FiltrosGestor, Meta } from '../api/types';
+import type { FiltroSemestre as ValorFiltroSemestre, FiltrosGestor, Meta } from '../api/types';
 import { useGestorPortalContainer } from '../shell/GestorShell';
 
 const META_VAZIA: Meta = {
@@ -222,6 +222,18 @@ export default function Detalhamento() {
    * deste valor.
    */
   const [semestreAberto, setSemestreAberto] = React.useState<number | null>(null);
+
+  /**
+   * Semestre que o drill-down de área (`DrawerTemasDetalhamento`) tem de
+   * respeitar: se há recorte cruzado por semestre, é ELE — a lista de grandes
+   * áreas já está recalculada para aquele semestre (`recalcularAreas`), então
+   * especialidade e tema precisam do mesmo corte para os números baterem. Sem
+   * recorte cruzado, vale o filtro global da tela.
+   */
+  const semestreDoDrillDown: ValorFiltroSemestre =
+    recorte?.tipo === 'semestre' ? (String(recorte.id) as ValorFiltroSemestre) : filtros.semestre;
+
+
 
   /**
    * O recorte cruzado (área × semestre) é estado do BLOCO e só existe dentro do
@@ -723,8 +735,10 @@ export default function Detalhamento() {
             area={areaDrillDown}
             iesId={iesAtivaId}
             simulados={simuladosNoRecorte}
+            semestre={semestreDoDrillDown}
             onFechar={() => setAreaDrillDown(null)}
           />
+
         </>
       )}
     </ContainerRota>

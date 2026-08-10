@@ -10,6 +10,7 @@ import { formatPct } from '@/features/gestor/lib/formatters';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
+import type { FiltroSemestre } from '@/features/gestor/api/types';
 
 /** Grande área clicada em `AcertoPorAreaESemestre` que abre este drawer. */
 export interface AreaSelecionadaDetalhamento {
@@ -20,10 +21,25 @@ export interface AreaSelecionadaDetalhamento {
 export interface DrawerTemasDetalhamentoProps {
   area: AreaSelecionadaDetalhamento | null;
   iesId: string | null;
-  /** Mesmo recorte de simulados da tela — `get_gestor_detalhamento_temas` nunca usa semestre. */
+  /** Mesmo recorte de simulados da tela. */
   simulados: string[];
+  /**
+   * Recorte de semestre vigente no card que abriu o drawer — o semestre
+   * clicado no cruzamento área × semestre ou, na falta dele, o filtro global
+   * da tela. Sem isso, especialidade e tema mostravam o recorte cheio
+   * enquanto a lista de grandes áreas já estava recortada.
+   */
+  semestre: FiltroSemestre | null;
   onFechar: () => void;
 }
+
+/** Rótulo humano do recorte de semestre, para o gestor ver de qual corte o número vem. */
+function rotuloSemestre(semestre: FiltroSemestre | null): string {
+  if (semestre === null || semestre === 'geral') return 'Todos os semestres';
+  if (semestre === '6ano') return '6º ano (11º e 12º em evidência)';
+  return `${semestre}º semestre`;
+}
+
 
 /**
  * Cor de preenchimento da barra do nó — mesma régua visual de
@@ -76,17 +92,18 @@ function CorpoDetalhamentoTemasSkeleton({ rotulo }: { rotulo: string }) {
  *
  * Reaproveita o padrão VISUAL de `DrawerTemas.tsx` (cascata, cor por
  * desempenho, `lowSample`) — mas é um componente próprio, com hook próprio
- * (`useDetalhamentoTemas`), porque a RPC nova recorta por `p_simulados`
- * (array explícito da tela de Detalhamento), nunca por `p_semestre` como
- * `get_gestor_diagnostico_temas`. Reusar `DrawerTemas` acoplaria este drawer
- * à RPC/recorte errados.
+ * (`useDetalhamentoTemas`), porque a RPC recorta por `p_simulados` (array
+ * explícito da tela de Detalhamento) além do `p_semestre` — e não por
+ * `p_ies_id` + `p_semestre` como `get_gestor_diagnostico_temas`. Reusar
+ * `DrawerTemas` acoplaria este drawer à RPC/recorte errados.
+
  *
  * Dois níveis dentro do MESMO drawer (nunca dois drawers empilhados):
  * `especialidadeAberta === null` lista especialidades da grande área;
  * clicar numa com `temFilhos` drila para os temas dela, com um "Voltar" que
  * some ao nível de especialidade.
  */
-export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: DrawerTemasDetalhamentoProps) {
+export function DrawerTemasDetalhamento({ area, iesId, simulados, semestre, onFechar }: DrawerTemasDetalhamentoProps) {
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<string | null>(null);
 
   /**
@@ -99,7 +116,7 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
     setEspecialidadeAberta(null);
   }, [area?.id]);
 
-  const consulta = useDetalhamentoTemas(iesId, simulados, area?.nome ?? null, especialidadeAberta);
+  const consulta = useDetalhamentoTemas(iesId, simulados, area?.nome ?? null, especialidadeAberta, semestre);
   /** Regra dos 400ms (spec de motion §7) — evita o flash de skeleton em resposta rápida. */
   const mostrarSkeleton = useDelayedLoading(consulta.isLoading);
   useDevolverFocoAoFechar(area !== null);
@@ -153,7 +170,11 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
             </span>
           </SheetTitle>
           <SheetDescription>
-            Percentual de acerto por {nivelTema ? 'tema' : 'especialidade'}. Nunca usa a escala de proficiência.
+            Percentual de acerto por {nivelTema ? 'tema' : 'especialidade'}, no recorte de{' '}
+            <span data-testid="drawer-detalhamento-recorte-semestre">
+              {rotuloSemestre(semestre).toLowerCase()}
+            </span>
+            . Nunca usa a escala de proficiência.
           </SheetDescription>
         </SheetHeader>
 
