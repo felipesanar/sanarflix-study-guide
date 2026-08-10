@@ -20,10 +20,25 @@ export interface AreaSelecionadaDetalhamento {
 export interface DrawerTemasDetalhamentoProps {
   area: AreaSelecionadaDetalhamento | null;
   iesId: string | null;
-  /** Mesmo recorte de simulados da tela — `get_gestor_detalhamento_temas` nunca usa semestre. */
+  /** Mesmo recorte de simulados da tela. */
   simulados: string[];
+  /**
+   * Recorte de semestre vigente no card que abriu o drawer — o semestre
+   * clicado no cruzamento área × semestre ou, na falta dele, o filtro global
+   * da tela. Sem isso, especialidade e tema mostravam o recorte cheio
+   * enquanto a lista de grandes áreas já estava recortada.
+   */
+  semestre: FiltroSemestre | null;
   onFechar: () => void;
 }
+
+/** Rótulo humano do recorte de semestre, para o gestor ver de qual corte o número vem. */
+function rotuloSemestre(semestre: FiltroSemestre | null): string {
+  if (semestre === null || semestre === 'geral') return 'Todos os semestres';
+  if (semestre === '6ano') return '6º ano (11º e 12º em evidência)';
+  return `${semestre}º semestre`;
+}
+
 
 /**
  * Cor de preenchimento da barra do nó — mesma régua visual de
