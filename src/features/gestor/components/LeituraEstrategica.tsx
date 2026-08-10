@@ -247,13 +247,16 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
         }}
       >
         {estado === 'loading' || estado === 'idle' ? (
-          <EtapasDaLeitura />
+          <EtapasDaLeitura escopo={escopo} />
         ) : estado === 'erro' ? (
 
           <div className="flex flex-col items-start gap-2" role="alert">
             <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-              Não foi possível montar a leitura deste recorte agora.
+              {escopo === 'institucional'
+                ? 'Não foi possível montar a leitura da instituição agora.'
+                : 'Não foi possível montar a leitura deste recorte agora.'}
             </p>
+
             <button
               type="button"
               onClick={carregar}
