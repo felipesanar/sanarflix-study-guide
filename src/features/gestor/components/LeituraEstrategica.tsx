@@ -142,15 +142,22 @@ function EtapasDaLeitura({ escopo }: { escopo: EscopoLeitura }) {
 export interface LeituraEstrategicaProps {
   iesId: string | null;
   semestre: string | null;
-  simulados: string[];
+  /** Só faz sentido no escopo `recorte`; ignorado no institucional. */
+  simulados?: string[];
+  /** Padrão `recorte`, o comportamento original do Detalhamento. */
+  escopo?: EscopoLeitura;
 }
 
 
-export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrategicaProps) {
+export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recorte' }: LeituraEstrategicaProps) {
   const [estado, setEstado] = React.useState<Estado>('idle');
   const [leitura, setLeitura] = React.useState<Leitura | null>(null);
 
-  const chave = `${iesId ?? ''}|${semestre ?? ''}|${simulados.join(',')}`;
+  /* No escopo institucional o simulado não entra no recorte: a leitura é da
+     instituição no período, então trocar de seleção de simulado não deve
+     invalidar nem alterar esta leitura. */
+  const listaSimulados = escopo === 'institucional' ? [] : (simulados ?? []);
+  const chave = `${escopo}|${iesId ?? ''}|${semestre ?? ''}|${listaSimulados.join(',')}`;
 
   const carregar = React.useCallback(async () => {
     if (!iesId) {
@@ -160,7 +167,13 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     setEstado('loading');
     try {
       const { data, error } = await supabase.functions.invoke('gestor-ai-insights', {
-        body: { modo: 'consultor', iesId, semestre, simulados },
+        body: {
+          modo: 'consultor',
+          escopo,
+          iesId,
+          semestre,
+          simulados: escopo === 'institucional' ? null : listaSimulados,
+        },
       });
       if (error) throw error;
       /* O backend agora garante a forma por schema (tool call) e devolve
@@ -178,7 +191,9 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     } catch {
       setEstado('erro');
     }
-  }, [iesId, semestre, simulados]);
+    // `chave` cobre ies/semestre/escopo/simulados do recorte.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave]);
 
   /* Recorte novo dispara uma leitura nova (pedido explícito, 10/08): a
      superfície é automática, sem clique — o botão de "Ver leitura" saiu. A
@@ -189,6 +204,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     // `carregar` já depende do mesmo recorte que compõe `chave`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
 
 
   return (
