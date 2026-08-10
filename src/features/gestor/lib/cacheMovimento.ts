@@ -1,6 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/env';
+import { fetchIa } from '@/features/gestor/lib/fetchIa';
 import type { CriterioCoorte } from '@/features/gestor/lib/planoMovimento';
+
 
 /**
  * Cache de módulo + PRÉ-CARREGAMENTO dos detalhes de movimento.
@@ -99,17 +99,8 @@ async function gerar(
   let ultimo: DetalheMovimento | null = null;
 
   try {
-    const { data: sessao } = await supabase.auth.getSession();
-    const token = sessao.session?.access_token;
-    const resposta = await fetch(`${env.EDGE_FUNCTIONS_BASE_URL}/gestor-ai-insights`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: env.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token ?? env.SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ ...corpo, stream: true }),
-    });
+    const resposta = await fetchIa('gestor-ai-insights', { ...corpo, stream: true });
+
     if (!resposta.ok || !resposta.body) throw new Error('stream_indisponivel');
 
     const reader = resposta.body.getReader();
@@ -138,10 +129,12 @@ async function gerar(
   } catch (erroStream) {
     if (ultimo) return ultimo;
     // Fallback bufferizado: onde o SSE não passa, o detalhe ainda chega.
-    const { data, error } = await supabase.functions.invoke('gestor-ai-insights', { body: corpo });
-    if (error) throw error;
-    const final = normalizar((data ?? {}) as Record<string, unknown>);
+    const bufferizada = await fetchIa('gestor-ai-insights', corpo);
+    if (!bufferizada.ok) throw erroStream instanceof Error ? erroStream : new Error('ai_error');
+    const data = (await bufferizada.json()) as Record<string, unknown>;
+    const final = normalizar(data ?? {});
     if (!final) throw erroStream instanceof Error ? erroStream : new Error('resposta_invalida');
+
     return final;
   }
 }

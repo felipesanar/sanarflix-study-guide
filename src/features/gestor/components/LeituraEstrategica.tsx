@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/env';
+
 
 import { Icon } from '@/features/gestor/components/Icon';
 import { DrawerMovimento, type MovimentoSelecionado } from '@/features/gestor/components/DrawerMovimento';
 import { preAquecerMovimentos } from '@/features/gestor/lib/cacheMovimento';
+import { fetchIa } from '@/features/gestor/lib/fetchIa';
 
 
 
@@ -189,9 +190,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
          leitura vai aparecendo — o que já chegou fica na tela mesmo se o resto
          não vier. Se o streaming falhar (proxy sem suporte), cai no invoke
          bufferizado de antes. */
-      const { data: sessao } = await supabase.auth.getSession();
-      const token = sessao.session?.access_token;
-      const corpo = JSON.stringify({
+      const corpo = {
         modo: 'consultor',
         escopo,
         iesId,
@@ -199,17 +198,10 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
         simulados: escopo === 'institucional' ? null : listaSimulados,
         stream: true,
         refresh: forcar,
-      });
+      };
 
-      const resposta = await fetch(`${env.EDGE_FUNCTIONS_BASE_URL}/gestor-ai-insights`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: env.SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${token ?? env.SUPABASE_ANON_KEY}`,
-        },
-        body: corpo,
-      });
+      const resposta = await fetchIa('gestor-ai-insights', corpo);
+
 
       if (!resposta.ok || !resposta.body) throw new Error('stream_indisponivel');
 
