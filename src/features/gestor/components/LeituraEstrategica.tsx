@@ -5,6 +5,9 @@ import { env } from '@/config/env';
 
 import { Icon } from '@/features/gestor/components/Icon';
 import { DrawerMovimento, type MovimentoSelecionado } from '@/features/gestor/components/DrawerMovimento';
+import { preAquecerMovimentos } from '@/features/gestor/lib/cacheMovimento';
+
+
 
 /**
  * "Leitura estratégica" do recorte de simulados — persona de consultoria
@@ -288,6 +291,40 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
     // `carregar` já depende do mesmo recorte que compõe `chave`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
+  /* PRÉ-CARREGAMENTO dos drawers (pedido explícito, 10/08). Assim que os
+     movimentos existem, o detalhe de cada um é gerado em segundo plano, em
+     fila, e guardado no cache de módulo — o clique da gestora encontra o
+     conteúdo pronto em vez de esperar o modelo pensar. Falha aqui é silenciosa:
+     o clique tenta de novo pelo caminho normal do drawer. */
+  const titulosDosItens = (leitura?.itens ?? []).map((item) => item.titulo).join('|');
+  React.useEffect(() => {
+    if (!iesId || !leitura?.itens.length) return;
+    let cancelado = false;
+    preAquecerMovimentos(
+      leitura.itens.map((item) => ({
+        movimento: {
+          titulo: item.titulo,
+          metrica: item.metrica,
+          texto: item.texto,
+          prioridade: item.prioridade,
+        },
+        escopo,
+        iesId,
+        semestre,
+        simulados: listaSimulados,
+      })),
+      () => cancelado,
+    );
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave, titulosDosItens]);
+
+
+
+
 
 
 

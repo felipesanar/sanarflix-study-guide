@@ -36,6 +36,15 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useDetalhamentoTemas: vi.fn(),
   useQuestoes: vi.fn(),
   useGestorContexto: vi.fn(),
+  // `DrawerMovimento` (leitura estratégica) chama `useAlunos` incondicionalmente
+  // para montar a coorte, mesmo com o drawer fechado (regra dos hooks).
+  useAlunos: vi.fn(() => ({
+    data: undefined,
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
 }));
 
 vi.mock('@/features/gestor/components/FiltroSemestre', () => ({
