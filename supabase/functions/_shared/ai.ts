@@ -45,7 +45,15 @@ export interface StreamOptions {
   temperature?: number;
   tool?: ToolSchema;
   signal?: AbortSignal;
+  /**
+   * Chamado a cada delta recebido do gateway, com o ACUMULADO até ali. É o que
+   * permite repassar a resposta em SSE para o front: a tela mostra a leitura
+   * sendo escrita em vez de esperar o fim, e um corte por teto de tokens deixa
+   * de ser "tudo ou nada" — o que já chegou continua na tela.
+   */
+  onDelta?: (parcial: { texto: string; toolArguments: string | null }) => void;
 }
+
 
 export class AiGatewayError extends Error {
   status: number;
