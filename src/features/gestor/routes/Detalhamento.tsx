@@ -24,7 +24,7 @@ import { TabelaAlunosSimulado } from '../components/TabelaAlunosSimulado';
 import { TabelaQuestoes, deveMostrarQuestoes, type OrdenacaoQuestoes } from '../components/TabelaQuestoes';
 import { useTelemetriaGestor } from '../lib/telemetria';
 import type { DetalhamentoComExtras, RecorteCruzado } from '../api/detalhamentoExtras';
-import type { FiltrosGestor, Meta } from '../api/types';
+import type { FiltroSemestre as ValorFiltroSemestre, FiltrosGestor, Meta } from '../api/types';
 import { useGestorPortalContainer } from '../shell/GestorShell';
 
 const META_VAZIA: Meta = {
@@ -230,8 +230,8 @@ export default function Detalhamento() {
    * especialidade e tema precisam do mesmo corte para os números baterem. Sem
    * recorte cruzado, vale o filtro global da tela.
    */
-  const semestreDoDrillDown: FiltroSemestre =
-    recorte?.tipo === 'semestre' ? (String(recorte.id) as FiltroSemestre) : filtros.semestre;
+  const semestreDoDrillDown: ValorFiltroSemestre =
+    recorte?.tipo === 'semestre' ? (String(recorte.id) as ValorFiltroSemestre) : filtros.semestre;
 
 
 

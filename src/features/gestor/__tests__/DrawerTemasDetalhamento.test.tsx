@@ -81,7 +81,8 @@ afterEach(() => {
 describe('DrawerTemasDetalhamento', () => {
   it('não renderiza nada sem área selecionada', () => {
     render(
-      <DrawerTemasDetalhamento area={null} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={null} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -95,7 +96,8 @@ describe('DrawerTemasDetalhamento', () => {
 
   it('lista as especialidades da área, com % de acerto e nível', () => {
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
     const dialogo = screen.getByRole('dialog');
     expect(dialogo).toHaveAccessibleName(/Especialidades de Clínica Médica/i);
@@ -107,14 +109,16 @@ describe('DrawerTemasDetalhamento', () => {
 
   it('marca cobertura parcial no nó com amostra pequena', () => {
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
     expect(screen.getByTestId('detalhamento-no-Pneumologia')).toHaveTextContent('cobertura parcial');
   });
 
   it('só a especialidade com temFilhos drila — a folha não é clicável', () => {
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
     const comFilhos = screen.getByTestId('detalhamento-no-Cardiologia');
     const semFilhos = screen.getByTestId('detalhamento-no-Pneumologia');
@@ -136,7 +140,8 @@ describe('DrawerTemasDetalhamento', () => {
     );
 
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
 
     await user.click(screen.getByRole('button', { name: /Cardiologia/ }));
@@ -151,7 +156,8 @@ describe('DrawerTemasDetalhamento', () => {
 
   it('trocar de área (novo clique em outra grande área) reseta para o nível raiz', () => {
     const { rerender } = render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
 
     rerender(
@@ -159,6 +165,7 @@ describe('DrawerTemasDetalhamento', () => {
         area={{ id: 'Cirurgia', nome: 'Cirurgia' }}
         iesId="ies-1"
         simulados={['s1']}
+        semestre="geral"
         onFechar={vi.fn()}
       />,
     );
@@ -169,7 +176,8 @@ describe('DrawerTemasDetalhamento', () => {
 
   it('declara a proveniência do recorte a partir do meta do envelope', () => {
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
     const proveniencia = screen.getByTestId('detalhamento-temas-proveniencia');
     expect(proveniencia).toHaveTextContent(metaFake.periodo);
@@ -180,7 +188,8 @@ describe('DrawerTemasDetalhamento', () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     const onFechar = vi.fn();
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={onFechar} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={onFechar} />,
     );
     await user.keyboard('{Escape}');
     expect(onFechar).toHaveBeenCalledTimes(1);
@@ -189,7 +198,8 @@ describe('DrawerTemasDetalhamento', () => {
   it('mostra estado vazio quando a área não tem especialidade com dado', () => {
     mockUseTemas.mockReturnValue(resultado({ data: [] }) as unknown as ReturnType<typeof useDetalhamentoTemas>);
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
     );
     expect(screen.getByTestId('detalhamento-temas-vazio')).toHaveTextContent(
       'Sem especialidade com resultado neste recorte',
@@ -203,7 +213,8 @@ describe('DrawerTemasDetalhamento', () => {
       );
       vi.useFakeTimers();
       render(
-        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
       );
       expect(screen.queryByTestId('drawer-detalhamento-temas-skeleton')).not.toBeInTheDocument();
       expect(screen.queryByTestId('detalhamento-no-Cardiologia')).not.toBeInTheDocument();
@@ -215,7 +226,8 @@ describe('DrawerTemasDetalhamento', () => {
       );
       vi.useFakeTimers();
       render(
-        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
       );
       act(() => {
         vi.advanceTimersByTime(ATRASO_SKELETON_MS + 1);
@@ -232,7 +244,8 @@ describe('DrawerTemasDetalhamento', () => {
         resultado({ data: undefined, isError: true, refetch }) as unknown as ReturnType<typeof useDetalhamentoTemas>,
       );
       render(
-        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} onFechar={vi.fn()} />,
+        <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']}
+        semestre="geral" onFechar={vi.fn()} />,
       );
 
       expect(screen.getByRole('alert')).toBeInTheDocument();
