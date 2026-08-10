@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { env } from '@/config/env';
+
 
 import { Icon } from '@/features/gestor/components/Icon';
 import { DrawerMovimento, type MovimentoSelecionado } from '@/features/gestor/components/DrawerMovimento';
