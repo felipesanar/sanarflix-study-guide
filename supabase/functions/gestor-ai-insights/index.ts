@@ -583,8 +583,20 @@ serve(async (req) => {
       ]);
       if (!refresh) {
         const cached = await lerCache(supabaseAdmin, cacheKey);
-        if (cached) return jsonResponse({ ...cached, cached: true }, 200, cors);
+        if (cached) {
+          // No modo stream o cache também sai como SSE, para o front ter um só
+          // caminho de leitura (evento `final` já completo, sem parciais).
+          if (body?.stream === true) {
+            const corpo = `data: ${JSON.stringify({ tipo: "final", ...cached, cached: true })}\n\ndata: [DONE]\n\n`;
+            return new Response(corpo, {
+              status: 200,
+              headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+            });
+          }
+          return jsonResponse({ ...cached, cached: true }, 200, cors);
+        }
       }
+
 
       // Visão Geral não tem recorte de simulado: a leitura é institucional, então
       // nem `get_gestor_detalhamento` nem o mapa de questões entram no contexto —
