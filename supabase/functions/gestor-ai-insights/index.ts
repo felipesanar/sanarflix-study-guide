@@ -470,12 +470,15 @@ serve(async (req) => {
     // -------------------------------------------------------------------
     if (body?.modo === "consultor") {
       const { iesId, semestre, simulados } = body;
+      const escopo = body.escopo === "institucional" ? "institucional" : "recorte";
       if (!iesId) return jsonResponse({ error: "iesId_obrigatorio" }, 400, cors);
 
-      const listaSimulados = Array.isArray(simulados) && simulados.length ? [...simulados] : null;
+      const listaSimulados =
+        escopo === "institucional" ? null : Array.isArray(simulados) && simulados.length ? [...simulados] : null;
       const cacheKey = await hashChave([
         "gestor-ai-insights",
         "consultor",
+        escopo,
         iesId,
         semestre ?? null,
         listaSimulados ? [...listaSimulados].sort() : null,
@@ -485,17 +488,23 @@ serve(async (req) => {
         if (cached) return jsonResponse({ ...cached, cached: true }, 200, cors);
       }
 
+      // Visão Geral não tem recorte de simulado: a leitura é institucional, então
+      // nem `get_gestor_detalhamento` nem o mapa de questões entram no contexto —
+      // recomendar ação sobre questão isolada seria fora do nível da tela.
+      const institucional = escopo === "institucional";
       const simuladoFoco = listaSimulados ? listaSimulados[listaSimulados.length - 1] : null;
 
       const [detalhamentoRes, visaoGeralRes, diagnosticoRes, questoesRes] = await Promise.all([
-        supabaseUser.rpc("get_gestor_detalhamento", {
-          p_ies_id: iesId,
-          p_semestre: semestre ?? null,
-          p_simulados: listaSimulados,
-        }),
+        institucional
+          ? Promise.resolve({ data: null, error: null })
+          : supabaseUser.rpc("get_gestor_detalhamento", {
+              p_ies_id: iesId,
+              p_semestre: semestre ?? null,
+              p_simulados: listaSimulados,
+            }),
         supabaseUser.rpc("get_gestor_visao_geral", { p_ies_id: iesId, p_semestre: semestre ?? null }),
         supabaseUser.rpc("get_gestor_diagnostico", { p_ies_id: iesId, p_semestre: semestre ?? null, p_node: null }),
-        simuladoFoco
+        !institucional && simuladoFoco
           ? supabaseUser.rpc("get_gestor_questoes", {
               p_ies_id: iesId,
               p_simulado_id: simuladoFoco,
@@ -508,28 +517,36 @@ serve(async (req) => {
           : Promise.resolve({ data: null, error: null }),
       ]);
 
-      if (detalhamentoRes.error) {
-        console.error("[gestor-ai-insights]", "get_gestor_detalhamento error:", detalhamentoRes.error);
-        return jsonResponse({ error: detalhamentoRes.error.message }, statusForRpcError(detalhamentoRes.error), cors);
+      // A RPC que sustenta a leitura muda com o escopo: no recorte é o
+      // detalhamento dos simulados; na Visão Geral é a visão institucional.
+      const principal = institucional ? visaoGeralRes : detalhamentoRes;
+      if (principal.error) {
+        console.error("[gestor-ai-insights]", "rpc principal error:", principal.error);
+        return jsonResponse({ error: principal.error.message }, statusForRpcError(principal.error), cors);
       }
       // Os complementos são opcionais: se um deles falhar, a leitura continua
-      // com o núcleo do recorte em vez de derrubar a tela.
+      // com o núcleo em vez de derrubar a tela.
       if (visaoGeralRes.error) console.error("[gestor-ai-insights]", "visao_geral (opcional):", visaoGeralRes.error.message);
       if (diagnosticoRes.error) console.error("[gestor-ai-insights]", "diagnostico (opcional):", diagnosticoRes.error.message);
       if (questoesRes.error) console.error("[gestor-ai-insights]", "questoes (opcional):", questoesRes.error.message);
 
-      const userPrompt = buildConsultorPrompt(
-        detalhamentoRes.data,
-        visaoGeralRes.error ? null : visaoGeralRes.data,
-        diagnosticoRes.error ? null : diagnosticoRes.data,
-        questoesRes.error ? null : questoesRes.data
-      );
+      const userPrompt = institucional
+        ? buildInstitucionalPrompt(visaoGeralRes.data, diagnosticoRes.error ? null : diagnosticoRes.data)
+        : buildConsultorPrompt(
+            detalhamentoRes.data,
+            visaoGeralRes.error ? null : visaoGeralRes.data,
+            diagnosticoRes.error ? null : diagnosticoRes.data,
+            questoesRes.error ? null : questoesRes.data
+          );
 
       const { texto, toolArguments } = await streamChatCompletion({
         apiKey: LOVABLE_API_KEY,
         model: AI_MODEL_RACIOCINIO,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT_CONSULTOR },
+          {
+            role: "system",
+            content: institucional ? SYSTEM_PROMPT_CONSULTOR_INSTITUCIONAL : SYSTEM_PROMPT_CONSULTOR_RECORTE,
+          },
           { role: "user", content: userPrompt },
         ],
         maxTokens: 900,
@@ -537,6 +554,7 @@ serve(async (req) => {
         tool: TOOL_LEITURA,
         signal: req.signal,
       });
+
 
       const estruturado =
         (toolArguments ? extrairJson<{ leitura?: string; itens?: unknown[] }>(toolArguments) : null) ??
