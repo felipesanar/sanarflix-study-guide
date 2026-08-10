@@ -27,6 +27,13 @@ interface PedagogicoBody {
   semestre: string | null;
 }
 
+interface ConsultorBody {
+  modo: "consultor";
+  iesId: string;
+  semestre: string | null;
+  simulados: string[];
+}
+
 interface AlunoBody {
   modo: "aluno";
   iesId: string;
@@ -34,7 +41,49 @@ interface AlunoBody {
   simulados: string[];
 }
 
-type RequestBody = PedagogicoBody | AlunoBody;
+type RequestBody = PedagogicoBody | ConsultorBody | AlunoBody;
+
+// Consultoria estratégica do recorte de simulados (Detalhamento). Saída ESTRUTURADA
+// (JSON) para render em dashboard: uma leitura curta + até 3 movimentos priorizados.
+const SYSTEM_PROMPT_CONSULTOR = `Você é um consultor sênior especialista em aprovação no ENAMED, com histórico de levar faculdades de medicina às melhores notas do exame. Fala com o gestor da instituição de forma direta, estratégica e acionável, como quem já virou o resultado de várias escolas.
+
+Responda SOMENTE com JSON válido, sem markdown, no formato:
+{"leitura":"uma frase de no máximo 200 caracteres com o diagnóstico central do recorte","itens":[{"titulo":"até 40 caracteres","metrica":"número curto vindo dos dados, ex: 62% ou 3,4 ou -5 p.p.","texto":"até 160 caracteres: o que fazer e por que isso move a nota no ENAMED","prioridade":"alta|media|baixa"}]}
+
+Regras: no máximo 3 itens, ordenados pelo maior impacto na nota do ENAMED. Sem saudação, sem linguagem dirigida ao aluno, sem citar nome de aluno. Cada item precisa de um número que exista no contexto. ${ANTI_INVENCAO}`;
+
+function buildConsultorPrompt(detalhamento: any): string {
+  const d = detalhamento?.data ?? detalhamento ?? {};
+  const m = d.metricas ?? {};
+  const areas: any[] = Array.isArray(d.acertoPorAreaESemestre?.areas)
+    ? d.acertoPorAreaESemestre.areas
+    : Array.isArray(d.acertoPorAreaESemestre?.porArea)
+      ? d.acertoPorAreaESemestre.porArea
+      : [];
+  const semestres: any[] = Array.isArray(d.acertoPorAreaESemestre?.semestres) ? d.acertoPorAreaESemestre.semestres : [];
+  const alunos: any[] = Array.isArray(d.alunos) ? d.alunos : [];
+
+  const areasTxt = areas.length
+    ? areas.map((a: any) => `- ${a.nome ?? a.area}: ${formatNumber(a.acertoPct)}% de acerto`).join("\n")
+    : "Sem dado por grande área neste recorte.";
+  const semestresTxt = semestres.length
+    ? semestres.map((s: any) => `- ${s.semestre}º semestre: ${formatNumber(s.acertoPct)}% de acerto`).join("\n")
+    : "Sem dado por semestre neste recorte.";
+
+  const comProf = alunos.filter((a: any) => a.proficiencia !== null && a.proficiencia !== undefined);
+  const proficientes = comProf.filter((a: any) => Number(a.proficiencia) > 60).length;
+
+  return [
+    `Recorte: ${formatNumber(d.meta?.periodo ?? detalhamento?.meta?.periodo)}.`,
+    `Indicadores do recorte: ${JSON.stringify(m)}.`,
+    `Acerto por grande área:\n${areasTxt}`,
+    `Acerto por semestre:\n${semestresTxt}`,
+    `Alunos com resultado: ${comProf.length}; acima de 60 de proficiência: ${proficientes}.`,
+    "Gere o JSON da consultoria usando apenas esses números.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 interface RpcErrorLike {
   code?: string;
@@ -259,6 +308,27 @@ serve(async (req) => {
 
       const userPrompt = buildPedagogicoPrompt(diagnosticoRes.data, visaoGeralRes.data);
       return await generateInsight(SYSTEM_PROMPT_PEDAGOGICO, userPrompt, LOVABLE_API_KEY, cors);
+    }
+
+    if (body?.modo === "consultor") {
+      const { iesId, semestre, simulados } = body;
+      if (!iesId) {
+        return jsonResponse({ error: "iesId_obrigatorio" }, 400, cors);
+      }
+
+      const detalhamentoRes = await supabaseUser.rpc("get_gestor_detalhamento", {
+        p_ies_id: iesId,
+        p_semestre: semestre ?? null,
+        p_simulados: Array.isArray(simulados) && simulados.length ? simulados : null,
+      });
+
+      if (detalhamentoRes.error) {
+        console.error("[gestor-ai-insights]", "get_gestor_detalhamento error:", detalhamentoRes.error);
+        return jsonResponse({ error: detalhamentoRes.error.message }, statusForRpcError(detalhamentoRes.error), cors);
+      }
+
+      const userPrompt = buildConsultorPrompt(detalhamentoRes.data);
+      return await generateInsight(SYSTEM_PROMPT_CONSULTOR, userPrompt, LOVABLE_API_KEY, cors);
     }
 
     if (body?.modo === "aluno") {
