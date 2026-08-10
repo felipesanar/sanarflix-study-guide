@@ -86,19 +86,21 @@ const ETAPAS_POR_ESCOPO: Record<EscopoLeitura, string[]> = {
 };
 
 
-function EtapasDaLeitura() {
+function EtapasDaLeitura({ escopo }: { escopo: EscopoLeitura }) {
+  const etapas = ETAPAS_POR_ESCOPO[escopo];
   const [indice, setIndice] = React.useState(0);
 
   React.useEffect(() => {
     const id = window.setInterval(() => {
-      setIndice((atual) => Math.min(atual + 1, ETAPAS.length - 1));
+      setIndice((atual) => Math.min(atual + 1, etapas.length - 1));
     }, 1400);
     return () => window.clearInterval(id);
-  }, []);
+  }, [etapas.length]);
 
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="space-y-1.5">
-      {ETAPAS.slice(0, indice + 1).map((etapa, i) => {
+      {etapas.slice(0, indice + 1).map((etapa, i) => {
+
         const atual = i === indice;
         return (
           <motion.p
