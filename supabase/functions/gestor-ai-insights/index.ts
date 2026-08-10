@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 import {
+  AI_MODEL_RACIOCINIO,
   AI_MODEL_RAPIDO,
   AiGatewayError,
   extrairJson,
@@ -687,7 +688,7 @@ serve(async (req) => {
         "consultor",
         // Versão do prompt: mudar o jeito de escrever invalida o cache antigo,
         // senão o gestor continua lendo o texto duro já gravado.
-        "v4-6ano-nao-e-semestre",
+        "v5-raciocinio-leitura",
         escopo,
         iesId,
         semestre ?? null,
@@ -762,9 +763,11 @@ serve(async (req) => {
             semestre ?? null
           );
 
-      // Leitura estratégica precisa ser rápida na tela: o modelo flash entrega
-      // a mesma estrutura em uma fração do tempo do modelo de raciocínio.
-      const modeloLeitura = AI_MODEL_RAPIDO;
+      // Leitura estratégica volta ao modelo de raciocínio: ela cruza muitos
+      // números (visão geral + diagnóstico + posição dos alunos) e é aí que a
+      // diferença de qualidade aparece. A espera deixou de ser tela parada
+      // porque a resposta é repassada em SSE — o texto vai surgindo.
+      const modeloLeitura = AI_MODEL_RACIOCINIO;
       // Teto folgado de propósito: o corte por `max_tokens` era o que derrubava
       // a leitura inteira. Com o repasse em SSE + reparo de JSON parcial, um
       // corte deixa de ser fatal, então não há motivo para apertar o teto.
