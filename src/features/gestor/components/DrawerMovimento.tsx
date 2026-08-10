@@ -404,8 +404,8 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
       >
         {/* Cabeçalho fixo: identidade do movimento + recorte. O corpo rola sozinho. */}
         <SheetHeader
-          className="shrink-0 space-y-0 border-b px-5 pb-3.5 pt-5 text-left"
-          style={{ borderColor: 'var(--gp-border)', background: 'var(--gp-surface-1)' }}
+          className="shrink-0 space-y-0 px-5 pb-3.5 pt-5 text-left"
+          style={{ background: 'var(--gp-surface-1)' }}
         >
           <SheetTitle ref={tituloRef} tabIndex={-1} className="block pr-10 outline-none">
             <span className="sr-only">{`Detalhe do movimento: ${movimento.titulo}`}</span>
