@@ -568,7 +568,9 @@ export default function Detalhamento() {
               card com duas listas ("Acerto por grande área" + "Acerto por
               semestre") e um card com uma lista só ficava visualmente
               descasada. */}
-          <div className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}>
+          <div
+            className={`grid gap-4 ${colunaUnica ? '' : 'lg:grid-cols-[1.15fr_1fr]'} ${classeRevelacao(3)}`}
+          >
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
                 estado={estado}
