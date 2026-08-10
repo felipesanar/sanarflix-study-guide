@@ -165,35 +165,99 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
       return;
     }
     setEstado('loading');
+    setLeitura(null);
     try {
-      const { data, error } = await supabase.functions.invoke('gestor-ai-insights', {
-        body: {
-          modo: 'consultor',
-          escopo,
-          iesId,
-          semestre,
-          simulados: escopo === 'institucional' ? null : listaSimulados,
-        },
+      /* STREAMING (SSE). A leitura é longa e estruturada: esperar o JSON final
+         significava tela parada por muitos segundos e, quando o modelo era
+         cortado no meio, nada aparecia. Agora o backend repassa os deltas e a
+         leitura vai aparecendo — o que já chegou fica na tela mesmo se o resto
+         não vier. Se o streaming falhar (proxy sem suporte), cai no invoke
+         bufferizado de antes. */
+      const { data: sessao } = await supabase.auth.getSession();
+      const token = sessao.session?.access_token;
+      const corpo = JSON.stringify({
+        modo: 'consultor',
+        escopo,
+        iesId,
+        semestre,
+        simulados: escopo === 'institucional' ? null : listaSimulados,
+        stream: true,
       });
-      if (error) throw error;
-      /* O backend agora garante a forma por schema (tool call) e devolve
-         `leitura`/`itens` já estruturados; o parse de string continua como
-         rede de segurança para respostas em cache do formato antigo. */
-      const estruturado =
-        typeof data?.leitura === 'string'
-          ? { leitura: data.leitura as string, itens: Array.isArray(data?.itens) ? (data.itens as ItemLeitura[]).slice(0, 3) : [] }
-          : null;
-      const parsed = estruturado ?? extrairJson(typeof data?.insight === 'string' ? data.insight : '');
-      if (!parsed) throw new Error('resposta_invalida');
-      setLeitura(parsed);
-      setEstado('sucesso');
 
+      const resposta = await fetch(`${env.EDGE_FUNCTIONS_BASE_URL}/gestor-ai-insights`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: env.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token ?? env.SUPABASE_ANON_KEY}`,
+        },
+        body: corpo,
+      });
+
+      if (!resposta.ok || !resposta.body) throw new Error('stream_indisponivel');
+
+      const reader = resposta.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let recebeuAlgo = false;
+
+      const aplicar = (evento: { tipo?: string; leitura?: unknown; itens?: unknown; error?: string }) => {
+        if (evento?.tipo === 'erro') throw new Error(evento.error ?? 'ai_error');
+        if (typeof evento?.leitura !== 'string') return;
+        setLeitura({
+          leitura: evento.leitura,
+          itens: Array.isArray(evento.itens) ? (evento.itens as ItemLeitura[]).slice(0, 3) : [],
+        });
+        recebeuAlgo = true;
+        setEstado('sucesso');
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const linhas = buffer.split('\n');
+        buffer = linhas.pop() ?? '';
+        for (const linha of linhas) {
+          const trimmed = linha.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const payload = trimmed.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          aplicar(JSON.parse(payload));
+        }
+      }
+
+      if (!recebeuAlgo) throw new Error('resposta_invalida');
+      return;
     } catch {
-      setEstado('erro');
+      // Fallback bufferizado: mantém a leitura funcionando onde o SSE não passa.
+      try {
+        const { data, error } = await supabase.functions.invoke('gestor-ai-insights', {
+          body: {
+            modo: 'consultor',
+            escopo,
+            iesId,
+            semestre,
+            simulados: escopo === 'institucional' ? null : listaSimulados,
+          },
+        });
+        if (error) throw error;
+        const estruturado =
+          typeof data?.leitura === 'string'
+            ? { leitura: data.leitura as string, itens: Array.isArray(data?.itens) ? (data.itens as ItemLeitura[]).slice(0, 3) : [] }
+            : null;
+        const parsed = estruturado ?? extrairJson(typeof data?.insight === 'string' ? data.insight : '');
+        if (!parsed) throw new Error('resposta_invalida');
+        setLeitura(parsed);
+        setEstado('sucesso');
+      } catch {
+        setEstado('erro');
+      }
     }
     // `chave` cobre ies/semestre/escopo/simulados do recorte.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
 
   /* Recorte novo dispara uma leitura nova (pedido explícito, 10/08): a
      superfície é automática, sem clique — o botão de "Ver leitura" saiu. A
