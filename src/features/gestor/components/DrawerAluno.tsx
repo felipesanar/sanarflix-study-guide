@@ -156,7 +156,10 @@ function EvolucaoAluno({ pontos }: { pontos: PontoEvolucao[] }) {
   const ultimo = pontos.length - 1;
   const vertices = pontos.map((p, i) => `${x(i)},${y(p.valor)}`).join(' ');
   const areaSobALinha = `${x(0)},${BASE} ${vertices} ${x(ultimo)},${BASE}`;
-  const descricao = pontos.map((p) => `${p.rotulo}: ${formatNumero(p.valor)}`).join('; ');
+  const descricao = pontos
+    .map((p, i) => `${i + 1}º simulado (${p.rotulo}): ${formatNumero(p.valor)}`)
+    .join('; ');
+
 
   return (
     <svg
