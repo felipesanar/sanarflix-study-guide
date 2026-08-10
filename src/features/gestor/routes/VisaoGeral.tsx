@@ -6,7 +6,7 @@ import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
-import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
+import { LeituraEstrategica } from '@/features/gestor/components/LeituraEstrategica';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { CabecalhoTela, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
@@ -616,19 +616,15 @@ export default function VisaoGeral() {
         </div>
       ) : null}
 
-      {/* 5. Insights autogerados (1 por área, 1 por aluno). */}
+      {/* 5. Leitura estratégica institucional (substitui os insights
+          autogerados, 10/08). Aqui o escopo é a instituição no período — sem
+          recorte de simulado, que é o papel da leitura no Detalhamento. O
+          componente busca e trata seus próprios estados, por isso não passa
+          pelo BlocoGestor. */}
       <div className={classeRevelacao(4)}>
-        <BlocoGestor
-          estado={estado}
-          alturaSkeleton={120}
-          bloco="insights"
-          testIdLoading="bloco-insights-loading"
-          aoTentarNovamente={aoTentarNovamente}
-          mensagemVazio="Sem insights para este recorte."
-        >
-          {visao ? <BlocoInsights insights={visao.insights} /> : null}
-        </BlocoGestor>
+        <LeituraEstrategica iesId={iesAtivaId} semestre={filtros.semestre} escopo="institucional" />
       </div>
+
 
       <DrawerTemas
         especialidade={especialidadeAberta}

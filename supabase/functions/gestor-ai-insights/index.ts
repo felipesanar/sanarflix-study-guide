@@ -44,13 +44,30 @@ ${BASE_ENAMED}
 
 Com base na trajetória de simulados e no desempenho por área do aluno, gere um insight curto (no máximo 4 frases): tendência (melhora, piora ou estabilidade), distância em relação à faixa de proficiência, área que mais pesa contra ele e qual intervenção tem maior retorno. ${ANTI_INVENCAO_GESTOR}`;
 
-const SYSTEM_PROMPT_CONSULTOR = `Você é consultor sênior de desempenho no ENAMED, com histórico de levar cursos de medicina às melhores notas do exame. Fala com o gestor da instituição: direto, estratégico, acionável.
+const BASE_CONSULTOR = `Você é consultor sênior de desempenho no ENAMED, com histórico de levar cursos de medicina às melhores notas do exame. Fala com o gestor da instituição: direto, estratégico, acionável.
 
 ${BASE_ENAMED}
 
 ${DOUTRINA_CONSULTOR}
 
-Entregue, via a tool leitura_estrategica: uma leitura central curta do recorte e no máximo 3 movimentos priorizados. Cada movimento precisa de um número que exista no contexto e precisa dizer o que fazer, não apenas o que está ruim. Ordene do maior para o menor impacto na proficiência da instituição. Sem saudação, sem linguagem dirigida ao aluno, sem citar nome de aluno. ${ANTI_INVENCAO_GESTOR}`;
+Entregue, via a tool leitura_estrategica: uma leitura central curta e no máximo 3 movimentos priorizados. Cada movimento precisa de um número que exista no contexto e precisa dizer o que fazer, não apenas o que está ruim. Ordene do maior para o menor impacto na proficiência da instituição. Sem saudação, sem linguagem dirigida ao aluno, sem citar nome de aluno. ${ANTI_INVENCAO_GESTOR}`;
+
+/**
+ * Recorte de simulados (tela Detalhamento): a leitura é APLICADA aos simulados
+ * que o gestor selecionou. Fala do que aquela(s) aplicação(ões) revelou.
+ */
+const SYSTEM_PROMPT_CONSULTOR_RECORTE = `${BASE_CONSULTOR}
+
+Escopo desta leitura: os SIMULADOS SELECIONADOS pelo gestor, nada além disso. Trate cada movimento como resposta ao que essa(s) aplicação(ões) revelou: questão/área com pior acerto, diferença entre semestres dentro do recorte, quem ficou logo abaixo do corte nesse resultado. Quando houver mais de um simulado, compare-os explicitamente (o que melhorou, o que piorou) e nunca dissolva os simulados numa média única. Fale no tempo do resultado ("neste simulado", "entre os dois simulados"), não em tendência de ano.`;
+
+/**
+ * Visão Geral: leitura institucional, sem recorte de simulado. Responde a
+ * pergunta da página — "como estamos e onde dói" — na escala do curso.
+ */
+const SYSTEM_PROMPT_CONSULTOR_INSTITUCIONAL = `${BASE_CONSULTOR}
+
+Escopo desta leitura: a INSTITUIÇÃO como um todo no período, não um simulado específico. Trate os movimentos na escala do curso: trajetória do conceito ENAMED projetado e da proporção de alunos que cruza a faixa, áreas cronicamente frágeis no diagnóstico curricular, semestres que puxam o resultado para baixo e cobertura de aplicação de simulados. Não recomende ação sobre questão isolada — o nível aqui é currículo, calendário e política de preparação. Se houver evolução entre aplicações, leia a direção do movimento, não o número de uma prova só.`;
+
 
 // Saída ESTRUTURADA garantida por schema (não por instrução no prompt).
 const TOOL_LEITURA: ToolSchema = {
@@ -101,9 +118,15 @@ interface ConsultorBody {
   modo: "consultor";
   iesId: string;
   semestre: string | null;
-  simulados: string[];
+  simulados?: string[];
+  /**
+   * `recorte` (padrão) = Detalhamento: leitura aplicada aos simulados escolhidos.
+   * `institucional` = Visão Geral: leitura na escala do curso, sem simulado.
+   */
+  escopo?: "recorte" | "institucional";
   refresh?: boolean;
 }
+
 
 interface AlunoBody {
   modo: "aluno";
@@ -250,6 +273,62 @@ function buildConsultorPrompt(
     .filter(Boolean)
     .join("\n\n");
 }
+
+/** Evolução institucional (régua de aplicações) — direção do movimento, não nota de uma prova. */
+function linhasEvolucao(visaoGeral: any): string {
+  const pontos: any[] = Array.isArray(visaoGeral?.data?.evolucao) ? visaoGeral.data.evolucao : [];
+  if (!pontos.length) return "Sem régua de evolução entre aplicações.";
+  return pontos
+    .map((p: any) => `- ${p.nome ?? "aplicação"}: nota ${formatNumber(p.valor)}${p.data ? ` (${p.data})` : ""}`)
+    .join("\n");
+}
+
+function linhasDispersaoPorSemestre(visaoGeral: any): string {
+  const pontos: any[] = Array.isArray(visaoGeral?.data?.dispersao) ? visaoGeral.data.dispersao : [];
+  if (!pontos.length) return "Sem distribuição por semestre.";
+  const porSemestre = new Map<number, number[]>();
+  for (const p of pontos) {
+    const s = Number(p.semestre);
+    const v = Number(p.proficiencia ?? p.valor);
+    if (!Number.isFinite(s) || !Number.isFinite(v)) continue;
+    porSemestre.set(s, [...(porSemestre.get(s) ?? []), v]);
+  }
+  if (!porSemestre.size) return "Sem distribuição por semestre.";
+  return [...porSemestre.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([semestre, valores]) => {
+      const media = valores.reduce((acc, n) => acc + n, 0) / valores.length;
+      const acima = valores.filter((n) => n >= 60).length;
+      return `- ${semestre}º semestre: ${valores.length} aluno(s), média de proficiência ${media.toFixed(1)}, ${acima} acima da faixa`;
+    })
+    .join("\n");
+}
+
+/**
+ * Contexto da leitura da VISÃO GERAL: escala institucional. Nada de questão
+ * isolada e nada de recorte de simulado — o nível aqui é currículo, calendário
+ * e política de preparação.
+ */
+function buildInstitucionalPrompt(visaoGeral: any, diagnostico: any): string {
+  const periodo = visaoGeral?.meta?.periodo ?? "período não informado";
+  const avisos: string[] = [];
+  if (visaoGeral?.meta?.lowSample) avisos.push("Atenção: amostra de alunos com resultado é baixa (menos de 10).");
+  if (visaoGeral?.meta?.partial) avisos.push("Atenção: parte dos dados do período está incompleta.");
+
+  return [
+    `Período analisado: ${periodo}. Esta leitura é INSTITUCIONAL: nenhum simulado específico foi selecionado.`,
+    `Indicadores institucionais:\n${linhasVisaoGeral(visaoGeral)}`,
+    `Evolução entre aplicações, da mais antiga para a mais recente:\n${linhasEvolucao(visaoGeral)}`,
+    `Diagnóstico curricular por grande área (classificação e amostra):\n${linhasDiagnostico(diagnostico)}`,
+    `Alunos por semestre em relação à faixa de proficiência:\n${linhasDispersaoPorSemestre(visaoGeral)}`,
+    avisos.join(" "),
+    "Gere a leitura estratégica institucional usando a tool leitura_estrategica e apenas esses números.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+
 
 function buildPedagogicoPrompt(diagnostico: any, visaoGeral: any): string {
   const periodo = visaoGeral?.meta?.periodo ?? diagnostico?.meta?.periodo ?? "período não informado";
@@ -447,12 +526,15 @@ serve(async (req) => {
     // -------------------------------------------------------------------
     if (body?.modo === "consultor") {
       const { iesId, semestre, simulados } = body;
+      const escopo = body.escopo === "institucional" ? "institucional" : "recorte";
       if (!iesId) return jsonResponse({ error: "iesId_obrigatorio" }, 400, cors);
 
-      const listaSimulados = Array.isArray(simulados) && simulados.length ? [...simulados] : null;
+      const listaSimulados =
+        escopo === "institucional" ? null : Array.isArray(simulados) && simulados.length ? [...simulados] : null;
       const cacheKey = await hashChave([
         "gestor-ai-insights",
         "consultor",
+        escopo,
         iesId,
         semestre ?? null,
         listaSimulados ? [...listaSimulados].sort() : null,
@@ -462,17 +544,23 @@ serve(async (req) => {
         if (cached) return jsonResponse({ ...cached, cached: true }, 200, cors);
       }
 
+      // Visão Geral não tem recorte de simulado: a leitura é institucional, então
+      // nem `get_gestor_detalhamento` nem o mapa de questões entram no contexto —
+      // recomendar ação sobre questão isolada seria fora do nível da tela.
+      const institucional = escopo === "institucional";
       const simuladoFoco = listaSimulados ? listaSimulados[listaSimulados.length - 1] : null;
 
       const [detalhamentoRes, visaoGeralRes, diagnosticoRes, questoesRes] = await Promise.all([
-        supabaseUser.rpc("get_gestor_detalhamento", {
-          p_ies_id: iesId,
-          p_semestre: semestre ?? null,
-          p_simulados: listaSimulados,
-        }),
+        institucional
+          ? Promise.resolve({ data: null, error: null })
+          : supabaseUser.rpc("get_gestor_detalhamento", {
+              p_ies_id: iesId,
+              p_semestre: semestre ?? null,
+              p_simulados: listaSimulados,
+            }),
         supabaseUser.rpc("get_gestor_visao_geral", { p_ies_id: iesId, p_semestre: semestre ?? null }),
         supabaseUser.rpc("get_gestor_diagnostico", { p_ies_id: iesId, p_semestre: semestre ?? null, p_node: null }),
-        simuladoFoco
+        !institucional && simuladoFoco
           ? supabaseUser.rpc("get_gestor_questoes", {
               p_ies_id: iesId,
               p_simulado_id: simuladoFoco,
@@ -485,28 +573,36 @@ serve(async (req) => {
           : Promise.resolve({ data: null, error: null }),
       ]);
 
-      if (detalhamentoRes.error) {
-        console.error("[gestor-ai-insights]", "get_gestor_detalhamento error:", detalhamentoRes.error);
-        return jsonResponse({ error: detalhamentoRes.error.message }, statusForRpcError(detalhamentoRes.error), cors);
+      // A RPC que sustenta a leitura muda com o escopo: no recorte é o
+      // detalhamento dos simulados; na Visão Geral é a visão institucional.
+      const principal = institucional ? visaoGeralRes : detalhamentoRes;
+      if (principal.error) {
+        console.error("[gestor-ai-insights]", "rpc principal error:", principal.error);
+        return jsonResponse({ error: principal.error.message }, statusForRpcError(principal.error), cors);
       }
       // Os complementos são opcionais: se um deles falhar, a leitura continua
-      // com o núcleo do recorte em vez de derrubar a tela.
+      // com o núcleo em vez de derrubar a tela.
       if (visaoGeralRes.error) console.error("[gestor-ai-insights]", "visao_geral (opcional):", visaoGeralRes.error.message);
       if (diagnosticoRes.error) console.error("[gestor-ai-insights]", "diagnostico (opcional):", diagnosticoRes.error.message);
       if (questoesRes.error) console.error("[gestor-ai-insights]", "questoes (opcional):", questoesRes.error.message);
 
-      const userPrompt = buildConsultorPrompt(
-        detalhamentoRes.data,
-        visaoGeralRes.error ? null : visaoGeralRes.data,
-        diagnosticoRes.error ? null : diagnosticoRes.data,
-        questoesRes.error ? null : questoesRes.data
-      );
+      const userPrompt = institucional
+        ? buildInstitucionalPrompt(visaoGeralRes.data, diagnosticoRes.error ? null : diagnosticoRes.data)
+        : buildConsultorPrompt(
+            detalhamentoRes.data,
+            visaoGeralRes.error ? null : visaoGeralRes.data,
+            diagnosticoRes.error ? null : diagnosticoRes.data,
+            questoesRes.error ? null : questoesRes.data
+          );
 
       const { texto, toolArguments } = await streamChatCompletion({
         apiKey: LOVABLE_API_KEY,
         model: AI_MODEL_RACIOCINIO,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT_CONSULTOR },
+          {
+            role: "system",
+            content: institucional ? SYSTEM_PROMPT_CONSULTOR_INSTITUCIONAL : SYSTEM_PROMPT_CONSULTOR_RECORTE,
+          },
           { role: "user", content: userPrompt },
         ],
         maxTokens: 900,
@@ -514,6 +610,7 @@ serve(async (req) => {
         tool: TOOL_LEITURA,
         signal: req.signal,
       });
+
 
       const estruturado =
         (toolArguments ? extrairJson<{ leitura?: string; itens?: unknown[] }>(toolArguments) : null) ??
@@ -537,7 +634,7 @@ serve(async (req) => {
       await gravarCache(supabaseAdmin, {
         cacheKey,
         fn: "gestor-ai-insights",
-        modo: "consultor",
+        modo: `consultor:${escopo}`,
         payload,
         model: AI_MODEL_RACIOCINIO,
         ttlSegundos: TTL.gestorRecorte,

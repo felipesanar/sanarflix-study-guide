@@ -166,7 +166,7 @@ describe('rota VisaoGeral', () => {
         'grafico-protagonista',
         'bloco-diagnostico',
         'bloco-visao-alunos',
-        'bloco-insights',
+        'bloco-leitura-estrategica',
       ])
     ).toBe(true);
   });
@@ -202,7 +202,7 @@ describe('rota VisaoGeral', () => {
     // bloco — vê-la surgir depois de um bloco sem relação fazia o clique
     // parecer não ter surtido efeito (decisão de 07/08, diverge da §4.8).
     expect(
-      ordemNoDom(['bloco-visao-alunos', 'bloco-tabela-alunos', 'bloco-insights']),
+      ordemNoDom(['bloco-visao-alunos', 'bloco-tabela-alunos', 'bloco-leitura-estrategica']),
     ).toBe(true);
     // E sem o divisor "Detalhe · micro": a tabela já tem cabeçalho próprio, e
     // um separador a devolveria à leitura de "seção nova".
@@ -273,13 +273,19 @@ describe('rota VisaoGeral', () => {
     expect(nota).toHaveTextContent('Com um único simulado realizado não há o que comparar');
   });
 
-  it('mostra os 2 insights autogerados, um por área e um por aluno', () => {
+  /**
+   * Os insights autogerados por template SQL saíram (10/08): o rodapé da tela
+   * é a leitura estratégica, agora no escopo INSTITUCIONAL — a mesma
+   * superfície do Detalhamento, mas respondendo à pergunta desta página em vez
+   * de a um recorte de simulados.
+   */
+  it('fecha a tela com a leitura estratégica institucional, não com os insights de template', () => {
     render(<VisaoGeralRoute />);
-    const insights = screen.getByTestId('bloco-insights').querySelectorAll('li');
-    expect(insights).toHaveLength(2);
-    expect(insights[0]).toHaveTextContent('Clínica Médica está em nível crítico');
-    expect(insights[1]).toHaveTextContent('28 alunos permanecem abaixo do limiar');
+    expect(screen.getByTestId('bloco-leitura-estrategica')).toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-insights')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Clínica Médica está em nível crítico/)).not.toBeInTheDocument();
   });
+
 
   it('não existe nenhuma coluna nem rótulo "Nota TRI" na tela (caso crítico nº2)', () => {
     render(<VisaoGeralRoute />);

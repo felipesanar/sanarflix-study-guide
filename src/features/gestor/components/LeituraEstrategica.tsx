@@ -30,6 +30,17 @@ interface Leitura {
 
 type Estado = 'idle' | 'loading' | 'sucesso' | 'erro';
 
+/**
+ * Escopo da leitura, decidido pela TELA que monta o componente:
+ * - `recorte` (Detalhamento): a leitura responde aos simulados selecionados;
+ * - `institucional` (Visão Geral): a leitura responde na escala do curso, sem
+ *   recorte de simulado — é a pergunta daquela página.
+ * O backend recebe o escopo e troca de contexto e de prompt; nenhuma das duas
+ * leituras é calculada aqui.
+ */
+export type EscopoLeitura = 'recorte' | 'institucional';
+
+
 const COR_PRIORIDADE: Record<string, string> = {
   alta: 'var(--gp-danger)',
   media: 'var(--gp-warning)',
@@ -54,29 +65,42 @@ function extrairJson(bruto: string): Leitura | null {
  * Carregamento em ETAPAS, não em skeleton (pedido explícito, 10/08): a
  * superfície é uma leitura sendo montada, então o estado de espera fala o que
  * está sendo feito, uma etapa por vez, com o cursor piscando como quem
- * escreve. É narrativa de progresso, não placeholder de layout — e por isso
+ * escreve. É narrativa de progresso, não placeholder de layout — e as etapas
+ * mudam com o escopo, porque o que está sendo lido é outro (10/08).
  */
-const ETAPAS = [
-  'Lendo o recorte de simulados…',
-  'Cruzando acerto por grande área…',
-  'Comparando proficiência entre semestres…',
-  'Priorizando o que move a nota…',
-  'Fechando a leitura…',
-];
+const ETAPAS_POR_ESCOPO: Record<EscopoLeitura, string[]> = {
+  recorte: [
+    'Lendo o recorte de simulados…',
+    'Cruzando acerto por grande área…',
+    'Comparando proficiência entre semestres…',
+    'Priorizando o que move a nota…',
+    'Fechando a leitura…',
+  ],
+  institucional: [
+    'Lendo o desempenho da instituição…',
+    'Acompanhando a evolução entre aplicações…',
+    'Cruzando com o diagnóstico curricular…',
+    'Priorizando o que move o conceito…',
+    'Fechando a leitura…',
+  ],
+};
 
-function EtapasDaLeitura() {
+
+function EtapasDaLeitura({ escopo }: { escopo: EscopoLeitura }) {
+  const etapas = ETAPAS_POR_ESCOPO[escopo];
   const [indice, setIndice] = React.useState(0);
 
   React.useEffect(() => {
     const id = window.setInterval(() => {
-      setIndice((atual) => Math.min(atual + 1, ETAPAS.length - 1));
+      setIndice((atual) => Math.min(atual + 1, etapas.length - 1));
     }, 1400);
     return () => window.clearInterval(id);
-  }, []);
+  }, [etapas.length]);
 
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="space-y-1.5">
-      {ETAPAS.slice(0, indice + 1).map((etapa, i) => {
+      {etapas.slice(0, indice + 1).map((etapa, i) => {
+
         const atual = i === indice;
         return (
           <motion.p
@@ -118,15 +142,22 @@ function EtapasDaLeitura() {
 export interface LeituraEstrategicaProps {
   iesId: string | null;
   semestre: string | null;
-  simulados: string[];
+  /** Só faz sentido no escopo `recorte`; ignorado no institucional. */
+  simulados?: string[];
+  /** Padrão `recorte`, o comportamento original do Detalhamento. */
+  escopo?: EscopoLeitura;
 }
 
 
-export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrategicaProps) {
+export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recorte' }: LeituraEstrategicaProps) {
   const [estado, setEstado] = React.useState<Estado>('idle');
   const [leitura, setLeitura] = React.useState<Leitura | null>(null);
 
-  const chave = `${iesId ?? ''}|${semestre ?? ''}|${simulados.join(',')}`;
+  /* No escopo institucional o simulado não entra no recorte: a leitura é da
+     instituição no período, então trocar de seleção de simulado não deve
+     invalidar nem alterar esta leitura. */
+  const listaSimulados = escopo === 'institucional' ? [] : (simulados ?? []);
+  const chave = `${escopo}|${iesId ?? ''}|${semestre ?? ''}|${listaSimulados.join(',')}`;
 
   const carregar = React.useCallback(async () => {
     if (!iesId) {
@@ -136,7 +167,13 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     setEstado('loading');
     try {
       const { data, error } = await supabase.functions.invoke('gestor-ai-insights', {
-        body: { modo: 'consultor', iesId, semestre, simulados },
+        body: {
+          modo: 'consultor',
+          escopo,
+          iesId,
+          semestre,
+          simulados: escopo === 'institucional' ? null : listaSimulados,
+        },
       });
       if (error) throw error;
       /* O backend agora garante a forma por schema (tool call) e devolve
@@ -154,7 +191,9 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     } catch {
       setEstado('erro');
     }
-  }, [iesId, semestre, simulados]);
+    // `chave` cobre ies/semestre/escopo/simulados do recorte.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave]);
 
   /* Recorte novo dispara uma leitura nova (pedido explícito, 10/08): a
      superfície é automática, sem clique — o botão de "Ver leitura" saiu. A
@@ -165,6 +204,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     // `carregar` já depende do mesmo recorte que compõe `chave`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
 
 
   return (
@@ -202,18 +242,21 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
       <div
         className="mt-3 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{
-          maskImage: 'linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, #000 calc(100% - 28px), transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent 100%)',
         }}
       >
         {estado === 'loading' || estado === 'idle' ? (
-          <EtapasDaLeitura />
+          <EtapasDaLeitura escopo={escopo} />
         ) : estado === 'erro' ? (
 
           <div className="flex flex-col items-start gap-2" role="alert">
             <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-              Não foi possível montar a leitura deste recorte agora.
+              {escopo === 'institucional'
+                ? 'Não foi possível montar a leitura da instituição agora.'
+                : 'Não foi possível montar a leitura deste recorte agora.'}
             </p>
+
             <button
               type="button"
               onClick={carregar}
