@@ -274,6 +274,62 @@ function buildConsultorPrompt(
     .join("\n\n");
 }
 
+/** Evolução institucional (régua de aplicações) — direção do movimento, não nota de uma prova. */
+function linhasEvolucao(visaoGeral: any): string {
+  const pontos: any[] = Array.isArray(visaoGeral?.data?.evolucao) ? visaoGeral.data.evolucao : [];
+  if (!pontos.length) return "Sem régua de evolução entre aplicações.";
+  return pontos
+    .map((p: any) => `- ${p.nome ?? "aplicação"}: nota ${formatNumber(p.valor)}${p.data ? ` (${p.data})` : ""}`)
+    .join("\n");
+}
+
+function linhasDispersaoPorSemestre(visaoGeral: any): string {
+  const pontos: any[] = Array.isArray(visaoGeral?.data?.dispersao) ? visaoGeral.data.dispersao : [];
+  if (!pontos.length) return "Sem distribuição por semestre.";
+  const porSemestre = new Map<number, number[]>();
+  for (const p of pontos) {
+    const s = Number(p.semestre);
+    const v = Number(p.proficiencia ?? p.valor);
+    if (!Number.isFinite(s) || !Number.isFinite(v)) continue;
+    porSemestre.set(s, [...(porSemestre.get(s) ?? []), v]);
+  }
+  if (!porSemestre.size) return "Sem distribuição por semestre.";
+  return [...porSemestre.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([semestre, valores]) => {
+      const media = valores.reduce((acc, n) => acc + n, 0) / valores.length;
+      const acima = valores.filter((n) => n >= 60).length;
+      return `- ${semestre}º semestre: ${valores.length} aluno(s), média de proficiência ${media.toFixed(1)}, ${acima} acima da faixa`;
+    })
+    .join("\n");
+}
+
+/**
+ * Contexto da leitura da VISÃO GERAL: escala institucional. Nada de questão
+ * isolada e nada de recorte de simulado — o nível aqui é currículo, calendário
+ * e política de preparação.
+ */
+function buildInstitucionalPrompt(visaoGeral: any, diagnostico: any): string {
+  const periodo = visaoGeral?.meta?.periodo ?? "período não informado";
+  const avisos: string[] = [];
+  if (visaoGeral?.meta?.lowSample) avisos.push("Atenção: amostra de alunos com resultado é baixa (menos de 10).");
+  if (visaoGeral?.meta?.partial) avisos.push("Atenção: parte dos dados do período está incompleta.");
+
+  return [
+    `Período analisado: ${periodo}. Esta leitura é INSTITUCIONAL: nenhum simulado específico foi selecionado.`,
+    `Indicadores institucionais:\n${linhasVisaoGeral(visaoGeral)}`,
+    `Evolução entre aplicações, da mais antiga para a mais recente:\n${linhasEvolucao(visaoGeral)}`,
+    `Diagnóstico curricular por grande área (classificação e amostra):\n${linhasDiagnostico(diagnostico)}`,
+    `Alunos por semestre em relação à faixa de proficiência:\n${linhasDispersaoPorSemestre(visaoGeral)}`,
+    avisos.join(" "),
+    "Gere a leitura estratégica institucional usando a tool leitura_estrategica e apenas esses números.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+
+
 function buildPedagogicoPrompt(diagnostico: any, visaoGeral: any): string {
   const periodo = visaoGeral?.meta?.periodo ?? diagnostico?.meta?.periodo ?? "período não informado";
   const avisos: string[] = [];
