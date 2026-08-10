@@ -129,15 +129,26 @@ export async function streamChatCompletion(opts: StreamOptions): Promise<StreamR
         const evento = JSON.parse(payload);
         const escolha = evento?.choices?.[0];
         const delta = escolha?.delta;
-        if (typeof delta?.content === "string") texto += delta.content;
+        let mudou = false;
+        if (typeof delta?.content === "string") {
+          texto += delta.content;
+          mudou = true;
+        }
         const argDelta = delta?.tool_calls?.[0]?.function?.arguments;
-        if (typeof argDelta === "string") toolArguments += argDelta;
+        if (typeof argDelta === "string") {
+          toolArguments += argDelta;
+          mudou = true;
+        }
         if (typeof escolha?.finish_reason === "string") finishReason = escolha.finish_reason;
+        if (mudou && opts.onDelta) {
+          opts.onDelta({ texto, toolArguments: toolArguments ? toolArguments : null });
+        }
       } catch {
         // delta parcial/keep-alive: ignorado de propósito.
       }
     }
   }
+
 
   /* `length` significa que o orçamento de tokens acabou ANTES do fim da
      resposta — nos modelos de raciocínio o pensamento consome o mesmo
