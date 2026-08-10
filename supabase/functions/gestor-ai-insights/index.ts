@@ -634,7 +634,7 @@ serve(async (req) => {
       await gravarCache(supabaseAdmin, {
         cacheKey,
         fn: "gestor-ai-insights",
-        modo: "consultor",
+        modo: `consultor:${escopo}`,
         payload,
         model: AI_MODEL_RACIOCINIO,
         ttlSegundos: TTL.gestorRecorte,
