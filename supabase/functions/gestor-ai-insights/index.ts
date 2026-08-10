@@ -585,7 +585,7 @@ serve(async (req) => {
         "consultor",
         // Versão do prompt: mudar o jeito de escrever invalida o cache antigo,
         // senão o gestor continua lendo o texto duro já gravado.
-        "v3-nomenclatura-semestre",
+        "v4-6ano-nao-e-semestre",
         escopo,
         iesId,
         semestre ?? null,
