@@ -65,8 +65,10 @@ Como chamar as coisas (obrigatório):
 - Nunca escreva "o curso". Chame de "a faculdade", "a instituição" ou "a escola médica". Para o grupo de alunos do recorte, use "a turma" ou "os alunos".
 - Respeite o recorte de semestre informado no contexto e fale de acordo com ele:
   - Todos os semestres: fale da faculdade/instituição como um todo, sem atribuir o número a um único ano.
-  - Um semestre específico (ex.: 6º): diga explicitamente de quem é o número ("os alunos do 6º semestre", "a turma do 6º ano") e não generalize para toda a faculdade.
-- Nunca misture os dois: se o recorte é de um semestre, todas as frases e movimentos falam daquele semestre.
+  - 6º ano: são os alunos do 11º e 12º semestres juntos. Escreva "os alunos do 6º ano" — nunca "6º semestre".
+  - Um semestre específico (ex.: 8º): diga explicitamente de quem é o número ("os alunos do 8º semestre") e não generalize para toda a faculdade.
+- Nunca misture os dois: se o recorte é de um semestre (ou do 6º ano), todas as frases e movimentos falam daquele recorte.
+
 
 ${ANTI_INVENCAO_GESTOR}`;
 
@@ -277,14 +279,22 @@ function linhasAlunos(detalhamento: any): string {
  */
 function descreverRecorteSemestre(semestre: string | null | undefined): string {
   const bruto = (semestre ?? "").toString().trim();
-  if (!bruto || bruto.toLowerCase() === "todos") {
+  const chave = bruto.toLowerCase();
+  if (!bruto || chave === "todos" || chave === "geral") {
     return "Recorte de semestre: TODOS OS SEMESTRES (visão geral da faculdade). Fale da instituição como um todo e não atribua os números a um único semestre ou ano.";
+  }
+  // `6ano` é o recorte PADRÃO do portal e não é um semestre: são os alunos do
+  // 6º ano, ou seja, 11º e 12º semestres juntos. Chamar isso de "6º semestre"
+  // fala de outra população.
+  if (chave === "6ano" || chave === "6º ano" || chave === "6 ano") {
+    return 'Recorte de semestre: APENAS o 6º ANO (11º e 12º semestres juntos, os alunos em internato/final do curso). Todos os números abaixo são só desses alunos. Diga isso explicitamente ("os alunos do 6º ano") e NUNCA escreva "6º semestre" nem trate isso como um semestre único; não generalize para toda a faculdade.';
   }
   const n = Number(bruto.replace(/\D/g, ""));
   const rotulo = Number.isFinite(n) && n > 0 ? `${n}º semestre` : bruto;
   const ano = Number.isFinite(n) && n > 0 ? ` (equivale ao ${Math.ceil(n / 2)}º ano)` : "";
   return `Recorte de semestre: APENAS ${rotulo}${ano}. Todos os números abaixo são só desses alunos. Diga isso explicitamente ("os alunos do ${rotulo}") e não generalize para toda a faculdade.`;
 }
+
 
 function buildConsultorPrompt(
   detalhamento: any,
@@ -575,7 +585,7 @@ serve(async (req) => {
         "consultor",
         // Versão do prompt: mudar o jeito de escrever invalida o cache antigo,
         // senão o gestor continua lendo o texto duro já gravado.
-        "v3-nomenclatura-semestre",
+        "v4-6ano-nao-e-semestre",
         escopo,
         iesId,
         semestre ?? null,
