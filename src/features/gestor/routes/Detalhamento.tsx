@@ -233,6 +233,18 @@ export default function Detalhamento() {
   const semestreDoDrillDown: ValorFiltroSemestre =
     recorte?.tipo === 'semestre' ? (String(recorte.id) as ValorFiltroSemestre) : filtros.semestre;
 
+  /**
+   * "Acerto por semestre" (o gráfico de baixo do card da esquerda) só existe
+   * com 2+ semestres no recorte — `AcertoPorAreaESemestre` esconde o bloco com
+   * 1 semestre só. Nesse caso o card da esquerda fica CURTO (só a lista de
+   * áreas) e não sobra altura para o gráfico de proficiência e a leitura
+   * estratégica ao lado: a linha inteira é medida pela esquerda. Então, aqui,
+   * a linha deixa de ser 2 colunas e os TRÊS cards vão um embaixo do outro,
+   * cada um com a altura natural do próprio conteúdo (pedido explícito,
+   * 10/08).
+   */
+  const colunaUnica = (dados?.acertoPorAreaESemestre.semestres.length ?? 0) <= 1;
+
 
 
   /**
@@ -556,7 +568,9 @@ export default function Detalhamento() {
               card com duas listas ("Acerto por grande área" + "Acerto por
               semestre") e um card com uma lista só ficava visualmente
               descasada. */}
-          <div className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}>
+          <div
+            className={`grid gap-4 ${colunaUnica ? '' : 'lg:grid-cols-[1.15fr_1fr]'} ${classeRevelacao(3)}`}
+          >
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
                 estado={estado}
@@ -587,17 +601,21 @@ export default function Detalhamento() {
                 dentro de um wrapper `relative`), então a linha inteira é
                 medida SÓ pela esquerda e os dois cards da direita dividem esse
                 espaço em duas faixas iguais, rolando por dentro se preciso. */}
-            {/* Piso de altura (pedido explícito, 10/08): quando o card da
-                esquerda fica curto (ex.: "Acerto por semestre" vazio, só a
-                lista de áreas), a linha medida só pela esquerda era baixa
-                demais e os dois cards da direita viravam duas faixas
-                minúsculas, com o conteúdo todo em scroll. `min-h` garante
-                espaço para o gráfico e a leitura respirarem. */}
-            <div className="relative min-h-0 lg:min-h-[620px]">
-            <div className="grid gap-4 lg:absolute lg:inset-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
+            {/* Com "Acerto por semestre" ausente (`colunaUnica`) não há coluna
+                da direita: os três cards ficam empilhados, cada um com a
+                altura do próprio conteúdo — nada de `absolute inset-0` nem de
+                scroll interno forçado por uma linha curta. */}
+            <div className={colunaUnica ? '' : 'relative min-h-0'}>
+            <div
+              className={
+                colunaUnica
+                  ? 'grid gap-4'
+                  : 'grid gap-4 lg:absolute lg:inset-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]'
+              }
+            >
             <div
               data-testid="bloco-proficiencia-semestre"
-              className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-4"
+              className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-4 ${colunaUnica ? 'min-h-[420px]' : ''}`}
             >
 
 
