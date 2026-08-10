@@ -6,6 +6,7 @@ import { env } from '@/config/env';
 import { Icon } from '@/features/gestor/components/Icon';
 import { DrawerMovimento, type MovimentoSelecionado } from '@/features/gestor/components/DrawerMovimento';
 import { preAquecerMovimentos } from '@/features/gestor/lib/cacheMovimento';
+import { fetchIa } from '@/features/gestor/lib/fetchIa';
 
 
 
