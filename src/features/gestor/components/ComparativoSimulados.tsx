@@ -246,7 +246,7 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                 borderRadius: 'var(--gp-radius-md)',
                 color: 'var(--gp-brand-on-dark)',
                 background: 'transparent',
-                border: '1px solid var(--gp-border)',
+                border: '1px solid var(--gp-border-strong)',
 
               }}
             >
