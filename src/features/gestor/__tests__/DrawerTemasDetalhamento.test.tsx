@@ -154,7 +154,7 @@ describe('DrawerTemasDetalhamento', () => {
 
     await user.click(screen.getByRole('button', { name: /Cardiologia/ }));
 
-    expect(mockUseTemas).toHaveBeenLastCalledWith('ies-1', ['s1'], 'Clínica Médica', 'Cardiologia');
+    expect(mockUseTemas).toHaveBeenLastCalledWith('ies-1', ['s1'], 'Clínica Médica', 'Cardiologia', 'geral');
     expect(screen.getByRole('dialog')).toHaveAccessibleName(/Temas de Cardiologia em Clínica Médica/i);
     expect(screen.getByTestId('drawer-detalhamento-voltar')).toBeInTheDocument();
 
@@ -178,7 +178,7 @@ describe('DrawerTemasDetalhamento', () => {
       />,
     );
 
-    expect(mockUseTemas).toHaveBeenLastCalledWith('ies-1', ['s1'], 'Cirurgia', null);
+    expect(mockUseTemas).toHaveBeenLastCalledWith('ies-1', ['s1'], 'Cirurgia', null, 'geral');
     expect(screen.queryByTestId('drawer-detalhamento-voltar')).toBeNull();
   });
 
