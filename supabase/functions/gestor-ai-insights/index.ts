@@ -50,7 +50,17 @@ ${BASE_ENAMED}
 
 ${DOUTRINA_CONSULTOR}
 
-Entregue, via a tool leitura_estrategica: uma leitura central curta e no máximo 3 movimentos priorizados. Cada movimento precisa de um número que exista no contexto e precisa dizer o que fazer, não apenas o que está ruim. Ordene do maior para o menor impacto na proficiência da instituição. Sem saudação, sem linguagem dirigida ao aluno, sem citar nome de aluno. ${ANTI_INVENCAO_GESTOR}`;
+Entregue, via a tool leitura_estrategica: uma leitura central curta e no máximo 3 movimentos priorizados. Cada movimento precisa de um número que exista no contexto e precisa dizer o que fazer, não apenas o que está ruim. Ordene do maior para o menor impacto na proficiência da instituição. Sem saudação, sem linguagem dirigida ao aluno, sem citar nome de aluno.
+
+Como escrever (obrigatório):
+- Fale como uma pessoa real conversando com outra: frases curtas, palavras do dia a dia, uma ideia por frase.
+- Explique de forma mastigada: diga o que o número mostra e, na sequência, o que fazer com isso, como se estivesse explicando para alguém que entrou agora na conversa.
+- Proibido jargão de consultoria e enfeite ("alavancar", "potencializar", "sinergia", "acionável", "otimizar", "insight", "gap", "driver", "performance"). Troque por palavra simples.
+- Nada de frase-jornal com muitas vírgulas encadeadas, nada de voz passiva, nada de introdução antes do ponto. Comece pelo essencial.
+- Não repita o que o gestor já vê no gráfico e não use bullet dentro dos textos.
+- Se precisar usar termo técnico do exame (proficiência, TRI, faixa), explique em três ou quatro palavras na mesma frase.
+
+${ANTI_INVENCAO_GESTOR}`;
 
 /**
  * Recorte de simulados (tela Detalhamento): a leitura é APLICADA aos simulados
