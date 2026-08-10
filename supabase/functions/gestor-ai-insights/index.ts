@@ -118,9 +118,15 @@ interface ConsultorBody {
   modo: "consultor";
   iesId: string;
   semestre: string | null;
-  simulados: string[];
+  simulados?: string[];
+  /**
+   * `recorte` (padrão) = Detalhamento: leitura aplicada aos simulados escolhidos.
+   * `institucional` = Visão Geral: leitura na escala do curso, sem simulado.
+   */
+  escopo?: "recorte" | "institucional";
   refresh?: boolean;
 }
+
 
 interface AlunoBody {
   modo: "aluno";
