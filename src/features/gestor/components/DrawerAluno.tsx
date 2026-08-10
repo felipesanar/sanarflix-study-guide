@@ -248,8 +248,11 @@ function EvolucaoAluno({ pontos }: { pontos: PontoEvolucao[] }) {
             >
               {formatNumero(ponto.valor)}
             </text>
-            {/* Data sob o ponto, no lugar de um eixo X: o nome do simulado
-                não cabe em 5 colunas, e a data é o que ordena a leitura. */}
+            {/* Ordem do simulado sob o ponto, no lugar de um eixo X de datas:
+                as datas de aplicação por aluno confundiam a leitura, então o
+                eixo passa a ser "1º simulado", "2º simulado"… na sequência dos
+                simulados que ESTE aluno fez. Forma compacta com 4+ pontos,
+                senão o rótulo não cabe na coluna. */}
             <text
               x={x(i)}
               y={ALTURA - 12}
@@ -258,8 +261,9 @@ function EvolucaoAluno({ pontos }: { pontos: PontoEvolucao[] }) {
               textAnchor="middle"
               fontFamily={FONTE_MONO}
             >
-              {formatDataCurta(ponto.data)}
+              {pontos.length > 3 ? `${i + 1}º sim.` : `${i + 1}º simulado`}
             </text>
+
           </g>
         );
       })}
