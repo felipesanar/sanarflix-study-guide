@@ -224,6 +224,18 @@ export default function Detalhamento() {
   const [semestreAberto, setSemestreAberto] = React.useState<number | null>(null);
 
   /**
+   * Semestre que o drill-down de área (`DrawerTemasDetalhamento`) tem de
+   * respeitar: se há recorte cruzado por semestre, é ELE — a lista de grandes
+   * áreas já está recalculada para aquele semestre (`recalcularAreas`), então
+   * especialidade e tema precisam do mesmo corte para os números baterem. Sem
+   * recorte cruzado, vale o filtro global da tela.
+   */
+  const semestreDoDrillDown: FiltroSemestre =
+    recorte?.tipo === 'semestre' ? (String(recorte.id) as FiltroSemestre) : filtros.semestre;
+
+
+
+  /**
    * O recorte cruzado (área × semestre) é estado do BLOCO e só existe dentro do
    * recorte que o gerou. Sem esta limpeza, trocar semestre/simulados/IES deixava
    * o chip "Recorte: …" ligado sobre uma matriz que já não tem aquela linha: o
