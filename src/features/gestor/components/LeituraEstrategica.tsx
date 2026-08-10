@@ -173,21 +173,8 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
               ))}
             </ul>
           </motion.div>
-        ) : (
-          <div className="flex h-full flex-col items-start justify-center gap-2">
-            <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-              Uma leitura de consultoria sobre este recorte: onde a nota do ENAMED está travando e quais movimentos
-              rendem mais.
-            </p>
-            <button
-              type="button"
-              onClick={carregar}
-              className="rounded-sm border border-[color:var(--gp-border-strong)] px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-[color:var(--gp-surface-2)]"
-            >
-              Ver leitura do recorte
-            </button>
-          </div>
-        )}
+        ) : null}
+
       </div>
     </section>
   );
