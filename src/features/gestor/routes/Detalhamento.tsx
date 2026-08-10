@@ -625,6 +625,8 @@ export default function Detalhamento() {
               simulados={simuladosNoRecorte}
             />
             </div>
+            </div>
+
           </div>
 
 
