@@ -83,12 +83,16 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     }
   }, [iesId, semestre, simulados]);
 
-  /* Recorte novo invalida a leitura anterior — nunca deixamos um diagnóstico
-     de outro recorte no ar. Não dispara sozinho (custo): volta para `idle`. */
+  /* Recorte novo dispara uma leitura nova (pedido explícito, 10/08): a
+     superfície é automática, sem clique — o botão de "Ver leitura" saiu. A
+     leitura anterior nunca sobrevive à troca de recorte. */
   React.useEffect(() => {
-    setEstado('idle');
     setLeitura(null);
+    carregar();
+    // `carregar` já depende do mesmo recorte que compõe `chave`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
 
   return (
     <section
