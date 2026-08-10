@@ -16,7 +16,13 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { usePrefersReducedMotion } from '@/features/gestor/hooks/usePrefersReducedMotion';
 import { formatPct } from '@/features/gestor/lib/formatters';
-import { NIVEL_CRITICO_MAX } from '@/features/gestor/lib/regras';
+import { NIVEL_CRITICO_MAX, NIVEL_EXCELENTE_MIN } from '@/features/gestor/lib/regras';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
 import type {
   FiltroSemestre,
   FiltrosGestor,
@@ -81,8 +87,19 @@ const COR_NIVEL: Record<
   },
 };
 
+/**
+ * Faixa de % de acerto de cada classificação, derivada de `regras.ts`
+ * (`nivelDesempenho`) — nunca escrita na mão. É o critério que o gestor vê no
+ * tooltip do cartão: sem isso, "Excelente desempenho" é um rótulo sem régua.
+ */
+const FAIXA_NIVEL: Record<NivelDesempenho, string> = {
+  excelente: `${NIVEL_EXCELENTE_MIN}% de acerto ou mais`,
+  mediano: `de ${NIVEL_CRITICO_MAX}% a ${NIVEL_EXCELENTE_MIN - 1}% de acerto`,
+  critico: `abaixo de ${NIVEL_CRITICO_MAX}% de acerto`,
+};
 
 type AreaResumo = VisaoGeral['diagnosticoResumo'][number]['areas'][number];
+
 
 /**
  * Recorte mínimo que este bloco precisa (IES + semestre). `lib/recorte.ts`
@@ -638,7 +655,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   {/* A contagem + a classificação SÃO o gatilho da cascata. */}
                   <button
                     type="button"
-                    aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
+                    aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()} (${FAIXA_NIVEL[nivel]})`}
                     aria-expanded={setaAberta}
                     onClick={() => abrirCascata(nivel)}
                     className="relative -m-1 flex w-full flex-col items-start gap-2 rounded-lg p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -680,23 +697,44 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                         />
                       </span>
                     </span>
-                    <span
-                      className="flex items-center gap-[7px]"
-                      style={{ fontSize: 12, fontWeight: 600, color: COR_NIVEL[nivel].texto }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="inline-block shrink-0"
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 999,
-                          background: COR_NIVEL[nivel].ponto,
-                          boxShadow: `0 0 0 3px ${COR_NIVEL[nivel].superficie}`,
-                        }}
-                      />
-                      {ROTULO_NIVEL[nivel]}
-                    </span>
+                    {/* O critério da classificação mora no tooltip: o rótulo
+                        diz "o quê", a faixa de % de acerto diz "por quê". */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          data-testid={`criterio-nivel-${nivel}`}
+                          className="flex cursor-help items-center gap-[7px]"
+                          style={{ fontSize: 12, fontWeight: 600, color: COR_NIVEL[nivel].texto }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="inline-block shrink-0"
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 999,
+                              background: COR_NIVEL[nivel].ponto,
+                              boxShadow: `0 0 0 3px ${COR_NIVEL[nivel].superficie}`,
+                            }}
+                          />
+                          {ROTULO_NIVEL[nivel]}
+                          <Icon
+                            name="info"
+                            variant="outlined"
+                            size={13}
+                            box={13}
+                            className="shrink-0 opacity-60"
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[220px] text-xs">
+                        <p className="font-semibold">{ROTULO_NIVEL[nivel]}</p>
+                        <p className="mt-0.5 text-muted-foreground">
+                          Grande área com {FAIXA_NIVEL[nivel]}.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+
                   </button>
 
                   <div className="relative">
