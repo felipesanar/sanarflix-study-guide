@@ -24,7 +24,7 @@ const MOVIMENTO_BARRA: React.CSSProperties = {
  * pixel em toda linha e no eixo: nenhuma conta de posição feita à mão, só a
  * mesma grade repetida.
  */
-const GRADE_COLUNAS = 'grid min-w-0 grid-cols-[minmax(0,9rem)_1fr_4rem] items-center gap-3';
+const GRADE_COLUNAS = 'grid min-w-0 grid-cols-[minmax(0,7.5rem)_1fr_3.5rem] items-center gap-4';
 const PADDING_HORIZONTAL = 'px-1';
 
 /**
