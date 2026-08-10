@@ -16,7 +16,13 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { usePrefersReducedMotion } from '@/features/gestor/hooks/usePrefersReducedMotion';
 import { formatPct } from '@/features/gestor/lib/formatters';
-import { NIVEL_CRITICO_MAX } from '@/features/gestor/lib/regras';
+import { NIVEL_CRITICO_MAX, NIVEL_EXCELENTE_MIN } from '@/features/gestor/lib/regras';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
 import type {
   FiltroSemestre,
   FiltrosGestor,
