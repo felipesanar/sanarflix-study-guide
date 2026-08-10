@@ -99,6 +99,7 @@ export async function streamChatCompletion(opts: StreamOptions): Promise<StreamR
   let buffer = "";
   let texto = "";
   let toolArguments = "";
+  let finishReason: string | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -115,18 +116,33 @@ export async function streamChatCompletion(opts: StreamOptions): Promise<StreamR
       if (!payload || payload === "[DONE]") continue;
       try {
         const evento = JSON.parse(payload);
-        const delta = evento?.choices?.[0]?.delta;
+        const escolha = evento?.choices?.[0];
+        const delta = escolha?.delta;
         if (typeof delta?.content === "string") texto += delta.content;
         const argDelta = delta?.tool_calls?.[0]?.function?.arguments;
         if (typeof argDelta === "string") toolArguments += argDelta;
+        if (typeof escolha?.finish_reason === "string") finishReason = escolha.finish_reason;
       } catch {
         // delta parcial/keep-alive: ignorado de propósito.
       }
     }
   }
 
-  return { texto: texto.trim(), toolArguments: toolArguments ? toolArguments : null };
+  /* `length` significa que o orçamento de tokens acabou ANTES do fim da
+     resposta — nos modelos de raciocínio o pensamento consome o mesmo
+     orçamento, então o corte chega sem aviso e os argumentos da tool voltam
+     como JSON truncado. Sem este log, o sintoma na tela era só "não foi
+     possível montar a leitura", sem dizer que faltou teto. */
+  if (finishReason === "length") {
+    console.error(
+      "[ai] resposta truncada por max_tokens",
+      JSON.stringify({ model: opts.model, maxTokens: body.max_tokens, comTool: Boolean(opts.tool) }),
+    );
+  }
+
+  return { texto: texto.trim(), toolArguments: toolArguments ? toolArguments : null, finishReason };
 }
+
 
 /** Extrai o objeto JSON de um texto (rede de segurança, não mecanismo principal). */
 export function extrairJson<T = unknown>(bruto: string): T | null {
