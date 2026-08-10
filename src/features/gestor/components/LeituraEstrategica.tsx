@@ -2,7 +2,6 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Icon } from '@/features/gestor/components/Icon';
-import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 
 /**
  * "Leitura estratégica" do recorte de simulados — persona de consultoria
@@ -51,11 +50,77 @@ function extrairJson(bruto: string): Leitura | null {
   }
 }
 
+/**
+ * Carregamento em ETAPAS, não em skeleton (pedido explícito, 10/08): a
+ * superfície é uma leitura sendo montada, então o estado de espera fala o que
+ * está sendo feito, uma etapa por vez, com o cursor piscando como quem
+ * escreve. É narrativa de progresso, não placeholder de layout — e por isso
+ */
+const ETAPAS = [
+  'Lendo o recorte de simulados…',
+  'Cruzando acerto por grande área…',
+  'Comparando proficiência entre semestres…',
+  'Priorizando o que move a nota…',
+  'Fechando a leitura…',
+];
+
+function EtapasDaLeitura() {
+  const [indice, setIndice] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = window.setInterval(() => {
+      setIndice((atual) => Math.min(atual + 1, ETAPAS.length - 1));
+    }, 1400);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="space-y-1.5">
+      {ETAPAS.slice(0, indice + 1).map((etapa, i) => {
+        const atual = i === indice;
+        return (
+          <motion.p
+            key={etapa}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: atual ? 1 : 0.45, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-1.5 text-xs"
+            style={{ color: atual ? 'var(--gp-text-2, inherit)' : 'var(--gp-text-3)' }}
+          >
+            {atual ? (
+              <motion.span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: 'var(--gp-brand-on-dark)' }}
+                animate={{ opacity: [1, 0.25, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            ) : (
+              <Icon name="check" size={12} className="shrink-0 opacity-60" />
+            )}
+            <span className="min-w-0">{etapa}</span>
+            {atual ? (
+              <motion.span
+                aria-hidden
+                className="inline-block h-3 w-[2px] shrink-0"
+                style={{ background: 'currentColor' }}
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 0.9, repeat: Infinity }}
+              />
+            ) : null}
+          </motion.p>
+        );
+      })}
+    </div>
+  );
+}
+
 export interface LeituraEstrategicaProps {
   iesId: string | null;
   semestre: string | null;
   simulados: string[];
 }
+
 
 export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrategicaProps) {
   const [estado, setEstado] = React.useState<Estado>('idle');
@@ -83,12 +148,16 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
     }
   }, [iesId, semestre, simulados]);
 
-  /* Recorte novo invalida a leitura anterior — nunca deixamos um diagnóstico
-     de outro recorte no ar. Não dispara sozinho (custo): volta para `idle`. */
+  /* Recorte novo dispara uma leitura nova (pedido explícito, 10/08): a
+     superfície é automática, sem clique — o botão de "Ver leitura" saiu. A
+     leitura anterior nunca sobrevive à troca de recorte. */
   React.useEffect(() => {
-    setEstado('idle');
     setLeitura(null);
+    carregar();
+    // `carregar` já depende do mesmo recorte que compõe `chave`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
+
 
   return (
     <section
@@ -122,15 +191,11 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
         ) : null}
       </header>
 
-      <div className="mt-3 min-h-0 flex-1">
-        {estado === 'loading' ? (
-          <div className="space-y-2" role="status" aria-live="polite" aria-busy="true">
-            <GestorSkeleton altura={14} rotulo="Preparando leitura do recorte" />
-            <GestorSkeleton altura={52} rotulo="Preparando leitura do recorte" />
-            <GestorSkeleton altura={52} rotulo="Preparando leitura do recorte" />
-            <span className="sr-only">Preparando a leitura deste recorte…</span>
-          </div>
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        {estado === 'loading' || estado === 'idle' ? (
+          <EtapasDaLeitura />
         ) : estado === 'erro' ? (
+
           <div className="flex flex-col items-start gap-2" role="alert">
             <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
               Não foi possível montar a leitura deste recorte agora.
@@ -173,21 +238,8 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
               ))}
             </ul>
           </motion.div>
-        ) : (
-          <div className="flex h-full flex-col items-start justify-center gap-2">
-            <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-              Uma leitura de consultoria sobre este recorte: onde a nota do ENAMED está travando e quais movimentos
-              rendem mais.
-            </p>
-            <button
-              type="button"
-              onClick={carregar}
-              className="rounded-sm border border-[color:var(--gp-border-strong)] px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-[color:var(--gp-surface-2)]"
-            >
-              Ver leitura do recorte
-            </button>
-          </div>
-        )}
+        ) : null}
+
       </div>
     </section>
   );
