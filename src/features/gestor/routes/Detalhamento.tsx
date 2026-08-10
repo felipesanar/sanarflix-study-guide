@@ -595,6 +595,17 @@ export default function Detalhamento() {
               <p className="mb-3 text-xs" style={{ color: 'var(--gp-text-3)' }}>
                 Proficiência média por semestre. Clique num semestre para ver os alunos daquele semestre.
               </p>
+              {/* Mesmo scroll da Leitura estratégica (pedido explícito, 10/08):
+                  com muitos semestres o gráfico era CORTADO pelo
+                  `overflow-hidden` do card e o 6º semestre ficava inalcançável.
+                  Barra escondida + fade de 16px no pé sinalizando continuação. */}
+              <div
+                className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                style={{
+                  maskImage: 'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
+                  WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
+                }}
+              >
               <BlocoGestor
                 estado={estado}
                 parcial={parcial}
@@ -617,6 +628,7 @@ export default function Detalhamento() {
                   />
                 ) : null}
               </BlocoGestor>
+              </div>
             </div>
 
             <LeituraEstrategica
