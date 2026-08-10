@@ -178,6 +178,55 @@ export function extrairJson<T = unknown>(bruto: string): T | null {
   }
 }
 
+/**
+ * Fecha um JSON ainda em construção (ou cortado por teto de tokens) para que
+ * ele possa ser lido ANTES do fim da geração: fecha string aberta e empilha os
+ * `}`/`]` que faltam. Serve ao streaming — cada delta vira uma leitura parcial
+ * renderizável — e também salva a resposta quando o modelo é cortado no meio,
+ * caso em que o pedaço completo continua valendo.
+ */
+export function repararJsonParcial<T = unknown>(bruto: string): T | null {
+  const inicio = bruto.indexOf("{");
+  if (inicio === -1) return null;
+  const corpo = bruto.slice(inicio);
+
+  const pilha: string[] = [];
+  let dentroDeString = false;
+  let escapando = false;
+
+  for (const ch of corpo) {
+    if (escapando) {
+      escapando = false;
+      continue;
+    }
+    if (ch === "\\") {
+      if (dentroDeString) escapando = true;
+      continue;
+    }
+    if (ch === '"') {
+      dentroDeString = !dentroDeString;
+      continue;
+    }
+    if (dentroDeString) continue;
+    if (ch === "{" || ch === "[") pilha.push(ch === "{" ? "}" : "]");
+    else if (ch === "}" || ch === "]") pilha.pop();
+  }
+
+  let candidato = corpo;
+  if (dentroDeString) candidato += '"';
+  // Vírgula/chave pendentes no fim do buffer não formam JSON válido.
+  candidato = candidato.replace(/,\s*$/, "").replace(/"[^"]*"\s*:\s*$/, "").replace(/,\s*$/, "");
+  candidato += pilha.reverse().join("");
+
+  try {
+    return JSON.parse(candidato) as T;
+  } catch {
+    return null;
+  }
+}
+
+
+
 // ---------------------------------------------------------------------------
 // Cache no servidor
 // ---------------------------------------------------------------------------
