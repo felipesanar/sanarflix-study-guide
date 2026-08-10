@@ -51,11 +51,78 @@ function extrairJson(bruto: string): Leitura | null {
   }
 }
 
+/**
+ * Carregamento em ETAPAS, não em skeleton (pedido explícito, 10/08): a
+ * superfície é uma leitura sendo montada, então o estado de espera fala o que
+ * está sendo feito, uma etapa por vez, com o cursor piscando como quem
+ * escreve. É narrativa de progresso, não placeholder de layout — e por isso
+ * não usa `GestorSkeleton`.
+ */
+const ETAPAS = [
+  'Lendo o recorte de simulados…',
+  'Cruzando acerto por grande área…',
+  'Comparando proficiência entre semestres…',
+  'Priorizando o que move a nota…',
+  'Fechando a leitura…',
+];
+
+function EtapasDaLeitura() {
+  const [indice, setIndice] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = window.setInterval(() => {
+      setIndice((atual) => Math.min(atual + 1, ETAPAS.length - 1));
+    }, 1400);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="space-y-1.5">
+      {ETAPAS.slice(0, indice + 1).map((etapa, i) => {
+        const atual = i === indice;
+        return (
+          <motion.p
+            key={etapa}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: atual ? 1 : 0.45, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-1.5 text-xs"
+            style={{ color: atual ? 'var(--gp-text-2, inherit)' : 'var(--gp-text-3)' }}
+          >
+            {atual ? (
+              <motion.span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: 'var(--gp-brand-on-dark)' }}
+                animate={{ opacity: [1, 0.25, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            ) : (
+              <Icon name="check" size={12} className="shrink-0 opacity-60" />
+            )}
+            <span className="min-w-0">{etapa}</span>
+            {atual ? (
+              <motion.span
+                aria-hidden
+                className="inline-block h-3 w-[2px] shrink-0"
+                style={{ background: 'currentColor' }}
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 0.9, repeat: Infinity }}
+              />
+            ) : null}
+          </motion.p>
+        );
+      })}
+    </div>
+  );
+}
+
 export interface LeituraEstrategicaProps {
   iesId: string | null;
   semestre: string | null;
   simulados: string[];
 }
+
 
 export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrategicaProps) {
   const [estado, setEstado] = React.useState<Estado>('idle');
