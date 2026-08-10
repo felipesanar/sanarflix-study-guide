@@ -248,8 +248,8 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
       <div
         className="mt-3 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{
-          maskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent 100%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 28px), transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
         }}
       >
         {estado === 'loading' || estado === 'idle' ? (
