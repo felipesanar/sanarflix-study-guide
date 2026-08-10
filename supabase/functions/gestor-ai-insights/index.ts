@@ -608,9 +608,12 @@ serve(async (req) => {
             questoesRes.error ? null : questoesRes.data
           );
 
+      // Leitura estratégica precisa ser rápida na tela: o modelo flash entrega
+      // a mesma estrutura em uma fração do tempo do modelo de raciocínio.
+      const modeloLeitura = AI_MODEL_RAPIDO;
       const { texto, toolArguments } = await streamChatCompletion({
         apiKey: LOVABLE_API_KEY,
-        model: AI_MODEL_RACIOCINIO,
+        model: modeloLeitura,
         messages: [
           {
             role: "system",
@@ -618,7 +621,7 @@ serve(async (req) => {
           },
           { role: "user", content: userPrompt },
         ],
-        maxTokens: 4000,
+        maxTokens: 2000,
         temperature: 0.4,
         tool: TOOL_LEITURA,
         signal: req.signal,
@@ -649,7 +652,7 @@ serve(async (req) => {
         fn: "gestor-ai-insights",
         modo: `consultor:${escopo}`,
         payload,
-        model: AI_MODEL_RACIOCINIO,
+        model: modeloLeitura,
         ttlSegundos: TTL.gestorRecorte,
       });
       return jsonResponse({ ...payload, cached: false }, 200, cors);
