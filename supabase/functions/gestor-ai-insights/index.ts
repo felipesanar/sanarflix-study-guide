@@ -65,8 +65,10 @@ Como chamar as coisas (obrigatório):
 - Nunca escreva "o curso". Chame de "a faculdade", "a instituição" ou "a escola médica". Para o grupo de alunos do recorte, use "a turma" ou "os alunos".
 - Respeite o recorte de semestre informado no contexto e fale de acordo com ele:
   - Todos os semestres: fale da faculdade/instituição como um todo, sem atribuir o número a um único ano.
-  - Um semestre específico (ex.: 6º): diga explicitamente de quem é o número ("os alunos do 6º semestre", "a turma do 6º ano") e não generalize para toda a faculdade.
-- Nunca misture os dois: se o recorte é de um semestre, todas as frases e movimentos falam daquele semestre.
+  - 6º ano: são os alunos do 11º e 12º semestres juntos. Escreva "os alunos do 6º ano" — nunca "6º semestre".
+  - Um semestre específico (ex.: 8º): diga explicitamente de quem é o número ("os alunos do 8º semestre") e não generalize para toda a faculdade.
+- Nunca misture os dois: se o recorte é de um semestre (ou do 6º ano), todas as frases e movimentos falam daquele recorte.
+
 
 ${ANTI_INVENCAO_GESTOR}`;
 
