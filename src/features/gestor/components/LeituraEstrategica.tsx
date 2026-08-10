@@ -192,6 +192,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
         semestre,
         simulados: escopo === 'institucional' ? null : listaSimulados,
         stream: true,
+        refresh: forcar,
       });
 
       const resposta = await fetch(`${env.EDGE_FUNCTIONS_BASE_URL}/gestor-ai-insights`, {
@@ -249,6 +250,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
             iesId,
             semestre,
             simulados: escopo === 'institucional' ? null : listaSimulados,
+            refresh: forcar,
           },
         });
         if (error) throw error;
@@ -310,7 +312,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
         {estado === 'sucesso' ? (
           <button
             type="button"
-            onClick={carregar}
+            onClick={() => carregar(true)}
             aria-label="Atualizar leitura"
             className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-md text-[color:var(--gp-text-3)] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
@@ -339,7 +341,7 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
 
             <button
               type="button"
-              onClick={carregar}
+              onClick={() => carregar(true)}
               className="rounded-sm border border-[color:var(--gp-border-strong)] px-3 py-1.5 text-[11px] font-semibold transition-colors hover:bg-[color:var(--gp-surface-2)]"
             >
               Tentar de novo
