@@ -1,16 +1,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders, corsHeaders } from "../_shared/cors.ts";
+import {
+  AI_MODEL_RACIOCINIO,
+  AI_MODEL_RAPIDO,
+  AiGatewayError,
+  extrairJson,
+  gravarCache,
+  hashChave,
+  lerCache,
+  streamChatCompletion,
+  TTL,
+  type ToolSchema,
+} from "../_shared/ai.ts";
+import { ANTI_INVENCAO, BASE_ENAMED } from "../_shared/enamed.ts";
 
-const CONTEXT_PACK = `Contexto: Estudante de medicina no Brasil.
+// Tutor do aluno (Progress Hub).
+//
+// Dois modos no mesmo endpoint: `quick` (uma frase para o card) e `full` (plano
+// estruturado). Ambos com streaming ao gateway (o `full` gera muitos tokens e
+// era o mais exposto ao corte de ~2 min do host) e com cache no servidor, para
+// F5/outra aba/outro device não recobrarem a mesma geração.
+
+const CONTEXT_PACK = `Contexto: Estudante de medicina no Brasil, preparando-se para o ENAMED.
 - Ciclo básico (1º-4º período): anatomia, fisiologia, bioquímica, histologia, farmacologia, patologia.
 - Ciclo clínico (5º-8º período): clínica médica, cirurgia, pediatria, ginecologia/obstetrícia, saúde coletiva.
-- Internato (9º-12º período): rodízios práticos, plantões, preparação para residência.
-- Estratégias eficazes: active recall, spaced repetition, questões comentadas, mapas mentais, revisão periódica.
-- Avaliações: provas regulares, simulados tipo residência, OSCE, avaliações práticas.
-- Tom: PT-BR, empático, firme, prático. Nunca diagnosticar/prescrever condutas médicas.`;
+- Internato (9º-12º período): rodízios práticos, plantões, ENAMED e preparação para residência.
+- Estratégias com maior retorno comprovado: prática de recuperação (questões antes de reler), repetição espaçada, intercalação de áreas, correção ativa do erro (registrar o porquê), simulado cronometrado para manejo de prova.
+- Tom: PT-BR, empático, firme, prático. Nunca diagnosticar nem prescrever conduta médica.
 
-const TOOL_SCHEMA = {
+${BASE_ENAMED}`;
+
+const TOOL_SCHEMA: ToolSchema = {
   type: "function",
   function: {
     name: "generate_study_plan",
@@ -92,15 +113,35 @@ const TOOL_SCHEMA = {
   },
 };
 
-async function aggregateSnapshot(supabaseAdmin: any, userId: string) {
+async function aggregateSnapshot(supabaseUser: any, userId: string) {
   const start = Date.now();
 
-  // Parallel queries
-  const [userRes, examsRes, progressRes, simuladoRes] = await Promise.all([
-    supabaseAdmin.from("users").select("semestre, nome").eq("id", userId).single(),
-    supabaseAdmin.from("user_exams").select("exam_name, materia, exam_date").eq("user_id", userId).gte("exam_date", new Date().toISOString().split("T")[0]).order("exam_date", { ascending: true }).limit(10),
-    supabaseAdmin.rpc("get_progress_hub_summary"),
-    supabaseAdmin.rpc("get_user_performance_aggregates"),
+  const [userRes, examsRes, progressRes, simuladoRes, errosRes, flashRes] = await Promise.all([
+    supabaseUser.from("users").select("semestre, nome").eq("id", userId).single(),
+    supabaseUser
+      .from("user_exams")
+      .select("exam_name, materia, exam_date")
+      .eq("user_id", userId)
+      .gte("exam_date", new Date().toISOString().split("T")[0])
+      .order("exam_date", { ascending: true })
+      .limit(10),
+    supabaseUser.rpc("get_progress_hub_summary"),
+    supabaseUser.rpc("get_user_performance_aggregates"),
+    // Cruzamento novo: o que o aluno já reconheceu como erro e o que está vencido
+    // para revisão. Isso muda a prioridade do plano.
+    supabaseUser
+      .from("error_notebook_entries")
+      .select("grande_area, especialidade, tema, reason, srs_due_at, mastered_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(60),
+    supabaseUser
+      .from("flashcards")
+      .select("srs_due_at, mastered_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .limit(200),
   ]);
 
   const user = userRes.data;
@@ -118,7 +159,6 @@ async function aggregateSnapshot(supabaseAdmin: any, userId: string) {
     return { title: e.exam_name, materia: e.materia, date: e.exam_date, daysUntil };
   });
 
-  // Progress from hub
   const overview = hubData?.overview || { percentage: 0, completed: 0, total: 0 };
   const byMateria = (hubData?.by_materia || []).map((m: any) => ({
     materia: m.materia,
@@ -127,14 +167,12 @@ async function aggregateSnapshot(supabaseAdmin: any, userId: string) {
     total: m.total || 0,
   }));
 
-  // Top gaps (lowest percentage with content)
   const topGaps = [...byMateria]
     .filter((m: any) => m.total > 0 && m.percentage < 100)
     .sort((a: any, b: any) => a.percentage - b.percentage)
     .slice(0, 5)
     .map((m: any) => ({ materia: m.materia, tema: null, percentage: m.percentage, total: m.total, completed: m.completed }));
 
-  // Simulado performance
   const byArea = perfData?.byArea || [];
   const simuladoPerformance = byArea.map((a: any) => ({
     area: a.name,
@@ -143,21 +181,55 @@ async function aggregateSnapshot(supabaseAdmin: any, userId: string) {
     percentage: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0,
   }));
 
-  // Top weaknesses from subspecialties
   const bySubspecialty = perfData?.bySubspecialty || [];
   const topWeaknesses = [...bySubspecialty]
     .filter((s: any) => s.total >= 2)
-    .sort((a: any, b: any) => (a.acertos / a.total) - (b.acertos / b.total))
+    .sort((a: any, b: any) => a.acertos / a.total - b.acertos / b.total)
     .slice(0, 5)
     .map((s: any) => ({ tema: s.name, area: s.area_name, acertos: s.acertos, total: s.total }));
 
-  // Streak
-  const streak = hubData?.streak || { current: 0 };
+  // Caderno de erros: onde o erro se concentra e o que já venceu a revisão.
+  const erros = errosRes.data || [];
+  const contagemPorArea = new Map<string, number>();
+  const motivos = new Map<string, number>();
+  let errosVencidos = 0;
+  const agora = Date.now();
+  for (const e of erros) {
+    const area = e.grande_area || "não classificado";
+    contagemPorArea.set(area, (contagemPorArea.get(area) ?? 0) + 1);
+    if (e.reason) motivos.set(e.reason, (motivos.get(e.reason) ?? 0) + 1);
+    if (!e.mastered_at && e.srs_due_at && new Date(e.srs_due_at).getTime() <= agora) errosVencidos += 1;
+  }
+  const errorNotebook = {
+    total: erros.length,
+    dueForReview: errosVencidos,
+    byArea: [...contagemPorArea.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([area, count]) => ({ area, count })),
+    topReasons: [...motivos.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([reason, count]) => ({ reason, count })),
+  };
 
-  // Last activity
+  const flashcards = flashRes.data || [];
+  const flashcardsDue = flashcards.filter(
+    (f: any) => !f.mastered_at && f.srs_due_at && new Date(f.srs_due_at).getTime() <= agora
+  ).length;
+
+  const streak = hubData?.streak || { current: 0 };
   const lastActive = hubData?.last_activity?.completed_at || null;
 
-  console.log("[AITutorEngine]", "snapshot aggregated", `latency=${Date.now() - start}ms`, `exams=${examsList.length}`, `gaps=${topGaps.length}`, `weaknesses=${topWeaknesses.length}`);
+  console.log(
+    "[AITutorEngine]",
+    "snapshot aggregated",
+    `latency=${Date.now() - start}ms`,
+    `exams=${examsList.length}`,
+    `gaps=${topGaps.length}`,
+    `weaknesses=${topWeaknesses.length}`,
+    `erros=${errorNotebook.total}`
+  );
 
   return {
     semester: user?.semestre || null,
@@ -169,7 +241,27 @@ async function aggregateSnapshot(supabaseAdmin: any, userId: string) {
     simuladoPerformance,
     topWeaknesses,
     byMateria,
+    errorNotebook,
+    flashcardsDue,
   };
+}
+
+function jsonResponse(body: unknown, status: number, cors: Record<string, string>): Response {
+  return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+}
+
+function respostaDeErroDeGateway(e: unknown, cors: Record<string, string>): Response {
+  if (e instanceof AiGatewayError) {
+    if (e.status === 429) return jsonResponse({ error: "Rate limit exceeded" }, 429, cors);
+    if (e.status === 402) return jsonResponse({ error: "Payment required" }, 402, cors);
+    console.error("[AITutorEngine]", "AI gateway error:", e.status, e.message);
+    return jsonResponse({ error: "AI error" }, 500, cors);
+  }
+  if (e instanceof Error && e.name === "AbortError") {
+    return new Response(null, { status: 499, headers: cors });
+  }
+  console.error("[AITutorEngine]", "error:", e);
+  return jsonResponse({ error: e instanceof Error ? e.message : "Unknown error" }, 500, cors);
 }
 
 serve(async (req) => {
@@ -183,180 +275,185 @@ serve(async (req) => {
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "AI not configured" }, 500, cors);
     }
 
     const body = await req.json();
     const mode = body.mode || "quick";
-
-    // === QUICK MODE (backwards compatible) ===
-    if (mode === "quick") {
-      const { progress, top_materias, risk_alerts, next_exam } = body;
-      const parts: string[] = [];
-      if (progress) parts.push(`Progresso geral: ${progress.percentage}% (${progress.completed}/${progress.total} aulas concluídas).`);
-      if (next_exam) parts.push(`Próxima prova: ${next_exam.materia} em ${next_exam.days_remaining} dias (progresso: ${next_exam.progress ?? "desconhecido"}%).`);
-      if (top_materias?.length) {
-        const materias = top_materias.map((m: any) => `${m.materia}: ${m.percentage}%`).join(", ");
-        parts.push(`Matérias: ${materias}.`);
-      }
-      if (risk_alerts?.length) {
-        const risks = risk_alerts.map((r: any) => `${r.tema} (${r.days_inactive} dias parado, ${Math.round(r.percentage)}%)`).join("; ");
-        parts.push(`Alertas de risco: ${risks}.`);
-      }
-      const contextStr = parts.join(" ");
-
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { role: "system", content: "Você é um tutor de medicina conciso e motivador. Com base no contexto do aluno (progresso, provas e alertas), dê uma recomendação curta (2-3 frases, máximo 280 caracteres) do que ele deveria estudar agora e por quê. Seja direto, prático e encorajador. Responda apenas com a recomendação, sem saudação nem formatação especial." },
-            { role: "user", content: contextStr || "Aluno sem dados de progresso ainda. Dê uma dica genérica de estudos de medicina." },
-          ],
-          max_tokens: 200,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...cors, "Content-Type": "application/json" } });
-        if (response.status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...cors, "Content-Type": "application/json" } });
-        const t = await response.text();
-        console.error("AI gateway error:", response.status, t);
-        return new Response(JSON.stringify({ error: "AI error" }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
-      }
-
-      const data = await response.json();
-      const recommendation = data.choices?.[0]?.message?.content?.trim() || "";
-      return new Response(JSON.stringify({ recommendation }), { headers: { ...cors, "Content-Type": "application/json" } });
-    }
-
-    // === FULL MODE (holistic tutor) ===
-    console.log("[AITutorEngine]", "full mode requested");
-    const startTime = Date.now();
-
-    // Auth check
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
-    }
+    const refresh = Boolean(body.refresh);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Create admin client for data queries but use user's token for auth
-    const { createClient: createSupaClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
-    
-    // Verify user
-    const supabaseAdmin = createSupaClient(supabaseUrl, supabaseServiceKey, {
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // Auth: exigida nos dois modos — o cache é por usuário.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse({ error: "Unauthorized" }, 401, cors);
+    }
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...cors, "Content-Type": "application/json" } });
+      return jsonResponse({ error: "Unauthorized" }, 401, cors);
     }
     const userId = userData.user.id;
 
-    // Create user-scoped client for RPC calls that use auth.uid()
-    const supabaseUser = createSupaClient(supabaseUrl, supabaseAnonKey, {
+    // Client no escopo do usuário: as RPCs correm como ele (auth.uid()) e a
+    // leitura de tabelas herda RLS.
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Aggregate snapshot using user-scoped client
-    const snapshot = await aggregateSnapshot(supabaseUser, userId);
-    console.log("[AITutorEngine]", "snapshot", JSON.stringify({ semester: snapshot.semester, progress: snapshot.progress.percentage, exams: snapshot.exams.length, gaps: snapshot.topGaps.length }));
+    // === QUICK MODE ===
+    if (mode === "quick") {
+      const { progress, top_materias, risk_alerts, next_exam } = body;
+      const parts: string[] = [];
+      if (progress)
+        parts.push(`Progresso geral: ${progress.percentage}% (${progress.completed}/${progress.total} aulas concluídas).`);
+      if (next_exam)
+        parts.push(
+          `Próxima prova: ${next_exam.materia} em ${next_exam.days_remaining} dias (progresso: ${next_exam.progress ?? "desconhecido"}%).`
+        );
+      if (top_materias?.length) {
+        parts.push(`Matérias: ${top_materias.map((m: any) => `${m.materia}: ${m.percentage}%`).join(", ")}.`);
+      }
+      if (risk_alerts?.length) {
+        parts.push(
+          `Alertas de risco: ${risk_alerts
+            .map((r: any) => `${r.tema} (${r.days_inactive} dias parado, ${Math.round(r.percentage)}%)`)
+            .join("; ")}.`
+        );
+      }
+      const contextStr = parts.join(" ");
 
-    // Build prompt
-    const snapshotStr = JSON.stringify(snapshot, null, 0);
+      const cacheKey = await hashChave(["ai-study-recommendation", "quick", userId, contextStr]);
+      if (!refresh) {
+        const cached = await lerCache(supabaseAdmin, cacheKey);
+        if (cached) return jsonResponse({ ...cached, cached: true }, 200, cors);
+      }
+
+      const { texto } = await streamChatCompletion({
+        apiKey: LOVABLE_API_KEY,
+        model: AI_MODEL_RAPIDO,
+        messages: [
+          {
+            role: "system",
+            content: `${CONTEXT_PACK}
+
+Você é um tutor de medicina conciso e motivador. Com base no contexto do aluno (progresso, provas e alertas), diga em 2-3 frases (máximo 280 caracteres) o que ele deve estudar AGORA e por que isso move a nota. Prefira a ação com maior retorno: prova mais próxima, depois maior lacuna em área de grande volume no ENAMED. Sem saudação, sem formatação especial. ${ANTI_INVENCAO}`,
+          },
+          {
+            role: "user",
+            content: contextStr || "Aluno sem dados de progresso ainda. Dê uma dica inicial de estudo focada em prática de recuperação.",
+          },
+        ],
+        maxTokens: 250,
+        temperature: 0.7,
+        signal: req.signal,
+      });
+
+      const payload = { recommendation: texto };
+      await gravarCache(supabaseAdmin, {
+        cacheKey,
+        fn: "ai-study-recommendation",
+        modo: "quick",
+        payload,
+        model: AI_MODEL_RAPIDO,
+        ttlSegundos: TTL.aluno,
+      });
+      return jsonResponse({ ...payload, cached: false }, 200, cors);
+    }
+
+    // === FULL MODE ===
+    console.log("[AITutorEngine]", "full mode requested");
+    const startTime = Date.now();
+
+    const snapshot = await aggregateSnapshot(supabaseUser, userId);
+    console.log(
+      "[AITutorEngine]",
+      "snapshot",
+      JSON.stringify({
+        semester: snapshot.semester,
+        progress: snapshot.progress.percentage,
+        exams: snapshot.exams.length,
+        gaps: snapshot.topGaps.length,
+      })
+    );
+
+    // A chave inclui o snapshot: se o aluno concluiu aula, registrou erro ou
+    // mudou a agenda, o plano é regerado; se nada mudou, sai do cache.
+    const cacheKey = await hashChave(["ai-study-recommendation", "full", userId, snapshot]);
+    if (!refresh) {
+      const cached = await lerCache(supabaseAdmin, cacheKey);
+      if (cached) return jsonResponse({ ...cached, cached: true }, 200, cors);
+    }
+
     const systemPrompt = `${CONTEXT_PACK}
 
-Você é um tutor/coach de estudos para estudantes de medicina no Brasil.
-Você recebe um "StudentSnapshot" com dados reais de desempenho e agenda. Sua tarefa é gerar um plano excelente, específico e motivador, explicando claramente o que o aluno deve fazer e por quê, priorizando pelo que traz maior impacto no desempenho e pelo tempo até as provas.
-Regras:
-- Use português do Brasil.
-- Seja objetivo, mas com explicações fortes e convincentes.
-- Nunca invente dados: se algo não estiver no snapshot, diga "não informado" de forma elegante.
-- Não ofereça diagnóstico/conduta clínica; foco em estudo.
-- Priorize: prova mais próxima + maiores lacunas + consistência.
-- Produza um plano "executável hoje" e um plano "da semana" com 5 dias.
-- Use a tool generate_study_plan para retornar o plano estruturado.`;
+Você é tutor e coach de estudos de um estudante de medicina, especialista em desempenho no ENAMED.
+Você recebe um "StudentSnapshot" com dados reais de desempenho, caderno de erros e agenda. Gere um plano específico, executável e convincente.
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `StudentSnapshot:\n${snapshotStr}\n\nGere o plano de estudos personalizado usando a tool generate_study_plan.` },
-        ],
-        tools: [TOOL_SCHEMA],
-        tool_choice: { type: "function", function: { name: "generate_study_plan" } },
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
+Regras:
+- Português do Brasil, 2ª pessoa, objetivo e com explicação forte do "por quê".
+- Nunca invente dados: o que não estiver no snapshot é "não informado".
+- Sem diagnóstico ou conduta clínica; foco em estudo.
+- Prioridade, nesta ordem: (1) prova mais próxima; (2) revisão vencida do caderno de erros e flashcards (o erro já reconhecido e não revisado é a maior perda de nota); (3) maior lacuna em área de grande volume no ENAMED; (4) consistência.
+- Trate erro de conhecimento, de raciocínio clínico, de interpretação e de manejo de prova com métodos diferentes — diga qual método usar e quando.
+- Produza um plano "para hoje" e um plano da semana com 5 dias.
+- Use a tool generate_study_plan para retornar o plano estruturado. ${ANTI_INVENCAO}`;
+
+    const { texto, toolArguments } = await streamChatCompletion({
+      apiKey: LOVABLE_API_KEY,
+      model: AI_MODEL_RACIOCINIO,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `StudentSnapshot:\n${JSON.stringify(snapshot, null, 0)}\n\nGere o plano de estudos personalizado usando a tool generate_study_plan.`,
+        },
+      ],
+      maxTokens: 2400,
+      temperature: 0.6,
+      tool: TOOL_SCHEMA,
+      signal: req.signal,
     });
 
     const latencyMs = Date.now() - startTime;
+    const plan = (toolArguments ? extrairJson<any>(toolArguments) : null) ?? extrairJson<any>(texto);
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...cors, "Content-Type": "application/json" } });
-      if (aiResponse.status === 402) return new Response(JSON.stringify({ error: "Payment required" }), { status: 402, headers: { ...cors, "Content-Type": "application/json" } });
-      const t = await aiResponse.text();
-      console.error("[AITutorEngine]", "AI gateway error:", aiResponse.status, t);
-      return new Response(JSON.stringify({ error: "AI error" }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
-    }
-
-    const aiData = await aiResponse.json();
-    console.log("[AITutorEngine]", "latencyMs", latencyMs);
-
-    // Extract tool call result
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall?.function?.arguments) {
-      // Fallback: try to parse content as JSON
-      const content = aiData.choices?.[0]?.message?.content;
-      if (content) {
-        try {
-          const parsed = JSON.parse(content);
-          parsed.meta = { model: "google/gemini-3-flash-preview", latencyMs, usedOnlineResearch: false };
-          return new Response(JSON.stringify({ plan: parsed }), { headers: { ...cors, "Content-Type": "application/json" } });
-        } catch {
-          // Return as quick recommendation fallback
-          return new Response(JSON.stringify({ recommendation: content, plan: null }), { headers: { ...cors, "Content-Type": "application/json" } });
-        }
+    if (!plan || !plan.headline) {
+      if (texto) {
+        console.warn("[AITutorEngine]", "sem tool call; devolvendo texto como recomendação");
+        return jsonResponse({ recommendation: texto, plan: null }, 200, cors);
       }
-      return new Response(JSON.stringify({ error: "No structured response from AI" }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+      return jsonResponse({ error: "No structured response from AI" }, 500, cors);
     }
 
-    let plan: any;
-    try {
-      plan = typeof toolCall.function.arguments === "string" ? JSON.parse(toolCall.function.arguments) : toolCall.function.arguments;
-    } catch {
-      console.error("[AITutorEngine]", "Failed to parse tool call arguments");
-      return new Response(JSON.stringify({ error: "Invalid AI response format" }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
-    }
+    plan.meta = { model: AI_MODEL_RACIOCINIO, latencyMs, usedOnlineResearch: false };
+    console.log(
+      "[AITutorEngine]",
+      "plan generated",
+      `latencyMs=${latencyMs}`,
+      `steps=${plan.todayPlan?.steps?.length || 0}`
+    );
 
-    plan.meta = { model: "google/gemini-3-flash-preview", latencyMs, usedOnlineResearch: false };
-
-    console.log("[AITutorEngine]", "plan generated", `headline="${plan.headline?.substring(0, 50)}..."`, `steps=${plan.todayPlan?.steps?.length || 0}`);
-
-    return new Response(JSON.stringify({ plan }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+    const payload = { plan };
+    await gravarCache(supabaseAdmin, {
+      cacheKey,
+      fn: "ai-study-recommendation",
+      modo: "full",
+      payload,
+      model: AI_MODEL_RACIOCINIO,
+      ttlSegundos: TTL.aluno,
     });
 
+    return jsonResponse({ ...payload, cached: false }, 200, cors);
   } catch (e) {
-    console.error("[AITutorEngine]", "error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+    return respostaDeErroDeGateway(e, cors);
   }
 });
