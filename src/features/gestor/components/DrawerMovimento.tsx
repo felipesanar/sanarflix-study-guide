@@ -298,6 +298,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
   const prontoNoCache = chave ? detalheEmCache(chave) : null;
   const [detalhe, setDetalhe] = React.useState<DetalheMovimento | null>(prontoNoCache);
   const [estado, setEstado] = React.useState<Estado>(prontoNoCache ? 'sucesso' : 'loading');
+  const [verTodos, setVerTodos] = React.useState(false);
 
   const carregar = React.useCallback(
     async (forcar = false) => {
