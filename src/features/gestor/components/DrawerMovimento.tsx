@@ -387,8 +387,8 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
         side={isMobile ? 'bottom' : 'right'}
         className={
           isMobile
-            ? 'flex max-h-[88vh] w-full flex-col gap-4 overflow-y-auto rounded-t-2xl'
-            : 'flex w-full flex-col gap-4 overflow-y-auto sm:max-w-lg'
+            ? 'flex h-[92vh] w-full flex-col gap-0 overflow-hidden rounded-t-2xl p-0'
+            : 'flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl'
         }
         closeIcon={<Icon name="close" size={16} />}
         closeLabel="Fechar"
@@ -400,13 +400,25 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
         }}
         data-testid="drawer-movimento"
       >
-        <SheetHeader>
-          <SheetTitle ref={tituloRef} tabIndex={-1} className="outline-none">
+        {/* Cabeçalho fixo: identidade do movimento + recorte. O corpo rola sozinho. */}
+        <SheetHeader
+          className="shrink-0 space-y-0 border-b px-5 pb-3.5 pt-5 text-left"
+          style={{ borderColor: 'var(--gp-border)', background: 'var(--gp-surface-1)' }}
+        >
+          <SheetTitle ref={tituloRef} tabIndex={-1} className="block pr-10 outline-none">
             <span className="sr-only">{`Detalhe do movimento: ${movimento.titulo}`}</span>
-            <span aria-hidden="true" className="block" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+            <span
+              aria-hidden="true"
+              className="block uppercase"
+              style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--gp-text-3)' }}
+            >
               Movimento da leitura estratégica
             </span>
-            <span aria-hidden="true" className="mt-0.5 block" style={{ fontSize: 17, fontWeight: 700, lineHeight: '22px' }}>
+            <span
+              aria-hidden="true"
+              className="mt-1 block"
+              style={{ fontSize: 19, fontWeight: 700, lineHeight: '25px', letterSpacing: '-0.01em' }}
+            >
               {movimento.titulo}
             </span>
           </SheetTitle>
@@ -414,7 +426,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
             Quem é afetado, como executar e qual a melhora esperada.
           </SheetDescription>
 
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <div className="flex flex-wrap items-center gap-1.5 pt-2.5">
             {movimento.metrica ? (
               <span
                 className="rounded-full px-2 py-0.5 text-xs font-bold tabular-nums"
@@ -463,151 +475,187 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
           </div>
         </SheetHeader>
 
-        {estado === 'loading' ? (
-          <Etapas />
-        ) : estado === 'erro' ? (
-          <EstadoErro
-            titulo="Não foi possível detalhar este movimento agora."
-            onRetry={() => carregar(true)}
-          />
-        ) : detalhe ? (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="space-y-5 pb-2"
-          >
-            <Secao titulo="O que está acontecendo">
-              <p className="text-sm text-foreground" style={{ lineHeight: '20px' }}>
-                {detalhe.diagnostico}
-              </p>
-            </Secao>
-
-            {criterio === 'sem_coorte' ? (
-              <Secao titulo="Alcance" apoio={descritor.explicacao}>
-                <p className="text-sm text-foreground" style={{ lineHeight: '20px' }}>
-                  Este movimento não é sobre um grupo de alunos: o alvo é a aplicação de simulados. Confira o
-                  cronograma do recorte e quantos simulados foram aplicados dos contratados.
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          {estado === 'loading' ? (
+            <Etapas />
+          ) : estado === 'erro' ? (
+            <EstadoErro
+              titulo="Não foi possível detalhar este movimento agora."
+              onRetry={() => carregar(true)}
+            />
+          ) : detalhe ? (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-6 pb-2"
+            >
+              {/* 1. Diagnóstico — o texto que abre o raciocínio, sem cartão em volta. */}
+              <Secao titulo="O que está acontecendo">
+                <p className="text-[15px] text-foreground" style={{ lineHeight: '23px' }}>
+                  {detalhe.diagnostico}
                 </p>
               </Secao>
-            ) : (
+
+              {/* 2. Cenário — o "vale a pena?" logo depois do diagnóstico. */}
               <Secao
-                titulo={`${descritor.rotulo} · ${formatNumero(coorte.length)}`}
-                apoio={descritor.explicacao}
+                titulo="Se aplicar"
+                apoio="Efeito na proporção de alunos que cruza a faixa de proficiência."
               >
-                {consultaAlunos.isLoading ? (
-                  <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-                    Carregando os alunos do recorte…
-                  </p>
-                ) : consultaAlunos.isError ? (
-                  <EstadoErro titulo="Não foi possível carregar os alunos." onRetry={consultaAlunos.refetch} />
-                ) : coorte.length === 0 ? (
-                  <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-                    Nenhum aluno atende a esse critério neste recorte.
-                  </p>
+                {projecao ? (
+                  <BlocoProjecao projecao={projecao} />
                 ) : (
-                  <>
-                    <ul className="space-y-1.5">
-                      {coorte.slice(0, 40).map((aluno) => (
-                        <LinhaAlunoCoorte key={aluno.id} aluno={aluno} />
-                      ))}
-                    </ul>
-                    {coorte.length > 40 ? (
-                      <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                        Mostrando os 40 primeiros de {formatNumero(coorte.length)}. A lista completa está na Visão de
-                        Alunos.
-                      </p>
-                    ) : null}
-                    {coorte.length < 10 ? (
-                      <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                        Amostra baixa: menos de 10 alunos neste grupo. Leia com cautela.
-                      </p>
-                    ) : null}
-                  </>
+                  <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                    {criterio === 'sem_coorte'
+                      ? 'Sem grupo de alunos, não há cenário de nota para projetar: o ganho aqui é de cobertura.'
+                      : 'Sem base de alunos com nota suficiente para projetar um cenário neste recorte.'}
+                  </p>
                 )}
               </Secao>
-            )}
 
-            {detalhe.passos.length ? (
-              <Secao titulo="Como executar">
-                <ol className="space-y-2">
-                  {detalhe.passos.map((passo, i) => (
-                    <li
-                      key={`${passo.acao ?? 'passo'}-${i}`}
-                      className="rounded-md border border-border p-2.5"
-                      style={{ background: 'var(--gp-surface-2)' }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span
-                          aria-hidden
-                          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-                          style={{ background: 'var(--gp-surface-3)', color: 'var(--gp-brand-on-dark)' }}
-                        >
-                          {i + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground">{passo.acao}</p>
-                          {passo.detalhe ? (
-                            <p className="mt-0.5 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
-                              {passo.detalhe}
-                            </p>
+              {/* 3. Quem é afetado. */}
+              {criterio === 'sem_coorte' ? (
+                <Secao titulo="Alcance" apoio={descritor.explicacao}>
+                  <p className="text-sm text-foreground" style={{ lineHeight: '20px' }}>
+                    Este movimento não é sobre um grupo de alunos: o alvo é a aplicação de simulados. Confira o
+                    cronograma do recorte e quantos simulados foram aplicados dos contratados.
+                  </p>
+                </Secao>
+              ) : (
+                <Secao
+                  titulo={descritor.rotulo}
+                  contagem={formatNumero(coorte.length)}
+                  apoio={descritor.explicacao}
+                >
+                  {consultaAlunos.isLoading ? (
+                    <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                      Carregando os alunos do recorte…
+                    </p>
+                  ) : consultaAlunos.isError ? (
+                    <EstadoErro titulo="Não foi possível carregar os alunos." onRetry={consultaAlunos.refetch} />
+                  ) : coorte.length === 0 ? (
+                    <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                      Nenhum aluno atende a esse critério neste recorte.
+                    </p>
+                  ) : (
+                    <>
+                      <ul className="grid gap-1.5 sm:grid-cols-2">
+                        {coorte.slice(0, verTodos ? 60 : 8).map((aluno) => (
+                          <LinhaAlunoCoorte key={aluno.id} aluno={aluno} />
+                        ))}
+                      </ul>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {coorte.length > 8 ? (
+                          <button
+                            type="button"
+                            onClick={() => setVerTodos((v) => !v)}
+                            className="inline-flex items-center gap-1 rounded-md text-[color:var(--gp-brand-on-dark)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            style={{ fontSize: 12, fontWeight: 600 }}
+                          >
+                            <Icon name={verTodos ? 'chevron_up' : 'chevron_down'} size={12} />
+                            {verTodos
+                              ? 'Mostrar menos'
+                              : `Ver os ${formatNumero(Math.min(coorte.length, 60))} alunos`}
+                          </button>
+                        ) : null}
+                        {verTodos && coorte.length > 60 ? (
+                          <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                            Lista completa na Visão de Alunos.
+                          </span>
+                        ) : null}
+                        {coorte.length < 10 ? (
+                          <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                            Amostra baixa: menos de 10 alunos. Leia com cautela.
+                          </span>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
+                </Secao>
+              )}
+
+              {/* 4. Plano — trilha vertical numerada. */}
+              {detalhe.passos.length ? (
+                <Secao titulo="Como executar" contagem={`${detalhe.passos.length} passos`}>
+                  <ol className="space-y-0">
+                    {detalhe.passos.map((passo, i) => {
+                      const ultimo = i === detalhe.passos.length - 1;
+                      return (
+                        <li key={`${passo.acao ?? 'passo'}-${i}`} className="relative flex gap-3 pb-4 last:pb-0">
+                          {!ultimo ? (
+                            <span
+                              aria-hidden
+                              className="absolute left-[11px] top-6 bottom-1 w-px"
+                              style={{ background: 'var(--gp-border)' }}
+                            />
                           ) : null}
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {passo.responsavel ? (
-                              <span
-                                className="rounded-sm border border-border px-1.5 py-0.5"
-                                style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
-                              >
-                                {passo.responsavel}
-                              </span>
+                          <span
+                            aria-hidden
+                            className="relative z-10 inline-flex h-[23px] w-[23px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                            style={{ background: 'var(--gp-surface-3)', color: 'var(--gp-brand-on-dark)' }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <p className="text-sm font-semibold leading-snug text-foreground">{passo.acao}</p>
+                            {passo.detalhe ? (
+                              <p className="text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '18px' }}>
+                                {passo.detalhe}
+                              </p>
                             ) : null}
-                            {passo.prazo ? (
-                              <span
-                                className="rounded-sm border border-border px-1.5 py-0.5"
-                                style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
+                            {passo.responsavel || passo.prazo ? (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {passo.responsavel ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5"
+                                    style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
+                                  >
+                                    <Icon name="user" size={10} className="opacity-70" />
+                                    {passo.responsavel}
+                                  </span>
+                                ) : null}
+                                {passo.prazo ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-full border border-border px-1.5 py-0.5"
+                                    style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
+                                  >
+                                    <Icon name="clock" size={10} className="opacity-70" />
+                                    {passo.prazo}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            {passo.medir ? (
+                              <p
+                                className="flex items-start gap-1.5 rounded-md px-2 py-1.5"
+                                style={{ fontSize: 11, color: 'var(--gp-text-3)', background: 'var(--gp-surface-2)' }}
                               >
-                                {passo.prazo}
-                              </span>
+                                <Icon name="check" size={12} className="mt-0.5 shrink-0 opacity-70" />
+                                <span className="min-w-0">{passo.medir}</span>
+                              </p>
                             ) : null}
                           </div>
-                          {passo.medir ? (
-                            <p className="mt-1.5 flex items-start gap-1" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                              <Icon name="check" size={12} className="mt-0.5 shrink-0 opacity-70" />
-                              <span className="min-w-0">{passo.medir}</span>
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </Secao>
-            ) : null}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </Secao>
+              ) : null}
 
-            <Secao
-              titulo="Se aplicar"
-              apoio="Efeito na proporção de alunos que cruza a faixa de proficiência."
-            >
-              {projecao ? (
-                <BlocoProjecao projecao={projecao} />
-              ) : (
-                <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-                  {criterio === 'sem_coorte'
-                    ? 'Sem grupo de alunos, não há cenário de nota para projetar: o ganho aqui é de cobertura.'
-                    : 'Sem base de alunos com nota suficiente para projetar um cenário neste recorte.'}
-                </p>
-              )}
-            </Secao>
-
-            {detalhe.risco ? (
-              <Secao titulo="Onde isso pode falhar">
-                <p className="text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
-                  {detalhe.risco}
-                </p>
-              </Secao>
-            ) : null}
-          </motion.div>
-        ) : null}
+              {/* 5. Risco — fecha o drawer com a ressalva. */}
+              {detalhe.risco ? (
+                <Secao titulo="Onde isso pode falhar">
+                  <p
+                    className="rounded-lg border border-border px-3 py-2.5 text-xs"
+                    style={{ color: 'var(--gp-text-3)', lineHeight: '18px', background: 'var(--gp-surface-2)' }}
+                  >
+                    {detalhe.risco}
+                  </p>
+                </Secao>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </div>
       </SheetContent>
     </Sheet>
   );
