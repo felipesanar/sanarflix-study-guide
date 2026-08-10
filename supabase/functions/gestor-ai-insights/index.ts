@@ -90,7 +90,7 @@ const TOOL_LEITURA: ToolSchema = {
       properties: {
         leitura: {
           type: "string",
-          description: "Diagnóstico central do recorte, no máximo 220 caracteres.",
+          description: "Uma ou duas frases simples dizendo, em linguagem do dia a dia, qual é o problema principal e por que ele importa. No máximo 200 caracteres, sem jargão.",
         },
         itens: {
           type: "array",
@@ -98,9 +98,9 @@ const TOOL_LEITURA: ToolSchema = {
           items: {
             type: "object",
             properties: {
-              titulo: { type: "string", description: "Até 44 caracteres, o movimento em si." },
+              titulo: { type: "string", description: "Até 44 caracteres: a ação em palavras simples, começando por verbo (ex: 'Reforçar Pediatria no 11º')." },
               metrica: { type: "string", description: "Número curto vindo do contexto, ex: 61% ou -5 p.p." },
-              texto: { type: "string", description: "Até 180 caracteres: o que fazer e por que move a nota." },
+              texto: { type: "string", description: "Até 180 caracteres, em duas frases curtas e simples: primeiro o que o número mostra, depois o que fazer. Sem jargão de consultoria." },
               prioridade: { type: "string", enum: ["alta", "media", "baixa"] },
               natureza: {
                 type: "string",
