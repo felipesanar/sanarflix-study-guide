@@ -10,6 +10,7 @@ import { formatPct } from '@/features/gestor/lib/formatters';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
+import type { FiltroSemestre } from '@/features/gestor/api/types';
 
 /** Grande área clicada em `AcertoPorAreaESemestre` que abre este drawer. */
 export interface AreaSelecionadaDetalhamento {
@@ -101,7 +102,7 @@ function CorpoDetalhamentoTemasSkeleton({ rotulo }: { rotulo: string }) {
  * clicar numa com `temFilhos` drila para os temas dela, com um "Voltar" que
  * some ao nível de especialidade.
  */
-export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: DrawerTemasDetalhamentoProps) {
+export function DrawerTemasDetalhamento({ area, iesId, simulados, semestre, onFechar }: DrawerTemasDetalhamentoProps) {
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<string | null>(null);
 
   /**
@@ -114,7 +115,7 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
     setEspecialidadeAberta(null);
   }, [area?.id]);
 
-  const consulta = useDetalhamentoTemas(iesId, simulados, area?.nome ?? null, especialidadeAberta);
+  const consulta = useDetalhamentoTemas(iesId, simulados, area?.nome ?? null, especialidadeAberta, semestre);
   /** Regra dos 400ms (spec de motion §7) — evita o flash de skeleton em resposta rápida. */
   const mostrarSkeleton = useDelayedLoading(consulta.isLoading);
   useDevolverFocoAoFechar(area !== null);
@@ -168,7 +169,11 @@ export function DrawerTemasDetalhamento({ area, iesId, simulados, onFechar }: Dr
             </span>
           </SheetTitle>
           <SheetDescription>
-            Percentual de acerto por {nivelTema ? 'tema' : 'especialidade'}. Nunca usa a escala de proficiência.
+            Percentual de acerto por {nivelTema ? 'tema' : 'especialidade'}, no recorte de{' '}
+            <span data-testid="drawer-detalhamento-recorte-semestre">
+              {rotuloSemestre(semestre).toLowerCase()}
+            </span>
+            . Nunca usa a escala de proficiência.
           </SheetDescription>
         </SheetHeader>
 
