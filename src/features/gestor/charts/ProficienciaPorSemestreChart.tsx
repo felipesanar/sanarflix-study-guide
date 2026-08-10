@@ -182,25 +182,33 @@ export function ProficienciaPorSemestreChart({
      * — ela cobre `<ul>` MAIS o eixo, então a linha nasce no "60" do eixo e
      * sobe contínua até a última barra, atravessando os vãos entre linhas.
      */
-    <div className="relative flex h-full min-h-0 flex-col">
-      <ul
-        className="flex min-h-0 flex-1 flex-col justify-between"
-        aria-label="Proficiência média por semestre"
-      >
-        {semestres.map((item) => (
-          <BarraProficiencia
-            key={item.semestre}
-            testId={`proficiencia-semestre-${item.semestre}`}
-            rotulo={`${item.semestre}º semestre`}
-            caption={`${item.amostra} ${item.amostra === 1 ? 'aluno' : 'alunos'}`}
-            valor={item.mediaProficiencia}
-            onClick={() => onAbrirSemestre(item.semestre)}
-            ariaLabel={`Ver alunos do ${item.semestre}º semestre`}
-          />
-        ))}
-      </ul>
+    <div className="flex h-full min-h-0 flex-col">
+      {/* `relative` só em volta da lista: a linha de meta cobre as barras e os
+          vãos, mas NÃO o eixo — assim o "60" do eixo não é atravessado. */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <ul
+          className={
+            semestres.length >= 4
+              ? 'flex min-h-0 flex-1 flex-col justify-between py-1'
+              : 'flex min-h-0 flex-1 flex-col justify-center gap-7 py-1'
+          }
+          aria-label="Proficiência média por semestre"
+        >
+          {semestres.map((item) => (
+            <BarraProficiencia
+              key={item.semestre}
+              testId={`proficiencia-semestre-${item.semestre}`}
+              rotulo={`${item.semestre}º semestre`}
+              caption={`${item.amostra} ${item.amostra === 1 ? 'aluno' : 'alunos'}`}
+              valor={item.mediaProficiencia}
+              onClick={() => onAbrirSemestre(item.semestre)}
+              ariaLabel={`Ver alunos do ${item.semestre}º semestre`}
+            />
+          ))}
+        </ul>
+        <LinhaMetaContinua />
+      </div>
       <EixoProficiencia />
-      <LinhaMetaContinua />
     </div>
   );
 }

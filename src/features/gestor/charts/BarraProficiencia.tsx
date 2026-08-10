@@ -24,7 +24,7 @@ const MOVIMENTO_BARRA: React.CSSProperties = {
  * pixel em toda linha e no eixo: nenhuma conta de posição feita à mão, só a
  * mesma grade repetida.
  */
-const GRADE_COLUNAS = 'grid min-w-0 grid-cols-[minmax(0,9rem)_1fr_4rem] items-center gap-3';
+const GRADE_COLUNAS = 'grid min-w-0 grid-cols-[minmax(0,7.5rem)_1fr_3.5rem] items-center gap-4';
 const PADDING_HORIZONTAL = 'px-1';
 
 /**
@@ -67,7 +67,11 @@ export function LinhaMetaContinua({ meta = PROFICIENCIA_MINIMA }: { meta?: numbe
       <span className="relative h-full">
         <span
           className="absolute inset-y-0"
-          style={{ left: `${proporcao(meta) * 100}%`, width: 1.5, background: 'var(--gp-text-3)' }}
+          style={{
+            left: `${proporcao(meta) * 100}%`,
+            borderLeft: '1px dashed var(--gp-border-strong)',
+            opacity: 0.9,
+          }}
         />
       </span>
       <span />
@@ -175,7 +179,7 @@ export function BarraProficiencia({
       </span>
       <span
         className="w-full overflow-hidden"
-        style={{ height: 8, borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-border-subtle)' }}
+        style={{ height: 10, borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-border-subtle)' }}
       >
         {valor !== null ? (
           <span

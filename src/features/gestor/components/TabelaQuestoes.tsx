@@ -194,7 +194,7 @@ export function TabelaQuestoes({
           style={{
             background: 'var(--gp-surface-2)',
             color: 'var(--gp-text-2)',
-            border: '1px solid var(--gp-border)',
+            border: '1px solid var(--gp-border-strong)',
             borderRadius: 'var(--gp-radius-sm)',
           }}
         >
