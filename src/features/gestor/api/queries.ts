@@ -587,16 +587,33 @@ export function useDetalhamentoTemas(
   simulados: string[],
   grandeArea: string | null,
   especialidade: string | null,
+  /**
+   * Recorte de semestre VIGENTE no card "Acerto por grande área" (10/08): o
+   * semestre clicado no cruzamento área × semestre ou, na falta dele, o
+   * filtro global da tela. A RPC ganhou `p_semestre` (migration de 10/08) —
+   * sem isso, especialidade e tema mostravam sempre o recorte cheio enquanto
+   * a lista de grandes áreas já estava recortada, e os dois números não
+   * batiam. Gramática idêntica às RPCs irmãs: `geral`/`6ano` não cortam
+   * (só marcam evidência), `1`..`12` cortam duro.
+   */
+  semestre: FiltroSemestre | null,
 ): ResultadoGestor<NoDetalhamentoTemas[]> {
   const lista = ordenados(simulados);
   return useEnvelope<NoDetalhamentoTemas[]>(
-    ['gestor', 'detalhamento-temas', iesId, lista, grandeArea, especialidade],
+    ['gestor', 'detalhamento-temas', iesId, lista, grandeArea, especialidade, semestre],
     'get_gestor_detalhamento_temas',
-    { p_ies_id: iesId, p_simulados: lista, p_grande_area: grandeArea, p_especialidade: especialidade },
+    {
+      p_ies_id: iesId,
+      p_simulados: lista,
+      p_grande_area: grandeArea,
+      p_especialidade: especialidade,
+      p_semestre: semestre,
+    },
     iesId !== null && lista.length > 0 && grandeArea !== null,
     false,
   );
 }
+
 
 /**
  * Tradução do valor do controle de ordenação para o contrato da RPC.
