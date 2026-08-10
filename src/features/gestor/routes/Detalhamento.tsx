@@ -723,8 +723,10 @@ export default function Detalhamento() {
             area={areaDrillDown}
             iesId={iesAtivaId}
             simulados={simuladosNoRecorte}
+            semestre={semestreDoDrillDown}
             onFechar={() => setAreaDrillDown(null)}
           />
+
         </>
       )}
     </ContainerRota>
