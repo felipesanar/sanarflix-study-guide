@@ -506,7 +506,7 @@ serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT_PEDAGOGICO },
           { role: "user", content: buildPedagogicoPrompt(diagnosticoRes.data, visaoGeralRes.data) },
         ],
-        maxTokens: 500,
+        maxTokens: 2500,
         temperature: 0.4,
         signal: req.signal,
       });
@@ -605,7 +605,7 @@ serve(async (req) => {
           },
           { role: "user", content: userPrompt },
         ],
-        maxTokens: 900,
+        maxTokens: 4000,
         temperature: 0.4,
         tool: TOOL_LEITURA,
         signal: req.signal,
@@ -688,7 +688,7 @@ serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT_ALUNO },
           { role: "user", content: buildAlunoPrompt(alunoRes.data, porAreaRes.error ? null : porAreaRes.data) },
         ],
-        maxTokens: 500,
+        maxTokens: 2500,
         temperature: 0.4,
         signal: req.signal,
       });
