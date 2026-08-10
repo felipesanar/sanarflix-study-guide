@@ -99,17 +99,8 @@ async function gerar(
   let ultimo: DetalheMovimento | null = null;
 
   try {
-    const { data: sessao } = await supabase.auth.getSession();
-    const token = sessao.session?.access_token;
-    const resposta = await fetch(`${env.EDGE_FUNCTIONS_BASE_URL}/gestor-ai-insights`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: env.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token ?? env.SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ ...corpo, stream: true }),
-    });
+    const resposta = await fetchIa('gestor-ai-insights', { ...corpo, stream: true });
+
     if (!resposta.ok || !resposta.body) throw new Error('stream_indisponivel');
 
     const reader = resposta.body.getReader();
