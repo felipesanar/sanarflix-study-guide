@@ -127,6 +127,95 @@ const TOOL_LEITURA: ToolSchema = {
   },
 };
 
+/**
+ * DETALHE DE UM MOVIMENTO (drawer da Leitura estratégica). O gestor clica no
+ * cartão e quer três respostas: quem são os alunos, como executar e o que
+ * muda se executar.
+ *
+ * Divisão de trabalho deliberada: o modelo NÃO monta lista de aluno e NÃO
+ * calcula projeção — ele escolhe, de uma lista fechada, qual grupo de alunos o
+ * movimento ataca (`criterio_coorte`) e quantos alunos desse grupo é razoável
+ * levar acima do corte (`alvo_alunos`). Quem é o aluno e quanto muda o
+ * indicador o front calcula a partir das RPCs. Assim nada de número inventado
+ * chega à tela.
+ */
+const SYSTEM_PROMPT_MOVIMENTO = `Você é consultor sênior de desempenho no ENAMED conversando com o gestor da instituição sobre UM movimento específico que você mesmo recomendou.
+
+${BASE_ENAMED}
+
+${DOUTRINA_CONSULTOR}
+
+Sua tarefa: detalhar a execução desse movimento, via a tool detalhe_movimento.
+
+Regras da resposta:
+- Escolha em criterio_coorte qual grupo de alunos este movimento ataca. Escolha "sem_coorte" apenas quando o movimento for de cobertura/calendário de aplicação de simulados (não há grupo de alunos).
+- Em alvo_alunos, diga quantos alunos desse grupo é realista levar acima do corte no próximo ciclo. Seja conservador: nunca o grupo inteiro.
+- Em passos, dê de 3 a 5 passos executáveis, em ordem. Cada passo diz a ação, quem conduz, em quanto tempo e como conferir se funcionou.
+- Nunca cite nome de aluno. Nunca invente número que não esteja no contexto. Nunca prometa nota final.
+- Escreva como uma pessoa real conversando: frases curtas, palavras do dia a dia, uma ideia por frase. Proibido jargão ("alavancar", "potencializar", "acionável", "otimizar", "gap", "performance").
+- Nunca escreva "o curso": use "a faculdade", "a instituição" ou "a escola médica"; para o grupo, "a turma" ou "os alunos".
+- Respeite o recorte de semestre informado. "6º ano" são os alunos do 11º e 12º semestres juntos — nunca escreva "6º semestre".
+
+${ANTI_INVENCAO_GESTOR}`;
+
+const TOOL_MOVIMENTO: ToolSchema = {
+  type: "function",
+  function: {
+    name: "detalhe_movimento",
+    description: "Detalha a execução de um movimento da leitura estratégica.",
+    parameters: {
+      type: "object",
+      properties: {
+        diagnostico: {
+          type: "string",
+          description: "Até 320 caracteres: o que o número mostra e por que este movimento é o certo agora, em linguagem simples.",
+        },
+        criterio_coorte: {
+          type: "string",
+          enum: [
+            "borda_do_corte",
+            "abaixo_da_base",
+            "em_variacao",
+            "acima_da_faixa",
+            "sem_nota",
+            "por_semestre",
+            "sem_coorte",
+          ],
+          description: "Grupo de alunos que este movimento ataca.",
+        },
+        semestre_alvo: {
+          type: "integer",
+          description: "Semestre (1 a 12) quando criterio_coorte = por_semestre. Use 0 quando não se aplica.",
+        },
+        alvo_alunos: {
+          type: "integer",
+          description: "Quantos alunos do grupo é realista levar acima do corte no próximo ciclo. 0 quando não há grupo de alunos.",
+        },
+        passos: {
+          type: "array",
+          description: "De 3 a 5 passos, na ordem de execução.",
+          items: {
+            type: "object",
+            properties: {
+              acao: { type: "string", description: "Até 90 caracteres, começando por verbo." },
+              detalhe: { type: "string", description: "Até 200 caracteres: como fazer, em duas frases curtas." },
+              responsavel: { type: "string", description: "Quem conduz (ex: coordenação, professor de Clínica Médica, tutoria)." },
+              prazo: { type: "string", description: "Janela curta (ex: 2 semanas, até o próximo simulado)." },
+              medir: { type: "string", description: "Como conferir se funcionou, em uma frase." },
+            },
+            required: ["acao", "detalhe", "responsavel", "prazo", "medir"],
+          },
+        },
+        risco: {
+          type: "string",
+          description: "Até 160 caracteres: o que pode fazer este movimento não funcionar, e o sinal de alerta.",
+        },
+      },
+      required: ["diagnostico", "criterio_coorte", "semestre_alvo", "alvo_alunos", "passos", "risco"],
+    },
+  },
+};
+
 interface PedagogicoBody {
   modo: "pedagogico";
   iesId: string;
@@ -159,7 +248,20 @@ interface AlunoBody {
   refresh?: boolean;
 }
 
-type RequestBody = PedagogicoBody | ConsultorBody | AlunoBody;
+interface MovimentoBody {
+  modo: "movimento";
+  iesId: string;
+  semestre: string | null;
+  simulados?: string[];
+  escopo?: "recorte" | "institucional";
+  /** O cartão clicado, exatamente como a leitura o devolveu. */
+  movimento: { titulo: string; metrica?: string; texto?: string; natureza?: string; prioridade?: string };
+  refresh?: boolean;
+  stream?: boolean;
+}
+
+type RequestBody = PedagogicoBody | ConsultorBody | AlunoBody | MovimentoBody;
+
 
 interface RpcErrorLike {
   code?: string;
