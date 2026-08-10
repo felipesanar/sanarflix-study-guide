@@ -129,10 +129,12 @@ async function gerar(
   } catch (erroStream) {
     if (ultimo) return ultimo;
     // Fallback bufferizado: onde o SSE não passa, o detalhe ainda chega.
-    const { data, error } = await supabase.functions.invoke('gestor-ai-insights', { body: corpo });
-    if (error) throw error;
-    const final = normalizar((data ?? {}) as Record<string, unknown>);
+    const bufferizada = await fetchIa('gestor-ai-insights', corpo);
+    if (!bufferizada.ok) throw erroStream instanceof Error ? erroStream : new Error('ai_error');
+    const data = (await bufferizada.json()) as Record<string, unknown>;
+    const final = normalizar(data ?? {});
     if (!final) throw erroStream instanceof Error ? erroStream : new Error('resposta_invalida');
+
     return final;
   }
 }
