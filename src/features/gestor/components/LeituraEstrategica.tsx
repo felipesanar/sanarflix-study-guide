@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/env';
 
 import { Icon } from '@/features/gestor/components/Icon';
+import { DrawerMovimento, type MovimentoSelecionado } from '@/features/gestor/components/DrawerMovimento';
 
 /**
  * "Leitura estratégica" do recorte de simulados — persona de consultoria
@@ -154,6 +155,8 @@ export interface LeituraEstrategicaProps {
 export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recorte' }: LeituraEstrategicaProps) {
   const [estado, setEstado] = React.useState<Estado>('idle');
   const [leitura, setLeitura] = React.useState<Leitura | null>(null);
+  /** Movimento aberto no drawer de detalhe (null = fechado). */
+  const [movimento, setMovimento] = React.useState<MovimentoSelecionado | null>(null);
 
   /* No escopo institucional o simulado não entra no recorte: a leitura é da
      instituição no período, então trocar de seleção de simulado não deve
@@ -394,6 +397,15 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
         ) : null}
 
       </div>
+
+      <DrawerMovimento
+        movimento={movimento}
+        escopo={escopo}
+        iesId={iesId}
+        semestre={semestre}
+        simulados={listaSimulados}
+        onFechar={() => setMovimento(null)}
+      />
     </section>
   );
 }
