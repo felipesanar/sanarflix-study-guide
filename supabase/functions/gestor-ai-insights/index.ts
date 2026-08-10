@@ -277,14 +277,22 @@ function linhasAlunos(detalhamento: any): string {
  */
 function descreverRecorteSemestre(semestre: string | null | undefined): string {
   const bruto = (semestre ?? "").toString().trim();
-  if (!bruto || bruto.toLowerCase() === "todos") {
+  const chave = bruto.toLowerCase();
+  if (!bruto || chave === "todos" || chave === "geral") {
     return "Recorte de semestre: TODOS OS SEMESTRES (visão geral da faculdade). Fale da instituição como um todo e não atribua os números a um único semestre ou ano.";
+  }
+  // `6ano` é o recorte PADRÃO do portal e não é um semestre: são os alunos do
+  // 6º ano, ou seja, 11º e 12º semestres juntos. Chamar isso de "6º semestre"
+  // fala de outra população.
+  if (chave === "6ano" || chave === "6º ano" || chave === "6 ano") {
+    return 'Recorte de semestre: APENAS o 6º ANO (11º e 12º semestres juntos, os alunos em internato/final do curso). Todos os números abaixo são só desses alunos. Diga isso explicitamente ("os alunos do 6º ano") e NUNCA escreva "6º semestre" nem trate isso como um semestre único; não generalize para toda a faculdade.';
   }
   const n = Number(bruto.replace(/\D/g, ""));
   const rotulo = Number.isFinite(n) && n > 0 ? `${n}º semestre` : bruto;
   const ano = Number.isFinite(n) && n > 0 ? ` (equivale ao ${Math.ceil(n / 2)}º ano)` : "";
   return `Recorte de semestre: APENAS ${rotulo}${ano}. Todos os números abaixo são só desses alunos. Diga isso explicitamente ("os alunos do ${rotulo}") e não generalize para toda a faculdade.`;
 }
+
 
 function buildConsultorPrompt(
   detalhamento: any,
