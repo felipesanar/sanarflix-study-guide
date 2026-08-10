@@ -544,6 +544,9 @@ serve(async (req) => {
       const cacheKey = await hashChave([
         "gestor-ai-insights",
         "consultor",
+        // Versão do prompt: mudar o jeito de escrever invalida o cache antigo,
+        // senão o gestor continua lendo o texto duro já gravado.
+        "v2-linguagem-simples",
         escopo,
         iesId,
         semestre ?? null,
