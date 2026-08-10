@@ -60,6 +60,9 @@ export interface StreamResult {
   texto: string;
   /** Argumentos acumulados do tool call, quando `tool` foi passado. */
   toolArguments: string | null;
+  /** `length` = cortada por max_tokens; `stop`/`tool_calls` = resposta completa. */
+  finishReason: string | null;
+
 }
 
 /**
