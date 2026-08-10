@@ -567,11 +567,21 @@ export default function Detalhamento() {
               </BlocoGestor>
             </div>
 
-            <div className="grid min-h-0 gap-4 lg:grid-rows-2">
+            {/* A coluna da direita NUNCA pode ditar a altura da linha (pedido
+                explícito, 10/08): com a leitura estratégica embaixo do
+                gráfico, a soma dos dois cards passava da altura do card de
+                "Acerto por grande área" e sobrava um vazio no pé da esquerda.
+                No desktop a coluna sai do fluxo de altura (`absolute inset-0`
+                dentro de um wrapper `relative`), então a linha inteira é
+                medida SÓ pela esquerda e os dois cards da direita dividem esse
+                espaço em duas faixas iguais, rolando por dentro se preciso. */}
+            <div className="relative min-h-0">
+            <div className="grid gap-4 lg:absolute lg:inset-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
             <div
               data-testid="bloco-proficiencia-semestre"
-              className="flex min-h-0 flex-col rounded-lg border border-border bg-card p-4"
+              className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-4"
             >
+
 
               {/* Refino de 10/08: era "Dispersão Nota × Semestre" (nuvem de
                   pontos, `DispersaoChart`) — trocado por barras de média por
