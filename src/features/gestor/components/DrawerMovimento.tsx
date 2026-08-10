@@ -12,6 +12,7 @@ import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFoco
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatNumero, formatPct } from '@/features/gestor/lib/formatters';
+import type { FiltroSemestre } from '@/features/gestor/api/types';
 import { TRACO } from '@/features/gestor/lib/rotulos';
 import {
   CORTE_PROFICIENCIA,
@@ -240,7 +241,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
 
   /** Lista completa de alunos do recorte — a coorte é uma seleção sobre ela. */
   const consultaAlunos = useAlunos(
-    { iesId, semestre, simulados },
+    { iesId, semestre: (semestre ?? 'geral') as FiltroSemestre, simulados },
     { page: 1, pageSize: 500, sort: 'nome', order: 'asc', q: '' },
   );
 
