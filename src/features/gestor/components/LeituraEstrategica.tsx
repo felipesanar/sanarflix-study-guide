@@ -126,15 +126,11 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
         ) : null}
       </header>
 
-      <div className="mt-3 min-h-0 flex-1">
-        {estado === 'loading' ? (
-          <div className="space-y-2" role="status" aria-live="polite" aria-busy="true">
-            <GestorSkeleton altura={14} rotulo="Preparando leitura do recorte" />
-            <GestorSkeleton altura={52} rotulo="Preparando leitura do recorte" />
-            <GestorSkeleton altura={52} rotulo="Preparando leitura do recorte" />
-            <span className="sr-only">Preparando a leitura deste recorte…</span>
-          </div>
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        {estado === 'loading' || estado === 'idle' ? (
+          <EtapasDaLeitura />
         ) : estado === 'erro' ? (
+
           <div className="flex flex-col items-start gap-2" role="alert">
             <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
               Não foi possível montar a leitura deste recorte agora.
