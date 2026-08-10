@@ -135,23 +135,41 @@ function rotuloSemestre(semestre: string | null): string {
 function Secao({
   titulo,
   apoio,
+  contagem,
   children,
 }: {
   titulo: string;
   apoio?: string;
+  contagem?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-2">
-      <div>
-        <h4
-          className="uppercase"
-          style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
-        >
-          {titulo}
-        </h4>
+    <section className="space-y-2.5">
+      <div className="space-y-1">
+        <div className="flex items-baseline gap-2">
+          <h4
+            className="uppercase"
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
+          >
+            {titulo}
+          </h4>
+          {contagem ? (
+            <span
+              className="rounded-full px-1.5 tabular-nums"
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                background: 'var(--gp-surface-3)',
+                color: 'var(--gp-brand-on-dark)',
+              }}
+            >
+              {contagem}
+            </span>
+          ) : null}
+          <span aria-hidden className="h-px flex-1" style={{ background: 'var(--gp-border)' }} />
+        </div>
         {apoio ? (
-          <p className="mt-0.5 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
+          <p className="text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
             {apoio}
           </p>
         ) : null}
@@ -172,50 +190,85 @@ function LinhaAlunoCoorte({ aluno }: { aluno: AlunoDaCoorte }) {
           : 'var(--gp-danger)';
 
   return (
-    <li className="flex items-center gap-3 rounded-md border border-border px-2.5 py-2" style={{ background: 'var(--gp-surface-2)' }}>
+    <li
+      className="flex items-center gap-2.5 overflow-hidden rounded-lg border border-border py-2 pl-2.5 pr-2.5"
+      style={{ background: 'var(--gp-surface-2)', boxShadow: 'inset 3px 0 0 0 ' + cor }}
+    >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{aluno.nome}</p>
-        <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+        <p className="truncate text-[13px] font-semibold leading-tight text-foreground">{aluno.nome}</p>
+        <p className="mt-0.5 truncate" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
           {aluno.semestre === null ? 'Semestre não informado' : `${aluno.semestre}º semestre`}
           {aluno.proficiencia === null ? ' · TRI em calibração' : ''}
         </p>
       </div>
-      {aluno.variacao !== null ? (
-        <span
-          className="shrink-0 tabular-nums"
-          style={{ fontSize: 11, color: aluno.variacao >= 0 ? 'var(--gp-success)' : 'var(--gp-danger)' }}
-        >
-          {aluno.variacao > 0 ? '+' : ''}
-          {formatNumero(aluno.variacao)} pts
-        </span>
-      ) : null}
-      <span className="shrink-0 text-sm font-bold tabular-nums" style={{ color: cor }}>
-        {aluno.proficiencia === null ? TRACO : formatNumero(aluno.proficiencia)}
-      </span>
+      <div className="shrink-0 text-right">
+        <p className="text-sm font-bold leading-none tabular-nums" style={{ color: cor }}>
+          {aluno.proficiencia === null ? TRACO : formatNumero(aluno.proficiencia)}
+        </p>
+        {aluno.variacao !== null ? (
+          <p
+            className="mt-0.5 tabular-nums"
+            style={{ fontSize: 10, color: aluno.variacao >= 0 ? 'var(--gp-success)' : 'var(--gp-danger)' }}
+          >
+            {aluno.variacao > 0 ? '+' : ''}
+            {formatNumero(aluno.variacao)} pts
+          </p>
+        ) : null}
+      </div>
     </li>
   );
 }
 
 function BlocoProjecao({ projecao }: { projecao: Projecao }) {
+  const largura = Math.max(0, Math.min(100, projecao.depoisPct));
+  const larguraHoje = Math.max(0, Math.min(100, projecao.antesPct));
   return (
-    <div className="rounded-md border border-border p-3" style={{ background: 'var(--gp-surface-2)' }}>
-      <div className="flex items-end gap-2">
-        <span className="text-sm tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
-          {formatPct(projecao.antesPct, 1)}
-        </span>
-        <Icon name="arrow_forward" size={14} className="mb-1 shrink-0 opacity-60" />
-        <span className="text-2xl font-bold leading-none tabular-nums text-foreground">
-          {formatPct(projecao.depoisPct, 1)}
-        </span>
-        <span
-          className="mb-0.5 text-sm font-semibold tabular-nums"
-          style={{ color: projecao.deltaPp > 0 ? 'var(--gp-success)' : 'var(--gp-text-3)' }}
-        >
-          {projecao.deltaPp > 0 ? '+' : ''}
-          {formatNumero(projecao.deltaPp)} p.p.
-        </span>
+    <div className="rounded-xl border border-border p-3.5" style={{ background: 'var(--gp-surface-2)' }}>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="uppercase" style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}>
+            Hoje
+          </p>
+          <p className="text-lg font-semibold leading-none tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
+            {formatPct(projecao.antesPct, 1)}
+          </p>
+        </div>
+        <Icon name="arrow_forward" size={16} className="mb-1 shrink-0 opacity-50" />
+        <div className="text-right">
+          <p className="uppercase" style={{ fontSize: 10, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}>
+            Se aplicar
+          </p>
+          <div className="flex items-end justify-end gap-1.5">
+            <span className="text-[28px] font-bold leading-none tabular-nums text-foreground">
+              {formatPct(projecao.depoisPct, 1)}
+            </span>
+            <span
+              className="mb-0.5 text-sm font-semibold tabular-nums"
+              style={{ color: projecao.deltaPp > 0 ? 'var(--gp-success)' : 'var(--gp-text-3)' }}
+            >
+              {projecao.deltaPp > 0 ? '+' : ''}
+              {formatNumero(projecao.deltaPp)} p.p.
+            </span>
+          </div>
+        </div>
       </div>
-      <p className="mt-2 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
+
+      <div
+        aria-hidden
+        className="relative mt-3 h-1.5 overflow-hidden rounded-full"
+        style={{ background: 'var(--gp-surface-3)' }}
+      >
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{ width: `${largura}%`, background: 'var(--gp-success)', opacity: 0.35 }}
+        />
+        <div
+          className="absolute inset-y-0 left-0 rounded-full"
+          style={{ width: `${larguraHoje}%`, background: 'var(--gp-brand-on-dark)' }}
+        />
+      </div>
+
+      <p className="mt-2.5 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
         Cenário, não previsão. A conta: hoje {formatNumero(projecao.proficientesHoje)} de{' '}
         {formatNumero(projecao.base)} alunos com nota cruzam a faixa de {CORTE_PROFICIENCIA} pontos. Se mais{' '}
         {formatNumero(projecao.alvo)} passarem do corte, a proporção vai para {formatPct(projecao.depoisPct, 1)}.
