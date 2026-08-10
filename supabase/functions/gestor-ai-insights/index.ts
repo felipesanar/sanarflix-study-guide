@@ -897,6 +897,200 @@ serve(async (req) => {
       return jsonResponse({ ...payload, cached: false }, 200, cors);
     }
 
+    // -------------------------------------------------------------------
+    // Detalhe de UM movimento da leitura (drawer). Mesmo recorte, mesmas RPCs,
+    // mesmo caminho de SSE + cache do modo consultor.
+    if (body?.modo === "movimento") {
+      const { iesId, semestre, simulados, movimento } = body;
+      if (!iesId) return jsonResponse({ error: "iesId_obrigatorio" }, 400, cors);
+      if (!movimento || typeof movimento.titulo !== "string" || !movimento.titulo.trim()) {
+        return jsonResponse({ error: "movimento_obrigatorio" }, 400, cors);
+      }
+
+      const escopo = body.escopo === "institucional" ? "institucional" : "recorte";
+      const institucional = escopo === "institucional";
+      const listaSimulados =
+        institucional ? null : Array.isArray(simulados) && simulados.length ? [...simulados] : null;
+
+      const cacheKey = await hashChave([
+        "gestor-ai-insights",
+        "movimento",
+        "v1",
+        escopo,
+        iesId,
+        semestre ?? null,
+        listaSimulados ? [...listaSimulados].sort() : null,
+        movimento.titulo.trim(),
+        movimento.metrica ?? null,
+      ]);
+      const enviarCacheOuJson = (cached: Record<string, unknown>) => {
+        if (body?.stream === true) {
+          const corpo = `data: ${JSON.stringify({ tipo: "final", ...cached, cached: true })}\n\ndata: [DONE]\n\n`;
+          return new Response(corpo, {
+            status: 200,
+            headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+          });
+        }
+        return jsonResponse({ ...cached, cached: true }, 200, cors);
+      };
+      if (!refresh) {
+        const cached = await lerCache(supabaseAdmin, cacheKey);
+        if (cached) return enviarCacheOuJson(cached as Record<string, unknown>);
+      }
+
+      const [detalhamentoRes, visaoGeralRes, diagnosticoRes] = await Promise.all([
+        institucional || !listaSimulados
+          ? Promise.resolve({ data: null, error: null })
+          : supabaseUser.rpc("get_gestor_detalhamento", {
+              p_ies_id: iesId,
+              p_semestre: semestre ?? null,
+              p_simulados: listaSimulados,
+            }),
+        supabaseUser.rpc("get_gestor_visao_geral", { p_ies_id: iesId, p_semestre: semestre ?? null }),
+        supabaseUser.rpc("get_gestor_diagnostico", { p_ies_id: iesId, p_semestre: semestre ?? null, p_node: null }),
+      ]);
+
+      if (visaoGeralRes.error) {
+        console.error("[gestor-ai-insights]", "movimento visao_geral:", visaoGeralRes.error);
+        return jsonResponse({ error: visaoGeralRes.error.message }, statusForRpcError(visaoGeralRes.error), cors);
+      }
+      if (detalhamentoRes.error) console.error("[gestor-ai-insights]", "movimento detalhamento (opcional):", detalhamentoRes.error.message);
+      if (diagnosticoRes.error) console.error("[gestor-ai-insights]", "movimento diagnostico (opcional):", diagnosticoRes.error.message);
+
+      const promptMovimento = [
+        `Movimento a detalhar: "${movimento.titulo}".`,
+        movimento.metrica ? `Número que o sustenta: ${movimento.metrica}.` : "",
+        movimento.texto ? `Justificativa curta que o gestor já leu: ${movimento.texto}` : "",
+        movimento.natureza ? `Natureza do problema: ${movimento.natureza}.` : "",
+        descreverRecorteSemestre(semestre ?? null),
+        institucional
+          ? "Escopo: a instituição como um todo no período, sem simulado específico."
+          : "Escopo: os simulados selecionados pelo gestor.",
+        `Indicadores institucionais:\n${linhasVisaoGeral(visaoGeralRes.data)}`,
+        `Diagnóstico curricular por grande área:\n${linhasDiagnostico(diagnosticoRes.error ? null : diagnosticoRes.data)}`,
+        institucional
+          ? `Alunos por semestre em relação à faixa:\n${linhasDispersaoPorSemestre(visaoGeralRes.data)}`
+          : `Posição dos alunos em relação à faixa de proficiência:\n${linhasAlunos(detalhamentoRes.error ? null : detalhamentoRes.data)}`,
+        institucional ? "" : `Acerto por grande área no recorte:\n${linhasAreas(detalhamentoRes.error ? null : detalhamentoRes.data)}`,
+        "Detalhe a execução deste movimento usando a tool detalhe_movimento e apenas esses números.",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      const mensagensMovimento = [
+        { role: "system" as const, content: SYSTEM_PROMPT_MOVIMENTO },
+        { role: "user" as const, content: promptMovimento },
+      ];
+
+      function montarPayloadMovimento(bruto: Record<string, unknown> | null) {
+        if (!bruto || typeof bruto.diagnostico !== "string") return null;
+        const passos = Array.isArray(bruto.passos) ? bruto.passos.slice(0, 5) : [];
+        const semestreAlvo = Number(bruto.semestre_alvo);
+        return {
+          diagnostico: bruto.diagnostico,
+          criterioCoorte: typeof bruto.criterio_coorte === "string" ? bruto.criterio_coorte : null,
+          semestreAlvo: Number.isFinite(semestreAlvo) && semestreAlvo >= 1 && semestreAlvo <= 12 ? semestreAlvo : null,
+          alvoAlunos: Number.isFinite(Number(bruto.alvo_alunos)) ? Math.max(0, Math.trunc(Number(bruto.alvo_alunos))) : null,
+          passos,
+          risco: typeof bruto.risco === "string" ? bruto.risco : null,
+        };
+      }
+
+      if (body?.stream === true) {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            const enviar = (evento: Record<string, unknown>) => {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(evento)}\n\n`));
+            };
+            try {
+              let ultimoEnviado = "";
+              const { texto, toolArguments } = await streamChatCompletion({
+                apiKey: LOVABLE_API_KEY,
+                model: AI_MODEL_RAPIDO,
+                messages: mensagensMovimento,
+                maxTokens: 4000,
+                temperature: 0.4,
+                tool: TOOL_MOVIMENTO,
+                signal: req.signal,
+                onDelta: ({ texto: parcialTexto, toolArguments: parcialArgs }) => {
+                  const parcial = repararJsonParcial<Record<string, unknown>>(parcialArgs ?? parcialTexto);
+                  const payload = montarPayloadMovimento(parcial);
+                  if (!payload) return;
+                  const assinatura = JSON.stringify(payload);
+                  if (assinatura === ultimoEnviado) return;
+                  ultimoEnviado = assinatura;
+                  enviar({ tipo: "parcial", ...payload });
+                },
+              });
+
+              const bruto = toolArguments ?? texto;
+              const payload =
+                montarPayloadMovimento(repararJsonParcial<Record<string, unknown>>(bruto)) ??
+                montarPayloadMovimento(extrairJson<Record<string, unknown>>(bruto));
+
+              if (!payload) {
+                console.error("[gestor-ai-insights]", "movimento sem saída estruturada (stream)");
+                enviar({ tipo: "erro", error: "sem_detalhe" });
+              } else {
+                await gravarCache(supabaseAdmin, {
+                  cacheKey,
+                  fn: "gestor-ai-insights",
+                  modo: `movimento:${escopo}`,
+                  payload,
+                  model: AI_MODEL_RAPIDO,
+                  ttlSegundos: TTL.gestorRecorte,
+                });
+                enviar({ tipo: "final", ...payload, cached: false });
+              }
+            } catch (e) {
+              const status = e instanceof AiGatewayError ? e.status : 500;
+              console.error("[gestor-ai-insights]", "movimento stream error:", e instanceof Error ? e.message : e);
+              enviar({
+                tipo: "erro",
+                status,
+                error: status === 429 ? "rate_limit" : status === 402 ? "payment_required" : "ai_error",
+              });
+            } finally {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(stream, {
+          status: 200,
+          headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      }
+
+      const { texto, toolArguments } = await streamChatCompletion({
+        apiKey: LOVABLE_API_KEY,
+        model: AI_MODEL_RAPIDO,
+        messages: mensagensMovimento,
+        maxTokens: 4000,
+        temperature: 0.4,
+        tool: TOOL_MOVIMENTO,
+        signal: req.signal,
+      });
+      const bruto = toolArguments ?? texto;
+      const payload =
+        montarPayloadMovimento(repararJsonParcial<Record<string, unknown>>(bruto)) ??
+        montarPayloadMovimento(extrairJson<Record<string, unknown>>(bruto));
+      if (!payload) return jsonResponse({ error: "sem_detalhe" }, 500, cors);
+
+      await gravarCache(supabaseAdmin, {
+        cacheKey,
+        fn: "gestor-ai-insights",
+        modo: `movimento:${escopo}`,
+        payload,
+        model: AI_MODEL_RAPIDO,
+        ttlSegundos: TTL.gestorRecorte,
+      });
+      return jsonResponse({ ...payload, cached: false }, 200, cors);
+    }
+
+
 
     // -------------------------------------------------------------------
     if (body?.modo === "aluno") {
