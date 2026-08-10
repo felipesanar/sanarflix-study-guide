@@ -8,7 +8,9 @@ import {
   gravarCache,
   hashChave,
   lerCache,
+  repararJsonParcial,
   streamChatCompletion,
+
   TTL,
   type ToolSchema,
 } from "../_shared/ai.ts";
@@ -141,6 +143,9 @@ interface ConsultorBody {
    */
   escopo?: "recorte" | "institucional";
   refresh?: boolean;
+  /** `true` = resposta em SSE (leitura aparecendo aos poucos na tela). */
+  stream?: boolean;
+
 }
 
 
@@ -578,8 +583,20 @@ serve(async (req) => {
       ]);
       if (!refresh) {
         const cached = await lerCache(supabaseAdmin, cacheKey);
-        if (cached) return jsonResponse({ ...cached, cached: true }, 200, cors);
+        if (cached) {
+          // No modo stream o cache também sai como SSE, para o front ter um só
+          // caminho de leitura (evento `final` já completo, sem parciais).
+          if (body?.stream === true) {
+            const corpo = `data: ${JSON.stringify({ tipo: "final", ...cached, cached: true })}\n\ndata: [DONE]\n\n`;
+            return new Response(corpo, {
+              status: 200,
+              headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+            });
+          }
+          return jsonResponse({ ...cached, cached: true }, 200, cors);
+        }
       }
+
 
       // Visão Geral não tem recorte de simulado: a leitura é institucional, então
       // nem `get_gestor_detalhamento` nem o mapa de questões entram no contexto —
@@ -636,41 +653,126 @@ serve(async (req) => {
       // Leitura estratégica precisa ser rápida na tela: o modelo flash entrega
       // a mesma estrutura em uma fração do tempo do modelo de raciocínio.
       const modeloLeitura = AI_MODEL_RAPIDO;
+      // Teto folgado de propósito: o corte por `max_tokens` era o que derrubava
+      // a leitura inteira. Com o repasse em SSE + reparo de JSON parcial, um
+      // corte deixa de ser fatal, então não há motivo para apertar o teto.
+      const tetoTokens = 4000;
+      const mensagensLeitura = [
+        {
+          role: "system" as const,
+          content: institucional ? SYSTEM_PROMPT_CONSULTOR_INSTITUCIONAL : SYSTEM_PROMPT_CONSULTOR_RECORTE,
+        },
+        { role: "user" as const, content: userPrompt },
+      ];
+
+      function montarPayload(estruturado: { leitura?: string; itens?: unknown[] } | null) {
+        if (!estruturado || typeof estruturado.leitura !== "string") return null;
+        const itens = Array.isArray(estruturado.itens) ? estruturado.itens.slice(0, 3) : [];
+        return {
+          leitura: estruturado.leitura,
+          itens,
+          // Compatibilidade com o parse defensivo antigo do front.
+          insight: JSON.stringify({ leitura: estruturado.leitura, itens }),
+        };
+      }
+
+      /* STREAMING ATÉ A TELA. Antes o front esperava o JSON final: qualquer
+         corte (teto de tokens, modelo lento) virava "não foi possível montar a
+         leitura". Agora os deltas do gateway são repassados em SSE e o front
+         renderiza a leitura sendo escrita; o `final` só confirma o que já está
+         na tela. O modo bufferizado continua para clientes antigos e cache. */
+      if (body?.stream === true) {
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            const enviar = (evento: Record<string, unknown>) => {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(evento)}\n\n`));
+            };
+            try {
+              let ultimoEnviado = "";
+              const { texto, toolArguments } = await streamChatCompletion({
+                apiKey: LOVABLE_API_KEY,
+                model: modeloLeitura,
+                messages: mensagensLeitura,
+                maxTokens: tetoTokens,
+                temperature: 0.4,
+                tool: TOOL_LEITURA,
+                signal: req.signal,
+                onDelta: ({ texto: parcialTexto, toolArguments: parcialArgs }) => {
+                  const bruto = parcialArgs ?? parcialTexto;
+                  const parcial = repararJsonParcial<{ leitura?: string; itens?: unknown[] }>(bruto);
+                  if (!parcial || typeof parcial.leitura !== "string") return;
+                  const assinatura = JSON.stringify(parcial);
+                  if (assinatura === ultimoEnviado) return;
+                  ultimoEnviado = assinatura;
+                  enviar({
+                    tipo: "parcial",
+                    leitura: parcial.leitura,
+                    itens: Array.isArray(parcial.itens) ? parcial.itens.slice(0, 3) : [],
+                  });
+                },
+              });
+
+              const bruto = toolArguments ?? texto;
+              const payload =
+                montarPayload(repararJsonParcial<{ leitura?: string; itens?: unknown[] }>(bruto)) ??
+                montarPayload(extrairJson<{ leitura?: string; itens?: unknown[] }>(bruto));
+
+              if (!payload) {
+                console.error("[gestor-ai-insights]", "consultor sem saída estruturada (stream)");
+                enviar({ tipo: "erro", error: "sem_leitura" });
+              } else {
+                await gravarCache(supabaseAdmin, {
+                  cacheKey,
+                  fn: "gestor-ai-insights",
+                  modo: `consultor:${escopo}`,
+                  payload,
+                  model: modeloLeitura,
+                  ttlSegundos: TTL.gestorRecorte,
+                });
+                enviar({ tipo: "final", ...payload, cached: false });
+              }
+            } catch (e) {
+              const status = e instanceof AiGatewayError ? e.status : 500;
+              console.error("[gestor-ai-insights]", "stream error:", e instanceof Error ? e.message : e);
+              enviar({ tipo: "erro", status, error: status === 429 ? "rate_limit" : status === 402 ? "payment_required" : "ai_error" });
+            } finally {
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
+
       const { texto, toolArguments } = await streamChatCompletion({
         apiKey: LOVABLE_API_KEY,
         model: modeloLeitura,
-        messages: [
-          {
-            role: "system",
-            content: institucional ? SYSTEM_PROMPT_CONSULTOR_INSTITUCIONAL : SYSTEM_PROMPT_CONSULTOR_RECORTE,
-          },
-          { role: "user", content: userPrompt },
-        ],
-        maxTokens: 2000,
+        messages: mensagensLeitura,
+        maxTokens: tetoTokens,
         temperature: 0.4,
         tool: TOOL_LEITURA,
         signal: req.signal,
       });
 
+      const bruto = toolArguments ?? texto;
+      const payload =
+        montarPayload(repararJsonParcial<{ leitura?: string; itens?: unknown[] }>(bruto)) ??
+        montarPayload(extrairJson<{ leitura?: string; itens?: unknown[] }>(bruto));
 
-      const estruturado =
-        (toolArguments ? extrairJson<{ leitura?: string; itens?: unknown[] }>(toolArguments) : null) ??
-        extrairJson<{ leitura?: string; itens?: unknown[] }>(texto);
-
-      if (!estruturado || typeof estruturado.leitura !== "string") {
+      if (!payload) {
         console.error("[gestor-ai-insights]", "consultor sem saída estruturada");
         return jsonResponse({ error: "sem_leitura" }, 500, cors);
       }
-
-      const payload = {
-        leitura: estruturado.leitura,
-        itens: Array.isArray(estruturado.itens) ? estruturado.itens.slice(0, 3) : [],
-        // Compatibilidade com o parse defensivo antigo do front.
-        insight: JSON.stringify({
-          leitura: estruturado.leitura,
-          itens: Array.isArray(estruturado.itens) ? estruturado.itens.slice(0, 3) : [],
-        }),
-      };
 
       await gravarCache(supabaseAdmin, {
         cacheKey,
@@ -682,6 +784,7 @@ serve(async (req) => {
       });
       return jsonResponse({ ...payload, cached: false }, 200, cors);
     }
+
 
     // -------------------------------------------------------------------
     if (body?.modo === "aluno") {

@@ -45,7 +45,15 @@ export interface StreamOptions {
   temperature?: number;
   tool?: ToolSchema;
   signal?: AbortSignal;
+  /**
+   * Chamado a cada delta recebido do gateway, com o ACUMULADO até ali. É o que
+   * permite repassar a resposta em SSE para o front: a tela mostra a leitura
+   * sendo escrita em vez de esperar o fim, e um corte por teto de tokens deixa
+   * de ser "tudo ou nada" — o que já chegou continua na tela.
+   */
+  onDelta?: (parcial: { texto: string; toolArguments: string | null }) => void;
 }
+
 
 export class AiGatewayError extends Error {
   status: number;
@@ -121,15 +129,26 @@ export async function streamChatCompletion(opts: StreamOptions): Promise<StreamR
         const evento = JSON.parse(payload);
         const escolha = evento?.choices?.[0];
         const delta = escolha?.delta;
-        if (typeof delta?.content === "string") texto += delta.content;
+        let mudou = false;
+        if (typeof delta?.content === "string") {
+          texto += delta.content;
+          mudou = true;
+        }
         const argDelta = delta?.tool_calls?.[0]?.function?.arguments;
-        if (typeof argDelta === "string") toolArguments += argDelta;
+        if (typeof argDelta === "string") {
+          toolArguments += argDelta;
+          mudou = true;
+        }
         if (typeof escolha?.finish_reason === "string") finishReason = escolha.finish_reason;
+        if (mudou && opts.onDelta) {
+          opts.onDelta({ texto, toolArguments: toolArguments ? toolArguments : null });
+        }
       } catch {
         // delta parcial/keep-alive: ignorado de propósito.
       }
     }
   }
+
 
   /* `length` significa que o orçamento de tokens acabou ANTES do fim da
      resposta — nos modelos de raciocínio o pensamento consome o mesmo
@@ -158,6 +177,55 @@ export function extrairJson<T = unknown>(bruto: string): T | null {
     return null;
   }
 }
+
+/**
+ * Fecha um JSON ainda em construção (ou cortado por teto de tokens) para que
+ * ele possa ser lido ANTES do fim da geração: fecha string aberta e empilha os
+ * `}`/`]` que faltam. Serve ao streaming — cada delta vira uma leitura parcial
+ * renderizável — e também salva a resposta quando o modelo é cortado no meio,
+ * caso em que o pedaço completo continua valendo.
+ */
+export function repararJsonParcial<T = unknown>(bruto: string): T | null {
+  const inicio = bruto.indexOf("{");
+  if (inicio === -1) return null;
+  const corpo = bruto.slice(inicio);
+
+  const pilha: string[] = [];
+  let dentroDeString = false;
+  let escapando = false;
+
+  for (const ch of corpo) {
+    if (escapando) {
+      escapando = false;
+      continue;
+    }
+    if (ch === "\\") {
+      if (dentroDeString) escapando = true;
+      continue;
+    }
+    if (ch === '"') {
+      dentroDeString = !dentroDeString;
+      continue;
+    }
+    if (dentroDeString) continue;
+    if (ch === "{" || ch === "[") pilha.push(ch === "{" ? "}" : "]");
+    else if (ch === "}" || ch === "]") pilha.pop();
+  }
+
+  let candidato = corpo;
+  if (dentroDeString) candidato += '"';
+  // Vírgula/chave pendentes no fim do buffer não formam JSON válido.
+  candidato = candidato.replace(/,\s*$/, "").replace(/"[^"]*"\s*:\s*$/, "").replace(/,\s*$/, "");
+  candidato += pilha.reverse().join("");
+
+  try {
+    return JSON.parse(candidato) as T;
+  } catch {
+    return null;
+  }
+}
+
+
 
 // ---------------------------------------------------------------------------
 // Cache no servidor
