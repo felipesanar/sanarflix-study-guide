@@ -92,10 +92,11 @@ function CorpoDetalhamentoTemasSkeleton({ rotulo }: { rotulo: string }) {
  *
  * Reaproveita o padrão VISUAL de `DrawerTemas.tsx` (cascata, cor por
  * desempenho, `lowSample`) — mas é um componente próprio, com hook próprio
- * (`useDetalhamentoTemas`), porque a RPC nova recorta por `p_simulados`
- * (array explícito da tela de Detalhamento), nunca por `p_semestre` como
- * `get_gestor_diagnostico_temas`. Reusar `DrawerTemas` acoplaria este drawer
- * à RPC/recorte errados.
+ * (`useDetalhamentoTemas`), porque a RPC recorta por `p_simulados` (array
+ * explícito da tela de Detalhamento) além do `p_semestre` — e não por
+ * `p_ies_id` + `p_semestre` como `get_gestor_diagnostico_temas`. Reusar
+ * `DrawerTemas` acoplaria este drawer à RPC/recorte errados.
+
  *
  * Dois níveis dentro do MESMO drawer (nunca dois drawers empilhados):
  * `especialidadeAberta === null` lista especialidades da grande área;
