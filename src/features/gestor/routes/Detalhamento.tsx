@@ -569,7 +569,7 @@ export default function Detalhamento() {
               semestre") e um card com uma lista só ficava visualmente
               descasada. */}
           <div
-            className={`grid gap-4 ${colunaUnica ? '' : 'lg:grid-cols-[1.15fr_1fr]'} ${classeRevelacao(3)}`}
+            className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}
           >
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
@@ -601,22 +601,25 @@ export default function Detalhamento() {
                 dentro de um wrapper `relative`), então a linha inteira é
                 medida SÓ pela esquerda e os dois cards da direita dividem esse
                 espaço em duas faixas iguais, rolando por dentro se preciso. */}
-            {/* Com "Acerto por semestre" ausente (`colunaUnica`) não há coluna
-                da direita: os três cards ficam empilhados, cada um com a
-                altura do próprio conteúdo — nada de `absolute inset-0` nem de
-                scroll interno forçado por uma linha curta. */}
-            <div className={colunaUnica ? '' : 'relative min-h-0'}>
+            {/* Sem "Acerto por semestre" (`colunaUnica`) o recorte tem 1
+                semestre só: "Proficiência por semestre" não diz nada e SAI da
+                tela (pedido explícito, 10/08). A direita passa a ter um card
+                só — a Leitura estratégica — ocupando a altura inteira da
+                linha, sem faixa vazia. */}
+            <div className="relative min-h-0">
             <div
               className={
                 colunaUnica
-                  ? 'grid gap-4'
+                  ? 'grid gap-4 lg:absolute lg:inset-0 lg:grid-rows-[minmax(0,1fr)]'
                   : 'grid gap-4 lg:absolute lg:inset-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]'
               }
             >
+            {!colunaUnica && (
             <div
               data-testid="bloco-proficiencia-semestre"
-              className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-4 ${colunaUnica ? 'min-h-[420px]' : ''}`}
+              className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-4"
             >
+
 
 
               {/* Refino de 10/08: era "Dispersão Nota × Semestre" (nuvem de
@@ -666,6 +669,8 @@ export default function Detalhamento() {
               </BlocoGestor>
               </div>
             </div>
+            )}
+
 
             <LeituraEstrategica
               iesId={iesAtivaId}
