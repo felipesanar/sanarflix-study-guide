@@ -655,7 +655,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   {/* A contagem + a classificação SÃO o gatilho da cascata. */}
                   <button
                     type="button"
-                    aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
+                    aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()} (${FAIXA_NIVEL[nivel]})`}
                     aria-expanded={setaAberta}
                     onClick={() => abrirCascata(nivel)}
                     className="relative -m-1 flex w-full flex-col items-start gap-2 rounded-lg p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
