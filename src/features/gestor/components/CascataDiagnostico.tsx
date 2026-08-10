@@ -81,8 +81,19 @@ const COR_NIVEL: Record<
   },
 };
 
+/**
+ * Faixa de % de acerto de cada classificação, derivada de `regras.ts`
+ * (`nivelDesempenho`) — nunca escrita na mão. É o critério que o gestor vê no
+ * tooltip do cartão: sem isso, "Excelente desempenho" é um rótulo sem régua.
+ */
+const FAIXA_NIVEL: Record<NivelDesempenho, string> = {
+  excelente: `${NIVEL_EXCELENTE_MIN}% de acerto ou mais`,
+  mediano: `de ${NIVEL_CRITICO_MAX}% a ${NIVEL_EXCELENTE_MIN - 1}% de acerto`,
+  critico: `abaixo de ${NIVEL_CRITICO_MAX}% de acerto`,
+};
 
 type AreaResumo = VisaoGeral['diagnosticoResumo'][number]['areas'][number];
+
 
 /**
  * Recorte mínimo que este bloco precisa (IES + semestre). `lib/recorte.ts`
