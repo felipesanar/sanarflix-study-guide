@@ -6,7 +6,7 @@ import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
-import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
+import { LeituraEstrategica } from '@/features/gestor/components/LeituraEstrategica';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { CabecalhoTela, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
