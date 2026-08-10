@@ -30,6 +30,17 @@ interface Leitura {
 
 type Estado = 'idle' | 'loading' | 'sucesso' | 'erro';
 
+/**
+ * Escopo da leitura, decidido pela TELA que monta o componente:
+ * - `recorte` (Detalhamento): a leitura responde aos simulados selecionados;
+ * - `institucional` (Visão Geral): a leitura responde na escala do curso, sem
+ *   recorte de simulado — é a pergunta daquela página.
+ * O backend recebe o escopo e troca de contexto e de prompt; nenhuma das duas
+ * leituras é calculada aqui.
+ */
+export type EscopoLeitura = 'recorte' | 'institucional';
+
+
 const COR_PRIORIDADE: Record<string, string> = {
   alta: 'var(--gp-danger)',
   media: 'var(--gp-warning)',
