@@ -544,8 +544,8 @@ describe('DrawerAluno — sparkline de evolução', () => {
 
     expect(screen.getByTestId('drawer-evolucao')).toBeInTheDocument();
     const grafico = screen.getByRole('img', { name: /Evolução de proficiência/ });
-    expect(grafico).toHaveAccessibleName(/Simulado 1: 71/);
-    expect(grafico).toHaveAccessibleName(/Simulado 2: 78/);
+    expect(grafico).toHaveAccessibleName(/1º simulado \(Simulado 1\): 71/);
+    expect(grafico).toHaveAccessibleName(/2º simulado \(Simulado 2\): 78/);
   });
 
   it('com um único ponto medido não há evolução para desenhar', () => {
