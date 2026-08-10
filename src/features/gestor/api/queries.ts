@@ -10,7 +10,9 @@ import type {
   ContextoGestor,
   Detalhamento,
   Envelope,
+  FiltroSemestre,
   FiltrosGestor,
+
   ItemCronograma,
   LinhaAluno,
   Meta,
