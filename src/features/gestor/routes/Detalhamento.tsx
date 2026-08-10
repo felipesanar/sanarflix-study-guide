@@ -610,7 +610,7 @@ export default function Detalhamento() {
             </div>
 
             <LeituraEstrategica
-              iesId={filtros.iesId ?? null}
+              iesId={iesAtivaId}
               semestre={filtros.semestre ?? null}
               simulados={simuladosNoRecorte}
             />
