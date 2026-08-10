@@ -154,12 +154,24 @@ export interface Projecao {
   base: number;
   /** Quantos já cruzam a faixa hoje. */
   proficientesHoje: number;
-  /** Quantos do grupo o movimento pretende levar acima do corte. */
+  /** Quantos do grupo o movimento pretende alcançar (pedido do plano). */
+  alvoIndicado: number;
+  /** Quantos entram na conta depois da taxa conservadora de conversão. */
   alvo: number;
+  /** Fração do grupo que a conta assume que realmente cruza o corte. */
+  taxaConversao: number;
   antesPct: number;
   depoisPct: number;
   deltaPp: number;
 }
+
+/**
+ * Fração do grupo alcançado que a projeção assume que realmente cruza o corte.
+ * Metade é a leitura conservadora: nem todo aluno que entra na ação converte no
+ * mesmo ciclo (adesão, tempo de estudo, dificuldade do simulado seguinte).
+ * Melhor prometer menos do que a tela não sustentar depois.
+ */
+export const TAXA_CONVERSAO_CONSERVADORA = 0.5;
 
 /**
  * Projeção em pontos percentuais sobre a MESMA base do indicador da tela
@@ -176,13 +188,20 @@ export function projetarGanho(params: {
 }): Projecao | null {
   const { base, proficientesHoje } = params;
   if (!Number.isFinite(base) || base <= 0) return null;
-  const alvo = Math.max(0, Math.min(params.alvo, base - proficientesHoje));
+  const gap = Math.max(0, base - proficientesHoje);
+  const alvoIndicado = Math.max(0, Math.min(params.alvo, gap));
+  /* Conta conservadora: metade do grupo, arredondada para baixo. Com grupo
+     pequeno o piso é 1 aluno — abaixo disso o cenário não existiria. */
+  const alvo =
+    alvoIndicado === 0 ? 0 : Math.max(1, Math.floor(alvoIndicado * TAXA_CONVERSAO_CONSERVADORA));
   const antesPct = (proficientesHoje / base) * 100;
   const depoisPct = ((proficientesHoje + alvo) / base) * 100;
   return {
     base,
     proficientesHoje,
+    alvoIndicado,
     alvo,
+    taxaConversao: TAXA_CONVERSAO_CONSERVADORA,
     antesPct: Number(antesPct.toFixed(1)),
     depoisPct: Number(depoisPct.toFixed(1)),
     deltaPp: Number((depoisPct - antesPct).toFixed(1)),

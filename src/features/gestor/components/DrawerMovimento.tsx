@@ -269,10 +269,12 @@ function BlocoProjecao({ projecao }: { projecao: Projecao }) {
       </div>
 
       <p className="mt-2.5 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
-        Cenário, não previsão. A conta: hoje {formatNumero(projecao.proficientesHoje)} de{' '}
-        {formatNumero(projecao.base)} alunos com nota cruzam a faixa de {CORTE_PROFICIENCIA} pontos. Se mais{' '}
-        {formatNumero(projecao.alvo)} passarem do corte, a proporção vai para {formatPct(projecao.depoisPct, 1)}.
+        Cenário conservador, não previsão. A conta: hoje {formatNumero(projecao.proficientesHoje)} de{' '}
+        {formatNumero(projecao.base)} alunos com nota cruzam a faixa de {CORTE_PROFICIENCIA} pontos. O plano alcança{' '}
+        {formatNumero(projecao.alvoIndicado)} alunos e a conta assume que só metade deles converte no ciclo, ou seja{' '}
+        {formatNumero(projecao.alvo)} passando do corte — a proporção vai para {formatPct(projecao.depoisPct, 1)}.
       </p>
+
     </div>
   );
 }
