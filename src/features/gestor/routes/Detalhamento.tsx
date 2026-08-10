@@ -566,10 +566,12 @@ export default function Detalhamento() {
               </BlocoGestor>
             </div>
 
+            <div className="grid min-h-0 gap-4 lg:grid-rows-2">
             <div
               data-testid="bloco-proficiencia-semestre"
-              className="flex flex-col rounded-lg border border-border bg-card p-4"
+              className="flex min-h-0 flex-col rounded-lg border border-border bg-card p-4"
             >
+
               {/* Refino de 10/08: era "Dispersão Nota × Semestre" (nuvem de
                   pontos, `DispersaoChart`) — trocado por barras de média por
                   semestre com drill-down por aluno. Nome paralelo ao "Acerto
