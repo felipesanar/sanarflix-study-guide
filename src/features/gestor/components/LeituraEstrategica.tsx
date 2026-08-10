@@ -54,15 +54,26 @@ function extrairJson(bruto: string): Leitura | null {
  * Carregamento em ETAPAS, não em skeleton (pedido explícito, 10/08): a
  * superfície é uma leitura sendo montada, então o estado de espera fala o que
  * está sendo feito, uma etapa por vez, com o cursor piscando como quem
- * escreve. É narrativa de progresso, não placeholder de layout — e por isso
+ * escreve. É narrativa de progresso, não placeholder de layout — e as etapas
+ * mudam com o escopo, porque o que está sendo lido é outro (10/08).
  */
-const ETAPAS = [
-  'Lendo o recorte de simulados…',
-  'Cruzando acerto por grande área…',
-  'Comparando proficiência entre semestres…',
-  'Priorizando o que move a nota…',
-  'Fechando a leitura…',
-];
+const ETAPAS_POR_ESCOPO: Record<EscopoLeitura, string[]> = {
+  recorte: [
+    'Lendo o recorte de simulados…',
+    'Cruzando acerto por grande área…',
+    'Comparando proficiência entre semestres…',
+    'Priorizando o que move a nota…',
+    'Fechando a leitura…',
+  ],
+  institucional: [
+    'Lendo o desempenho da instituição…',
+    'Acompanhando a evolução entre aplicações…',
+    'Cruzando com o diagnóstico curricular…',
+    'Priorizando o que move o conceito…',
+    'Fechando a leitura…',
+  ],
+};
+
 
 function EtapasDaLeitura() {
   const [indice, setIndice] = React.useState(0);
