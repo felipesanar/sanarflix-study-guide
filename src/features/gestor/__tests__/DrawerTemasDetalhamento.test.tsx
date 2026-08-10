@@ -87,11 +87,19 @@ describe('DrawerTemasDetalhamento', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('chama o hook com iesId/simulados/grandeArea, sem especialidade no nível raiz', () => {
+  it('chama o hook com iesId/simulados/grandeArea/semestre, sem especialidade no nível raiz', () => {
     render(
-      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s2', 's1']} onFechar={vi.fn()} />,
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s2', 's1']} semestre="geral" onFechar={vi.fn()} />,
     );
-    expect(mockUseTemas).toHaveBeenCalledWith('ies-1', ['s2', 's1'], 'Clínica Médica', null);
+    expect(mockUseTemas).toHaveBeenCalledWith('ies-1', ['s2', 's1'], 'Clínica Médica', null, 'geral');
+  });
+
+  it('repassa o semestre do recorte ao hook e imprime o recorte no cabeçalho', () => {
+    render(
+      <DrawerTemasDetalhamento area={area} iesId="ies-1" simulados={['s1']} semestre="7" onFechar={vi.fn()} />,
+    );
+    expect(mockUseTemas).toHaveBeenCalledWith('ies-1', ['s1'], 'Clínica Médica', null, '7');
+    expect(screen.getByTestId('drawer-detalhamento-recorte-semestre')).toHaveTextContent('7º semestre');
   });
 
   it('lista as especialidades da área, com % de acerto e nível', () => {
