@@ -233,6 +233,18 @@ export default function Detalhamento() {
   const semestreDoDrillDown: ValorFiltroSemestre =
     recorte?.tipo === 'semestre' ? (String(recorte.id) as ValorFiltroSemestre) : filtros.semestre;
 
+  /**
+   * "Acerto por semestre" (o gráfico de baixo do card da esquerda) só existe
+   * com 2+ semestres no recorte — `AcertoPorAreaESemestre` esconde o bloco com
+   * 1 semestre só. Nesse caso o card da esquerda fica CURTO (só a lista de
+   * áreas) e não sobra altura para o gráfico de proficiência e a leitura
+   * estratégica ao lado: a linha inteira é medida pela esquerda. Então, aqui,
+   * a linha deixa de ser 2 colunas e os TRÊS cards vão um embaixo do outro,
+   * cada um com a altura natural do próprio conteúdo (pedido explícito,
+   * 10/08).
+   */
+  const colunaUnica = (dados?.acertoPorAreaESemestre.semestres.length ?? 0) <= 1;
+
 
 
   /**
