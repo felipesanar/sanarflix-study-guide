@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { cn } from '@/lib/utils';
 import { BlocoErrorBoundary } from '@/features/gestor/components/BlocoErrorBoundary';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
@@ -35,6 +36,21 @@ export interface BlocoGestorProps {
    * em `testIdLoading` (achado 1, revisão 03/08).
    */
   bloco?: string;
+  /**
+   * Opt-in (refino 10/08, card "Proficiência por semestre" de
+   * `routes/Detalhamento.tsx`): quando `true`, o bloco carregado
+   * (`estado === 'ok'`) CRESCE para ocupar a altura que o layout externo
+   * reservou para ele, em vez de parar na altura natural do próprio
+   * conteúdo. O gatilho é o grid ao lado daquele card, que estica os dois
+   * lados na altura do mais alto — sem isto, o card mais curto sobrava em
+   * branco por baixo do próprio conteúdo, dentro da própria borda.
+   *
+   * `false` (o default) preserva o comportamento de sempre — todo outro
+   * chamador de `BlocoGestor` continua com altura pelo conteúdo. Loading/
+   * erro/vazio não mudam: os três já recebem `altura` explícita
+   * (`alturaSkeleton`) e não precisam deste flex.
+   */
+  preencherAltura?: boolean;
   children: React.ReactNode;
 }
 
@@ -62,10 +78,11 @@ export function BlocoGestor({
   alturaSkeleton = 300,
   testIdLoading,
   bloco,
+  preencherAltura = false,
   children,
 }: BlocoGestorProps) {
   return (
-    <section className="space-y-2">
+    <section className={cn('space-y-2', preencherAltura && 'flex flex-1 flex-col')}>
       {titulo ? <h2 className="text-sm font-semibold">{titulo}</h2> : null}
 
       {parcial ? (
@@ -108,6 +125,12 @@ export function BlocoGestor({
         <EstadoErro altura={alturaSkeleton} onRetry={aoTentarNovamente ?? (() => undefined)} />
       ) : estado === 'empty' ? (
         <EstadoVazio titulo={mensagemVazio} glifo={glifoVazio} altura={alturaSkeleton} />
+      ) : preencherAltura ? (
+        // Wrapper SÓ neste ramo: os demais chamadores (o default) continuam
+        // com `BlocoErrorBoundary` direto, sem nenhum elemento novo na árvore.
+        <div className="min-h-0 flex-1">
+          <BlocoErrorBoundary bloco={bloco ?? testIdLoading ?? 'bloco-gestor'}>{children}</BlocoErrorBoundary>
+        </div>
       ) : (
         <BlocoErrorBoundary bloco={bloco ?? testIdLoading ?? 'bloco-gestor'}>{children}</BlocoErrorBoundary>
       )}

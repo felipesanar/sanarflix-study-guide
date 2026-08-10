@@ -74,8 +74,8 @@ vi.mock('@/features/gestor/components/DrawerAluno', () => ({
   DrawerAluno: ({ alunoId, nome }: { alunoId: string | null; nome: string }) =>
     alunoId ? <div data-testid="drawer-aluno">{alunoId}:{nome}</div> : null,
 }));
-vi.mock('@/features/gestor/charts/DispersaoChart', () => ({
-  DispersaoChart: () => <div data-testid="dispersao-chart" />,
+vi.mock('@/features/gestor/charts/ProficienciaPorSemestreChart', () => ({
+  ProficienciaPorSemestreChart: () => <div data-testid="proficiencia-semestre-chart" />,
 }));
 vi.mock('@/features/gestor/charts/EvolucaoChart', () => ({
   EvolucaoChart: () => <div data-testid="evolucao-chart" />,
@@ -315,7 +315,7 @@ describe('Rota Detalhamento — 1 simulado (§4.7.3)', () => {
     expect(screen.getByTestId('kpi-enamed')).toBeInTheDocument();
     expect(screen.getByTestId('kpi-proficiencia-media')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Acerto por grande área e por semestre' })).toBeInTheDocument();
-    expect(screen.getByTestId('dispersao-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('proficiencia-semestre-chart')).toBeInTheDocument();
     expect(screen.getByTestId('linha-aluno-a1')).toBeInTheDocument();
     expect(screen.getByTestId('linha-questao-1')).toBeInTheDocument();
 

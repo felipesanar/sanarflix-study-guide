@@ -12,7 +12,7 @@ import { CabecalhoTela, ContainerRota } from '../components/CabecalhoTela';
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
 import { DrawerAluno } from '../components/DrawerAluno';
 import { DrawerTemasDetalhamento } from '../components/DrawerTemasDetalhamento';
-import { DispersaoChart } from '../charts/DispersaoChart';
+import { ProficienciaPorSemestreChart } from '../charts/ProficienciaPorSemestreChart';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
 import { EvolucaoRecorte, ehSemestreEspecifico } from '../components/EvolucaoRecorte';
@@ -213,6 +213,14 @@ export default function Detalhamento() {
   const [alunoSelecionadoId, setAlunoSelecionadoId] = React.useState<string | null>(null);
   /** Área aberta no drill-down especialidade → tema (Task A4, `DrawerTemasDetalhamento`). */
   const [areaDrillDown, setAreaDrillDown] = React.useState<{ id: string; nome: string } | null>(null);
+  /**
+   * Semestre aberto no drill-down INLINE do card "Proficiência por semestre"
+   * (refino 10/08). Era um `DrawerAlunosPorSemestre` lateral — a gestora
+   * pediu a lista de alunos dentro do próprio card, não numa lateral;
+   * `ProficienciaPorSemestreChart` decide sozinho o que desenhar a partir
+   * deste valor.
+   */
+  const [semestreAberto, setSemestreAberto] = React.useState<number | null>(null);
 
   /**
    * O recorte cruzado (área × semestre) é estado do BLOCO e só existe dentro do
@@ -223,11 +231,13 @@ export default function Detalhamento() {
    *
    * O drill-down de área segue a MESMA regra e pelo mesmo motivo: uma área
    * aberta de um recorte de simulados que já mudou mostraria o drawer sobre
-   * dado que não corresponde mais ao filtro vigente.
+   * dado que não corresponde mais ao filtro vigente. O drill-down de semestre
+   * (`semestreAberto`) entra pela mesma razão.
    */
   React.useEffect(() => {
     setRecorte(null);
     setAreaDrillDown(null);
+    setSemestreAberto(null);
   }, [chaveDoRecorte]);
 
   /**
@@ -521,10 +531,19 @@ export default function Detalhamento() {
             </div>
           ) : null}
 
-          {/* Área × semestre e dispersão são o MESMO movimento de exploração — a
-              referência os põe lado a lado (1.15fr/1fr). Empilhados, a dispersão
-              caía um scroll inteiro depois da leitura que ela complementa. */}
-          <div className={`grid items-start gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}>
+          {/* Área × semestre e proficiência por semestre são o MESMO movimento
+              de exploração — a referência os põe lado a lado (1.15fr/1fr).
+              Empilhados, o segundo card caía um scroll inteiro depois da
+              leitura que ele complementa.
+
+              SEM `items-start` (refino 10/08, pedido explícito): o alinhamento
+              padrão do grid (`stretch`) faz os dois cards terem a MESMA
+              altura, a do mais alto dos dois — antes cada card ficava do
+              tamanho do próprio conteúdo, e a diferença de altura entre um
+              card com duas listas ("Acerto por grande área" + "Acerto por
+              semestre") e um card com uma lista só ficava visualmente
+              descasada. */}
+          <div className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}>
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
                 estado={estado}
@@ -547,18 +566,43 @@ export default function Detalhamento() {
               </BlocoGestor>
             </div>
 
-            <div data-testid="bloco-dispersao" className="rounded-lg border border-border bg-card p-4">
-              {/* O nome nomeia os dois eixos — é o que a legenda abaixo explica. */}
-              <h3 className="mb-3 text-base font-semibold text-foreground">Dispersão Nota × Semestre</h3>
+            <div
+              data-testid="bloco-proficiencia-semestre"
+              className="flex flex-col rounded-lg border border-border bg-card p-4"
+            >
+              {/* Refino de 10/08: era "Dispersão Nota × Semestre" (nuvem de
+                  pontos, `DispersaoChart`) — trocado por barras de média por
+                  semestre com drill-down por aluno. Nome paralelo ao "Acerto
+                  por semestre" do card ao lado. */}
+              <h3 className="mb-1 text-base font-semibold text-foreground">Proficiência por semestre</h3>
+              {/* Mesmo formato de `DicaDeClique` em `AcertoPorAreaESemestre.tsx`
+                  (texto de apoio de 1 linha, `text-xs`/`--gp-text-3`, colado
+                  sob o título) — pedido explícito, 10/08: dizer o que o card
+                  mede e o que o clique numa barra revela. */}
+              <p className="mb-3 text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                Proficiência média por semestre. Clique num semestre para ver os alunos daquele semestre.
+              </p>
               <BlocoGestor
                 estado={estado}
                 parcial={parcial}
                 alturaSkeleton={280}
-                bloco="dispersao"
-                testIdLoading="bloco-dispersao-loading"
+                bloco="proficiencia-semestre"
+                testIdLoading="bloco-proficiencia-semestre-loading"
                 aoTentarNovamente={aoTentarNovamente}
+                // Só no resumo por semestre (pedido explícito, 10/08): o
+                // drill-down por aluno pode manter espaço em branco embaixo
+                // com poucos alunos, então o preenchimento de altura sai
+                // quando `semestreAberto` não é `null`.
+                preencherAltura={semestreAberto === null}
               >
-                {dados ? <DispersaoChart pontos={dados.dispersao} onSelecionarAluno={aoSelecionarAluno} /> : null}
+                {dados ? (
+                  <ProficienciaPorSemestreChart
+                    alunos={dados.alunos}
+                    semestreAberto={semestreAberto}
+                    onAbrirSemestre={setSemestreAberto}
+                    onSelecionarAluno={aoSelecionarAluno}
+                  />
+                ) : null}
               </BlocoGestor>
             </div>
           </div>
