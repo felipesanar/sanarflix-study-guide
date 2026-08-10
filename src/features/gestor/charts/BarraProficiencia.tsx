@@ -179,7 +179,7 @@ export function BarraProficiencia({
       </span>
       <span
         className="w-full overflow-hidden"
-        style={{ height: 8, borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-border-subtle)' }}
+        style={{ height: 10, borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-border-subtle)' }}
       >
         {valor !== null ? (
           <span
