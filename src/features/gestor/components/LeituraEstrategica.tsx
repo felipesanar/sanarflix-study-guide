@@ -139,10 +139,18 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
         body: { modo: 'consultor', iesId, semestre, simulados },
       });
       if (error) throw error;
-      const parsed = extrairJson(typeof data?.insight === 'string' ? data.insight : '');
+      /* O backend agora garante a forma por schema (tool call) e devolve
+         `leitura`/`itens` já estruturados; o parse de string continua como
+         rede de segurança para respostas em cache do formato antigo. */
+      const estruturado =
+        typeof data?.leitura === 'string'
+          ? { leitura: data.leitura as string, itens: Array.isArray(data?.itens) ? (data.itens as ItemLeitura[]).slice(0, 3) : [] }
+          : null;
+      const parsed = estruturado ?? extrairJson(typeof data?.insight === 'string' ? data.insight : '');
       if (!parsed) throw new Error('resposta_invalida');
       setLeitura(parsed);
       setEstado('sucesso');
+
     } catch {
       setEstado('erro');
     }

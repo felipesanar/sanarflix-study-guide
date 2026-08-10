@@ -130,6 +130,36 @@ export type Database = {
           },
         ]
       }
+      ai_response_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          expires_at: string
+          fn: string
+          model: string | null
+          modo: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          expires_at: string
+          fn: string
+          model?: string | null
+          modo: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          expires_at?: string
+          fn?: string
+          model?: string | null
+          modo?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -2269,6 +2299,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ai_cache_cleanup: { Args: never; Returns: number }
       complete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
