@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { env } from '@/config/env';
 
 import { Icon } from '@/features/gestor/components/Icon';
+import { DrawerMovimento, type MovimentoSelecionado } from '@/features/gestor/components/DrawerMovimento';
 
 /**
  * "Leitura estratégica" do recorte de simulados — persona de consultoria
@@ -154,6 +155,8 @@ export interface LeituraEstrategicaProps {
 export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recorte' }: LeituraEstrategicaProps) {
   const [estado, setEstado] = React.useState<Estado>('idle');
   const [leitura, setLeitura] = React.useState<Leitura | null>(null);
+  /** Movimento aberto no drawer de detalhe (null = fechado). */
+  const [movimento, setMovimento] = React.useState<MovimentoSelecionado | null>(null);
 
   /* No escopo institucional o simulado não entra no recorte: a leitura é da
      instituição no período, então trocar de seleção de simulado não deve
@@ -354,32 +357,55 @@ export function LeituraEstrategica({ iesId, semestre, simulados, escopo = 'recor
             </p>
             <ul className="mt-3 space-y-2">
               {leitura.itens.map((item) => (
-                <li
-                  key={item.titulo}
-                  className="rounded-md border border-border p-2.5"
-                  style={{ background: 'var(--gp-surface-2)' }}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-foreground">
-                      <span
-                        aria-hidden
-                        className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ background: COR_PRIORIDADE[item.prioridade ?? 'media'] }}
-                      />
-                      <span className="min-w-0">{item.titulo}</span>
-                    </span>
-                    <span className="shrink-0 text-base font-bold tabular-nums text-foreground">{item.metrica}</span>
-                  </div>
-                  <p className="mt-1 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
-                    {item.texto}
-                  </p>
+                <li key={item.titulo}>
+                  {/* O cartão é o gatilho do detalhe (drawer): quem/como/quanto
+                      não cabe aqui, mas a gestora precisa chegar lá em 1 clique. */}
+                  <button
+                    type="button"
+                    onClick={() => setMovimento(item)}
+                    aria-label={`Ver detalhe do movimento: ${item.titulo}`}
+                    className="group w-full rounded-md border border-border p-2.5 text-left transition-colors hover:border-[color:var(--gp-border-strong)] hover:bg-[color:var(--gp-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={{ background: 'var(--gp-surface-2)' }}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-foreground">
+                        <span
+                          aria-hidden
+                          className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: COR_PRIORIDADE[item.prioridade ?? 'media'] }}
+                        />
+                        <span className="min-w-0">{item.titulo}</span>
+                      </span>
+                      <span className="flex shrink-0 items-baseline gap-1">
+                        <span className="text-base font-bold tabular-nums text-foreground">{item.metrica}</span>
+                        <Icon
+                          name="chevron_right"
+                          size={14}
+                          className="translate-y-[1px] opacity-40 transition-opacity group-hover:opacity-80"
+                        />
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
+                      {item.texto}
+                    </p>
+                  </button>
                 </li>
               ))}
             </ul>
+
           </motion.div>
         ) : null}
 
       </div>
+
+      <DrawerMovimento
+        movimento={movimento}
+        escopo={escopo}
+        iesId={iesId}
+        semestre={semestre}
+        simulados={listaSimulados}
+        onFechar={() => setMovimento(null)}
+      />
     </section>
   );
 }
