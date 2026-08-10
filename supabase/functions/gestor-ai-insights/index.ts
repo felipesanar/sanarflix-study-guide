@@ -8,7 +8,9 @@ import {
   gravarCache,
   hashChave,
   lerCache,
+  repararJsonParcial,
   streamChatCompletion,
+
   TTL,
   type ToolSchema,
 } from "../_shared/ai.ts";
