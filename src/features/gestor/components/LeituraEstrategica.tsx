@@ -191,7 +191,13 @@ export function LeituraEstrategica({ iesId, semestre, simulados }: LeituraEstrat
         ) : null}
       </header>
 
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+      <div
+        className="mt-3 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 28px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - 28px), transparent 100%)',
+        }}
+      >
         {estado === 'loading' || estado === 'idle' ? (
           <EtapasDaLeitura />
         ) : estado === 'erro' ? (
