@@ -35,7 +35,7 @@ const GestorLayoutLegado = lazy(() =>
 const Inicio = lazy(() => import('@/features/gestor/routes/Inicio'));
 
 const Espera: React.FC = () => (
-  <div className="min-h-screen bg-background" aria-busy="true" />
+  <div className="min-h-screen bg-background" aria-busy="true" data-testid="gestor-portal-espera" />
 );
 
 /**

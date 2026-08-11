@@ -53,6 +53,7 @@ describe('gestorV2Routes - decisão console antigo x portal novo', () => {
     renderGestor();
     expect(screen.queryByTestId('portal-novo')).not.toBeInTheDocument();
     expect(screen.queryByTestId('console-antigo')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gestor-portal-espera')).toBeInTheDocument();
   });
 
   it('smoke test estrutural: as 5 telas legadas continuam registradas como rotas-filhas de /gestor', () => {
