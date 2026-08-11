@@ -299,9 +299,11 @@ describe('DrawerAluno — carregando e erro', () => {
 });
 
 describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
-  it('mostra Proficiência, posição e % de acerto por área — sem "Nota TRI"', () => {
+  it('mostra Proficiência, posição e % de acerto por área — sem "Nota TRI"', async () => {
     montar();
     const dialogo = screen.getByRole('dialog');
+    // O bloco de leitura por IA resolve (falha → fallback) depois da montagem.
+    await screen.findByTestId('drawer-leitura-ia-fallback');
 
     expect(dialogo).toHaveAccessibleName(/Ana Prado/);
     expect(dialogo).toHaveTextContent('Proficiência');
@@ -311,10 +313,10 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     expect(dialogo.textContent).not.toMatch(/Nota TRI/i);
   });
 
-  it('marca a área crítica no bloco dedicado e também no rótulo da barra', () => {
+  it('marca a área crítica no bloco dedicado e também no rótulo da barra', async () => {
     montar();
 
-    const bloco = screen.getByTestId('drawer-area-critica-s1');
+    const bloco = await screen.findByTestId('drawer-area-critica-s1');
     expect(bloco).toHaveTextContent('Grande área crítica');
     expect(bloco).toHaveTextContent('Clínica Médica · 42% de acerto');
   });
@@ -350,7 +352,7 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
    * referência sempre fecha o painel nomeando uma área — quando não há
    * crítica, é o destaque, com a menor citada na mesma frase.
    */
-  it('sem área crítica, o insight nomeia o destaque em vez de silenciar', () => {
+  it('sem área crítica, o insight nomeia o destaque em vez de silenciar', async () => {
     mockUseAluno.mockReturnValue(
       resultado({
         data: [
@@ -366,7 +368,7 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     );
     montar();
 
-    const destaque = screen.getByTestId('drawer-area-destaque-s2');
+    const destaque = await screen.findByTestId('drawer-area-destaque-s2');
     expect(destaque).toHaveTextContent('Destaque do aluno');
     expect(destaque).toHaveTextContent('Cirurgia · 81% de acerto');
     expect(destaque).toHaveTextContent('Menor acerto: Pediatria · 54%');
