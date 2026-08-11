@@ -509,8 +509,8 @@ export default function VisaoGeral() {
       {/* 3. Diagnóstico Curricular (por grande área) + cascata ao lado. A referência
           o PROMOVE para logo abaixo do gráfico protagonista (`<!-- Diagnóstico
           (promovido) -->`), antes da Visão de Alunos — a pergunta "onde dói?" vem
-          antes de "quem dói?". O vazio do grupo crítico é o CAMINHO PRINCIPAL
-          (87,9% dos recortes reais, NIVEL_CRITICO_MAX em lib/regras.ts) —
+          antes de "quem dói?". O vazio do grupo crítico continua sendo um caminho
+          comum (corte em NIVEL_CRITICO_MAX = 50, lib/regras.ts) —
           CascataDiagnostico já trata isso, nunca escondendo a seção. */}
       <div className={classeRevelacao(2)}>
         {estado === 'loading' ? (

@@ -589,7 +589,8 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
   // ── Caso 14 ────────────────────────────────────────────────────────────
   it('caso 14 — tema/especialidade usam SÓ % de acerto: nunca TRI, ENAMED ou proficiência (§4.1)', () => {
     expect(nivelDesempenho(29.9)).toBe('critico');
-    expect(nivelDesempenho(30)).toBe('mediano');
+    expect(nivelDesempenho(49.9)).toBe('critico');
+    expect(nivelDesempenho(50)).toBe('mediano');
     expect(nivelDesempenho(79.9)).toBe('mediano');
     expect(nivelDesempenho(80)).toBe('excelente');
     expect(nivelDesempenho(null)).toBeNull();

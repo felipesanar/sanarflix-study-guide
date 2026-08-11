@@ -13,7 +13,7 @@ import {
 describe('constantes da régua canônica (spec §4.3, §4.4)', () => {
   it('fixa os três cortes oficiais', () => {
     expect(PROFICIENCIA_MINIMA).toBe(60);
-    expect(NIVEL_CRITICO_MAX).toBe(30);
+    expect(NIVEL_CRITICO_MAX).toBe(50);
     expect(NIVEL_EXCELENTE_MIN).toBe(80);
   });
 });
@@ -50,11 +50,11 @@ describe('nivelDesempenho — 3 níveis sobre % de acerto (spec §4.4)', () => {
     expect(nivelDesempenho(29.9)).toBe('critico');
   });
 
-  it('30 é mediano — a borda pertence ao mediano', () => {
-    expect(nivelDesempenho(30)).toBe('mediano');
+  it('49.9 é crítico — o corte subiu de 30 para 50 (determinação de 11/08)', () => {
+    expect(nivelDesempenho(49.9)).toBe('critico');
   });
 
-  it('50 é mediano — o corte é 30, não 50 (determinação de produto de 28/07)', () => {
+  it('50 é mediano — a borda pertence ao mediano', () => {
     expect(nivelDesempenho(50)).toBe('mediano');
   });
 
