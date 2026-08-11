@@ -447,7 +447,7 @@ describe('DrawerAluno — cabeçalho', () => {
 
     // Iniciais = primeira letra do primeiro e do último nome.
     expect(within(dialogo).getByText('AP')).toBeInTheDocument();
-    expect(dialogo).toHaveTextContent('11º período · 1 de 2 simulados');
+    expect(dialogo).toHaveTextContent('11º período · participou de 1 de 2 simulados');
   });
 
   it('sem semestre no contrato, o período vira TRAÇO — nunca 0º', () => {
@@ -487,7 +487,7 @@ describe('DrawerAluno — cabeçalho', () => {
     montar({ simulados: ['s2'] });
     const dialogo = screen.getByRole('dialog');
 
-    expect(dialogo).toHaveTextContent('11º período · 1 de 1 simulado');
+    expect(dialogo).toHaveTextContent('11º período · participou de 1 de 1 simulado');
     expect(dialogo.textContent ?? '').not.toMatch(/2 de 1/);
   });
 });
@@ -867,4 +867,74 @@ afterEach(() => {
   vi.clearAllMocks();
   // O `navigator` stubado no teste de "Copiar resumo" não pode vazar.
   vi.unstubAllGlobals();
+});
+
+/**
+ * Achado 11/08 (BEATRIZ, USCS): a aluna aparecia com selo "Proficiente 80,3"
+ * (1º simulado) e barras de 0–28% (3º simulado, TRI ainda em processamento),
+ * sem nada dizendo que eram simulados diferentes — e o cabeçalho contava
+ * "3 de 3 simulados" para quem participou de 2.
+ */
+describe('DrawerAluno — procedência do bloco de área (achado 11/08)', () => {
+  /** Aluno que participou do S2 mas ainda não tem nota TRI processada. */
+  const S2_SEM_TRI: AlunoSimuladoEntry = {
+    ...ENTRADA_S2,
+    proficiencia: null,
+    situacao: 'aguardando_resultado',
+    posicao: null,
+    variacao: null,
+  };
+
+  it('cabeçalho conta PARTICIPAÇÃO, não pertencimento ao recorte', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({
+        data: [ENTRADA_S1, { ...ENTRADA_S2, participou: false, acertos: null, proficiencia: null, situacao: 'nao_participou', posicao: null, variacao: null }],
+      }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar({ simulados: ['s1', 's2'] });
+    expect(screen.getByRole('dialog')).toHaveTextContent('participou de 1 de 2 simulados');
+  });
+
+  it('padrão é o simulado mais recente COM nota liberada — não o sem resultado', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, S2_SEM_TRI] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1, DESEMPENHO_AREA_S2] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+    montar();
+    const areas = screen.getByTestId('drawer-areas');
+    expect(areas).toHaveTextContent('Simulado 1');
+    expect(screen.queryByTestId('aviso-simulado-areas')).not.toBeInTheDocument();
+  });
+
+  it('quando o bloco de área é de outro simulado que a proficiência, diz isso', async () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, S2_SEM_TRI] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1, DESEMPENHO_AREA_S2] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+    montar();
+
+    await userEvent.click(screen.getByRole('button', { name: '2º sim.' }));
+
+    const areas = screen.getByTestId('drawer-areas');
+    expect(areas).toHaveTextContent('resultado em processamento');
+    expect(screen.getByTestId('aviso-simulado-areas')).toHaveTextContent(
+      'As barras abaixo são do Simulado 2. A proficiência 71 mostrada acima é do Simulado 1.',
+    );
+  });
+
+  it('com um único simulado elegível, não há chips de escolha', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar({ simulados: ['s1'] });
+    expect(screen.queryByRole('group', { name: 'Simulado do desempenho por área' })).not.toBeInTheDocument();
+  });
 });
