@@ -1060,7 +1060,12 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const entradasComTemas = candidatasAreas
     .map((e) => areaPorSimulado.get(e.simuladoId))
     .filter((e): e is DesempenhoPorAreaSimulado => Boolean(e && e.areas.length > 0));
-  const podeConsolidar = entradasComTemas.length > 0;
+  /**
+   * Só há o que consolidar com 2+ simulados classificados. Com um único, o
+   * "consolidado" seria o próprio simulado — e aí perderíamos o % oficial da
+   * grande área que a RPC devolve. Nesse caso vale a leitura individual.
+   */
+  const podeConsolidar = entradasComTemas.length > 1;
 
   const escolha =
     areaEscolhida && areaEscolhida.aluno === alunoId
