@@ -195,11 +195,15 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
               </span>
               <Chevron />
             </button>
+            {/* Montado só depois do clique: o dialog consulta a Visão Geral, e
+                não faz sentido pagar essa query em quem nunca vai exportar. */}
+            {exportarAberto && (
             <DialogExportarDados
               aberto={exportarAberto}
               onAbertoChange={setExportarAberto}
               iesId={iesId}
             />
+            )}
           </>
         )}
     </div>
