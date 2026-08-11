@@ -436,6 +436,7 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
       case 'alunos': {
         relatorio.secao(bloco.titulo, bloco.descricao);
         relatorio.nota(AVISO_LGPD, true);
+        relatorio.subtitulo(`${dados.alunos?.length ?? 0} alunos incluídos`);
         const t = tabelaAlunos(dados.alunos);
         relatorio.tabela(t.colunas, t.linhas, 'Nenhum aluno com resultado neste recorte.');
         break;
@@ -602,6 +603,7 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     const alunos = dados.alunos ?? [];
     const aba = XLSX.utils.aoa_to_sheet([
       [AVISO_LGPD],
+      [`${alunos.length} alunos incluídos`],
       [],
       ['Aluno', 'Semestre', 'Grupo', 'Tendência', 'Simulados com nota', 'Última proficiência (%)'],
       ...alunos.map((aluno) => {
