@@ -106,44 +106,60 @@ function RespondentesAlternativa({
   if (alunos.length === 0) {
     return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Nenhum aluno marcou esta alternativa.</p>;
   }
+  /* Duas colunas por linha: a lista chegava a ~78 nomes e empurrava o resto da
+     questão para fora da tela. Ordem de leitura mantida em pares (esq→dir). */
+  const pares: Array<[typeof alunos[number], typeof alunos[number] | undefined]> = [];
+  for (let i = 0; i < alunos.length; i += 2) pares.push([alunos[i], alunos[i + 1]]);
+
+  const celula = (aluno?: (typeof alunos)[number]) => {
+    if (!aluno) return <td className="px-2.5 py-1.5" aria-hidden="true" />;
+    return (
+      <td className="w-1/2 px-2.5 py-1.5 align-top">
+        {onAbrirAluno ? (
+          <button
+            type="button"
+            className="rounded text-left underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            style={{ color: 'var(--gp-text-1)' }}
+            onClick={(evento) => {
+              evento.stopPropagation();
+              onAbrirAluno(aluno.alunoId, aluno.nome);
+            }}
+          >
+            {aluno.nome}
+          </button>
+        ) : (
+          <span style={{ color: 'var(--gp-text-2)' }}>{aluno.nome}</span>
+        )}
+      </td>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-xs tabular-nums" style={{ color: 'var(--gp-text-3)', fontFamily: FONTE_MONO }}>
         {alunos.length} aluno{alunos.length === 1 ? '' : 's'}
       </p>
       <div className="overflow-hidden rounded border border-border">
-        <table className="w-full text-left text-xs">
+        <table className="w-full table-fixed text-left text-xs">
           <thead>
             <tr>
-              <th
-                scope="col"
-                className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em]"
-                style={{ color: 'var(--gp-text-3)', background: 'var(--gp-surface-2)' }}
-              >
-                Aluno
-              </th>
+              {['Aluno', 'Aluno'].map((rotulo, indice) => (
+                <th
+                  key={indice}
+                  scope="col"
+                  className="w-1/2 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em]"
+                  style={{ color: 'var(--gp-text-3)', background: 'var(--gp-surface-2)' }}
+                >
+                  {rotulo}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {alunos.map((aluno) => (
-              <tr key={aluno.alunoId} className="border-t border-border">
-                <td className="px-2.5 py-1.5">
-                  {onAbrirAluno ? (
-                    <button
-                      type="button"
-                      className="rounded text-left underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                      style={{ color: 'var(--gp-text-1)' }}
-                      onClick={(evento) => {
-                        evento.stopPropagation();
-                        onAbrirAluno(aluno.alunoId, aluno.nome);
-                      }}
-                    >
-                      {aluno.nome}
-                    </button>
-                  ) : (
-                    <span style={{ color: 'var(--gp-text-2)' }}>{aluno.nome}</span>
-                  )}
-                </td>
+            {pares.map(([esquerda, direita]) => (
+              <tr key={esquerda.alunoId} className="border-t border-border">
+                {celula(esquerda)}
+                {celula(direita)}
               </tr>
             ))}
           </tbody>
@@ -152,6 +168,7 @@ function RespondentesAlternativa({
     </div>
   );
 }
+
 
 
 export function DistribuicaoAlternativas({
