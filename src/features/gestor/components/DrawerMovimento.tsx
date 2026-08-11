@@ -166,7 +166,7 @@ function Secao({
               {contagem}
             </span>
           ) : null}
-          <span aria-hidden className="h-px flex-1" style={{ background: 'var(--gp-border)' }} />
+          <span aria-hidden className="h-px flex-1" style={{ background: 'var(--gp-border-strong)' }} />
         </div>
         {apoio ? (
           <p className="text-xs" style={{ color: 'var(--gp-text-3)', lineHeight: '17px' }}>
@@ -588,7 +588,7 @@ export function DrawerMovimento({ movimento, escopo, iesId, semestre, simulados,
                             <span
                               aria-hidden
                               className="absolute left-[11px] top-6 bottom-1 w-px"
-                              style={{ background: 'var(--gp-border)' }}
+                              style={{ background: 'var(--gp-border-strong)' }}
                             />
                           ) : null}
                           <span
