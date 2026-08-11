@@ -93,6 +93,10 @@ export const ConsoleShell: React.FC<{ portal: ConsolePortal }> = ({ portal }) =>
             </div>
           </div>
 
+          {/* Troca de experiência logo abaixo da marca — mesma posição em
+              todas as shells da plataforma. */}
+          <ExperienceSwitcher variant="compact" />
+
           {showPortalSwitch && (
             <div className="flex rounded-lg border border-border bg-muted p-0.5 text-xs font-medium">
               <button
@@ -164,8 +168,6 @@ export const ConsoleShell: React.FC<{ portal: ConsolePortal }> = ({ portal }) =>
             </TooltipTrigger>
             <TooltipContent side="top">Selecione um usuário em Usuários para impersonar.</TooltipContent>
           </Tooltip>
-
-          <ExperienceSwitcher variant="compact" />
 
           <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">

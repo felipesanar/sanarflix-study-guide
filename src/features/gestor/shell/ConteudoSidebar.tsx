@@ -91,6 +91,9 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
           />
         </div>
         <span style={OVERLINE_SIDEBAR}>Portal do Gestor</span>
+        {/* Troca de experiência logo abaixo da marca — mesma posição em todas
+            as shells da plataforma (aluno, admin, gestão). */}
+        <ExperienceSwitcher variant="compact" className="w-full" />
       </div>
 
       <div style={{ padding: '14px 16px', borderBottom: DIVISOR }}>
@@ -103,10 +106,9 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
         className="mt-auto flex flex-col"
         style={{ borderTop: DIVISOR, padding: '12px 12px 12px', gap: 12 }}
       >
-        {/* Ações primeiro (acima do perfil): o seletor de experiência ocupa a
-            largura sobrando; tema e sair são ícones (rótulo só no a11y). */}
-        <div className="flex items-center" style={{ gap: 6 }}>
-          <ExperienceSwitcher variant="compact" className="min-w-0 flex-1" />
+        {/* Ações: tema e sair são ícones (rótulo só no a11y). A troca de
+            experiência subiu para o topo, abaixo da marca. */}
+        <div className="flex items-center justify-end" style={{ gap: 6 }}>
           {/* ThemeToggle é compartilhado (h-10 por padrão); aqui ele desce a
               32px para casar com a altura da faixa sem virar outro botão. */}
           <div className="shrink-0 [&>button]:h-8 [&>button]:w-8">
