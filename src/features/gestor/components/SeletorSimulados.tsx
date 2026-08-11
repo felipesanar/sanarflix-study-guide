@@ -82,11 +82,18 @@ function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
  * indisponível DEPOIS de selecionado (a outra metade da correção, o filtro de
  * ids indisponíveis, mora em `routes/Detalhamento.tsx`).
  */
-export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimuladosProps) {
-  const [aberto, setAberto] = React.useState(false);
+export function SeletorSimulados({
+  itens,
+  selecionados,
+  onChange,
+  inline = false,
+}: SeletorSimuladosProps) {
+  const [abertoPorClique, setAberto] = React.useState(false);
+  const aberto = inline || abertoPorClique;
   const idPainel = React.useId();
   const raiz = React.useRef<HTMLDivElement>(null);
   const painel = React.useRef<HTMLDivElement>(null);
+
 
   const semSelecao = selecionados.length === 0;
   const excedeLegibilidade = selecionados.length > LIMITE_LEGIBILIDADE;
