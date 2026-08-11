@@ -160,7 +160,7 @@ export function TooltipEvolucao(props: { active?: boolean; payload?: { payload: 
 }
 
 /** Rodapé de legenda do handoff (docs/06, princípio 2: legenda sempre). */
-function LegendaEvolucao() {
+function LegendaEvolucao({ semTri }: { semTri: number }) {
   return (
     <figcaption
       className="mt-3 flex flex-wrap items-center gap-4 pt-3.5 text-[11px]"
@@ -181,6 +181,18 @@ function LegendaEvolucao() {
           style={{ borderTop: '1.5px dashed var(--gp-border-input)' }}
         />
         {`Meta ${PROFICIENCIA_MINIMA}`}
+      </span>
+      {/*
+       * A série só pode conter simulados cujo TRI já foi processado — sem
+       * proficiência calculada não há ponto a desenhar, e emendar a linha por
+       * cima deles inventaria evolução (§4.10). O aviso diz explicitamente
+       * quantos simulados do recorte ficaram fora por esse motivo.
+       */}
+      <span data-testid="evolucao-aviso-tri" className="basis-full">
+        Considera apenas simulados com TRI processado.
+        {semTri > 0
+          ? ` ${semTri} simulado${semTri > 1 ? 's' : ''} do recorte ainda sem TRI ${semTri > 1 ? 'ficaram' : 'ficou'} fora do gráfico.`
+          : ''}
       </span>
     </figcaption>
   );
@@ -251,7 +263,10 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
     );
   }
 
-  const descricao = `Proficiência institucional por simulado, escala 0 a 100, com ${pontos.length} simulado(s) realizado(s). Meta institucional de ${PROFICIENCIA_MINIMA}.`;
+  const comTri = pontos.filter((ponto) => ponto.valor !== null && ponto.valor !== undefined);
+  const semTri = pontos.length - comTri.length;
+
+  const descricao = `Proficiência institucional por simulado, escala 0 a 100, com ${comTri.length} simulado(s) com TRI processado. Meta institucional de ${PROFICIENCIA_MINIMA}.`;
 
   const tabela = (
     <details className="mt-2">
@@ -267,7 +282,7 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
           </tr>
         </thead>
         <tbody>
-          {pontos.map((ponto) => (
+          {comTri.map((ponto) => (
             <tr key={ponto.simuladoId} className="border-t border-border/60">
               <th scope="row" className="py-1 pr-3 font-normal">{ponto.nome}</th>
               <td className="py-1 pr-3 tabular-nums">{formatData(ponto.data)}</td>
@@ -280,19 +295,23 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
     </details>
   );
 
-  if (pontos.length === 0) {
+  if (comTri.length === 0) {
     return (
       <MolduraVazia
         testId="evolucao-vazio"
         altura={altura}
-        mensagem="Nenhum simulado realizado neste recorte."
+        mensagem={
+          pontos.length > 0
+            ? 'Nenhum simulado deste recorte tem TRI processado.'
+            : 'Nenhum simulado realizado neste recorte.'
+        }
       />
     );
   }
 
   // Handoff de data viz: com 1 simulado não se desenha linha de um ponto.
-  if (pontos.length === 1) {
-    const unico = pontos[0];
+  if (comTri.length === 1) {
+    const unico = comTri[0];
     return (
       <figure className="m-0">
         {/*
@@ -327,14 +346,14 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
           </span>
         </div>
         <figcaption className="text-xs text-muted-foreground">
-          Primeira medição; a evolução aparece a partir do segundo simulado.
+          Primeira medição com TRI processado; a evolução aparece a partir do segundo simulado com TRI.
         </figcaption>
         {tabela}
       </figure>
     );
   }
 
-  const dados: DadoEvolucao[] = pontos.map((ponto) => ({
+  const dados: DadoEvolucao[] = comTri.map((ponto) => ({
     rotulo: ponto.nome,
     valor: ponto.valor,
     participantes: ponto.participantes,
@@ -470,7 +489,7 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
           </ResponsiveContainer>
         </div>
       )}
-      <LegendaEvolucao />
+      <LegendaEvolucao semTri={semTri} />
       {tabela}
     </figure>
   );
