@@ -18,9 +18,9 @@ function readMigration(): string {
 }
 
 describe('get_gestor_portal_versao()', () => {
-  it('admin sempre retorna true, sem depender de ies_features', () => {
+  it('admin vê o console antigo: retorna false sem olhar ies_features', () => {
     const sql = readMigration();
-    expect(sql).toMatch(/IF public\.has_role\(v_uid, 'admin'::public\.app_role\) THEN\s*\n\s*RETURN true;/);
+    expect(sql).toMatch(/IF public\.has_role\(v_uid, 'admin'::public\.app_role\) THEN\s*\n\s*RETURN false;/);
   });
 
   it('gestor_grupo resolve a lista de IES via get_accessible_ies', () => {
