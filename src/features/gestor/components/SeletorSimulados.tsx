@@ -325,25 +325,31 @@ export function SeletorSimulados({
           </span>
         ))}
 
-        <button
-          type="button"
-          onClick={() => setAberto((estava) => !estava)}
-          aria-expanded={aberto}
-          // Só referencia o painel quando ele existe: `aria-controls` apontando
-          // para um id ausente é atributo inválido para a AT (e para o axe).
-          aria-controls={aberto ? idPainel : undefined}
-          aria-label="Escolher simulados"
-          className="flex flex-1 items-center justify-between gap-2 rounded-sm py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="text-[color:var(--gp-text-3)]">
-            {semSelecao ? 'Selecione 1 ou mais simulados' : 'Adicionar outro'}
+        {inline ? (
+          <span className="flex-1 py-0.5 text-[color:var(--gp-text-3)]">
+            {semSelecao ? 'Marque os simulados na lista abaixo' : 'Marque outro na lista abaixo'}
           </span>
-          <Icon
-            name={aberto ? 'expand_less' : 'expand_more'}
-            size={16}
-            className="text-[color:var(--gp-text-3)]"
-          />
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAberto((estava) => !estava)}
+            aria-expanded={aberto}
+            // Só referencia o painel quando ele existe: `aria-controls` apontando
+            // para um id ausente é atributo inválido para a AT (e para o axe).
+            aria-controls={aberto ? idPainel : undefined}
+            aria-label="Escolher simulados"
+            className="flex flex-1 items-center justify-between gap-2 rounded-sm py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="text-[color:var(--gp-text-3)]">
+              {semSelecao ? 'Selecione 1 ou mais simulados' : 'Adicionar outro'}
+            </span>
+            <Icon
+              name={aberto ? 'expand_less' : 'expand_more'}
+              size={16}
+              className="text-[color:var(--gp-text-3)]"
+            />
+          </button>
+        )}
       </div>
 
       {aberto && (
@@ -353,7 +359,13 @@ export function SeletorSimulados({
 
           role="group"
           aria-label="Simulados do recorte"
-          className="absolute left-3.5 right-3.5 z-30 mt-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]"
+          className={cn(
+            'mt-2 overflow-hidden',
+            inline
+              ? 'relative'
+              : 'absolute left-3.5 right-3.5 z-30 animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]',
+          )}
+
           style={{
             border: '1px solid var(--gp-border-strong)',
             borderRadius: 'var(--gp-radius-md)',
