@@ -12,7 +12,10 @@ import { exportarRecortePdf, exportarRecorteXlsx, nomeArquivoExport } from '@/fe
 const SAIDA = process.env.SAIDA_RELATORIOS ?? '/mnt/documents/relatorios-uniatenas-simulado-4';
 fs.mkdirSync(SAIDA, { recursive: true });
 
-// jsPDF/XLSX gravam em disco em vez de disparar download do navegador.
+process.chdir(SAIDA);
+
+// jsPDF grava em disco em vez de disparar download do navegador; XLSX.writeFile
+// já grava relativo ao diretório de trabalho.
 (jsPDF as unknown as { prototype: Record<string, unknown> }).prototype.save = function (
   this: { output: (t: string) => ArrayBuffer },
   nome: string,
@@ -20,9 +23,6 @@ fs.mkdirSync(SAIDA, { recursive: true });
   fs.writeFileSync(path.join(SAIDA, nome), Buffer.from(this.output('arraybuffer')));
   return this;
 };
-const writeFileOriginal = XLSX.writeFile;
-(XLSX as unknown as { writeFile: typeof XLSX.writeFile }).writeFile = ((livro: XLSX.WorkBook, nome: string) =>
-  writeFileOriginal(livro, path.join(SAIDA, nome))) as typeof XLSX.writeFile;
 
 const SIMULADO = 'a8638b83-a7b7-4139-bdac-aec319470683';
 const SIMULADO_NOME = 'UNIATENAS - 4º, 5º e 6º Ano | Simulado 4';
