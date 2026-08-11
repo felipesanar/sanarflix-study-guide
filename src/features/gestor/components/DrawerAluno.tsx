@@ -1357,23 +1357,32 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
             <div data-testid="drawer-areas" className="space-y-2">
               <TituloSecao>Desempenho por área · % de acerto</TituloSecao>
 
-              {/* Chips de simulado: o bloco fala de UM simulado por vez, e quem
-                  lê escolhe qual. Só aparece com 2+ opções — um chip solitário
-                  seria controle sem escolha. */}
+              {/* Chips do recorte: "Todos" (consolidado, padrão) + um por
+                  simulado. Só aparece quando há mais de uma leitura possível —
+                  um chip solitário seria controle sem escolha. */}
               {candidatasAreas.length > 1 ? (
                 <div
                   role="group"
-                  aria-label="Simulado do desempenho por área"
+                  aria-label="Recorte do desempenho por área"
                   className="flex flex-wrap gap-1.5"
                 >
-                  {candidatasAreas.map((e, indice) => {
-                    const ativo = e.simuladoId === entradaDasAreas?.simuladoId;
+                  {(podeConsolidar
+                    ? [{ id: 'todos' as const, rotulo: 'Todos' }]
+                    : []
+                  ).concat(
+                    candidatasAreas.map((e, indice) => ({
+                      id: e.simuladoId as 'todos',
+                      rotulo: `${indice + 1}º sim.`,
+                    })),
+                  ).map((opcao) => {
+                    const ativo =
+                      opcao.id === 'todos' ? modoTodos : opcao.id === entradaDasAreas?.simuladoId;
                     return (
                       <button
-                        key={e.simuladoId}
+                        key={opcao.id}
                         type="button"
                         aria-pressed={ativo}
-                        onClick={() => setAreaEscolhida({ aluno: alunoId, simulado: e.simuladoId })}
+                        onClick={() => setAreaEscolhida({ aluno: alunoId, simulado: opcao.id })}
                         className="rounded-full px-2.5 py-1 text-[11px] transition-colors"
                         style={{
                           border: `1px solid ${ativo ? 'var(--gp-brand)' : 'var(--gp-border-strong)'}`,
@@ -1382,28 +1391,39 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
                           fontWeight: ativo ? 600 : 400,
                         }}
                       >
-                        {`${indice + 1}º sim.`}
+                        {opcao.rotulo}
                       </button>
                     );
                   })}
                 </div>
               ) : null}
 
-              {/* De QUAL simulado sai o bloco. Sem esta linha, barras sem
+              {/* De QUAL recorte sai o bloco. Sem esta linha, barras sem
                   procedência viram média imaginária na cabeça de quem lê. */}
               {entradaDasAreas || entradaAreaDetalhada ? (
                 <div className="space-y-1">
                   <p style={{ fontSize: 11, color: 'var(--gp-text-2)', fontWeight: 600 }}>
-                    {entradaDasAreas
-                      ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)}`
-                      : entradaAreaDetalhada?.nome}
-                    {areasSemResultado ? (
+                    {modoTodos
+                      ? `Todos os simulados · ${entradasComTemas.length} ${entradasComTemas.length === 1 ? 'simulado considerado' : 'simulados considerados'}`
+                      : entradaDasAreas
+                        ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)}`
+                        : entradaAreaDetalhada?.nome}
+                    {!modoTodos && areasSemResultado ? (
                       <span style={{ fontWeight: 400, color: 'var(--gp-text-3)' }}>
                         {' · resultado em processamento'}
                       </span>
                     ) : null}
                   </p>
-                  {divergeDaProficiencia && entradaDaProficiencia ? (
+                  {modoTodos ? (
+                    <p data-testid="rotulo-areas-consolidado" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                      {`% de acerto médio, ponderado pelas questões respondidas.${
+                        foraDoConsolidado > 0
+                          ? ` ${foraDoConsolidado} ${foraDoConsolidado === 1 ? 'simulado feito ficou' : 'simulados feitos ficaram'} fora por não ter classificação por área.`
+                          : ''
+                      }`}
+                    </p>
+                  ) : null}
+                  {!modoTodos && divergeDaProficiencia && entradaDaProficiencia ? (
                     <p data-testid="aviso-simulado-areas" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
                       {`As barras abaixo são do ${entradaDasAreas?.simuladoNome}. A proficiência ${formatNumero(entradaDaProficiencia.proficiencia)} mostrada acima é do ${entradaDaProficiencia.simuladoNome}.`}
                     </p>
