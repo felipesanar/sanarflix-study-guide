@@ -174,9 +174,18 @@ export interface VisaoGeral {
     simuladoId: string;
     nome: string;
     data: string;
+    /** Média de proficiência do simulado. `null` = TRI ainda não processado. */
     valor: number | null;
+    /**
+     * Percentual de alunos proficientes (nota >= 60) no simulado — a MESMA
+     * conta do KPI "Alunos proficientes". É a série do gráfico "Evolução
+     * institucional" no modo Geral. Opcional porque RPCs antigas e mocks não
+     * devolvem o campo; `null`/ausente é buraco na série, nunca zero (§4.10).
+     */
+    proficientesPct?: number | null;
     participantes: number;
   }[];
+
   evolucaoPorArea: { area: string; pontos: PontoSerie[]; critica: boolean }[];
   diagnosticoResumo: {
     nivel: NivelDesempenho;
