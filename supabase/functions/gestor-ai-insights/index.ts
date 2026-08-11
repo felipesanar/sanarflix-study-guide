@@ -704,8 +704,10 @@ function buildAlunoPrompt(aluno: any, porArea: any, visao?: string | null): stri
     `Trajetória nos simulados, do mais antigo para o mais recente:\n${trajetoriaTxt}`,
     `Desempenho acumulado por grande área:\n${areasHistoricoTxt}`,
     `Desempenho por grande área no simulado mais recente em que participou:\n${ultimoTxt}`,
+    `Visão que o gestor está vendo agora no bloco "Desempenho por área" (é a ela que a leitura deve se referir):\n${resumoVisaoAreas(porArea, visao)}`,
     avisos.join(" "),
-    "Gere o insight sobre esse aluno com base apenas nesses números.",
+    "Com base apenas nesses números, chame a tool leitura_aluno com um ponto forte e um ponto de atenção.",
+
   ]
     .filter(Boolean)
     .join("\n\n");
