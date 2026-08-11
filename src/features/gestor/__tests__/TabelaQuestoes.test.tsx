@@ -206,7 +206,7 @@ describe('TabelaQuestoes', () => {
   it('a coluna de índice de acerto tem barra colorida pela régua única, e o crítico marca o valor', () => {
     render(<TabelaQuestoes {...props()} />);
 
-    // 42% = mediano, 28% = crítico (lib/regras.nivelDesempenho).
+    // 42% e 28% = crítico com o corte de 50 (lib/regras.nivelDesempenho).
     expect(screen.getByTestId('barra-acerto-1')).toBeInTheDocument();
     const critica = screen.getByTestId('linha-questao-2');
     expect(within(critica).getByText('28%').className).toMatch(/gp-text-danger/);

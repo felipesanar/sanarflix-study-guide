@@ -17,15 +17,15 @@ const DIM = { largura: 640, altura: 320 };
  */
 const visaoGeralFake: { evolucao: VisaoGeral['evolucao'] } = {
   evolucao: [
-    { simuladoId: 'sim-1', nome: 'Simulado 1', data: '2026-03-15', valor: 57, participantes: 320 },
-    { simuladoId: 'sim-2', nome: 'Simulado 2', data: '2026-05-10', valor: 59, participantes: 310 },
-    { simuladoId: 'sim-3', nome: 'Simulado 3', data: '2026-07-14', valor: 62, participantes: 305 },
+    { simuladoId: 'sim-1', nome: 'Simulado 1', data: '2026-03-15', valor: 57, proficientesPct: 38, participantes: 320 },
+    { simuladoId: 'sim-2', nome: 'Simulado 2', data: '2026-05-10', valor: 59, proficientesPct: 44, participantes: 310 },
+    { simuladoId: 'sim-3', nome: 'Simulado 3', data: '2026-07-14', valor: 62, proficientesPct: 51, participantes: 305 },
   ],
 };
 
 const visaoComUmSimulado = (): { evolucao: VisaoGeral['evolucao'] } => ({
   evolucao: [
-    { simuladoId: 'sim-1', nome: 'Simulado 1', data: '2026-03-15', valor: 51, participantes: 300 },
+    { simuladoId: 'sim-1', nome: 'Simulado 1', data: '2026-03-15', valor: 51, proficientesPct: 34, participantes: 300 },
   ],
 });
 
@@ -47,33 +47,26 @@ describe('EvolucaoChart (modo Geral)', () => {
    */
   it('é acessível como imagem com descrição no SVG, e com <title> vazio (sem tooltip nativo)', () => {
     const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
-    const figura = screen.getByRole('img', { name: /Evolução da proficiência institucional/i });
+    const figura = screen.getByRole('img', { name: /Evolução do percentual de alunos proficientes/i });
     expect(figura).toBeInTheDocument();
-    expect(container.querySelector('svg desc')?.textContent).toMatch(/escala 0 a 100/i);
+    expect(container.querySelector('svg desc')?.textContent).toMatch(/percentual de alunos proficientes/i);
     expect(container.querySelector('svg title')?.textContent).toBe('');
   });
 
-  it('desenha linha, área e a linha de meta tracejada com 2+ simulados', () => {
+  it('desenha linha e área com 2+ simulados', () => {
     const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
     expect(container.querySelector('.recharts-line')).not.toBeNull();
     expect(container.querySelector('.recharts-area')).not.toBeNull();
-
-    const meta = container.querySelector('.recharts-reference-line-line');
-    expect(meta).not.toBeNull();
-    // Anatomia da referência: 1.5px, tracejado 6 5, em linha (não em texto).
-    expect(meta?.getAttribute('stroke-dasharray')).toBe('6 5');
-    expect(meta?.getAttribute('stroke-width')).toBe('1.5');
   });
 
   /**
-   * Handoff §7: o rótulo da meta mora DENTRO do plot, ancorado à direita, e diz
-   * o que a linha é — não só "Meta 60" solto fora da área de desenho (o que
-   * obrigava a reservar margem morta à direita).
+   * A série mede PERCENTUAL DE ALUNOS proficientes; 60 é corte de NOTA do
+   * aluno, não meta de percentual de turma. Manter a tracejada aqui afirmaria
+   * uma meta institucional que não existe.
    */
-  it('rotula a meta dentro do plot, com o texto por extenso', () => {
+  it('não desenha a linha de meta 60 neste modo', () => {
     const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
-    const rotulo = container.querySelector('.recharts-reference-line text');
-    expect(rotulo?.textContent).toBe('meta de proficiência · 60');
+    expect(container.querySelector('.recharts-reference-line-line')).toBeNull();
   });
 
   it('usa espessura de 2.5px e traço em gradiente da marca na linha protagonista', () => {
@@ -102,16 +95,13 @@ describe('EvolucaoChart (modo Geral)', () => {
       .toBe('var(--gp-border-strong)');
   });
 
-  /**
-   * O tick do valor da meta duplicaria gridline e rótulo em cima da linha
-   * tracejada — na referência o eixo Y salta de 40 para 80.
-   */
-  it('não repete o valor da meta nos ticks do eixo Y', () => {
+  /** Sem a tracejada de meta, o eixo volta a mostrar a escala completa. */
+  it('mostra a escala completa nos ticks do eixo Y', () => {
     const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
     const ticks = Array.from(
       container.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick-value'),
     ).map((no) => no.textContent);
-    expect(ticks).toEqual(['0', '20', '40', '80', '100']);
+    expect(ticks).toEqual(['0', '20', '40', '60', '80', '100']);
   });
 
   /**
@@ -138,7 +128,7 @@ describe('EvolucaoChart (modo Geral)', () => {
       />,
     );
     expect(screen.getByText('Sim. de Área CM')).toBeInTheDocument();
-    expect(screen.getByText('61 de proficiência · 102 alunos')).toBeInTheDocument();
+    expect(screen.getByText('61% de alunos proficientes · 102 alunos')).toBeInTheDocument();
     expect(screen.getByText('02/06/2026')).toBeInTheDocument();
   });
 
@@ -148,10 +138,10 @@ describe('EvolucaoChart (modo Geral)', () => {
   });
 
   /** docs/06-data-viz.md, princípio 2: legenda sempre, com rótulo por extenso. */
-  it('tem rodapé de legenda com a série e a meta', () => {
+  it('tem rodapé de legenda com a série de alunos proficientes', () => {
     render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
-    expect(screen.getByText('Proficiência institucional')).toBeInTheDocument();
-    expect(screen.getByText('Meta 60')).toBeInTheDocument();
+    expect(screen.getByText('Alunos proficientes (%)')).toBeInTheDocument();
+    expect(screen.queryByText('Meta 60')).not.toBeInTheDocument();
   });
 
   it('com 1 simulado NÃO desenha linha: mostra o ponto rotulado e a nota de primeira medição', () => {
@@ -161,7 +151,7 @@ describe('EvolucaoChart (modo Geral)', () => {
 
     const unico = screen.getByTestId('evolucao-ponto-unico');
     expect(unico).toHaveTextContent('Simulado 1');
-    expect(unico).toHaveTextContent('51');
+    expect(unico).toHaveTextContent('34%');
     expect(unico).toHaveTextContent('300 alunos');
     expect(
       screen.getByText('Primeira medição com TRI processado; a evolução aparece a partir do segundo simulado com TRI.')
@@ -187,7 +177,7 @@ describe('EvolucaoChart (modo Geral)', () => {
     expect(tabela.querySelectorAll('tbody tr')).toHaveLength(3);
     expect(tabela).toHaveTextContent('Simulado 3');
     expect(tabela).toHaveTextContent('14/07/2026');
-    expect(tabela).toHaveTextContent('62');
+    expect(tabela).toHaveTextContent('51%');
   });
 
   /**
@@ -238,7 +228,7 @@ describe('EvolucaoChart (modo Geral)', () => {
       const ticks = Array.from(
         container.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick-value'),
       ).map((no) => no.textContent);
-      expect(ticks).toEqual(['0', '20', '40', '80', '100']);
+      expect(ticks).toEqual(['0', '20', '40', '60', '80', '100']);
       expect(container.querySelector('.recharts-reference-line-line')).not.toBeNull();
 
       // Nenhum dado real chega ao DOM enquanto carrega: nem a linha da série,
