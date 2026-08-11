@@ -146,6 +146,12 @@ const dataBr = (iso: string | null): string => {
 };
 
 /** Célula de planilha: `null` vira vazio (nunca 0) — mesma regra do TRAÇO na UI. */
+/** Grupo de evolução com inicial maiúscula — no arquivo ele é rótulo de coluna, não texto corrido. */
+const rotuloGrupoTitulo = (grupo: keyof typeof ROTULO_GRUPO_PLURAL): string => {
+  const texto = ROTULO_GRUPO_PLURAL[grupo];
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};
+
 const celula = (valor: number | null | undefined): number | null =>
   valor === null || valor === undefined || Number.isNaN(valor) ? null : valor;
 
@@ -241,7 +247,7 @@ function tabelaDistribuicao(vg: VisaoGeral): Tabela {
       { titulo: '% do recorte', fracao: 0.22, alinhar: 'direita' },
     ],
     linhas: vg.distribuicaoAlunos.map((item) => [
-      { texto: ROTULO_GRUPO_PLURAL[item.grupo] },
+      { texto: rotuloGrupoTitulo(item.grupo) },
       { texto: num(item.quantidade), negrito: true },
       { texto: pct(item.percentual) },
     ]),
@@ -538,7 +544,7 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     const distribuicao = XLSX.utils.aoa_to_sheet([
       ['Grupo', 'Alunos', '% do recorte'],
       ...vg.distribuicaoAlunos.map((item) => [
-        ROTULO_GRUPO_PLURAL[item.grupo],
+        rotuloGrupoTitulo(item.grupo),
         item.quantidade,
         celula(item.percentual),
       ]),

@@ -74,7 +74,7 @@ function limpar(texto: string): string {
   return (texto ?? '').replace(/[\u0000-\u001F]/g, '').trim();
 }
 
-function gradiente(doc: jsPDF, x: number, y: number, w: number, h: number, de: RGB, para: RGB, passos = 60) {
+function gradiente(doc: jsPDF, x: number, y: number, w: number, h: number, de: RGB, para: RGB, passos = 140) {
   const alturaPasso = h / passos;
   for (let i = 0; i < passos; i += 1) {
     const t = i / passos;
