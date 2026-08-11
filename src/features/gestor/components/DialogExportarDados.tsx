@@ -143,10 +143,11 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
   const simuladosRotulos = React.useMemo(
     () =>
       (visaoGeral?.evolucao ?? [])
-        .filter((ponto) => simulados.includes(ponto.simuladoId))
+        .filter((ponto) => simuladosValidos.includes(ponto.simuladoId))
         .map((ponto) => ponto.nome),
-    [visaoGeral, simulados],
+    [visaoGeral, simuladosValidos],
   );
+
 
   const alternar = (id: BlocoExport) => {
     setSelecionados((atual) => {
