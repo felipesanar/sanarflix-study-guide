@@ -38,17 +38,18 @@ interface Recorte {
 }
 
 const IES = [
-  { id: 'd86c32ba-2d09-4c7e-a426-1d981ec7b595', nome: 'PARACATU', gestor: '316899fb-f03d-4810-babd-e26faac317d6', semestres: ['7', '9', '10', '6ano'] },
-  { id: '9baa1401-bf54-4451-b96c-49e4823564fb', nome: 'PASSOS', gestor: '50086f3c-4473-46c2-986b-3553cb2147bb', semestres: ['7', '9', '10', '6ano'] },
+  { id: 'd86c32ba-2d09-4c7e-a426-1d981ec7b595', nome: 'PARACATU', gestor: '316899fb-f03d-4810-babd-e26faac317d6', semestres: ['7', '9', '11', '6ano'] },
+  { id: '9baa1401-bf54-4451-b96c-49e4823564fb', nome: 'PASSOS', gestor: '50086f3c-4473-46c2-986b-3553cb2147bb', semestres: ['7', '9', '11', '6ano'] },
   { id: '08cc7497-7ce6-49d8-828e-d6c897716cb7', nome: 'PORTO SEGURO', gestor: '0df1eba1-fe28-46ba-b3d9-9f1713474f4a', semestres: ['7', '9'] },
-  { id: 'a1f1e8ca-a58e-4f87-abfe-4cc62aa4a686', nome: 'SETE LAGOAS', gestor: '59a5af2d-4490-4013-8b5e-d3821e11d1e4', semestres: ['7', '9', '10', '6ano'] },
-  { id: '6e69a5e4-daab-4322-b70b-cdcf9f3c2cf9', nome: 'SORRISO', gestor: '916c44af-2f88-4191-b8eb-1a6d3e25ef76', semestres: ['7', '8', '9', '10'] },
-  { id: 'ac2f94a5-d33b-4547-94ed-ae4d0877fbc7', nome: 'VALENÇA', gestor: 'e88b01fc-cd4f-4277-a9b6-a076709f2b4b', semestres: ['7', '8', '9', '10', '6ano'] },
+  { id: 'a1f1e8ca-a58e-4f87-abfe-4cc62aa4a686', nome: 'SETE LAGOAS', gestor: '59a5af2d-4490-4013-8b5e-d3821e11d1e4', semestres: ['7', '9', '11', '6ano'] },
+  { id: '6e69a5e4-daab-4322-b70b-cdcf9f3c2cf9', nome: 'SORRISO', gestor: '916c44af-2f88-4191-b8eb-1a6d3e25ef76', semestres: ['7', '9', '10'] },
+  { id: 'ac2f94a5-d33b-4547-94ed-ae4d0877fbc7', nome: 'VALENÇA', gestor: 'e88b01fc-cd4f-4277-a9b6-a076709f2b4b', semestres: ['7', '9', '11', '6ano'] },
 ];
 
-const ANO: Record<string, string> = { '7': '4º ano', '8': '4º ano', '9': '5º ano', '10': '5º ano', '6ano': '6º ano' };
+const ANO: Record<string, string> = { '7': '4º ano', '8': '4º ano', '9': '5º ano', '10': '5º ano', '11': '6º ano', '12': '6º ano', '6ano': '6º ano' };
 const rotulo = (semestre: string) =>
-  semestre === '6ano' ? '6º ano' : `${ANO[semestre]} — ${semestre}º período`;
+  semestre === '6ano' ? '6º ano (11º e 12º períodos)' : `${ANO[semestre]} — ${semestre}º período`;
+
 
 async function buscar(r: Recorte) {
   const resposta = await fetch(URL, {
