@@ -2,11 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+/**
+ * Versão vigente da RPC: a migration de 11/08 20:23 passou admin a ver o
+ * console antigo (decisão de produto), sobrescrevendo a de 14:20.
+ */
 const MIGRATION_PATH = join(
   process.cwd(),
   'supabase',
   'migrations',
-  '20260811142000_get_gestor_portal_versao.sql',
+  '20260811202308_ba15db88-d7b1-49c2-89d1-19c7bd9cd821.sql',
 );
 
 function readMigration(): string {
@@ -14,9 +18,9 @@ function readMigration(): string {
 }
 
 describe('get_gestor_portal_versao()', () => {
-  it('admin sempre retorna true, sem depender de ies_features', () => {
+  it('admin vê o console antigo: retorna false sem olhar ies_features', () => {
     const sql = readMigration();
-    expect(sql).toMatch(/IF public\.has_role\(v_uid, 'admin'::public\.app_role\) THEN\s*\n\s*RETURN true;/);
+    expect(sql).toMatch(/IF public\.has_role\(v_uid, 'admin'::public\.app_role\) THEN\s*\n\s*RETURN false;/);
   });
 
   it('gestor_grupo resolve a lista de IES via get_accessible_ies', () => {
