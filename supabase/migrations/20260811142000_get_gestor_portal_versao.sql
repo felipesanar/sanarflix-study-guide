@@ -61,3 +61,6 @@ BEGIN
   );
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.get_gestor_portal_versao() FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.get_gestor_portal_versao() TO authenticated;

@@ -32,6 +32,22 @@ import { join, resolve } from 'node:path';
  *    junto. Agora sim é o Caminho A do plano original: o teste afirma a
  *    AUSÊNCIA dos dois arquivos, em vez de inspecionar o conteúdo deles.
  *
+ * 4. Correção de 11/08 (achado da revisão final do plano
+ *    docs/superpowers/plans/2026-08-11-rollout-faseado-portal-gestor.md, que
+ *    restaurou o console antigo para coexistir com o portal novo, atrás de
+ *    um toggle por IES): a Task 5 desse plano trouxe `AiChatDrawer.tsx` de
+ *    volta de propósito (é peça do console legado). Isso derrubou a
+ *    asserção `existsSync(AI_CHAT_DRAWER) === false` do Caminho A acima, sem
+ *    ser notado na hora porque o arquivo inteiro já estava vermelho por um
+ *    motivo pré-existente e não relacionado (asserção de
+ *    `DrawerMovimento.tsx`/`planoMovimento.ts`, mais abaixo neste arquivo).
+ *    `DesempenhoInstitucionalV2.tsx` continua órfão e apagado -- nada no
+ *    plano de 11/08 o restaurou -- então só a metade do Caminho A referente
+ *    ao AiChatDrawer precisou mudar. O invariante que passa a valer: o
+ *    console legado (`src/experiences/gestor/**`) pode importar
+ *    `AiChatDrawer`; o portal novo (`src/features/gestor/**`, este
+ *    diretório) nunca pode.
+ *
  * O que continua vivo e testado abaixo: a régua única em
  * `features/gestor/lib/regras.ts` continua sendo a ÚNICA fonte de corte de
  * classificação dentro de `src/features/gestor` (o portal novo, que é tudo
@@ -61,10 +77,18 @@ const CORTE_CLASSIFICACAO = /[><]=?\s*(30|45|55|60|80)\b/;
 // __dirname aqui é .../src/features/gestor/__tests__.
 const GESTOR_ROOT = resolve(__dirname, '..');
 const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
+const SRC_ROOT = resolve(REPO_ROOT, 'src');
 const REGRAS_TS = resolve(GESTOR_ROOT, 'lib', 'regras.ts');
 
 const AI_CHAT_DRAWER = join(REPO_ROOT, 'src/components/analytics/v2/shared/AiChatDrawer.tsx');
 const DESEMPENHO_V2_PAGE = join(REPO_ROOT, 'src/pages/DesempenhoInstitucionalV2.tsx');
+
+/**
+ * Casa uma declaração `import`/`export` de nome (chaves) que referencia
+ * `AiChatDrawer`, seguida de uma cláusula `from` com caminho de módulo entre
+ * aspas.
+ */
+const IMPORTA_AI_CHAT_DRAWER = /(?:import|export)\s*\{[^}]*\bAiChatDrawer\b[^}]*\}\s*from\s*['"][^'"]+['"]/;
 
 /** Recursivo; pula `__tests__` — mesmo padrão de `tema.test.tsx`. */
 function arquivosFonte(dir: string, acc: string[] = []): string[] {
@@ -79,10 +103,53 @@ function arquivosFonte(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
+/**
+ * Mesmo padrão de `arquivosFonte`, mas percorre `src/` inteiro (não só
+ * `src/features/gestor`) — usado para achar TODO importador de
+ * `AiChatDrawer` no repo, dentro ou fora do console legado. Inclui
+ * `__tests__` de propósito aqui: um teste do portal novo importando
+ * `AiChatDrawer` também seria um vazamento do invariante.
+ */
+function arquivosFonteRepo(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      arquivosFonteRepo(p, acc);
+    } else if (/\.(ts|tsx)$/.test(e.name)) {
+      acc.push(p);
+    }
+  }
+  return acc;
+}
+
 describe('régua única de desempenho no produto (spec §4.4, §7.3 — Task 64b + Task 64)', () => {
-  it('AiChatDrawer.tsx (components/analytics/v2) e DesempenhoInstitucionalV2.tsx NÃO existem mais (Task 64 apagou a experiência legada e seus órfãos)', () => {
-    expect(existsSync(AI_CHAT_DRAWER)).toBe(false);
+  it('DesempenhoInstitucionalV2.tsx continua apagado; AiChatDrawer.tsx voltou (plano de 11/08) mas só para o console legado', () => {
+    // Órfão desde a Task 64 original -- nada no plano de rollout de 11/08 o
+    // restaurou.
     expect(existsSync(DESEMPENHO_V2_PAGE)).toBe(false);
+
+    // AiChatDrawer.tsx, ao contrário, voltou de propósito: é peça do console
+    // antigo restaurado pela Task 5 do plano de rollout faseado. "Não existe
+    // mais" deixou de ser o invariante certo -- o que importa agora é QUEM
+    // pode importá-lo.
+    expect(existsSync(AI_CHAT_DRAWER)).toBe(true);
+
+    const importadores = arquivosFonteRepo(SRC_ROOT).filter((p) =>
+      IMPORTA_AI_CHAT_DRAWER.test(readFileSync(p, 'utf-8')),
+    );
+
+    // Sanity: se nada importasse AiChatDrawer, a asserção de exclusão abaixo
+    // passaria por vacuidade -- mesmo risco já documentado no topo deste
+    // arquivo para o teste de régua única.
+    expect(importadores.length).toBeGreaterThan(0);
+
+    // Invariante: só o console legado (src/experiences/gestor/**) importa
+    // AiChatDrawer; o portal novo (src/features/gestor/**, este diretório)
+    // nunca deve.
+    const ofensores = importadores
+      .map((p) => resolve(p).slice(REPO_ROOT.length + 1).replace(/\\/g, '/'))
+      .filter((rel) => rel.startsWith('src/features/gestor/'));
+    expect(ofensores).toEqual([]);
   });
 
   it('nenhum arquivo de src/features/gestor reimplementa corte de nível fora de regras.ts', () => {

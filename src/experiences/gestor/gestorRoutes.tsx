@@ -1,8 +1,19 @@
 import { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
-import { GestorLayout } from '@/experiences/gestor/GestorLayout';
 import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
 import { GestorFeatureGate, GestorIndexRedirect } from '@/experiences/gestor/GestorFeatureGate';
+
+// Lazy de propósito (achado da revisão final do plano de 11/08): esse
+// arquivo é importado estaticamente e no escopo do módulo por
+// `src/features/gestor/gestorV2Routes.tsx` (`const legado = gestorRoutes();`),
+// que por sua vez está sempre no grafo de import do bundle principal. Um
+// import estático de GestorLayout aqui faria o bundler dobrar todo o console
+// antigo (components/analytics/v2/**) no chunk principal mesmo com o
+// lazy() em portalV2Gates.tsx — todo usuário, inclusive aluno, baixaria o
+// console do gestor. Ver Finding 4 do relatório final.
+const GestorLayout = lazy(() =>
+  import('@/experiences/gestor/GestorLayout').then((m) => ({ default: m.GestorLayout })),
+);
 
 // Páginas-módulo do gestor (carregadas sob demanda — ver gestor/pages/).
 const VisaoInstitucionalPage = lazy(() => import('@/experiences/gestor/pages/VisaoInstitucionalPage'));

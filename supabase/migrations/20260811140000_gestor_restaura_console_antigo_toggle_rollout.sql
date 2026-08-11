@@ -12,6 +12,18 @@
 -- Decisão explícita (Felipe, 11/08): as 24 IES -- não só as 14 que já tinham
 -- a linha antes -- recebem enabled=true nas 3 chaves, inclusive as 10 que
 -- nunca tiveram linha (estado ambíguo "não contratou" vs "esqueceram").
+--
+-- Além das 3 chaves de módulo contratado, esta INSERT também libera as 5
+-- chaves de MÓDULO DE TELA que o console antigo exige uma a uma
+-- (GestorFeatureGate/filterGestorNav em src/experiences/gestor/*) --
+-- gestao.visao_institucional, gestao.diagnostico_curricular, gestao.alunos,
+-- gestao.insights_pedagogicos, gestao.inteligencia_decisoria. Essas 5 chaves
+-- já existiam em feature_catalog (criadas pela migration 20260709154234,
+-- nunca apagadas, continuam active) -- o problema era só a ausência de linha
+-- em ies_features para a maioria das 24 IES (o seed original só cobria IES
+-- que já tinham usuário gestor/gestor_grupo com id_ies setado em 09/07).
+-- Sem essas 5 chaves, o console antigo fica navegável mas vazio: todo gate
+-- redireciona para /gestor e o index cai fora do portal (getDefaultRouteForUser).
 insert into public.feature_catalog (key, experience, label, description, sort_order, is_master, active)
 values
   ('gestao.enabled',  'gestao', 'Portal do Gestor',    'Master: liga/desliga o portal do gestor inteiro para a IES', 100, true,  true),
@@ -28,7 +40,11 @@ on conflict (key) do update set
 insert into public.ies_features (ies_id, feature_key, enabled)
 select i.id, k.feature_key, true
 from public.ies i
-cross join (values ('gestao.enabled'), ('gestao.exportar'), ('gestao.ia')) as k(feature_key)
+cross join (values
+  ('gestao.enabled'), ('gestao.exportar'), ('gestao.ia'),
+  ('gestao.visao_institucional'), ('gestao.diagnostico_curricular'),
+  ('gestao.alunos'), ('gestao.insights_pedagogicos'), ('gestao.inteligencia_decisoria')
+) as k(feature_key)
 on conflict (ies_id, feature_key) do update set
   enabled    = true,
   updated_at = now();
