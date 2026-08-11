@@ -961,21 +961,22 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const semestre = entradas[0]?.semestre ?? null;
 
   /**
-   * Cobertura do recorte. Numerador e denominador precisam sair do MESMO
-   * conjunto: `entradas` vem de `get_gestor_aluno` e `simulados` é o recorte
-   * que a tela pediu. Casar os dois crus (`entradas.length` sobre
-   * `simulados.length`) misturava fontes com `WHERE` diferente — imprimia
-   * "3 de 0" com o recorte vazio, e numerador maior que o denominador quando o
-   * aluno tinha simulado fora do recorte. Contar por pertencimento faz a
-   * fração se fechar sozinha; sem denominador, não há fração a mostrar.
+   * Cobertura do recorte = PARTICIPAÇÃO, não pertencimento (achado 11/08).
+   *
+   * `entradas` traz uma linha por simulado do recorte SEMPRE, inclusive para
+   * quem não fez (`participou: false`, métricas null) — então contar entradas
+   * imprimia "3 de 3 simulados" para uma aluna que fez 2, e o mesmo "3 de 3"
+   * para quem não fez nenhum. O numerador agora é quem realmente participou; o
+   * denominador continua sendo o recorte pedido pela tela (`simulados`), para a
+   * fração se fechar sozinha.
    */
   const noRecorte = new Set(simulados);
-  const cobertos = entradas.filter((e) => noRecorte.has(e.simuladoId)).length;
+  const cobertos = entradas.filter((e) => noRecorte.has(e.simuladoId) && e.participou).length;
   const contexto = [
     `${semestre === null ? TRACO : `${semestre}º`} período`,
     simulados.length === 0
       ? null
-      : `${cobertos} de ${simulados.length} ${simulados.length === 1 ? 'simulado' : 'simulados'}`,
+      : `participou de ${cobertos} de ${simulados.length} ${simulados.length === 1 ? 'simulado' : 'simulados'}`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -987,42 +988,60 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
     .map((e) => ({ rotulo: e.simuladoNome, valor: e.proficiencia, data: e.simuladoData }));
 
   /**
-   * O comparativo entre grandes áreas é UM, e é o do simulado MAIS RECENTE
-   * que tenha classificação por área.
+   * O comparativo entre grandes áreas é UM, e é de UM simulado — nunca fundido
+   * entre simulados (mesma família de "Conceito ENAMED não tem média").
    *
-   * A referência mostra um único conjunto de barras por aluno; o payload
-   * traz `acertoPorArea` por SIMULADO. Fundir os simulados numa média por
-   * área seria produzir número que a RPC não devolve — exatamente o que a
-   * regra de agregação honesta proíbe (mesma família de "Conceito ENAMED não
-   * tem média"). Então o comparativo é recortado, não fundido: o simulado
-   * mais recente, dito com todas as letras no subtítulo da seção.
+   * Quais simulados podem ser exibidos: os que têm classificação por área.
+   * Padrão: o mais recente **com nota TRI liberada** (`proficiencia !== null`),
+   * porque é esse o número que o topo do drawer exibe — abrir num simulado sem
+   * resultado processado é o que produzia a divergência de leitura. Sem nenhum
+   * com nota, cai no mais recente com dados de área, e aí o aviso de
+   * processamento aparece explicitamente.
    *
    * `.reverse()` sobre uma CÓPIA — `cronologicas` já é cópia de `entradas`,
    * mas reverter no lugar mudaria a ordem da lista de notas e da série, que
    * são renderizadas a partir dela.
    */
-  const entradaDasAreas =
-    [...cronologicas].reverse().find((e) => (e.acertoPorArea ?? []).length > 0) ?? null;
+  const areaPorSimulado = new Map(
+    (desempenhoArea.data ?? []).map((entrada) => [entrada.simuladoId, entrada]),
+  );
+  const candidatasAreas = cronologicas.filter(
+    (e) => (e.acertoPorArea ?? []).length > 0 || (areaPorSimulado.get(e.simuladoId)?.areas.length ?? 0) > 0,
+  );
+  const maisRecentes = [...candidatasAreas].reverse();
+  const padraoAreas =
+    maisRecentes.find((e) => e.proficiencia !== null) ?? maisRecentes[0] ?? null;
+  const escolhida =
+    areaEscolhida && areaEscolhida.aluno === alunoId
+      ? candidatasAreas.find((e) => e.simuladoId === areaEscolhida.simulado) ?? null
+      : null;
+  const entradaDasAreas = escolhida ?? padraoAreas;
   const areasDoAluno = [...(entradaDasAreas?.acertoPorArea ?? [])].sort(
     (a, b) => b.acertoPct - a.acertoPct,
   );
 
   /**
-   * Mesma regra de recorte do comparativo acima, aplicada ao drill-down por
-   * tema: UM simulado, o mais recente que tenha classificação, NUNCA fundido
-   * entre simulados. `get_gestor_aluno_desempenho_por_area` é uma consulta
-   * própria (`desempenhoArea`, hook `useAlunoDesempenhoPorArea`) — casada por
-   * `simuladoId` contra a mesma ordem cronológica de `cronologicas`, para que
-   * "mais recente" signifique a mesma coisa nas duas seções.
+   * Drill-down por tema do MESMO simulado do bloco acima — casado por
+   * `simuladoId` contra `get_gestor_aluno_desempenho_por_area` (consulta
+   * própria, `desempenhoArea`), para que as duas seções nunca falem de
+   * simulados diferentes.
    */
-  const areaPorSimulado = new Map(
-    (desempenhoArea.data ?? []).map((entrada) => [entrada.simuladoId, entrada]),
-  );
   const entradaAreaDetalhada: DesempenhoPorAreaSimulado | null =
-    [...cronologicas]
-      .reverse()
-      .map((e) => areaPorSimulado.get(e.simuladoId))
-      .find((d): d is DesempenhoPorAreaSimulado => d !== undefined && d.areas.length > 0) ?? null;
+    (entradaDasAreas ? areaPorSimulado.get(entradaDasAreas.simuladoId) : undefined) ?? null;
+
+  /**
+   * Simulado que originou a proficiência exibida no topo (o mais recente com
+   * nota). Quando não é o mesmo do bloco de área, a tela diz isso em uma
+   * frase — em vez de deixar o gestor concluir que 80,3 e barras de 0–28% são
+   * o mesmo recorte.
+   */
+  const entradaDaProficiencia = [...cronologicas].reverse().find((e) => e.proficiencia !== null) ?? null;
+  const divergeDaProficiencia = Boolean(
+    entradaDasAreas &&
+      entradaDaProficiencia &&
+      entradaDasAreas.simuladoId !== entradaDaProficiencia.simuladoId,
+  );
+  const areasSemResultado = Boolean(entradaDasAreas && entradaDasAreas.proficiencia === null);
 
   /**
    * % de acerto por grande área que a RPC do simulado JÁ devolve
@@ -1035,6 +1054,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
     entradaDasAreas && entradaAreaDetalhada && entradaDasAreas.simuladoId === entradaAreaDetalhada.simuladoId
       ? new Map(areasDoAluno.map((a) => [a.area, a.acertoPct]))
       : undefined;
+
 
 
 
