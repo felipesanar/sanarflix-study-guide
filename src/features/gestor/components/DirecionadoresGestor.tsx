@@ -163,6 +163,42 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           </span>
           <Chevron />
         </Link>
+
+        {/* Terceiro direcionador (11/08): exportar é AÇÃO, não navegação — por
+            isso é `<button>` com a mesma anatomia dos dois cartões, e não um
+            `<Link>` para uma tela que não existe. Ausente (nunca desabilitado)
+            quando o papel não pode exportar, mesma regra do `AcoesRecorte`. */}
+        {contexto?.podeExportar && (
+          <>
+            <button
+              type="button"
+              data-testid="direcionador-exportar"
+              onClick={() => setExportarAberto(true)}
+              className={`${CARTAO} text-left`}
+              style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18, ...TRANSICAO_CARTAO }}
+            >
+              <TileIcone icone="download" tom="neutro" />
+              <span className="min-w-0 flex-1">
+                <span className="block" style={{ fontSize: 16, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+                  Exportar dados
+                </span>
+                <span
+                  className="block"
+                  style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
+                >
+                  Os números deste recorte em PDF para circular ou em planilha formatada.
+                </span>
+              </span>
+              <Chevron />
+            </button>
+            <DialogExportarDados
+              aberto={exportarAberto}
+              onAbertoChange={setExportarAberto}
+              iesId={iesId}
+            />
+          </>
+        )}
     </div>
   );
 }
+
