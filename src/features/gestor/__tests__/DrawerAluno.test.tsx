@@ -190,7 +190,13 @@ beforeEach(() => {
     resultado({ data: [] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
   );
   mockUseContexto.mockReturnValue(contextoComExport(true));
+  // "Leitura do aluno (IA)" (task 11/08) roda AO ABRIR o drawer. Default do
+  // arquivo: a IA falha, então o bloco cai no fallback determinístico
+  // (`InsightArea`) — é ele que os testes de área afirmam.
+  mockFunctionsInvoke.mockReset();
+  mockFunctionsInvoke.mockResolvedValue({ data: null, error: new Error('sem IA no teste') });
 });
+
 
 describe('DrawerAluno — fechado', () => {
   it('alunoId nulo não renderiza o dialog', () => {
