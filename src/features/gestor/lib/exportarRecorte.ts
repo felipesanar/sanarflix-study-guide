@@ -625,6 +625,7 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     ]);
     aba['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 22 }];
     aba['!freeze'] = 'A5';
+    aplicarFormato(aba, [5], alunos.length, 4);
     XLSX.utils.book_append_sheet(livro, aba, 'Alunos');
   }
 
