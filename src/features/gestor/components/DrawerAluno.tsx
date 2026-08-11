@@ -1366,15 +1366,13 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
                   aria-label="Recorte do desempenho por área"
                   className="flex flex-wrap gap-1.5"
                 >
-                  {(podeConsolidar
-                    ? [{ id: 'todos' as const, rotulo: 'Todos' }]
-                    : []
-                  ).concat(
-                    candidatasAreas.map((e, indice) => ({
-                      id: e.simuladoId as 'todos',
+                  {[
+                    ...(podeConsolidar ? [{ id: 'todos', rotulo: 'Todos' }] : []),
+                    ...candidatasAreas.map((e, indice) => ({
+                      id: e.simuladoId,
                       rotulo: `${indice + 1}º sim.`,
                     })),
-                  ).map((opcao) => {
+                  ].map((opcao) => {
                     const ativo =
                       opcao.id === 'todos' ? modoTodos : opcao.id === entradaDasAreas?.simuladoId;
                     return (
