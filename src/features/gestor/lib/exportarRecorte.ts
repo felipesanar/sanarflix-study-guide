@@ -452,10 +452,15 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
 /* ----------------------------------- XLSX ---------------------------------- */
 
 /** Formato numérico por coluna (SheetJS: `z` na célula) — percentual com 1 casa. */
-function aplicarFormato(aba: XLSX.WorkSheet, colunasPct: number[], totalLinhas: number) {
+function aplicarFormato(
+  aba: XLSX.WorkSheet,
+  colunasPct: number[],
+  totalLinhas: number,
+  primeiraLinha = 1,
+) {
   colunasPct.forEach((col) => {
-    for (let linha = 1; linha <= totalLinhas; linha += 1) {
-      const ref = XLSX.utils.encode_cell({ r: linha, c: col });
+    for (let i = 0; i < totalLinhas; i += 1) {
+      const ref = XLSX.utils.encode_cell({ r: primeiraLinha + i, c: col });
       const celulaAba = aba[ref] as XLSX.CellObject | undefined;
       if (celulaAba && typeof celulaAba.v === 'number') celulaAba.z = '0.0"%"';
     }
