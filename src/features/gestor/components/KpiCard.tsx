@@ -255,7 +255,7 @@ export function KpiCard({
         ) : (
           <>
             {corpo ?? (
-              <div className="flex items-baseline" style={{ gap: 9 }}>
+              <div className="flex flex-wrap items-baseline min-w-0" style={{ gap: 9, rowGap: 6 }}>
                 <span
                   data-testid="kpi-valor"
                   className="tabular-nums"
