@@ -203,15 +203,22 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
         className="gestor-portal flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[620px]"
         data-testid="dialog-exportar-dados"
       >
-        <SheetHeader className="border-b border-border bg-card px-5 pb-5 pt-6 text-left sm:px-7">
-          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <SheetHeader
+          className="border-b border-border px-5 pb-5 pt-6 text-left sm:px-7"
+          style={{ background: 'linear-gradient(135deg, var(--gp-brand-surface), var(--gp-info-surface))' }}
+        >
+          <div
+            className="mb-3 flex h-9 w-9 items-center justify-center rounded-md text-primary-foreground shadow-sm"
+            style={{ background: 'var(--gp-brand-gradient)' }}
+          >
             <Icon name="download" variant="filled" size={18} />
           </div>
-          <SheetTitle className="font-sans" style={{ fontSize: 21, fontWeight: 700 }}>Montar relatório</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="font-sans" style={{ fontSize: 21, fontWeight: 700, color: 'var(--gp-brand-strong)' }}>Montar relatório</SheetTitle>
+          <SheetDescription style={{ color: 'var(--gp-text-2)' }}>
             {iesNome ? `${iesNome} · ` : ''}{semestreRotulo}. Selecione o recorte, confira o conteúdo e baixe.
           </SheetDescription>
         </SheetHeader>
+
 
         {isError ? (
           <div className="px-6 pb-6">
