@@ -192,17 +192,17 @@ export function SeletorSimulados({
           aria-hidden="true"
           // O input real é `sr-only`: sem isto o foco de teclado ficaria
           // invisível, porque o anel nasceria num nó de 1px.
-          className="flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+          className="flex items-center justify-center shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
           style={{
             width: 20,
             height: 20,
             flex: 'none',
             borderRadius: RAIO_CHECKBOX,
-            border: `1.5px ${motivo === null ? 'solid' : 'dashed'} ${
-              marcado ? 'var(--gp-info)' : 'var(--gp-text-2)'
+            border: `2px ${motivo === null ? 'solid' : 'dashed'} ${
+              marcado ? 'var(--gp-info)' : 'var(--gp-text-1)'
             }`,
             background: marcado ? 'var(--gp-info)' : 'var(--gp-surface-1)',
-            color: 'var(--gp-on-brand)',
+            color: 'var(--gp-text-inverse)',
             transitionProperty: 'background-color, border-color',
             transitionDuration: 'var(--gp-motion-2)',
             transitionTimingFunction: 'var(--gp-ease)',
@@ -225,7 +225,7 @@ export function SeletorSimulados({
               transitionTimingFunction: 'var(--gp-ease)',
             }}
           >
-            <Icon name="check" size={14} />
+            <Icon name="check" size={15} />
           </span>
         </span>
 

@@ -200,7 +200,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
     <Sheet open={aberto} onOpenChange={onAbertoChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[620px]"
+        className="gestor-portal flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[620px]"
         data-testid="dialog-exportar-dados"
       >
         <SheetHeader className="border-b border-border bg-card px-5 pb-5 pt-6 text-left sm:px-7">
@@ -287,7 +287,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                         checked={marcado}
                         disabled={!habilitado || gerando !== null}
                         onCheckedChange={() => alternar(bloco.id)}
-                        className="mt-0.5 h-5 w-5 border-[color:var(--gp-text-2)] data-[state=checked]:border-[color:var(--gp-info)] data-[state=checked]:bg-[color:var(--gp-info)]"
+                        className="mt-0.5 h-5 w-5 border-2 border-[color:var(--gp-text-2)] bg-[color:var(--gp-surface-1)] text-[color:var(--gp-on-brand)] shadow-sm data-[state=checked]:border-[color:var(--gp-info)] data-[state=checked]:bg-[color:var(--gp-info)] data-[state=checked]:text-[color:var(--gp-on-brand)]"
                         aria-label={bloco.titulo}
                       />
                       <span className="min-w-0 flex-1">
