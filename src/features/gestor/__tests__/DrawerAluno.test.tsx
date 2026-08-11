@@ -190,7 +190,13 @@ beforeEach(() => {
     resultado({ data: [] }) as unknown as ReturnType<typeof useAlunoDesempenhoPorArea>,
   );
   mockUseContexto.mockReturnValue(contextoComExport(true));
+  // "Leitura do aluno (IA)" (task 11/08) roda AO ABRIR o drawer. Default do
+  // arquivo: a IA falha, então o bloco cai no fallback determinístico
+  // (`InsightArea`) — é ele que os testes de área afirmam.
+  mockFunctionsInvoke.mockReset();
+  mockFunctionsInvoke.mockResolvedValue({ data: null, error: new Error('sem IA no teste') });
 });
+
 
 describe('DrawerAluno — fechado', () => {
   it('alunoId nulo não renderiza o dialog', () => {
@@ -293,9 +299,11 @@ describe('DrawerAluno — carregando e erro', () => {
 });
 
 describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
-  it('mostra Proficiência, posição e % de acerto por área — sem "Nota TRI"', () => {
+  it('mostra Proficiência, posição e % de acerto por área — sem "Nota TRI"', async () => {
     montar();
     const dialogo = screen.getByRole('dialog');
+    // O bloco de leitura por IA resolve (falha → fallback) depois da montagem.
+    await screen.findByTestId('drawer-leitura-ia-fallback');
 
     expect(dialogo).toHaveAccessibleName(/Ana Prado/);
     expect(dialogo).toHaveTextContent('Proficiência');
@@ -305,10 +313,10 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     expect(dialogo.textContent).not.toMatch(/Nota TRI/i);
   });
 
-  it('marca a área crítica no bloco dedicado e também no rótulo da barra', () => {
+  it('marca a área crítica no bloco dedicado e também no rótulo da barra', async () => {
     montar();
 
-    const bloco = screen.getByTestId('drawer-area-critica-s1');
+    const bloco = await screen.findByTestId('drawer-area-critica-s1');
     expect(bloco).toHaveTextContent('Grande área crítica');
     expect(bloco).toHaveTextContent('Clínica Médica · 42% de acerto');
   });
@@ -344,7 +352,7 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
    * referência sempre fecha o painel nomeando uma área — quando não há
    * crítica, é o destaque, com a menor citada na mesma frase.
    */
-  it('sem área crítica, o insight nomeia o destaque em vez de silenciar', () => {
+  it('sem área crítica, o insight nomeia o destaque em vez de silenciar', async () => {
     mockUseAluno.mockReturnValue(
       resultado({
         data: [
@@ -360,7 +368,7 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     );
     montar();
 
-    const destaque = screen.getByTestId('drawer-area-destaque-s2');
+    const destaque = await screen.findByTestId('drawer-area-destaque-s2');
     expect(destaque).toHaveTextContent('Destaque do aluno');
     expect(destaque).toHaveTextContent('Cirurgia · 81% de acerto');
     expect(destaque).toHaveTextContent('Menor acerto: Pediatria · 54%');
@@ -1064,5 +1072,56 @@ describe('DrawerAluno — recorte consolidado do bloco de área', () => {
     montar({ simulados: ['s1'] });
     expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument();
     expect(screen.getByTestId('drawer-areas')).toHaveTextContent('Simulado 1');
+  });
+});
+
+/**
+ * "Leitura do aluno (IA)" (task 11/08) — substitui o bloco fixo de destaque/
+ * área crítica. Roda AO ABRIR (sem clique), é recortada pela `visao` ativa do
+ * bloco de áreas e, em qualquer falha, cai no bloco determinístico.
+ */
+describe('DrawerAluno — leitura do aluno por IA', () => {
+  beforeEach(() => {
+    // `iesId` sai da URL (`useFiltrosGestor`): sem IES no recorte o bloco nem
+    // chama a IA, então o teste precisa do parâmetro para exercitar a chamada.
+    window.history.pushState({}, '', '/gestor?ies=ies-1');
+  });
+
+  afterEach(() => {
+    window.history.pushState({}, '', '/');
+  });
+
+  it('chama a edge function ao abrir, com o modo, o recorte e a visão ativa', async () => {
+    mockFunctionsInvoke.mockResolvedValue({
+      data: {
+        pontoForte: { titulo: 'Vai bem em Cirurgia', texto: 'Acerta 8 de cada 10 questões de Cirurgia.' },
+        pontoAtencao: { titulo: 'Clínica Médica travada', texto: 'Erra mais da metade em Clínica Médica.' },
+      },
+      error: null,
+    });
+    montar({ simulados: ['s1', 's2'] });
+
+    await waitFor(() => expect(mockFunctionsInvoke).toHaveBeenCalled());
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith('gestor-ai-insights', {
+      // Visão ativa do bloco de áreas: aqui só S1 tem dado, então o recorte é
+      // o simulado individual — e é ele que vai no corpo, não 'todos'.
+      body: { modo: 'aluno', iesId: 'ies-1', alunoId: 'a1', simulados: ['s1', 's2'], visao: 's1' },
+    });
+
+    const bloco = await screen.findByTestId('drawer-leitura-ia');
+    expect(within(bloco).getByTestId('drawer-leitura-ia-forte')).toHaveTextContent('Vai bem em Cirurgia');
+    expect(within(bloco).getByTestId('drawer-leitura-ia-atencao')).toHaveTextContent('Clínica Médica travada');
+    // Cor não é canal único: os dois pontos se nomeiam por texto.
+    expect(bloco).toHaveTextContent('Ponto forte');
+    expect(bloco).toHaveTextContent('Ponto de atenção');
+  });
+
+  it('resposta sem os dois pontos cai no bloco determinístico, sem quebrar o drawer', async () => {
+    mockFunctionsInvoke.mockResolvedValue({ data: { pontoForte: { titulo: 'x', texto: 'y' } }, error: null });
+    montar();
+
+    await screen.findByTestId('drawer-leitura-ia-fallback');
+    expect(screen.queryByTestId('drawer-leitura-ia')).not.toBeInTheDocument();
+    expect(screen.getByText('Proficiência')).toBeInTheDocument();
   });
 });
