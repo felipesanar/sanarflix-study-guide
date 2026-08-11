@@ -22,6 +22,7 @@ type RGB = [number, number, number];
 export const COR = {
   marca: [184, 20, 20] as RGB,
   marcaForte: [102, 0, 0] as RGB,
+  informacao: [37, 99, 235] as RGB,
   branco: [255, 255, 255] as RGB,
   superficie2: [249, 250, 251] as RGB,
   superficie3: [244, 245, 246] as RGB,
@@ -236,7 +237,7 @@ export class Relatorio {
         this.doc.setLineWidth(0.2);
         this.doc.roundedRect(x, this.y, larguraCard, alturaCard, 2.5, 2.5, 'FD');
 
-        this.doc.setFillColor(COR.marca[0], COR.marca[1], COR.marca[2]);
+        this.doc.setFillColor(COR.informacao[0], COR.informacao[1], COR.informacao[2]);
         this.doc.rect(x, this.y, 1.4, alturaCard, 'F');
 
         this.doc.setFont('helvetica', 'normal');
