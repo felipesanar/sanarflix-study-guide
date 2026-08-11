@@ -71,11 +71,39 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
     () => new Set(BLOCOS_PADRAO),
   );
 
-  const disponiveis = React.useMemo(() => blocosDisponiveis(simulados.length), [simulados.length]);
-  const filtros = React.useMemo(
-    () => ({ iesId: aberto ? iesId : null, semestre, simulados }),
-    [aberto, iesId, semestre, simulados],
+  /**
+   * Escolha de simulados LOCAL do arquivo: o gestor precisa poder liberar os
+   * blocos por simulado aqui dentro, sem voltar para a tela só para mexer no
+   * filtro. Parte do recorte da URL a cada abertura e não escreve na URL —
+   * exportar não muda o que as outras telas estão mostrando.
+   */
+  const [simuladosArquivo, setSimuladosArquivo] = React.useState<string[]>(simulados);
+  React.useEffect(() => {
+    if (aberto) setSimuladosArquivo(simulados);
+    // Só reagir à abertura: mexer no seletor não pode ser sobrescrito pela URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto]);
+
+  const cronograma = useCronograma(aberto ? iesId : null);
+  const itensCronograma = React.useMemo(() => cronograma.data ?? [], [cronograma.data]);
+
+  /** Um id que ficou indisponível no cronograma não pode contar como recorte válido. */
+  const simuladosValidos = React.useMemo(() => {
+    if (itensCronograma.length === 0) return simuladosArquivo;
+    return simuladosArquivo.filter((id) =>
+      itensCronograma.some((item) => item.id === id && motivoIndisponivel(item) === null),
+    );
+  }, [itensCronograma, simuladosArquivo]);
+
+  const disponiveis = React.useMemo(
+    () => blocosDisponiveis(simuladosValidos.length),
+    [simuladosValidos.length],
   );
+  const filtros = React.useMemo(
+    () => ({ iesId: aberto ? iesId : null, semestre, simulados: simuladosValidos }),
+    [aberto, iesId, semestre, simuladosValidos],
+  );
+
 
   const {
     data: visaoGeral,
