@@ -388,7 +388,7 @@ describe('DirecionadoresGestor — anatomia da referência (§4.4)', () => {
   });
 
   /**
-   * A eyebrow "O que você quer ver?" é da SEÇÃO, não deste componente — quem
+   * A eyebrow "O que você quer fazer?" é da SEÇÃO, não deste componente — quem
    * decide o que a seção mostra é a rota, que troca estes cartões por skeletons
    * enquanto a IES não resolve, e o rótulo tem que sobreviver a esse estado.
    *
@@ -399,7 +399,7 @@ describe('DirecionadoresGestor — anatomia da referência (§4.4)', () => {
    */
   it('NÃO renderiza a eyebrow — ela pertence à seção, e duplicá-la já aconteceu', () => {
     montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
-    expect(screen.getByTestId('direcionadores')).not.toHaveTextContent('O que você quer ver?');
+    expect(screen.getByTestId('direcionadores')).not.toHaveTextContent('O que você quer fazer?');
   });
 
   /**

@@ -160,10 +160,10 @@ describe('Inicio — composição (spec §2.1)', () => {
    * o overline é o que declara que ali se ESCOLHE um caminho, e não que ali se
    * lê um resumo (LIGHT.html:3375).
    */
-  it('precede os direcionadores do overline "O que você quer ver?"', () => {
+  it('precede os direcionadores do overline "O que você quer fazer?"', () => {
     montar();
     const overline = screen.getByTestId('overline-direcionadores');
-    expect(overline).toHaveTextContent('O que você quer ver?');
+    expect(overline).toHaveTextContent('O que você quer fazer?');
     expect(
       overline.compareDocumentPosition(screen.getByTestId('direcionadores')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
