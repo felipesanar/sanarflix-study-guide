@@ -2625,19 +2625,6 @@ export type Database = {
         Returns: Json
       }
       set_my_phone: { Args: { p_telefone: string }; Returns: undefined }
-      tmp_rel_detalhamento: {
-        Args: {
-          p_ies_id: string
-          p_semestre: string
-          p_simulados: string[]
-          p_uid: string
-        }
-        Returns: Json
-      }
-      tmp_rel_visao_geral: {
-        Args: { p_ies_id: string; p_semestre: string; p_uid: string }
-        Returns: Json
-      }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
