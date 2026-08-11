@@ -447,7 +447,7 @@ describe('DrawerAluno — cabeçalho', () => {
 
     // Iniciais = primeira letra do primeiro e do último nome.
     expect(within(dialogo).getByText('AP')).toBeInTheDocument();
-    expect(dialogo).toHaveTextContent('11º período · 1 de 2 simulados');
+    expect(dialogo).toHaveTextContent('11º período · participou de 1 de 2 simulados');
   });
 
   it('sem semestre no contrato, o período vira TRAÇO — nunca 0º', () => {
@@ -487,7 +487,7 @@ describe('DrawerAluno — cabeçalho', () => {
     montar({ simulados: ['s2'] });
     const dialogo = screen.getByRole('dialog');
 
-    expect(dialogo).toHaveTextContent('11º período · 1 de 1 simulado');
+    expect(dialogo).toHaveTextContent('11º período · participou de 1 de 1 simulado');
     expect(dialogo.textContent ?? '').not.toMatch(/2 de 1/);
   });
 });
