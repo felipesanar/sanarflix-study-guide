@@ -999,9 +999,11 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
    * reset: se o `alunoId` do estado não é o aluno em tela, a escolha não vale
    * e o padrão volta a decidir.
    */
-  const [areaEscolhida, setAreaEscolhida] = React.useState<{ aluno: string; simulado: string } | null>(
-    null,
-  );
+  const [areaEscolhida, setAreaEscolhida] = React.useState<{
+    aluno: string;
+    /** `'todos'` = visão consolidada (padrão); um id = simulado individual. */
+    simulado: string | 'todos';
+  } | null>(null);
 
   if (!alunoId) return null;
 
