@@ -59,14 +59,17 @@ export interface DistribuicaoAlternativasProps {
    */
   respostas?: number | null;
   /**
-   * Id da questão (`Questao.id`) — habilita o clique em "ver quem marcou" de
-   * cada linha da distribuição, via `useQuestaoRespondentes`. `undefined`
-   * hoje em todo payload real (ver o comentário de `Questao.id` em
-   * `api/types.ts`: `get_gestor_questoes` seleciona o id internamente mas não
-   * o expõe no JSON) — sem ele, a linha ainda abre ao clicar, mas mostra o
-   * aviso de indisponibilidade em vez de chamar a RPC com um id inventado.
+   * Id da questão (`Questao.id`) — habilita a lista de "quem marcou" de cada
+   * linha da distribuição, via `useQuestaoRespondentes`. Sem ele, a linha
+   * ainda abre ao clicar, mas mostra o aviso de indisponibilidade em vez de
+   * chamar a RPC com um id inventado.
    */
   questionId?: string;
+  /**
+   * Clique no nome de um aluno da lista — o consumidor (`TabelaQuestoes`)
+   * abre o `DrawerAluno` com o recorte atual. Sem handler, o nome é só texto.
+   */
+  onAbrirAluno?: (alunoId: string, nome: string) => void;
 }
 
 /**
@@ -84,9 +87,11 @@ export interface DistribuicaoAlternativasProps {
 function RespondentesAlternativa({
   questionId,
   alternativa,
+  onAbrirAluno,
 }: {
   questionId: string;
   alternativa: Alternativa['letra'];
+  onAbrirAluno?: (alunoId: string, nome: string) => void;
 }) {
   const { iesId } = useFiltrosGestor();
   const { data, isLoading, isError } = useQuestaoRespondentes(iesId, questionId, alternativa, true);
@@ -102,15 +107,52 @@ function RespondentesAlternativa({
     return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Nenhum aluno marcou esta alternativa.</p>;
   }
   return (
-    <ul className="flex flex-col gap-1 text-xs">
-      {alunos.map((aluno) => (
-        <li key={aluno.alunoId} style={{ color: 'var(--gp-text-2)' }}>
-          {aluno.nome}
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-1.5">
+      <p className="text-xs tabular-nums" style={{ color: 'var(--gp-text-3)', fontFamily: FONTE_MONO }}>
+        {alunos.length} aluno{alunos.length === 1 ? '' : 's'}
+      </p>
+      <div className="overflow-hidden rounded border border-border">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em]"
+                style={{ color: 'var(--gp-text-3)', background: 'var(--gp-surface-2)' }}
+              >
+                Aluno
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {alunos.map((aluno) => (
+              <tr key={aluno.alunoId} className="border-t border-border">
+                <td className="px-2.5 py-1.5">
+                  {onAbrirAluno ? (
+                    <button
+                      type="button"
+                      className="rounded text-left underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                      style={{ color: 'var(--gp-text-1)' }}
+                      onClick={(evento) => {
+                        evento.stopPropagation();
+                        onAbrirAluno(aluno.alunoId, aluno.nome);
+                      }}
+                    >
+                      {aluno.nome}
+                    </button>
+                  ) : (
+                    <span style={{ color: 'var(--gp-text-2)' }}>{aluno.nome}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
+
 
 export function DistribuicaoAlternativas({
   alternativas,
