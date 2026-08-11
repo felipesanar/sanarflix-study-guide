@@ -70,7 +70,7 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
 
   it('gera o PDF com todos os blocos escolhidos e salva com o nome esperado', () => {
     const salvos: string[] = [];
-    const proto = jsPDF.prototype as unknown as Record<string, unknown>;
+    const proto = (jsPDF as unknown as { API: Record<string, unknown> }).API;
     const original = proto.save;
     proto.save = function (this: jsPDF, nome?: string) {
       salvos.push(nome ?? '');
