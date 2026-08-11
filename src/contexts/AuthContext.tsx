@@ -505,6 +505,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setNeedsPasswordChange(false);
+
+      // Rede de segurança: se a edge function não conseguiu limpar
+      // `must_change_password`, tentamos pelo próprio usuário autenticado para
+      // o aviso de "primeiro acesso" não voltar no próximo login.
+      if (data?.mustChangePasswordCleared === false) {
+        try {
+          await supabase.auth.updateUser({ data: { must_change_password: false } });
+        } catch (e) {
+          Logger.warn('Failed to clear must_change_password client-side', e);
+        }
+      }
+      
+
       
       try {
         await supabase.functions.invoke('session-security', {
