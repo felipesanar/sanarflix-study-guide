@@ -124,6 +124,9 @@ export class Relatorio {
   /** Capa: fundo em gradiente vinho, título, recorte e filtros aplicados. */
   capa(dados: { instituicao: string; recorte: string; linhas: string[]; dataExtenso: string }) {
     gradiente(this.doc, 0, 0, LARGURA, ALTURA, COR.marca, COR.marcaForte);
+    // A capa ocupa a página 1 inteira: o primeiro `secao()` precisa abrir
+    // página nova, senão a tabela é desenhada por cima do gradiente.
+    this.temConteudo = true;
 
     this.doc.setTextColor(255, 255, 255);
     this.doc.setFont('helvetica', 'normal');
