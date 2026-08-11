@@ -255,7 +255,7 @@ export function KpiCard({
         ) : (
           <>
             {corpo ?? (
-              <div className="flex items-baseline" style={{ gap: 9 }}>
+              <div className="flex flex-wrap items-baseline min-w-0" style={{ gap: 9, rowGap: 6 }}>
                 <span
                   data-testid="kpi-valor"
                   className="tabular-nums"
@@ -294,9 +294,10 @@ export function KpiCard({
                   /* O `span` externo existe só para carregar o `data-testid` e o
                      `ml-auto`: `TagDelta` é anatomia fechada (§5) e não recebe
                      atributos arbitrários. */
-                  <span data-testid="kpi-delta" className="ml-auto inline-flex shrink-0">
-                    <TagDelta valor={delta} sufixo=" vs anterior" densidade="kpi" />
+                  <span data-testid="kpi-delta" className="ml-auto inline-flex min-w-0 max-w-full">
+                    <TagDelta valor={delta} sufixo=" vs anterior" densidade="kpi" className="max-w-full overflow-hidden text-ellipsis" />
                   </span>
+
                 ) : null}
               </div>
             )}
