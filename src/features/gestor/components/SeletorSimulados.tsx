@@ -52,7 +52,14 @@ export interface SeletorSimuladosProps {
   itens: ItemCronograma[];
   selecionados: string[];
   onChange: (ids: string[]) => void;
+  /**
+   * `true` = a lista fica sempre aberta e no fluxo do documento, sem popover
+   * flutuante. É o que o drawer de exportação precisa: lá dentro um painel
+   * `absolute` cai por cima dos blocos do arquivo e fica ilegível.
+   */
+  inline?: boolean;
 }
+
 
 /** Ordena por data desc (sem data vai para o fim) — usado no atalho de recentes. */
 function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
