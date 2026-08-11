@@ -2401,6 +2401,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_gestor_portal_versao: { Args: never; Returns: boolean }
       get_gestor_questao_respondentes: {
         Args: { p_alternativa: string; p_ies_id: string; p_question_id: string }
         Returns: Json
