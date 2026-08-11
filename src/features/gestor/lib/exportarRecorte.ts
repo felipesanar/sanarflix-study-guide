@@ -324,12 +324,12 @@ function tabelaAlunos(alunos: LinhaAluno[] | undefined): Tabela {
   });
   return {
     colunas: [
-      { titulo: 'Aluno', fracao: 0.32 },
-      { titulo: 'Semestre', fracao: 0.11, alinhar: 'centro' },
+      { titulo: 'Aluno', fracao: 0.34 },
+      { titulo: 'Sem.', fracao: 0.08, alinhar: 'centro' },
       { titulo: 'Grupo', fracao: 0.24 },
-      { titulo: 'Tendência', fracao: 0.13 },
-      { titulo: 'Simulados com nota', fracao: 0.1, alinhar: 'direita' },
-      { titulo: 'Última proficiência', fracao: 0.1, alinhar: 'direita' },
+      { titulo: 'Tendência', fracao: 0.12 },
+      { titulo: 'Notas', fracao: 0.09, alinhar: 'direita' },
+      { titulo: 'Proficiência', fracao: 0.13, alinhar: 'direita' },
     ],
     linhas,
   };
@@ -619,7 +619,7 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
       }),
     ]);
     aba['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 22 }];
-    aba['!freeze'] = 'A4';
+    aba['!freeze'] = 'A5';
     XLSX.utils.book_append_sheet(livro, aba, 'Alunos');
   }
 
