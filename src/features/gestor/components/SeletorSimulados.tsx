@@ -248,7 +248,7 @@ export function SeletorSimulados({
       data-testid="seletor-simulados"
       className={cn(
         'relative rounded-xl border border-border bg-card p-3.5',
-        semSelecao && 'border-destructive ring-2 ring-destructive/20',
+        semSelecao && !opcional && 'border-destructive ring-2 ring-destructive/20',
       )}
     >
       {/* Cabeçalho: o que é isto, quantos entraram e a saída rápida. */}
