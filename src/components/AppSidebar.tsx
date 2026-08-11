@@ -166,7 +166,7 @@ export function AppSidebar() {
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             <div className="relative shrink-0">
               <img
-                src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+                src="/sanarflix-academy-symbol.svg"
                 alt="SanarFlix Academy"
                 loading="lazy"
                 className={`rounded-xl shadow-md object-contain ring-2 ring-primary/10 hover:ring-primary/20 transition-all duration-200 ${collapsed ? "w-9 h-9" : "w-10 h-10"}`}

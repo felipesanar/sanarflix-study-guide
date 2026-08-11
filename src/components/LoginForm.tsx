@@ -94,7 +94,7 @@ export const LoginForm: React.FC = () => {
         <div className="w-full max-w-md animate-slide-in-left">
           <div className="flex items-center mb-8">
             <img
-              src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+              src="/sanarflix-academy-symbol.svg"
               alt="Logo SanarFlix Academy"
               className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
               loading="eager"
@@ -207,7 +207,7 @@ export const LoginForm: React.FC = () => {
             <div className="flex items-center justify-center mb-2">
               <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/95 rounded-2xl shadow-2xl flex items-center justify-center p-3">
                 <img
-                  src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+                  src="/sanarflix-academy-symbol.svg"
                   alt="SanarFlix Academy"
                   className="w-full h-full object-contain"
                 />
