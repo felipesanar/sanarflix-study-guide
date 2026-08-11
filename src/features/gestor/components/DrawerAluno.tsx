@@ -507,6 +507,11 @@ function LeituraAlunoIA({
     },
   });
 
+  // Sem IES no recorte a edge function não tem contexto (e uma query
+  // `enabled: false` ficaria "pending" para sempre, travando o skeleton):
+  // cai direto no bloco determinístico.
+  if (!iesId) return <div data-testid="drawer-leitura-ia-fallback">{fallback}</div>;
+
   if (query.isPending) {
     return (
       <div
