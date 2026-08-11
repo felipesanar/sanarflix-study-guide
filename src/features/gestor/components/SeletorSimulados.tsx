@@ -379,7 +379,7 @@ export function SeletorSimulados({
             border: '1px solid var(--gp-border-strong)',
             borderRadius: 'var(--gp-radius-md)',
             background: 'var(--gp-surface-1)',
-            boxShadow: 'var(--gp-shadow-drawer)',
+            boxShadow: inline ? 'none' : 'var(--gp-shadow-drawer)',
           }}
         >
           {/* Sugestão discreta de um clique. Diz QUAIS dois simulados vai
