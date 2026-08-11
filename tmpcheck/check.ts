@@ -4,12 +4,6 @@ import fs from 'fs';
   fs.writeFileSync('/tmp/exp/' + name.replace(/[^\w.-]/g, '_'), Buffer.from(this.output('arraybuffer')));
   return this;
 };
-import * as XLSX from 'xlsx';
-(XLSX as any).writeFile = (wb: any, name: string) => {
-  XLSX.writeFileSync ? null : null;
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  fs.writeFileSync('/tmp/exp/' + name.replace(/[^\w.-]/g, '_'), buf);
-};
 const mod = await import('../src/features/gestor/lib/exportarRecorte.ts');
 const nomes = ['Ana Beatriz de Oliveira Santos Ribeiro do Nascimento','Bruno Costa','Carla Mendes de Souza','Diego Fernandes Albuquerque Filho'];
 const grupos = ['proficiente','em_variacao','critico','sem_dados'];
