@@ -332,7 +332,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
 
               {selecionados.has('alunos') && disponiveis.has('alunos') && (
                 <div className="mt-3 flex gap-2 rounded-md p-3 text-xs leading-5" style={{ border: '1px solid var(--gp-warning)', background: 'var(--gp-warning-surface)', color: 'var(--gp-warning-on)' }}>
-                  <Icon name="info" size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--gp-warning)' }} />
+                  <Icon name="info" size={16} className="mt-0.5 shrink-0 text-[color:var(--gp-warning)]" />
                   <span><strong>Dado pessoal.</strong> O arquivo terá nomes de alunos. Compartilhe apenas com finalidade pedagógica.</span>
                 </div>
               )}
