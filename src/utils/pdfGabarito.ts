@@ -65,7 +65,7 @@ const COLORS = {
 // LOGO
 // ============================================================================
 
-const LOGO_PATH = '/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png';
+const LOGO_PATH = '/sanarflix-academy-symbol.png';
 let cachedLogoBase64: string | null = null;
 
 const loadLogoAsBase64 = async (): Promise<string | null> => {

@@ -51,7 +51,7 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
       {/* Logo */}
       <div className="flex items-center gap-2">
         <img
-          src="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png"
+          src="/sanarflix-academy-lockup.svg"
           alt="SanarFlix Academy"
           className="h-8 w-auto"
         />
