@@ -58,6 +58,13 @@ export interface SeletorSimuladosProps {
    * `absolute` cai por cima dos blocos do arquivo e fica ilegível.
    */
   inline?: boolean;
+  /**
+   * `true` = nenhum simulado escolhido é estado válido (é o caso do arquivo de
+   * exportação, que sempre tem blocos do período). Sem isso o controle pinta a
+   * borda de erro e cobra uma escolha que ali não é obrigatória.
+   */
+  opcional?: boolean;
+
 }
 
 
