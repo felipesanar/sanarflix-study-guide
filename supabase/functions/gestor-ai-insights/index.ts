@@ -554,7 +554,104 @@ function buildPedagogicoPrompt(diagnostico: any, visaoGeral: any): string {
     .join("\n\n");
 }
 
-function buildAlunoPrompt(aluno: any, porArea: any): string {
+/**
+ * Resumo da VISÃO ATIVA do bloco "Desempenho por área" do drawer, na mesma
+ * regra do front (`consolidarAreas` em DrawerAluno.tsx): % ponderado pelas
+ * questões respondidas, nunca média de percentuais, e simulado em que o tema
+ * não foi cobrado simplesmente não entra. `visao = "todos"` funde as entradas;
+ * qualquer outro valor é o id do simulado selecionado.
+ */
+function resumoVisaoAreas(porArea: any, visao: string | null | undefined): string {
+  const entradas: any[] = Array.isArray(porArea?.data) ? porArea.data : Array.isArray(porArea) ? porArea : [];
+  const comAreas = entradas.filter((e: any) => Array.isArray(e?.areas));
+  if (!comAreas.length) return "Sem detalhe por especialidade/tema nesta visão.";
+
+  const consolidado = !visao || visao === "todos";
+  const selecionadas = consolidado ? comAreas : comAreas.filter((e: any) => e.simuladoId === visao);
+  if (!selecionadas.length) return "Sem detalhe por especialidade/tema nesta visão.";
+
+  const acumulado = new Map<
+    string,
+    { grandeArea: string; especialidade: string; tema: string; acertos: number; respondidas: number; critica: boolean }
+  >();
+  for (const entrada of selecionadas) {
+    for (const linha of entrada.areas as any[]) {
+      const respondidas = Number(linha?.questoesRespondidas ?? 0);
+      if (!(respondidas > 0)) continue;
+      const chave = `${linha.grandeArea}|${linha.especialidade}|${linha.tema}`;
+      const atual = acumulado.get(chave);
+      const acertos = (Number(linha.acertoPct ?? 0) / 100) * respondidas;
+      if (!atual) {
+        acumulado.set(chave, {
+          grandeArea: linha.grandeArea,
+          especialidade: linha.especialidade,
+          tema: linha.tema,
+          acertos,
+          respondidas,
+          critica: Boolean(linha.critica),
+        });
+        continue;
+      }
+      atual.acertos += acertos;
+      atual.respondidas += respondidas;
+      atual.critica = atual.critica || Boolean(linha.critica);
+    }
+  }
+
+  const temas = [...acumulado.values()];
+  if (!temas.length) return "Sem detalhe por especialidade/tema nesta visão.";
+
+  // Agrupamento textual em três níveis, cada nível com o % ponderado do nível.
+  const porGrandeArea = new Map<string, typeof temas>();
+  for (const tema of temas) {
+    const lista = porGrandeArea.get(tema.grandeArea) ?? [];
+    lista.push(tema);
+    porGrandeArea.set(tema.grandeArea, lista);
+  }
+
+  const pct = (lista: { acertos: number; respondidas: number }[]) => {
+    const respondidas = lista.reduce((s, t) => s + t.respondidas, 0);
+    const acertos = lista.reduce((s, t) => s + t.acertos, 0);
+    return respondidas > 0 ? formatNumber((acertos / respondidas) * 100) : "sem dado";
+  };
+
+  const blocos = [...porGrandeArea.entries()]
+    .sort((a, b) => Number(pct(a[1])) - Number(pct(b[1])))
+    .map(([grandeArea, lista]) => {
+      const porEspecialidade = new Map<string, typeof temas>();
+      for (const tema of lista) {
+        const atual = porEspecialidade.get(tema.especialidade) ?? [];
+        atual.push(tema);
+        porEspecialidade.set(tema.especialidade, atual);
+      }
+      const especialidadesTxt = [...porEspecialidade.entries()]
+        .sort((a, b) => Number(pct(a[1])) - Number(pct(b[1])))
+        .slice(0, 4)
+        .map(([especialidade, temasDaEsp]) => {
+          const temasTxt = [...temasDaEsp]
+            .sort((a, b) => a.acertos / a.respondidas - b.acertos / b.respondidas)
+            .slice(0, 3)
+            .map(
+              (t) =>
+                `${t.tema} ${formatNumber((t.acertos / t.respondidas) * 100)}% (${t.respondidas} q${t.critica ? ", tema crítico" : ""})`
+            )
+            .join("; ");
+          return `  - ${especialidade}: ${pct(temasDaEsp)}% — ${temasTxt}`;
+        })
+        .join("\n");
+      return `- ${grandeArea}: ${pct(lista)}% de acerto (${lista.reduce((s, t) => s + t.respondidas, 0)} questões respondidas)\n${especialidadesTxt}`;
+    })
+    .join("\n");
+
+  const cabecalho = consolidado
+    ? `Visão CONSOLIDADA (${selecionadas.length} ${selecionadas.length === 1 ? "simulado considerado" : "simulados considerados"}), % ponderado pelas questões respondidas:`
+    : `Visão do simulado "${selecionadas[0]?.nome ?? visao}":`;
+
+  return `${cabecalho}\n${blocos}`;
+}
+
+function buildAlunoPrompt(aluno: any, porArea: any, visao?: string | null): string {
+
   const linhas: any[] = Array.isArray(aluno?.data) ? aluno.data : [];
   const nome = linhas[0]?.nome ?? "aluno";
   const semestre = linhas[0]?.semestre ?? "não informado";
