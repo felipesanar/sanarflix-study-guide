@@ -31,6 +31,7 @@ import {
   TRACO,
   rotuloGrupo,
 } from '@/features/gestor/lib/rotulos';
+import { NIVEL_CRITICO_MAX, NIVEL_EXCELENTE_MIN, nivelDesempenho } from '@/features/gestor/lib/regras';
 import { Relatorio, type Celula, type Coluna } from '@/features/gestor/lib/relatorioPdf';
 
 export type FormatoExport = 'pdf' | 'xlsx';
@@ -179,10 +180,15 @@ export function nomeArquivoExport(dados: DadosExportRecorte, ext: FormatoExport)
 
 /* ------------------------------- blocos de dado ------------------------------ */
 
+/**
+ * Tom da célula derivado da RÉGUA ÚNICA (`nivelDesempenho`, `lib/regras.ts`) —
+ * o arquivo nunca reimplementa o corte de nível.
+ */
 const nivelDoAcerto = (valor: number | null): Celula['tom'] => {
-  if (valor === null) return 'suave';
-  if (valor >= 80) return 'sucesso';
-  if (valor < 30) return 'perigo';
+  const nivel = nivelDesempenho(valor);
+  if (nivel === null) return 'suave';
+  if (nivel === 'excelente') return 'sucesso';
+  if (nivel === 'critico') return 'perigo';
   return 'normal';
 };
 
@@ -393,7 +399,7 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
         const t = tabelaAreas(vg);
         relatorio.tabela(t.colunas, t.linhas);
         relatorio.nota(
-          'Classificação por percentual de acerto: excelente a partir de 80%, mediano entre 30% e 79%, crítico abaixo de 30%.',
+          `Classificação por percentual de acerto: excelente a partir de ${NIVEL_EXCELENTE_MIN}%, crítico até ${NIVEL_CRITICO_MAX}%, mediano no intervalo entre os dois.`,
         );
         break;
       }
