@@ -896,10 +896,17 @@ git commit -m "feat(gestor): liga o gate de rollout por IES entre console antigo
 ### Task 8: Testes de decisão de roteamento
 
 **Files:**
-- Create: `src/features/gestor/__tests__/gestorV2Routes.test.tsx`
+- Create (sobrescreve arquivo pré-existente): `src/features/gestor/__tests__/gestorV2Routes.test.tsx`
+- Modify: `src/test/unit/buildAppRoutes.test.ts` (describe "experiences/buildAppRoutes — gestão", ~linhas 273-337)
 
 **Interfaces:**
 - Consumes: `gestorV2Routes` (Task 7), `useGestorPortalVersao` (Task 7, mockado neste teste).
+
+**Emenda pós-Task 7 (gap de plano encontrado pelo implementador da Task 7):** dois arquivos de teste pré-existentes afirmam a decisão "GA total" de 05/08 que este plano reverte, e nenhuma task cobria o conserto deles:
+
+1. **`src/features/gestor/__tests__/gestorV2Routes.test.tsx` já existe** (título "GA total, sem gate por feature (Task 64)") e afirma que a experiência legada e o gate foram apagados para sempre. O Step 1 abaixo o **sobrescreve** — é substituição deliberada, não colisão acidental.
+
+2. **`src/test/unit/buildAppRoutes.test.ts` tem 5 asserções que agora falham, corretamente.** O `it.each` das linhas ~307-318 exige `redirectTarget(filha)).toBe('/gestor')` para as 5 URLs antigas (`visao-institucional`, `diagnostico-curricular`, `alunos`, `insights-pedagogicos`, `inteligencia-decisoria`) — verdade sob o design "GA total", falso agora que elas servem a tela legada real via `LegacyGestorGate` quando a IES não foi aprovada. O comentário das linhas ~276-282 documenta a decisão revertida. **Step 3 abaixo conserta isso.**
 
 - [ ] **Step 1: Escrever o teste**
 
@@ -989,10 +996,63 @@ describe('gestorV2Routes - decisão console antigo x portal novo', () => {
 Run: `npx vitest run src/features/gestor/__tests__/gestorV2Routes.test.tsx`
 Expected: 4 testes, todos PASS. Se `useAuth`/`useAccessRules` exigirem um shape diferente do mockado aqui, alinhe com o mock já usado em `src/features/gestor/__tests__/GestorShell.test.tsx` (mesmo diretório, já restaurado/mantido pelo pull de hoje).
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Corrigir `src/test/unit/buildAppRoutes.test.ts` (describe "gestão")**
+
+Esse arquivo trava o comportamento do design "GA total" que este plano reverte. Três ajustes, todos no describe `experiences/buildAppRoutes — gestão`:
+
+**(a) O comentário das linhas ~276-282** documenta a decisão revertida ("GA total no merge — todos os gestores de todas as IES recebem só o portal novo... a experiência legada foi apagada"). Substituir por um que descreva o estado atual:
+
+```ts
+  // Rollout faseado por IES (spec 2026-08-11): `/gestor` monta uma árvore só,
+  // com as 3 telas do portal novo E as 5 telas do console antigo como filhas.
+  // Qual delas o usuário vê é decidido em runtime por `get_gestor_portal_versao`
+  // (via LegacyGestorGate/PortalV2Gate), não pela forma da árvore de rotas —
+  // por isso estes testes afirmam a ESTRUTURA (todas as filhas registradas),
+  // e a DECISÃO é coberta por `src/features/gestor/__tests__/gestorV2Routes.test.tsx`.
+```
+
+**(b) O teste "expõe a rota-layout /gestor com as 3 telas do portal novo…"** (linha ~283): o `expect(childPaths).toEqual([...])` continua válido — a árvore ainda tem as mesmas 8 filhas, na mesma ordem (index, visao-geral, detalhamento, + as 5 legadas). Só o **título** e a expectativa textual mudam:
+
+```ts
+  it('expõe a rota-layout /gestor com as 3 telas do portal novo e as 5 do console antigo como filhas', () => {
+```
+
+E o comentário interno logo acima do `toEqual` (linhas ~291-294, que diz "seguidas dos 5 redirects de compatibilidade… caem no Início em vez de no 404") vira:
+
+```ts
+    // As 3 telas do portal novo, seguidas das 5 telas do console antigo. Sob o
+    // rollout faseado elas não são mais redirects: servem a tela legada real
+    // quando a IES ainda não foi aprovada, e redirecionam para /gestor quando foi.
+```
+
+**(c) O `it.each` das 5 URLs antigas** (linhas ~307-318) é o que falha hoje: ele afirma `redirectTarget(filha)).toBe('/gestor')`, verdade só sob o GA total. Substituir por uma asserção de estrutura — que é o que `buildAppRoutes` de fato controla:
+
+```ts
+  it.each([
+    'visao-institucional',
+    'diagnostico-curricular',
+    'alunos',
+    'insights-pedagogicos',
+    'inteligencia-decisoria',
+  ])('a URL antiga /gestor/%s continua registrada na árvore, nunca 404', (caminho) => {
+    const routes = routesForRoles(['gestor'], gestorRules);
+    const filha = (routes.get('/gestor')?.children ?? []).find((c) => c.path === caminho);
+    expect(filha, `/gestor/${caminho} sumiu da árvore de rotas`).toBeDefined();
+    // Não é mais um <Navigate> incondicional: é a tela legada envolvida em
+    // LegacyGestorGate, que decide em runtime entre renderizar e redirecionar.
+    expect(redirectTarget(filha)).toBeUndefined();
+  });
+```
+
+- [ ] **Step 4: Rodar os dois arquivos de teste**
+
+Run: `npx vitest run src/features/gestor/__tests__/gestorV2Routes.test.tsx src/test/unit/buildAppRoutes.test.ts`
+Expected: ambos verdes. Se alguma outra asserção de `buildAppRoutes.test.ts` quebrar além das 5 previstas, pare e reporte — é sinal de que a árvore de rotas mudou de forma não prevista, não de que o teste está desatualizado.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/features/gestor/__tests__/gestorV2Routes.test.tsx
+git add src/features/gestor/__tests__/gestorV2Routes.test.tsx src/test/unit/buildAppRoutes.test.ts
 git commit -m "test(gestor): cobre a decisão de roteamento console antigo x portal novo"
 ```
 
@@ -1002,10 +1062,20 @@ git commit -m "test(gestor): cobre a decisão de roteamento console antigo x por
 
 **Files:** nenhum arquivo novo — só execução.
 
-- [ ] **Step 1: Suíte completa**
+**Emenda pós-Task 7: a suíte JÁ ESTAVA VERMELHA antes deste plano.** O pull de 427 commits de hoje (11/08) trouxe a `main` com testes quebrados. Medido: `src/test/unit/gestorMigrationsAcessoPorPapel.test.ts` falha **7 testes com e sem as migrations deste plano** (verificado movendo as 3 migrations para fora e re-rodando — placar idêntico), e mais ~29 falhas em `CascataDiagnostico`, `Detalhamento`, `Direcionadores`, `VisaoGeral`, `questoesContratoSort`, `regua-unica`, `gestorMigrationsAvisosAlunoContatoContexto`. **Nenhum desses arquivos foi tocado por este plano** (confirmado por `git diff --name-only e6a90120 HEAD`).
+
+Portanto o critério do Step 1 **não é "suíte 100% verde"** — é "este plano não introduziu nenhuma falha nova". Consertar as falhas pré-existentes é trabalho de outra frente, fora do escopo desta.
+
+- [ ] **Step 1: Suíte completa, comparada contra a linha de base**
 
 Run: `npx vitest run`
-Expected: todos os testes passam, incluindo os novos das Tasks 1–3 e 7–8 e os já existentes (`gestorMigrationsAcessoPorPapel.test.ts` continua verde — nenhuma migration existente foi tocada).
+
+Critério de aprovação, nesta ordem:
+1. Todos os testes NOVOS deste plano passam: `gestorMigrationsRestauraToggleRollout`, `gestorMigrationsGetUserIesIdFallback`, `gestorMigrationsPortalVersao`, `useGestorPortalVersao`, `gestorV2Routes` (Task 8).
+2. `src/test/unit/buildAppRoutes.test.ts` passa (corrigido na Task 8).
+3. Qualquer outra falha precisa ser provada pré-existente antes de ser aceita. Prova: `git stash` das mudanças, ou comparar com o commit `e6a90120` (imediatamente anterior à Task 1). Se um teste falha nos dois estados, é pré-existente e fica registrado, não consertado aqui. Se falha só depois, é regressão deste plano e **precisa** ser corrigida.
+
+Registre no relatório final o placar dos dois lados (antes/depois) para que a diferença fique explícita.
 
 - [ ] **Step 2: Type-check na árvore inteira**
 
