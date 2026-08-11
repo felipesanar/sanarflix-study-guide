@@ -610,12 +610,17 @@ export function TabelaQuestoes({
         </>
       )}
 
+      {/* Montado só com aluno escolhido: `DrawerAluno` dispara `useAluno` no
+          próprio corpo, então manter o componente vivo com `alunoId` nulo
+          custaria hooks (e contexto de auth) a cada render da tabela. */}
+      {alunoAberto && (
       <DrawerAluno
-        alunoId={alunoAberto?.id ?? null}
-        nome={alunoAberto?.nome ?? ''}
+        alunoId={alunoAberto.id}
+        nome={alunoAberto.nome}
         simulados={simuladosDoRecorte}
         onFechar={() => setAlunoAberto(null)}
       />
+      )}
     </section>
   );
 }
