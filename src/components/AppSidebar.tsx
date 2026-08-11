@@ -164,20 +164,31 @@ export function AppSidebar() {
         {/* Header with Brand */}
         <SidebarHeader className={`p-4 ${collapsed ? "px-3 flex items-center justify-center" : "px-5"}`}>
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
-            <div className="relative shrink-0">
+            {collapsed ? (
               <img
                 src="/sanarflix-academy-symbol.svg"
                 alt="SanarFlix Academy"
                 loading="lazy"
-                className={`rounded-xl shadow-md object-contain ring-2 ring-primary/10 hover:ring-primary/20 transition-all duration-200 ${collapsed ? "w-9 h-9" : "w-10 h-10"}`}
+                className="w-9 h-9 rounded-xl shadow-md object-contain ring-2 ring-primary/10 hover:ring-primary/20 transition-all duration-200"
               />
-            </div>
-            {!collapsed && (
-              <h2 className="font-bold text-lg text-sidebar-foreground tracking-tight">
-                Academy
-              </h2>
+            ) : (
+              <>
+                <img
+                  src="/sanarflix-academy-lockup.svg"
+                  alt="SanarFlix Academy"
+                  loading="lazy"
+                  className="h-9 w-auto object-contain dark:hidden"
+                />
+                <img
+                  src="/sanarflix-academy-lockup-white.svg"
+                  alt="SanarFlix Academy"
+                  loading="lazy"
+                  className="h-9 w-auto object-contain hidden dark:block"
+                />
+              </>
             )}
           </div>
+
 
           {/* Troca de experiência (portal) — só aparece para quem tem mais de uma. */}
           <div className={collapsed ? "mt-3 flex justify-center" : "mt-3"}>
