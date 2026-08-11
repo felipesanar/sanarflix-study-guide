@@ -1290,15 +1290,62 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
             */}
             <div data-testid="drawer-areas" className="space-y-2">
               <TituloSecao>Desempenho por área · % de acerto</TituloSecao>
+
+              {/* Chips de simulado: o bloco fala de UM simulado por vez, e quem
+                  lê escolhe qual. Só aparece com 2+ opções — um chip solitário
+                  seria controle sem escolha. */}
+              {candidatasAreas.length > 1 ? (
+                <div
+                  role="group"
+                  aria-label="Simulado do desempenho por área"
+                  className="flex flex-wrap gap-1.5"
+                >
+                  {candidatasAreas.map((e, indice) => {
+                    const ativo = e.simuladoId === entradaDasAreas?.simuladoId;
+                    return (
+                      <button
+                        key={e.simuladoId}
+                        type="button"
+                        aria-pressed={ativo}
+                        onClick={() => setAreaEscolhida({ aluno: alunoId, simulado: e.simuladoId })}
+                        className="rounded-full px-2.5 py-1 text-[11px] transition-colors"
+                        style={{
+                          border: `1px solid ${ativo ? 'var(--gp-brand)' : 'var(--gp-border-strong)'}`,
+                          background: ativo ? 'var(--gp-brand-surface)' : 'transparent',
+                          color: ativo ? 'var(--gp-brand)' : 'var(--gp-text-3)',
+                          fontWeight: ativo ? 600 : 400,
+                        }}
+                      >
+                        {`${indice + 1}º sim.`}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
               {/* De QUAL simulado sai o bloco. Sem esta linha, barras sem
                   procedência viram média imaginária na cabeça de quem lê. */}
               {entradaDasAreas || entradaAreaDetalhada ? (
-                <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                  {entradaDasAreas
-                    ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)} · toque para expandir`
-                    : `${entradaAreaDetalhada?.nome} · toque para expandir`}
-                </p>
+                <div className="space-y-1">
+                  <p style={{ fontSize: 11, color: 'var(--gp-text-2)', fontWeight: 600 }}>
+                    {entradaDasAreas
+                      ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)}`
+                      : entradaAreaDetalhada?.nome}
+                    {areasSemResultado ? (
+                      <span style={{ fontWeight: 400, color: 'var(--gp-text-3)' }}>
+                        {' · resultado em processamento'}
+                      </span>
+                    ) : null}
+                  </p>
+                  {divergeDaProficiencia && entradaDaProficiencia ? (
+                    <p data-testid="aviso-simulado-areas" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                      {`As barras abaixo são do ${entradaDasAreas?.simuladoNome}. A proficiência ${formatNumero(entradaDaProficiencia.proficiencia)} mostrada acima é do ${entradaDaProficiencia.simuladoNome}.`}
+                    </p>
+                  ) : null}
+                  <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>toque para expandir</p>
+                </div>
               ) : null}
+
 
               <div data-testid="drawer-desempenho-area" className="space-y-2">
                 {desempenhoArea.isLoading ? (
