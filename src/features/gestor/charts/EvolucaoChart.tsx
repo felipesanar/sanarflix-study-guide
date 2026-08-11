@@ -216,7 +216,7 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
         />
         {/* O traço da série ainda não existe: uma barra em skeleton no meio
             da faixa (spec §5, item 2), não um retângulo cinza cobrindo o
-            plot inteiro — a moldura (eixos, grade, meta) já está de pé. */}
+            plot inteiro — a moldura (eixos e grade) já está de pé. */}
         <ReferenceLine
           y={50}
           stroke="var(--gp-skeleton)"
@@ -290,6 +290,16 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
       </table>
     </details>
   );
+
+  if (comTri.length > 0 && comTri.every((ponto) => ponto.valor === null)) {
+    return (
+      <MolduraVazia
+        testId="evolucao-vazio"
+        altura={altura}
+        mensagem="Nenhum simulado deste recorte tem percentual de alunos proficientes calculado."
+      />
+    );
+  }
 
   if (comTri.length === 0) {
     return (
