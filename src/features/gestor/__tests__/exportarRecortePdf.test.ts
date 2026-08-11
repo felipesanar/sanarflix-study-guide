@@ -40,6 +40,14 @@ const DADOS = {
   semestreRotulo: '6º ano',
   simuladosRotulos: ['Simulado ENAMED 1 · 12/03/2026'],
   visaoGeral: VISAO_GERAL,
+  alunos: Array.from({ length: 125 }, (_, indice) => ({
+    id: `a${indice + 1}`,
+    nome: `Aluno de validação ${String(indice + 1).padStart(3, '0')}`,
+    semestre: 11,
+    grupo: indice % 2 === 0 ? 'em_variacao' as const : 'consistentemente_proficiente' as const,
+    tendencia: indice % 2 === 0 ? 'subindo' as const : 'estavel' as const,
+    proficiencias: [{ simuladoId: 's1', valor: 60 + (indice % 20) }],
+  })),
 };
 
 describe('exportarRecorte — relatório institucional por blocos (11/08)', () => {
@@ -80,7 +88,7 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
       return this;
     };
 
-    const blocos: BlocoExport[] = ['indicadores', 'evolucao', 'areas', 'distribuicao'];
+    const blocos: BlocoExport[] = ['indicadores', 'evolucao', 'areas', 'distribuicao', 'alunos'];
     const arquivo = exportarRecortePdf(DADOS, blocos);
     proto.save = original;
 
