@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // que lê o recorte da URL (`useFiltrosGestor` → `useSearchParams`) e portanto
 // exige um Router montado. Mesmo wrapper de DrawerTemas.test.tsx.
 import { act, render, screen, userEvent, waitFor, within } from '@/test/utils';
-import { DrawerAluno, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
+import { DrawerAluno, consolidarAreas, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
 import { ATRASO_SKELETON_MS } from '@/features/gestor/hooks/useDelayedLoading';
 import {
   useAluno,
@@ -895,7 +895,7 @@ describe('DrawerAluno — procedência do bloco de área (achado 11/08)', () => 
     expect(screen.getByRole('dialog')).toHaveTextContent('participou de 1 de 2 simulados');
   });
 
-  it('padrão é o simulado mais recente COM nota liberada — não o sem resultado', () => {
+  it('padrão é a visão consolidada de todos os simulados feitos', () => {
     mockUseAluno.mockReturnValue(
       resultado({ data: [ENTRADA_S1, S2_SEM_TRI] }) as unknown as ReturnType<typeof useAluno>,
     );
@@ -906,7 +906,27 @@ describe('DrawerAluno — procedência do bloco de área (achado 11/08)', () => 
     );
     montar();
     const areas = screen.getByTestId('drawer-areas');
+    expect(areas).toHaveTextContent('Todos os simulados · 2 simulados considerados');
+    expect(screen.getByTestId('rotulo-areas-consolidado')).toHaveTextContent(
+      '% de acerto médio, ponderado pelas questões respondidas.',
+    );
+    expect(screen.queryByTestId('aviso-simulado-areas')).not.toBeInTheDocument();
+  });
+
+  it('no individual, o padrão é o simulado mais recente COM nota liberada', async () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, S2_SEM_TRI] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1, DESEMPENHO_AREA_S2] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+    montar();
+    await userEvent.click(screen.getByRole('button', { name: '1º sim.' }));
+    const areas = screen.getByTestId('drawer-areas');
     expect(areas).toHaveTextContent('Simulado 1');
+    expect(screen.queryByTestId('rotulo-areas-consolidado')).not.toBeInTheDocument();
     expect(screen.queryByTestId('aviso-simulado-areas')).not.toBeInTheDocument();
   });
 
@@ -936,5 +956,113 @@ describe('DrawerAluno — procedência do bloco de área (achado 11/08)', () => 
     );
     montar({ simulados: ['s1'] });
     expect(screen.queryByRole('group', { name: 'Simulado do desempenho por área' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Visão consolidada do bloco de área (decisão de produto, 11/08): o padrão
+ * passa a ser o retrato acumulado do aluno — % médio PONDERADO pelas questões
+ * respondidas —, com a leitura individual por simulado preservada nos chips.
+ */
+describe('consolidarAreas', () => {
+  const linha = (over: Partial<AreaDesempenhoAluno>): AreaDesempenhoAluno => ({
+    ...AREA_CARDIO,
+    ...over,
+  });
+
+  it('pondera pelas questões respondidas, nunca média de percentuais', () => {
+    const [tema] = consolidarAreas([
+      { simuladoId: 's1', nome: 'S1', areas: [linha({ questoesRespondidas: 9, acertoPct: 100 })] },
+      { simuladoId: 's2', nome: 'S2', areas: [linha({ questoesRespondidas: 1, acertoPct: 0 })] },
+    ]);
+    // 9 acertos em 10 respondidas = 90% (a média simples daria 50%).
+    expect(tema.acertoPct).toBeCloseTo(90, 5);
+    expect(tema.questoesRespondidas).toBe(10);
+  });
+
+  it('tema cobrado em apenas um simulado entra com o dado que existe', () => {
+    const consolidado = consolidarAreas([
+      { simuladoId: 's1', nome: 'S1', areas: [AREA_CARDIO, AREA_TRAUMA] },
+      { simuladoId: 's2', nome: 'S2', areas: [AREA_CARDIO] },
+    ]);
+    const trauma = consolidado.find((a) => a.tema === AREA_TRAUMA.tema);
+    expect(trauma?.acertoPct).toBeCloseTo(AREA_TRAUMA.acertoPct, 5);
+    expect(trauma?.questoesRespondidas).toBe(AREA_TRAUMA.questoesRespondidas);
+  });
+
+  it('linha sem questão respondida fica fora — nunca entra como zero', () => {
+    const consolidado = consolidarAreas([
+      { simuladoId: 's1', nome: 'S1', areas: [linha({ questoesRespondidas: 0, acertoPct: 0 })] },
+      { simuladoId: 's2', nome: 'S2', areas: [linha({ questoesRespondidas: 5, acertoPct: 80 })] },
+    ]);
+    expect(consolidado).toHaveLength(1);
+    expect(consolidado[0].acertoPct).toBeCloseTo(80, 5);
+  });
+
+  it('crítica em algum simulado mantém a marcação no consolidado', () => {
+    const [tema] = consolidarAreas([
+      { simuladoId: 's1', nome: 'S1', areas: [{ ...AREA_NEONATO_CRITICA, critica: false }] },
+      { simuladoId: 's2', nome: 'S2', areas: [AREA_NEONATO_CRITICA] },
+    ]);
+    expect(tema.critica).toBe(true);
+  });
+});
+
+describe('DrawerAluno — recorte consolidado do bloco de área', () => {
+  beforeEach(() => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1, DESEMPENHO_AREA_S2] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+  });
+
+  it('abre em "Todos" e a cascata mostra o % médio ponderado', () => {
+    montar();
+    expect(screen.getByRole('button', { name: 'Todos' })).toHaveAttribute('aria-pressed', 'true');
+    // Mesmo recorte nos dois simulados: Clínica Médica = (9×90 + 4×40)/13 ×2 → 75%.
+    expect(screen.getByTestId('drawer-grande-area-Clínica Médica')).toHaveTextContent('75%');
+  });
+
+  it('trocar para um simulado individual volta ao % oficial da RPC daquele simulado', async () => {
+    montar();
+    await userEvent.click(screen.getByRole('button', { name: '2º sim.' }));
+    expect(screen.getByTestId('drawer-areas')).toHaveTextContent('Simulado 2');
+    expect(screen.getByTestId('drawer-grande-area-Clínica Médica')).toHaveTextContent('55%');
+    expect(screen.queryByTestId('rotulo-areas-consolidado')).not.toBeInTheDocument();
+  });
+
+  it('avisa quando um simulado feito não tem classificação por área', () => {
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1, DESEMPENHO_AREA_S2] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+    mockUseAluno.mockReturnValue(
+      resultado({
+        data: [ENTRADA_S1, ENTRADA_S2, { ...ENTRADA_S2, simuladoId: 's3', simuladoNome: 'Simulado 3', simuladoData: '2026-07-16' }],
+      }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar({ simulados: ['s1', 's2', 's3'] });
+    expect(screen.getByTestId('rotulo-areas-consolidado')).toHaveTextContent(
+      '1 simulado feito ficou fora por não ter classificação por área.',
+    );
+  });
+
+  it('com um único simulado classificado não há visão consolidada', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+    montar({ simulados: ['s1'] });
+    expect(screen.queryByRole('button', { name: 'Todos' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('drawer-areas')).toHaveTextContent('Simulado 1');
   });
 });
