@@ -226,6 +226,39 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                 className="pb-3"
                 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
               >
+                SIMULADOS DO ARQUIVO
+              </p>
+              {cronograma.isLoading ? (
+                <GestorSkeleton altura={92} rotulo="Carregando simulados" />
+              ) : itensCronograma.length === 0 ? (
+                <p
+                  className="p-3.5"
+                  style={{
+                    fontSize: 12.5,
+                    lineHeight: '18px',
+                    borderRadius: 'var(--gp-radius-md)',
+                    background: 'var(--gp-surface-3)',
+                    color: 'var(--gp-text-3)',
+                  }}
+                >
+                  Esta instituição ainda não tem simulados disponíveis. Os blocos por simulado ficam
+                  indisponíveis.
+                </p>
+              ) : (
+                <SeletorSimulados
+                  itens={itensCronograma}
+                  selecionados={simuladosValidos}
+                  onChange={setSimuladosArquivo}
+                />
+              )}
+              <p className="mt-2" style={{ fontSize: 12, color: 'var(--gp-text-3)' }}>
+                Escolher aqui só muda este arquivo. O filtro das telas continua como está.
+              </p>
+
+              <p
+                className="pb-3 pt-5"
+                style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
+              >
                 O QUE ENTRA NO ARQUIVO
               </p>
 
@@ -234,8 +267,9 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                   const habilitado = disponiveis.has(bloco.id);
                   const marcado = habilitado && selecionados.has(bloco.id);
                   const motivo = bloco.exigeSimuladoUnico
-                    ? 'Escolha um único simulado no filtro para incluir.'
-                    : 'Escolha ao menos um simulado no filtro para incluir.';
+                    ? 'Escolha um único simulado acima para incluir.'
+                    : 'Escolha ao menos um simulado acima para incluir.';
+
                   return (
                     <label
                       key={bloco.id}
