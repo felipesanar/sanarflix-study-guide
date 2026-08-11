@@ -450,6 +450,168 @@ function InsightArea({
   );
 }
 
+/** Um dos dois pontos da leitura por IA, como a edge function devolve. */
+interface PontoLeituraAluno {
+  titulo: string;
+  texto: string;
+}
+
+/**
+ * Leitura do aluno por IA (11/08) — substitui o bloco fixo de "Destaque do
+ * aluno" / "Grande área crítica" (`InsightArea`), que só sabia dizer maior e
+ * menor grande área.
+ *
+ * Aplicada ao CONTEXTO DA PÁGINA: além do aluno, vão para a edge function os
+ * simulados do recorte e a `visao` ativa do bloco de áreas (consolidado
+ * `todos` ou um simulado). Trocar a visão troca a chave da query e do cache do
+ * servidor — consolidado e por simulado são leituras diferentes, nunca a mesma
+ * frase reaproveitada.
+ *
+ * Modelo rápido (`google/gemini-3.6-flash`, decisão de produto) e saída
+ * estruturada por tool: a UI recebe os dois pontos separados e não fatia texto.
+ * Falha ou resposta incompleta cai no `fallback` (o bloco antigo), nunca em
+ * espaço vazio — mesma degradação graciosa do resto do drawer.
+ */
+function LeituraAlunoIA({
+  iesId,
+  alunoId,
+  simulados,
+  visao,
+  fallback,
+}: {
+  iesId: string | null;
+  alunoId: string;
+  simulados: string[];
+  visao: string;
+  fallback: React.ReactNode;
+}) {
+  const query = useQuery({
+    queryKey: ['gestor', 'aluno', 'leitura-ia', iesId, alunoId, [...simulados].sort().join(','), visao],
+    enabled: Boolean(iesId && alunoId),
+    // A leitura não muda enquanto o recorte é o mesmo: reabrir o drawer não
+    // paga outra chamada de IA (o servidor ainda tem o cache, mas nem chega lá).
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('gestor-ai-insights', {
+        body: { modo: 'aluno', iesId, alunoId, simulados, visao },
+      });
+      if (error) throw error;
+      const forte = data?.pontoForte as PontoLeituraAluno | undefined;
+      const atencao = data?.pontoAtencao as PontoLeituraAluno | undefined;
+      if (!forte?.texto || !atencao?.texto) throw new Error('gestor-ai-insights: leitura incompleta');
+      return { forte, atencao };
+    },
+  });
+
+  if (query.isPending) {
+    return (
+      <div
+        data-testid="drawer-leitura-ia-carregando"
+        className="space-y-2"
+        style={{
+          border: '1px solid var(--gp-border-subtle)',
+          borderRadius: 12,
+          padding: 12,
+        }}
+      >
+        <GestorSkeleton altura={11} rotulo="Gerando leitura do aluno" />
+        <GestorSkeleton altura={11} rotulo="Gerando leitura do aluno" />
+        <GestorSkeleton altura={11} rotulo="Gerando leitura do aluno" />
+      </div>
+    );
+  }
+
+  if (query.isError || !query.data) {
+    return <div data-testid="drawer-leitura-ia-fallback">{fallback}</div>;
+  }
+
+  const { forte, atencao } = query.data;
+
+  return (
+    <div
+      data-testid="drawer-leitura-ia"
+      className="space-y-2"
+      style={{
+        border: '1px solid var(--gp-border-subtle)',
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--gp-text-3)',
+        }}
+      >
+        Leitura do aluno (IA)
+      </div>
+
+      <PontoLeitura
+        tom="forte"
+        rotulo="Ponto forte"
+        titulo={forte.titulo}
+        texto={forte.texto}
+        testId="drawer-leitura-ia-forte"
+      />
+      <PontoLeitura
+        tom="atencao"
+        rotulo="Ponto de atenção"
+        titulo={atencao.titulo}
+        texto={atencao.texto}
+        testId="drawer-leitura-ia-atencao"
+      />
+    </div>
+  );
+}
+
+/** Uma das duas linhas da leitura: tom semântico + rótulo textual (a cor nunca é o único canal). */
+function PontoLeitura({
+  tom,
+  rotulo,
+  titulo,
+  texto,
+  testId,
+}: {
+  tom: 'forte' | 'atencao';
+  rotulo: string;
+  titulo: string;
+  texto: string;
+  testId: string;
+}) {
+  const cor =
+    tom === 'forte'
+      ? { fundo: 'var(--gp-success-surface)', tinta: 'var(--gp-success-on)', icone: 'trending_up' }
+      : { fundo: 'var(--gp-warning-surface)', tinta: 'var(--gp-warning-on)', icone: 'warning' };
+
+  return (
+    <div
+      data-testid={testId}
+      className="flex gap-2"
+      style={{ background: cor.fundo, borderRadius: 10, padding: 10 }}
+    >
+      <span style={{ color: cor.tinta, lineHeight: 1 }}>
+        <Icon name={cor.icone} variant="filled" size={14} />
+      </span>
+      <div className="min-w-0">
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: cor.tinta }}>
+          {rotulo}
+        </div>
+        {titulo ? (
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)', marginTop: 2 }}>{titulo}</div>
+        ) : null}
+        <p style={{ fontSize: 12, color: 'var(--gp-text-2)', marginTop: 2, lineHeight: 1.45 }}>{texto}</p>
+      </div>
+    </div>
+  );
+}
+
+
 /** Uma especialidade agrupada, com os temas já ordenados do pior para o melhor acerto. */
 interface EspecialidadeAgrupada {
   especialidade: string;
