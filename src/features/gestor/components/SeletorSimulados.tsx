@@ -116,7 +116,7 @@ export function SeletorSimulados({
   // Fecha no ESC e no clique fora: o painel flutua sobre o conteúdo, então
   // precisa das duas saídas que todo mundo já espera de um popover.
   React.useEffect(() => {
-    if (!aberto) return;
+    if (!aberto || inline) return;
     const noEsc = (evento: KeyboardEvent) => {
       if (evento.key === 'Escape') setAberto(false);
     };
@@ -129,16 +129,17 @@ export function SeletorSimulados({
       document.removeEventListener('keydown', noEsc);
       document.removeEventListener('mousedown', noClique);
     };
-  }, [aberto]);
+  }, [aberto, inline]);
 
   // Abriu = o teclado precisa de um ponto de entrada dentro do painel. Sem a
   // busca, esse ponto é o primeiro controle focável (atalho ou 1ª linha).
   React.useEffect(() => {
-    if (!aberto) return;
+    if (!aberto || inline) return;
     painel.current
       ?.querySelector<HTMLElement>('button, input[type="checkbox"]:not([disabled])')
       ?.focus();
-  }, [aberto]);
+  }, [aberto, inline]);
+
 
   const maisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2);
   const doisMaisRecentes = maisRecentes.map((item) => item.id);
