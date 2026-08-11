@@ -75,21 +75,8 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
     <header data-testid="saudacao" className="relative">
       <div className="relative">
 
-        {/* Linha do dia: dá contexto temporal ao número que vem depois e faz a
-            home parecer viva a cada acesso, sem afirmar nenhuma métrica. */}
-        <p
-          data-testid="saudacao-data"
-          className="flex items-center gap-1.5 uppercase"
-          style={{
-            fontSize: 'var(--gp-font-size-micro)',
-            fontWeight: 'var(--gp-font-weight-medio)' as unknown as number,
-            letterSpacing: 'var(--gp-font-tracking-micro)',
-            color: 'var(--gp-text-3)',
-          }}
-        >
-          <Icon name={glifoPorHora(agora)} size={13} />
-          {dataLonga(agora)}
-        </p>
+
+
 
         {/* Título de tela ampliado, com o astro do momento em movimento leve. */}
         <h1
