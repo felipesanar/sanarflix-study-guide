@@ -94,6 +94,8 @@ export function SeletorSimulados({
   selecionados,
   onChange,
   inline = false,
+  opcional = false,
+
 }: SeletorSimuladosProps) {
   const [abertoPorClique, setAberto] = React.useState(false);
   const aberto = inline || abertoPorClique;
