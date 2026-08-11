@@ -31,8 +31,8 @@ const metrica = (over: Partial<MetricasSimulado>): MetricasSimulado => ({
 });
 
 const METRICAS = [
-  metrica({ simuladoId: 's1', nome: 'Simulado 1', proficienciaMedia: 55, participantes: 100 }),
-  metrica({ simuladoId: 's2', nome: 'Simulado 2', proficienciaMedia: 62, participantes: 90 }),
+  metrica({ simuladoId: 's1', nome: 'Simulado 1', proficienciaMedia: 55, proficientesPct: 41, participantes: 100 }),
+  metrica({ simuladoId: 's2', nome: 'Simulado 2', proficienciaMedia: 62, proficientesPct: 58, participantes: 90 }),
 ];
 
 const DISPERSAO = [
@@ -59,8 +59,22 @@ describe('EvolucaoRecorte', () => {
     expect(propsEvolucaoChart).toHaveBeenCalledWith(
       expect.objectContaining({
         pontos: [
-          { simuladoId: 's1', nome: 'Simulado 1', data: METRICAS[0].data, valor: 55, participantes: 100 },
-          { simuladoId: 's2', nome: 'Simulado 2', data: METRICAS[1].data, valor: 62, participantes: 90 },
+          {
+            simuladoId: 's1',
+            nome: 'Simulado 1',
+            data: METRICAS[0].data,
+            valor: 55,
+            proficientesPct: 41,
+            participantes: 100,
+          },
+          {
+            simuladoId: 's2',
+            nome: 'Simulado 2',
+            data: METRICAS[1].data,
+            valor: 62,
+            proficientesPct: 58,
+            participantes: 90,
+          },
         ],
       }),
     );
