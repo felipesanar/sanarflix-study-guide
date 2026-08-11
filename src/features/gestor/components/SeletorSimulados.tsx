@@ -481,20 +481,23 @@ export function SeletorSimulados({
             <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
               {selecionados.length} selecionado{selecionados.length === 1 ? '' : 's'}
             </span>
-            <button
-              type="button"
-              onClick={() => setAberto(false)}
-              className="rounded-sm px-2.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                background: 'var(--gp-brand)',
-                color: 'var(--gp-on-brand)',
-                borderRadius: 'var(--gp-radius-sm)',
-              }}
-            >
-              Concluir
-            </button>
+            {!inline && (
+              <button
+                type="button"
+                onClick={() => setAberto(false)}
+                className="rounded-sm px-2.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: 'var(--gp-brand)',
+                  color: 'var(--gp-on-brand)',
+                  borderRadius: 'var(--gp-radius-sm)',
+                }}
+              >
+                Concluir
+              </button>
+            )}
+
           </div>
         </div>
       )}
