@@ -1618,7 +1618,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
                 )}
               </div>
 
-              {entradaAreaDetalhada ? (
+              {entradaAreaDetalhada || (areasDoAluno.length > 0 && entradaDasAreas) ? (
                 <div className="pt-1">
                   <LeituraAlunoIA
                     iesId={iesId}
