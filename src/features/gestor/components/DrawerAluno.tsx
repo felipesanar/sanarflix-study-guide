@@ -1038,19 +1038,17 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
     .map((e) => ({ rotulo: e.simuladoNome, valor: e.proficiencia, data: e.simuladoData }));
 
   /**
-   * O comparativo entre grandes áreas é UM, e é de UM simulado — nunca fundido
-   * entre simulados (mesma família de "Conceito ENAMED não tem média").
+   * Bloco "Desempenho por área": DUAS leituras possíveis (decisão de produto,
+   * 11/08).
    *
-   * Quais simulados podem ser exibidos: os que têm classificação por área.
-   * Padrão: o mais recente **com nota TRI liberada** (`proficiencia !== null`),
-   * porque é esse o número que o topo do drawer exibe — abrir num simulado sem
-   * resultado processado é o que produzia a divergência de leitura. Sem nenhum
-   * com nota, cai no mais recente com dados de área, e aí o aviso de
-   * processamento aparece explicitamente.
+   * - **Consolidado (padrão)**: junta os simulados que o aluno fez e mostra o %
+   *   médio ponderado pelas questões respondidas (`consolidarAreas`). É a
+   *   leitura pedida por quem quer o retrato acumulado do aluno.
+   * - **Individual**: um simulado por vez, exatamente como antes — com a tag de
+   *   "resultado em processamento" e o aviso de divergência de proficiência.
    *
    * `.reverse()` sobre uma CÓPIA — `cronologicas` já é cópia de `entradas`,
-   * mas reverter no lugar mudaria a ordem da lista de notas e da série, que
-   * são renderizadas a partir dela.
+   * mas reverter no lugar mudaria a ordem da lista de notas e da série.
    */
   const areaPorSimulado = new Map(
     (desempenhoArea.data ?? []).map((entrada) => [entrada.simuladoId, entrada]),
@@ -1058,32 +1056,48 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const candidatasAreas = cronologicas.filter(
     (e) => (e.acertoPorArea ?? []).length > 0 || (areaPorSimulado.get(e.simuladoId)?.areas.length ?? 0) > 0,
   );
-  const maisRecentes = [...candidatasAreas].reverse();
-  const padraoAreas =
-    maisRecentes.find((e) => e.proficiencia !== null) ?? maisRecentes[0] ?? null;
-  const escolhida =
+  /** Só as entradas com classificação por tema entram no consolidado. */
+  const entradasComTemas = candidatasAreas
+    .map((e) => areaPorSimulado.get(e.simuladoId))
+    .filter((e): e is DesempenhoPorAreaSimulado => Boolean(e && e.areas.length > 0));
+  const podeConsolidar = entradasComTemas.length > 0;
+
+  const escolha =
     areaEscolhida && areaEscolhida.aluno === alunoId
-      ? candidatasAreas.find((e) => e.simuladoId === areaEscolhida.simulado) ?? null
+      ? areaEscolhida.simulado
+      : podeConsolidar
+        ? 'todos'
+        : null;
+  const modoTodos = escolha === 'todos' && podeConsolidar;
+
+  const maisRecentes = [...candidatasAreas].reverse();
+  const padraoAreas = maisRecentes.find((e) => e.proficiencia !== null) ?? maisRecentes[0] ?? null;
+  const escolhida =
+    escolha && escolha !== 'todos'
+      ? candidatasAreas.find((e) => e.simuladoId === escolha) ?? null
       : null;
-  const entradaDasAreas = escolhida ?? padraoAreas;
+  /** No consolidado NÃO existe "o simulado do bloco" — por isso null. */
+  const entradaDasAreas = modoTodos ? null : escolhida ?? padraoAreas;
   const areasDoAluno = [...(entradaDasAreas?.acertoPorArea ?? [])].sort(
     (a, b) => b.acertoPct - a.acertoPct,
   );
 
+  /** Quantos simulados feitos ficaram fora do consolidado por falta de classificação. */
+  const participados = cronologicas.filter((e) => e.participou).length;
+  const foraDoConsolidado = Math.max(participados - entradasComTemas.length, 0);
+
   /**
-   * Drill-down por tema do MESMO simulado do bloco acima — casado por
-   * `simuladoId` contra `get_gestor_aluno_desempenho_por_area` (consulta
-   * própria, `desempenhoArea`), para que as duas seções nunca falem de
-   * simulados diferentes.
+   * Drill-down por tema: no consolidado é a fusão ponderada; no individual, o
+   * MESMO simulado do bloco acima, casado por `simuladoId`.
    */
-  const entradaAreaDetalhada: DesempenhoPorAreaSimulado | null =
-    (entradaDasAreas ? areaPorSimulado.get(entradaDasAreas.simuladoId) : undefined) ?? null;
+  const entradaAreaDetalhada: DesempenhoPorAreaSimulado | null = modoTodos
+    ? { simuladoId: 'todos', nome: 'Todos os simulados', areas: consolidarAreas(entradasComTemas) }
+    : (entradaDasAreas ? areaPorSimulado.get(entradaDasAreas.simuladoId) : undefined) ?? null;
 
   /**
    * Simulado que originou a proficiência exibida no topo (o mais recente com
    * nota). Quando não é o mesmo do bloco de área, a tela diz isso em uma
-   * frase — em vez de deixar o gestor concluir que 80,3 e barras de 0–28% são
-   * o mesmo recorte.
+   * frase. No consolidado o aviso não se aplica.
    */
   const entradaDaProficiencia = [...cronologicas].reverse().find((e) => e.proficiencia !== null) ?? null;
   const divergeDaProficiencia = Boolean(
@@ -1095,13 +1109,15 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
 
   /**
    * % de acerto por grande área que a RPC do simulado JÁ devolve
-   * (`acertoPorArea`). Quando existe, prevalece sobre o valor recalculado a
-   * partir dos temas no nível 1 da cascata — número da RPC ganha de número
-   * derivado, mesmo que a diferença seja de arredondamento.
-   * Só faz sentido casar quando as duas seções falam do MESMO simulado.
+   * (`acertoPorArea`). Prevalece sobre o valor recalculado no nível 1 — mas só
+   * na visão individual: aquele número é de UM simulado e não vale como número
+   * do recorte consolidado.
    */
   const acertoOficialPorArea =
-    entradaDasAreas && entradaAreaDetalhada && entradaDasAreas.simuladoId === entradaAreaDetalhada.simuladoId
+    !modoTodos &&
+    entradaDasAreas &&
+    entradaAreaDetalhada &&
+    entradaDasAreas.simuladoId === entradaAreaDetalhada.simuladoId
       ? new Map(areasDoAluno.map((a) => [a.area, a.acertoPct]))
       : undefined;
 
