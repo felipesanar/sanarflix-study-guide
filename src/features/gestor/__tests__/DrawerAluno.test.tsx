@@ -1103,7 +1103,9 @@ describe('DrawerAluno — leitura do aluno por IA', () => {
 
     await waitFor(() => expect(mockFunctionsInvoke).toHaveBeenCalled());
     expect(mockFunctionsInvoke).toHaveBeenCalledWith('gestor-ai-insights', {
-      body: { modo: 'aluno', iesId: 'ies-1', alunoId: 'a1', simulados: ['s1', 's2'], visao: 'todos' },
+      // Visão ativa do bloco de áreas: aqui só S1 tem dado, então o recorte é
+      // o simulado individual — e é ele que vai no corpo, não 'todos'.
+      body: { modo: 'aluno', iesId: 'ies-1', alunoId: 'a1', simulados: ['s1', 's2'], visao: 's1' },
     });
 
     const bloco = await screen.findByTestId('drawer-leitura-ia');
