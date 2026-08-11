@@ -1618,11 +1618,22 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
                 )}
               </div>
 
-              {areasDoAluno.length > 0 && entradaDasAreas ? (
+              {entradaAreaDetalhada ? (
                 <div className="pt-1">
-                  <InsightArea areas={areasDoAluno} simuladoId={entradaDasAreas.simuladoId} />
+                  <LeituraAlunoIA
+                    iesId={iesId}
+                    alunoId={alunoId}
+                    simulados={simulados}
+                    visao={modoTodos ? 'todos' : entradaDasAreas?.simuladoId ?? 'todos'}
+                    fallback={
+                      areasDoAluno.length > 0 && entradaDasAreas ? (
+                        <InsightArea areas={areasDoAluno} simuladoId={entradaDasAreas.simuladoId} />
+                      ) : null
+                    }
+                  />
                 </div>
               ) : null}
+
             </div>
 
 
