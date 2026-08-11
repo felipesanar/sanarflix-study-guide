@@ -196,7 +196,7 @@ describe('EvolucaoChart (modo Geral)', () => {
       expect(imagem?.querySelector('details, summary, table, figcaption')).toBeNull();
 
       expect(screen.getByTestId('evolucao-tabela')).toBeInTheDocument();
-      expect(screen.getByText('Proficiência institucional')).toBeInTheDocument();
+      expect(screen.getByText('Alunos proficientes (%)')).toBeInTheDocument();
     });
 
     it('com 1 simulado só, idem — o aviso de primeira medição fica fora do nó de imagem', () => {
