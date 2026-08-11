@@ -519,7 +519,7 @@ export function SeletorSimulados({
         Previstos/em processamento ficam desabilitados.
       </p>
 
-      {semSelecao && (
+      {semSelecao && !opcional && (
         // Contraste AA: `text-destructive` reprovava sobre o bg-card (3,78:1 no
         // claro). `gp-text-danger` (--gp-danger-on) dá 11,09:1 / 7,15:1.
         <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm gp-text-danger">
