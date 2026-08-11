@@ -159,6 +159,7 @@ export function DistribuicaoAlternativas({
   distratorDominante,
   respostas,
   questionId,
+  onAbrirAluno,
 }: DistribuicaoAlternativasProps) {
   const dominante = distratorDominante ?? derivarDistratorDominante(alternativas);
   const [aberta, setAberta] = React.useState<Alternativa['letra'] | null>(null);
