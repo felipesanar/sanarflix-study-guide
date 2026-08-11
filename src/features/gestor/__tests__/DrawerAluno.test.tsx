@@ -895,7 +895,7 @@ describe('DrawerAluno — procedência do bloco de área (achado 11/08)', () => 
     expect(screen.getByRole('dialog')).toHaveTextContent('participou de 1 de 2 simulados');
   });
 
-  it('padrão é o simulado mais recente COM nota liberada — não o sem resultado', () => {
+  it('padrão é a visão consolidada de todos os simulados feitos', () => {
     mockUseAluno.mockReturnValue(
       resultado({ data: [ENTRADA_S1, S2_SEM_TRI] }) as unknown as ReturnType<typeof useAluno>,
     );
@@ -906,7 +906,27 @@ describe('DrawerAluno — procedência do bloco de área (achado 11/08)', () => 
     );
     montar();
     const areas = screen.getByTestId('drawer-areas');
+    expect(areas).toHaveTextContent('Todos os simulados · 2 simulados considerados');
+    expect(screen.getByTestId('rotulo-areas-consolidado')).toHaveTextContent(
+      '% de acerto médio, ponderado pelas questões respondidas.',
+    );
+    expect(screen.queryByTestId('aviso-simulado-areas')).not.toBeInTheDocument();
+  });
+
+  it('no individual, o padrão é o simulado mais recente COM nota liberada', async () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, S2_SEM_TRI] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseAlunoDesempenhoPorArea.mockReturnValue(
+      resultado({ data: [DESEMPENHO_AREA_S1, DESEMPENHO_AREA_S2] }) as unknown as ReturnType<
+        typeof useAlunoDesempenhoPorArea
+      >,
+    );
+    montar();
+    await userEvent.click(screen.getByRole('button', { name: '1º sim.' }));
+    const areas = screen.getByTestId('drawer-areas');
     expect(areas).toHaveTextContent('Simulado 1');
+    expect(screen.queryByTestId('rotulo-areas-consolidado')).not.toBeInTheDocument();
     expect(screen.queryByTestId('aviso-simulado-areas')).not.toBeInTheDocument();
   });
 
