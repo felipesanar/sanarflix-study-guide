@@ -545,6 +545,54 @@ function agruparPorArea(
 }
 
 /**
+ * Funde as linhas de tema de VÁRIOS simulados numa lista única — a visão
+ * consolidada do bloco "Desempenho por área" (decisão de produto, 11/08).
+ *
+ * A chave é `grandeArea|especialidade|tema`. O % de cada tema é média
+ * **ponderada pelas questões respondidas**, nunca média de percentuais: soma
+ * de acertos sobre soma de respondidas. Simulado em que o tema não foi cobrado
+ * simplesmente não entra (nada de zero imaginário, §4.10); tema que só existe
+ * em um simulado aparece com o dado que existe.
+ *
+ * `critica` fica true se o tema estava crítico em ALGUM dos simulados — não se
+ * inventa baseline novo para o recorte agregado.
+ */
+export function consolidarAreas(entradas: DesempenhoPorAreaSimulado[]): AreaDesempenhoAluno[] {
+  const acumulado = new Map<
+    string,
+    { linha: AreaDesempenhoAluno; acertos: number; respondidas: number; total: number }
+  >();
+
+  for (const entrada of entradas) {
+    for (const area of entrada.areas) {
+      if (area.questoesRespondidas <= 0) continue;
+      const chave = `${area.grandeArea}|${area.especialidade}|${area.tema}`;
+      const atual = acumulado.get(chave);
+      if (!atual) {
+        acumulado.set(chave, {
+          linha: { ...area },
+          acertos: (area.acertoPct / 100) * area.questoesRespondidas,
+          respondidas: area.questoesRespondidas,
+          total: area.questoesTotal,
+        });
+        continue;
+      }
+      atual.acertos += (area.acertoPct / 100) * area.questoesRespondidas;
+      atual.respondidas += area.questoesRespondidas;
+      atual.total += area.questoesTotal;
+      atual.linha.critica = atual.linha.critica || area.critica;
+    }
+  }
+
+  return [...acumulado.values()].map(({ linha, acertos, respondidas, total }) => ({
+    ...linha,
+    questoesRespondidas: respondidas,
+    questoesTotal: total,
+    acertoPct: (acertos / respondidas) * 100,
+  }));
+}
+
+/**
  * Barra + % de um nível da cascata. É a MESMA leitura em todos os três níveis
  * (grande área, especialidade, tema) — o que muda é só a escala tipográfica e
  * o recuo, para que a granularidade se leia sem trocar de vocabulário visual.
