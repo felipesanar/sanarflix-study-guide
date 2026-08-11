@@ -1074,3 +1074,52 @@ describe('DrawerAluno — recorte consolidado do bloco de área', () => {
     expect(screen.getByTestId('drawer-areas')).toHaveTextContent('Simulado 1');
   });
 });
+
+/**
+ * "Leitura do aluno (IA)" (task 11/08) — substitui o bloco fixo de destaque/
+ * área crítica. Roda AO ABRIR (sem clique), é recortada pela `visao` ativa do
+ * bloco de áreas e, em qualquer falha, cai no bloco determinístico.
+ */
+describe('DrawerAluno — leitura do aluno por IA', () => {
+  beforeEach(() => {
+    // `iesId` sai da URL (`useFiltrosGestor`): sem IES no recorte o bloco nem
+    // chama a IA, então o teste precisa do parâmetro para exercitar a chamada.
+    window.history.pushState({}, '', '/gestor?ies=ies-1');
+  });
+
+  afterEach(() => {
+    window.history.pushState({}, '', '/');
+  });
+
+  it('chama a edge function ao abrir, com o modo, o recorte e a visão ativa', async () => {
+    mockFunctionsInvoke.mockResolvedValue({
+      data: {
+        pontoForte: { titulo: 'Vai bem em Cirurgia', texto: 'Acerta 8 de cada 10 questões de Cirurgia.' },
+        pontoAtencao: { titulo: 'Clínica Médica travada', texto: 'Erra mais da metade em Clínica Médica.' },
+      },
+      error: null,
+    });
+    montar({ simulados: ['s1', 's2'] });
+
+    await waitFor(() => expect(mockFunctionsInvoke).toHaveBeenCalled());
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith('gestor-ai-insights', {
+      body: { modo: 'aluno', iesId: 'ies-1', alunoId: 'a1', simulados: ['s1', 's2'], visao: 'todos' },
+    });
+
+    const bloco = await screen.findByTestId('drawer-leitura-ia');
+    expect(within(bloco).getByTestId('drawer-leitura-ia-forte')).toHaveTextContent('Vai bem em Cirurgia');
+    expect(within(bloco).getByTestId('drawer-leitura-ia-atencao')).toHaveTextContent('Clínica Médica travada');
+    // Cor não é canal único: os dois pontos se nomeiam por texto.
+    expect(bloco).toHaveTextContent('Ponto forte');
+    expect(bloco).toHaveTextContent('Ponto de atenção');
+  });
+
+  it('resposta sem os dois pontos cai no bloco determinístico, sem quebrar o drawer', async () => {
+    mockFunctionsInvoke.mockResolvedValue({ data: { pontoForte: { titulo: 'x', texto: 'y' } }, error: null });
+    montar();
+
+    await screen.findByTestId('drawer-leitura-ia-fallback');
+    expect(screen.queryByTestId('drawer-leitura-ia')).not.toBeInTheDocument();
+    expect(screen.getByText('Proficiência')).toBeInTheDocument();
+  });
+});
