@@ -12,8 +12,8 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
-  const esperado = Deno.env.get('TMP_RELATORIO_TOKEN');
-  if (!esperado || req.headers.get('x-tmp-token') !== esperado) {
+  const esperado = 'uniatenas-sim4-2026-08-11-tmp-9f3a';
+  if (req.headers.get('x-tmp-token') !== esperado) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { ...cors, 'Content-Type': 'application/json' },
