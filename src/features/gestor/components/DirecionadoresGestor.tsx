@@ -141,7 +141,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
               className="block"
               style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
             >
-              Como estamos e onde dói — o panorama da instituição em um recorte só.
+              Veja como a instituição está indo e onde precisa de atenção.
             </span>
           </span>
           <Chevron />
@@ -162,7 +162,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
               className="block"
               style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
             >
-              O que exatamente aconteceu num simulado — questão por questão, aluno por aluno.
+              Abra um simulado e veja o resultado por questão e por aluno.
             </span>
           </span>
           <Chevron />
@@ -190,7 +190,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
                   className="block"
                   style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
                 >
-                  Os números deste recorte em PDF para circular ou em planilha formatada.
+                  Baixe os números em PDF ou planilha para compartilhar.
                 </span>
               </span>
               <Chevron />
