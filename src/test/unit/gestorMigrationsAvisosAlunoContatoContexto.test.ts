@@ -172,7 +172,15 @@ function esperaCabecalhoPreservado(corpo: string) {
 }
 
 describe('guard de feature nas RPCs get_gestor_* — gestao.portal_v2 nunca volta (GA total, 06/08)', () => {
-  const rpcs = todasAsRpcsDoGestor();
+  // get_gestor_portal_versao (spec 2026-08-11) é uma exceção deliberada: não é
+  // uma das onze RPCs institucionais que este describe cobre — é a RPC do
+  // rollout faseado por IES, cujo trabalho É checar gestao.portal_v2
+  // (revivida com semântica de TOGGLE DE ROLLOUT por IES, não mais "módulo
+  // contratado"). Incluí-la na varredura abaixo reprovaria por desenho, não
+  // por bug — ver docs/superpowers/plans/2026-08-11-rollout-faseado-portal-gestor.md
+  // e o teste dedicado gestorMigrationsPortalVersao.test.ts, que prova o
+  // oposto para esta função: que ela CHAMA gestao.portal_v2.
+  const rpcs = todasAsRpcsDoGestor().filter((nome) => nome !== 'get_gestor_portal_versao');
 
   it('descobre as onze RPCs do portal — se este número mudar, a varredura abaixo mudou de escopo', () => {
     expect(rpcs).toEqual([

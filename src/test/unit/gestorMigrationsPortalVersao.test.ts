@@ -39,4 +39,9 @@ describe('get_gestor_portal_versao()', () => {
     const sql = readMigration();
     expect(sql).toMatch(/ELSE\s*\n\s*RETURN false;/);
   });
+
+  it('a chave de feature checada é gestao.portal_v2 — esta RPC é a exceção deliberada ao guard "gestao.portal_v2 nunca volta" das outras onze RPCs get_gestor_* (ver gestorMigrationsAvisosAlunoContatoContexto.test.ts), porque checar essa chave É o próprio trabalho dela', () => {
+    const sql = readMigration();
+    expect(sql).toMatch(/f\.feature_key = 'gestao\.portal_v2'/);
+  });
 });
