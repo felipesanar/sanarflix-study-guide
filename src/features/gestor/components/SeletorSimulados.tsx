@@ -225,7 +225,7 @@ export function SeletorSimulados({
               transitionTimingFunction: 'var(--gp-ease)',
             }}
           >
-            <Icon name="check" variant="filled" size={15} />
+            <Icon name="check" size={15} />
           </span>
         </span>
 
