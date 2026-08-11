@@ -164,7 +164,7 @@ describe('EvolucaoChart (modo Geral)', () => {
     expect(unico).toHaveTextContent('51');
     expect(unico).toHaveTextContent('300 alunos');
     expect(
-      screen.getByText('Primeira medição; a evolução aparece a partir do segundo simulado.')
+      screen.getByText('Primeira medição com TRI processado; a evolução aparece a partir do segundo simulado com TRI.')
     ).toBeInTheDocument();
   });
 
@@ -218,7 +218,7 @@ describe('EvolucaoChart (modo Geral)', () => {
 
       expect(screen.getByTestId('evolucao-tabela')).toBeInTheDocument();
       expect(
-        screen.getByText('Primeira medição; a evolução aparece a partir do segundo simulado.'),
+        screen.getByText('Primeira medição com TRI processado; a evolução aparece a partir do segundo simulado com TRI.'),
       ).toBeInTheDocument();
     });
   });
