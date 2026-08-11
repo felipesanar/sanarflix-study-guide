@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
@@ -586,8 +587,8 @@ function PontoLeitura({
 }) {
   const cor =
     tom === 'forte'
-      ? { fundo: 'var(--gp-success-surface)', tinta: 'var(--gp-success-on)', icone: 'trending_up' }
-      : { fundo: 'var(--gp-warning-surface)', tinta: 'var(--gp-warning-on)', icone: 'warning' };
+      ? { fundo: 'var(--gp-success-surface)', tinta: 'var(--gp-success-on)', icone: 'arrow_upward' as const }
+      : { fundo: 'var(--gp-warning-surface)', tinta: 'var(--gp-warning-on)', icone: 'report_problem' as const };
 
   return (
     <div
