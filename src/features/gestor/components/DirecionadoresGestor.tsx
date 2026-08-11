@@ -114,12 +114,12 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
   const comFiltroAtual = (pathname: string) => ({ pathname, search: location.search });
 
   return (
-    /* O overline "O que você quer ver?" NÃO mora aqui: ele rotula a SEÇÃO, e
+    /* O overline "O que você quer fazer?" NÃO mora aqui: ele rotula a SEÇÃO, e
        quem decide o que a seção mostra é a rota — com a IES ainda não
        resolvida, `Inicio` troca estes cartões por skeletons, e o rótulo tem que
        sobreviver a esse estado. Ele viveu nos dois por um tempo, e a tela
        imprimia a frase duas vezes. */
-    <div className="grid gap-4 md:grid-cols-2" data-testid="direcionadores">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="direcionadores">
         <Link
           to={comFiltroAtual('/gestor/visao-geral')}
           data-testid="direcionador-visao-geral"
