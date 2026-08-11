@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // que lê o recorte da URL (`useFiltrosGestor` → `useSearchParams`) e portanto
 // exige um Router montado. Mesmo wrapper de DrawerTemas.test.tsx.
 import { act, render, screen, userEvent, waitFor, within } from '@/test/utils';
-import { DrawerAluno, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
+import { DrawerAluno, consolidarAreas, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
 import { ATRASO_SKELETON_MS } from '@/features/gestor/hooks/useDelayedLoading';
 import {
   useAluno,
