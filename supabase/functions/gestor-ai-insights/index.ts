@@ -44,7 +44,51 @@ const SYSTEM_PROMPT_ALUNO = `Você é analista pedagógico sênior de cursos de 
 
 ${BASE_ENAMED}
 
-Com base na trajetória de simulados e no desempenho por área do aluno, gere um insight curto (no máximo 4 frases): tendência (melhora, piora ou estabilidade), distância em relação à faixa de proficiência, área que mais pesa contra ele e qual intervenção tem maior retorno. ${ANTI_INVENCAO_GESTOR}`;
+Entregue, via a tool leitura_aluno, exatamente DUAS leituras sobre este aluno, aplicadas ao recorte e à visão informados no contexto:
+1. um PONTO FORTE: o que está sustentando o desempenho dele (área, especialidade, tema ou tendência de proficiência que subiu/se manteve);
+2. um PONTO DE ATENÇÃO: o que mais pesa contra ele agora e o que a coordenação deve olhar primeiro.
+
+Como escrever (obrigatório):
+- Fale como uma pessoa real conversando com outra: frases curtas, palavras do dia a dia, uma ideia por frase.
+- Cada texto tem 1 ou 2 frases e cita pelo menos um número que EXISTE no contexto (% de acerto, proficiência, variação, nº de questões).
+- Respeite a visão informada: se a visão é consolidada, fale do acumulado nos simulados considerados; se é um simulado específico, diga que o número é daquele simulado.
+- Proibido jargão ("alavancar", "potencializar", "acionável", "otimizar", "gap", "performance", "insight").
+- Sem linguagem dirigida ao aluno ("estude", "revise"): você fala com o gestor sobre o aluno.
+- Nunca escreva "o curso": use "a faculdade", "a instituição" ou "a escola médica".
+- Nunca invente número, área ou tendência que não esteja no contexto. Se falta dado para um dos dois pontos, diga isso na frase em vez de estimar.
+
+${ANTI_INVENCAO_GESTOR}`;
+
+const TOOL_LEITURA_ALUNO: ToolSchema = {
+  type: "function",
+  function: {
+    name: "leitura_aluno",
+    description: "Leitura curta do desempenho de um aluno: um ponto forte e um ponto de atenção.",
+    parameters: {
+      type: "object",
+      properties: {
+        ponto_forte: {
+          type: "object",
+          properties: {
+            titulo: { type: "string", description: "Até 40 caracteres: a área/tema/tendência que sustenta o aluno." },
+            texto: { type: "string", description: "1 a 2 frases, até 220 caracteres, com um número do contexto." },
+          },
+          required: ["titulo", "texto"],
+        },
+        ponto_atencao: {
+          type: "object",
+          properties: {
+            titulo: { type: "string", description: "Até 40 caracteres: o que mais pesa contra o aluno agora." },
+            texto: { type: "string", description: "1 a 2 frases, até 220 caracteres, com um número do contexto e o que olhar primeiro." },
+          },
+          required: ["titulo", "texto"],
+        },
+      },
+      required: ["ponto_forte", "ponto_atencao"],
+    },
+  },
+};
+
 
 const BASE_CONSULTOR = `Você é consultor sênior de desempenho no ENAMED, com histórico de levar faculdades de medicina às melhores notas do exame. Fala com o gestor da instituição: direto, estratégico, acionável.
 
