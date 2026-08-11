@@ -247,6 +247,13 @@ function FiltroProficienciaAlunos({
 export interface TabelaAlunosSimuladoProps {
   alunos: AlunoNoSimulado[];
   multiSimulado: boolean;
+  /**
+   * Nome do simulado que serve de BASE da coluna "Variação" — o penúltimo do
+   * recorte, já que a RPC compara sempre o mais recente com o anterior.
+   * Só é usado com `multiSimulado`; `undefined` quando o chamador não sabe (a
+   * célula então mostra só o delta, nunca uma base inventada).
+   */
+  simuladoBase?: string | null;
   pageSize?: number;
   alunoSelecionadoId?: string | null;
   onSelecionarAluno?: (id: string) => void;
@@ -265,6 +272,7 @@ export interface TabelaAlunosSimuladoProps {
 export function TabelaAlunosSimulado({
   alunos,
   multiSimulado,
+  simuladoBase,
   pageSize = 20,
   alunoSelecionadoId = null,
   onSelecionarAluno,
@@ -327,6 +335,32 @@ export function TabelaAlunosSimulado({
     >
       <div className="flex flex-wrap items-center gap-2.5">
         <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gp-text-1)' }}>Visão de alunos</h3>
+        {/* Com 2+ simulados no recorte, acertos e proficiência NÃO são média:
+            a consulta monta cada linha com o simulado mais recente da seleção.
+            A tag diz isso na cara do gestor — sem ela, a leitura natural de um
+            recorte múltiplo é "média", que seria um número que ninguém
+            calculou. */}
+        {multiSimulado ? (
+          <span
+            data-testid="tag-simulado-mais-recente"
+            title="Com mais de um simulado selecionado, número de acertos e proficiência são os do simulado mais recente do recorte — não são médias."
+            className="inline-flex items-center gap-1 border"
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: '0.02em',
+              padding: '2px 7px',
+              borderRadius: 'var(--gp-radius-pill)',
+              color: 'var(--gp-text-2)',
+              borderColor: 'var(--gp-border-strong)',
+              background: 'var(--gp-surface-2)',
+            }}
+          >
+            <Icon name="info" size={11} />
+            simulado mais recente
+          </span>
+        ) : null}
+
         <span
           data-testid="contador-participacao"
           className="ml-auto"
@@ -482,8 +516,23 @@ export function TabelaAlunosSimulado({
                         data-testid="celula-variacao"
                       >
                         {formatDelta(a.variacao ?? null)}
+                        {/* A base da comparação nomeada na própria célula
+                            ("+6,6 (vs 3º Simulado FAI)"): sem ela, "variação"
+                            num recorte de vários simulados não diz contra o
+                            quê. Só aparece quando existe delta E o chamador
+                            sabe qual é o simulado anterior. */}
+                        {(a.variacao ?? null) !== null && simuladoBase ? (
+                          <span
+                            data-testid="base-variacao"
+                            className="ml-1 whitespace-nowrap"
+                            style={{ fontSize: 10.5, fontWeight: 400, color: 'var(--gp-text-3)' }}
+                          >
+                            (vs {simuladoBase})
+                          </span>
+                        ) : null}
                       </Celula>
                     )}
+
                   </LinhaTabela>
                 );
               })}

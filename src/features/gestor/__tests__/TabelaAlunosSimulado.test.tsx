@@ -454,4 +454,36 @@ describe('TabelaAlunosSimulado', () => {
       expect(nomesNaOrdem()).toEqual(['Ana']);
     });
   });
+
+  describe('recorte com 2+ simulados (11/08)', () => {
+    it('tag avisa que acertos e proficiência são do simulado mais recente, e só com multiSimulado', () => {
+      const { unmount } = render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
+      expect(screen.queryByTestId('tag-simulado-mais-recente')).not.toBeInTheDocument();
+      unmount();
+
+      render(<TabelaAlunosSimulado alunos={TRES} multiSimulado />);
+      expect(screen.getByTestId('tag-simulado-mais-recente')).toHaveTextContent('simulado mais recente');
+    });
+
+    it('a célula de variação nomeia o simulado usado como base', () => {
+      render(
+        <TabelaAlunosSimulado
+          alunos={[aluno({ id: 'a1', nome: 'Ana', proficiencia: 70, variacao: 6.6 })]}
+          multiSimulado
+          simuladoBase="3º Simulado FAI"
+        />,
+      );
+      expect(screen.getByTestId('celula-variacao')).toHaveTextContent('(vs 3º Simulado FAI)');
+    });
+
+    it('sem base conhecida a célula mostra só o delta, sem parênteses vazio', () => {
+      render(
+        <TabelaAlunosSimulado
+          alunos={[aluno({ id: 'a1', nome: 'Ana', proficiencia: 70, variacao: 6.6 })]}
+          multiSimulado
+        />,
+      );
+      expect(screen.getByTestId('celula-variacao').textContent).not.toContain('vs');
+    });
+  });
 });

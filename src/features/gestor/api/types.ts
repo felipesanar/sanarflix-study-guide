@@ -412,6 +412,13 @@ export interface MetricasSimulado {
   acertoMedioPct: number | null;
   enamedProjetado: number | null;
   proficienciaMedia: number | null;
+  /**
+   * Percentual de alunos proficientes (nota ≥ 60) entre quem tem nota TRI no
+   * simulado. Campo aditivo do envelope de `get_gestor_detalhamento`
+   * (11/08): é a série que "Evolução do recorte" plota, no lugar da média de
+   * proficiência. `null` quando nenhum aluno tem TRI no simulado — nunca 0.
+   */
+  proficientesPct?: number | null;
 }
 
 export interface Alternativa {
