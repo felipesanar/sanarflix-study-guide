@@ -1247,16 +1247,19 @@ serve(async (req) => {
 
     // -------------------------------------------------------------------
     if (body?.modo === "aluno") {
-      const { iesId, alunoId, simulados } = body;
+      const { iesId, alunoId, simulados, visao } = body;
       if (!iesId || !alunoId) return jsonResponse({ error: "ies_e_aluno_obrigatorios" }, 400, cors);
 
+      const visaoAtiva = typeof visao === "string" && visao ? visao : "todos";
       const listaSimulados = Array.isArray(simulados) && simulados.length ? [...simulados] : null;
       const cacheKey = await hashChave([
         "gestor-ai-insights",
         "aluno",
+        "v2-dois-pontos",
         iesId,
         alunoId,
         listaSimulados ? [...listaSimulados].sort() : null,
+        visaoAtiva,
       ]);
       if (!refresh) {
         const cached = await lerCache(supabaseAdmin, cacheKey);
@@ -1284,19 +1287,39 @@ serve(async (req) => {
         console.error("[gestor-ai-insights]", "por_area (opcional):", porAreaRes.error.message);
       }
 
-      const { texto } = await streamChatCompletion({
+      const { texto, toolArguments } = await streamChatCompletion({
         apiKey: LOVABLE_API_KEY,
         model: AI_MODEL_RAPIDO,
         messages: [
           { role: "system", content: SYSTEM_PROMPT_ALUNO },
-          { role: "user", content: buildAlunoPrompt(alunoRes.data, porAreaRes.error ? null : porAreaRes.data) },
+          {
+            role: "user",
+            content: buildAlunoPrompt(alunoRes.data, porAreaRes.error ? null : porAreaRes.data, visaoAtiva),
+          },
         ],
-        maxTokens: 2500,
+        tool: TOOL_LEITURA_ALUNO,
+        maxTokens: 1200,
         temperature: 0.4,
         signal: req.signal,
       });
 
-      const payload = { insight: texto };
+      const bruto = toolArguments
+        ? extrairJson<any>(toolArguments) ?? repararJsonParcial<any>(toolArguments)
+        : extrairJson<any>(texto);
+      const normalizar = (p: any) =>
+        p && typeof p.texto === "string" && p.texto.trim()
+          ? { titulo: typeof p.titulo === "string" ? p.titulo.trim() : "", texto: p.texto.trim() }
+          : null;
+      const pontoForte = normalizar(bruto?.ponto_forte ?? bruto?.pontoForte);
+      const pontoAtencao = normalizar(bruto?.ponto_atencao ?? bruto?.pontoAtencao);
+
+      if (!pontoForte || !pontoAtencao) {
+        console.error("[gestor-ai-insights]", "aluno: resposta sem os dois pontos");
+        return jsonResponse({ error: "resposta_incompleta" }, 502, cors);
+      }
+
+      const payload = { pontoForte, pontoAtencao, visao: visaoAtiva };
+
       await gravarCache(supabaseAdmin, {
         cacheKey,
         fn: "gestor-ai-insights",
