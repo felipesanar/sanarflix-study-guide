@@ -273,14 +273,13 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
 describe('experiences/buildAppRoutes — gestão', () => {
   const gestorRules = gestorRulesFixture;
 
-  // Task 64 (cleanup, 05/08): GA total no merge — todos os gestores de todas
-  // as IES recebem só o portal novo, sem piloto. A experiência legada (5
-  // módulos em `src/experiences/gestor/pages/**`) e o gate por feature
-  // (`gestao.portal_v2`) foram apagados; `/gestor` monta hoje só as 3 rotas
-  // do portal novo, direto — sem gate por rota, só o `ExperienceGuard` no
-  // topo (separa gestão de aluno/admin/CX, nunca decidiu entre versões do
-  // portal).
-  it('expõe a rota-layout /gestor com as 3 telas do portal novo — a experiência legada foi apagada, não há mais módulos antigos', () => {
+  // Rollout faseado por IES (spec 2026-08-11): `/gestor` monta uma árvore só,
+  // com as 3 telas do portal novo E as 5 telas do console antigo como filhas.
+  // Qual delas o usuário vê é decidido em runtime por `get_gestor_portal_versao`
+  // (via LegacyGestorGate/PortalV2Gate), não pela forma da árvore de rotas —
+  // por isso estes testes afirmam a ESTRUTURA (todas as filhas registradas),
+  // e a DECISÃO é coberta por `src/features/gestor/__tests__/gestorV2Routes.test.tsx`.
+  it('expõe a rota-layout /gestor com as 3 telas do portal novo e as 5 do console antigo como filhas', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
@@ -288,10 +287,9 @@ describe('experiences/buildAppRoutes — gestão', () => {
     const childPaths = (gestorRoute?.children ?? []).map((c) =>
       c.index ? 'index' : c.path,
     );
-    // As 3 telas do portal novo, seguidas dos 5 redirects de compatibilidade
-    // das URLs do console legado (05/08): elas foram servidas em produção e
-    // continuam em favorito e e-mail de gestor, então caem no Início em vez
-    // de no 404 no dia do merge.
+    // As 3 telas do portal novo, seguidas das 5 telas do console antigo. Sob o
+    // rollout faseado elas não são mais redirects: servem a tela legada real
+    // quando a IES ainda não foi aprovada, e redirecionam para /gestor quando foi.
     expect(childPaths).toEqual([
       'index',
       'visao-geral',
@@ -310,11 +308,13 @@ describe('experiences/buildAppRoutes — gestão', () => {
     'alunos',
     'insights-pedagogicos',
     'inteligencia-decisoria',
-  ])('a URL antiga /gestor/%s redireciona para o portal novo, nunca 404', (caminho) => {
+  ])('a URL antiga /gestor/%s continua registrada na árvore, nunca 404', (caminho) => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const filha = (routes.get('/gestor')?.children ?? []).find((c) => c.path === caminho);
     expect(filha, `/gestor/${caminho} sumiu da árvore de rotas`).toBeDefined();
-    expect(redirectTarget(filha)).toBe('/gestor');
+    // Não é mais um <Navigate> incondicional: é a tela legada envolvida em
+    // LegacyGestorGate, que decide em runtime entre renderizar e redirecionar.
+    expect(redirectTarget(filha)).toBeUndefined();
   });
 
   it('a index de /gestor renderiza o Início do portal novo — não é um redirect', () => {
