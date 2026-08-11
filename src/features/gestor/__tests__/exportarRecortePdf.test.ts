@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import jsPDF from 'jspdf';
 import {
@@ -70,21 +70,20 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
 
   it('gera o PDF com todos os blocos escolhidos e salva com o nome esperado', () => {
     const salvos: string[] = [];
-    const espiao = vi.spyOn(jsPDF.prototype, 'save').mockImplementation(function (
-      this: jsPDF,
-      nome?: string,
-    ) {
+    const proto = jsPDF.prototype as unknown as Record<string, unknown>;
+    const original = proto.save;
+    proto.save = function (this: jsPDF, nome?: string) {
       salvos.push(nome ?? '');
       if (process.env.GESTOR_PDF_QA) {
         writeFileSync(`/tmp/${nome}`, Buffer.from(this.output('arraybuffer') as ArrayBuffer));
       }
       return this;
-    } as never);
+    };
 
     const blocos: BlocoExport[] = ['indicadores', 'evolucao', 'areas', 'distribuicao'];
     const arquivo = exportarRecortePdf(DADOS, blocos);
+    proto.save = original;
 
     expect(salvos).toEqual([arquivo]);
-    espiao.mockRestore();
   });
 });
