@@ -545,6 +545,54 @@ function agruparPorArea(
 }
 
 /**
+ * Funde as linhas de tema de VÁRIOS simulados numa lista única — a visão
+ * consolidada do bloco "Desempenho por área" (decisão de produto, 11/08).
+ *
+ * A chave é `grandeArea|especialidade|tema`. O % de cada tema é média
+ * **ponderada pelas questões respondidas**, nunca média de percentuais: soma
+ * de acertos sobre soma de respondidas. Simulado em que o tema não foi cobrado
+ * simplesmente não entra (nada de zero imaginário, §4.10); tema que só existe
+ * em um simulado aparece com o dado que existe.
+ *
+ * `critica` fica true se o tema estava crítico em ALGUM dos simulados — não se
+ * inventa baseline novo para o recorte agregado.
+ */
+export function consolidarAreas(entradas: DesempenhoPorAreaSimulado[]): AreaDesempenhoAluno[] {
+  const acumulado = new Map<
+    string,
+    { linha: AreaDesempenhoAluno; acertos: number; respondidas: number; total: number }
+  >();
+
+  for (const entrada of entradas) {
+    for (const area of entrada.areas) {
+      if (area.questoesRespondidas <= 0) continue;
+      const chave = `${area.grandeArea}|${area.especialidade}|${area.tema}`;
+      const atual = acumulado.get(chave);
+      if (!atual) {
+        acumulado.set(chave, {
+          linha: { ...area },
+          acertos: (area.acertoPct / 100) * area.questoesRespondidas,
+          respondidas: area.questoesRespondidas,
+          total: area.questoesTotal,
+        });
+        continue;
+      }
+      atual.acertos += (area.acertoPct / 100) * area.questoesRespondidas;
+      atual.respondidas += area.questoesRespondidas;
+      atual.total += area.questoesTotal;
+      atual.linha.critica = atual.linha.critica || area.critica;
+    }
+  }
+
+  return [...acumulado.values()].map(({ linha, acertos, respondidas, total }) => ({
+    ...linha,
+    questoesRespondidas: respondidas,
+    questoesTotal: total,
+    acertoPct: (acertos / respondidas) * 100,
+  }));
+}
+
+/**
  * Barra + % de um nível da cascata. É a MESMA leitura em todos os três níveis
  * (grande área, especialidade, tema) — o que muda é só a escala tipográfica e
  * o recuo, para que a granularidade se leia sem trocar de vocabulário visual.
@@ -937,26 +985,48 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const container = useGestorPortalContainer();
   const { toast } = useToast();
 
+  /**
+   * Simulado escolhido para a seção "Desempenho por área" (achado 11/08).
+   *
+   * O bloco de área SEMPRE fala de UM simulado (nunca fundido — regra de
+   * agregação honesta), mas até aqui esse simulado era imposto: o mais recente
+   * com classificação por área, ainda que fosse um simulado sem nota TRI
+   * liberada. Resultado real em produção: selo "Proficiente 80,3" (1º simulado)
+   * no topo e barras de 0–28% (3º simulado, resultado em processamento)
+   * embaixo, sem nada dizendo que eram simulados diferentes.
+   *
+   * O par `{ aluno, simulado }` no estado é o que dispensa `useEffect` de
+   * reset: se o `alunoId` do estado não é o aluno em tela, a escolha não vale
+   * e o padrão volta a decidir.
+   */
+  const [areaEscolhida, setAreaEscolhida] = React.useState<{
+    aluno: string;
+    /** `'todos'` = visão consolidada (padrão); um id = simulado individual. */
+    simulado: string | 'todos';
+  } | null>(null);
+
   if (!alunoId) return null;
+
 
   const semestre = entradas[0]?.semestre ?? null;
 
   /**
-   * Cobertura do recorte. Numerador e denominador precisam sair do MESMO
-   * conjunto: `entradas` vem de `get_gestor_aluno` e `simulados` é o recorte
-   * que a tela pediu. Casar os dois crus (`entradas.length` sobre
-   * `simulados.length`) misturava fontes com `WHERE` diferente — imprimia
-   * "3 de 0" com o recorte vazio, e numerador maior que o denominador quando o
-   * aluno tinha simulado fora do recorte. Contar por pertencimento faz a
-   * fração se fechar sozinha; sem denominador, não há fração a mostrar.
+   * Cobertura do recorte = PARTICIPAÇÃO, não pertencimento (achado 11/08).
+   *
+   * `entradas` traz uma linha por simulado do recorte SEMPRE, inclusive para
+   * quem não fez (`participou: false`, métricas null) — então contar entradas
+   * imprimia "3 de 3 simulados" para uma aluna que fez 2, e o mesmo "3 de 3"
+   * para quem não fez nenhum. O numerador agora é quem realmente participou; o
+   * denominador continua sendo o recorte pedido pela tela (`simulados`), para a
+   * fração se fechar sozinha.
    */
   const noRecorte = new Set(simulados);
-  const cobertos = entradas.filter((e) => noRecorte.has(e.simuladoId)).length;
+  const cobertos = entradas.filter((e) => noRecorte.has(e.simuladoId) && e.participou).length;
   const contexto = [
     `${semestre === null ? TRACO : `${semestre}º`} período`,
     simulados.length === 0
       ? null
-      : `${cobertos} de ${simulados.length} ${simulados.length === 1 ? 'simulado' : 'simulados'}`,
+      : `participou de ${cobertos} de ${simulados.length} ${simulados.length === 1 ? 'simulado' : 'simulados'}`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -968,54 +1038,94 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
     .map((e) => ({ rotulo: e.simuladoNome, valor: e.proficiencia, data: e.simuladoData }));
 
   /**
-   * O comparativo entre grandes áreas é UM, e é o do simulado MAIS RECENTE
-   * que tenha classificação por área.
+   * Bloco "Desempenho por área": DUAS leituras possíveis (decisão de produto,
+   * 11/08).
    *
-   * A referência mostra um único conjunto de barras por aluno; o payload
-   * traz `acertoPorArea` por SIMULADO. Fundir os simulados numa média por
-   * área seria produzir número que a RPC não devolve — exatamente o que a
-   * regra de agregação honesta proíbe (mesma família de "Conceito ENAMED não
-   * tem média"). Então o comparativo é recortado, não fundido: o simulado
-   * mais recente, dito com todas as letras no subtítulo da seção.
+   * - **Consolidado (padrão)**: junta os simulados que o aluno fez e mostra o %
+   *   médio ponderado pelas questões respondidas (`consolidarAreas`). É a
+   *   leitura pedida por quem quer o retrato acumulado do aluno.
+   * - **Individual**: um simulado por vez, exatamente como antes — com a tag de
+   *   "resultado em processamento" e o aviso de divergência de proficiência.
    *
    * `.reverse()` sobre uma CÓPIA — `cronologicas` já é cópia de `entradas`,
-   * mas reverter no lugar mudaria a ordem da lista de notas e da série, que
-   * são renderizadas a partir dela.
-   */
-  const entradaDasAreas =
-    [...cronologicas].reverse().find((e) => (e.acertoPorArea ?? []).length > 0) ?? null;
-  const areasDoAluno = [...(entradaDasAreas?.acertoPorArea ?? [])].sort(
-    (a, b) => b.acertoPct - a.acertoPct,
-  );
-
-  /**
-   * Mesma regra de recorte do comparativo acima, aplicada ao drill-down por
-   * tema: UM simulado, o mais recente que tenha classificação, NUNCA fundido
-   * entre simulados. `get_gestor_aluno_desempenho_por_area` é uma consulta
-   * própria (`desempenhoArea`, hook `useAlunoDesempenhoPorArea`) — casada por
-   * `simuladoId` contra a mesma ordem cronológica de `cronologicas`, para que
-   * "mais recente" signifique a mesma coisa nas duas seções.
+   * mas reverter no lugar mudaria a ordem da lista de notas e da série.
    */
   const areaPorSimulado = new Map(
     (desempenhoArea.data ?? []).map((entrada) => [entrada.simuladoId, entrada]),
   );
-  const entradaAreaDetalhada: DesempenhoPorAreaSimulado | null =
-    [...cronologicas]
-      .reverse()
-      .map((e) => areaPorSimulado.get(e.simuladoId))
-      .find((d): d is DesempenhoPorAreaSimulado => d !== undefined && d.areas.length > 0) ?? null;
+  const candidatasAreas = cronologicas.filter(
+    (e) => (e.acertoPorArea ?? []).length > 0 || (areaPorSimulado.get(e.simuladoId)?.areas.length ?? 0) > 0,
+  );
+  /** Só as entradas com classificação por tema entram no consolidado. */
+  const entradasComTemas = candidatasAreas
+    .map((e) => areaPorSimulado.get(e.simuladoId))
+    .filter((e): e is DesempenhoPorAreaSimulado => Boolean(e && e.areas.length > 0));
+  /**
+   * Só há o que consolidar com 2+ simulados classificados. Com um único, o
+   * "consolidado" seria o próprio simulado — e aí perderíamos o % oficial da
+   * grande área que a RPC devolve. Nesse caso vale a leitura individual.
+   */
+  const podeConsolidar = entradasComTemas.length > 1;
+
+  const escolha =
+    areaEscolhida && areaEscolhida.aluno === alunoId
+      ? areaEscolhida.simulado
+      : podeConsolidar
+        ? 'todos'
+        : null;
+  const modoTodos = escolha === 'todos' && podeConsolidar;
+
+  const maisRecentes = [...candidatasAreas].reverse();
+  const padraoAreas = maisRecentes.find((e) => e.proficiencia !== null) ?? maisRecentes[0] ?? null;
+  const escolhida =
+    escolha && escolha !== 'todos'
+      ? candidatasAreas.find((e) => e.simuladoId === escolha) ?? null
+      : null;
+  /** No consolidado NÃO existe "o simulado do bloco" — por isso null. */
+  const entradaDasAreas = modoTodos ? null : escolhida ?? padraoAreas;
+  const areasDoAluno = [...(entradaDasAreas?.acertoPorArea ?? [])].sort(
+    (a, b) => b.acertoPct - a.acertoPct,
+  );
+
+  /** Quantos simulados feitos ficaram fora do consolidado por falta de classificação. */
+  const participados = cronologicas.filter((e) => e.participou).length;
+  const foraDoConsolidado = Math.max(participados - entradasComTemas.length, 0);
+
+  /**
+   * Drill-down por tema: no consolidado é a fusão ponderada; no individual, o
+   * MESMO simulado do bloco acima, casado por `simuladoId`.
+   */
+  const entradaAreaDetalhada: DesempenhoPorAreaSimulado | null = modoTodos
+    ? { simuladoId: 'todos', nome: 'Todos os simulados', areas: consolidarAreas(entradasComTemas) }
+    : (entradaDasAreas ? areaPorSimulado.get(entradaDasAreas.simuladoId) : undefined) ?? null;
+
+  /**
+   * Simulado que originou a proficiência exibida no topo (o mais recente com
+   * nota). Quando não é o mesmo do bloco de área, a tela diz isso em uma
+   * frase. No consolidado o aviso não se aplica.
+   */
+  const entradaDaProficiencia = [...cronologicas].reverse().find((e) => e.proficiencia !== null) ?? null;
+  const divergeDaProficiencia = Boolean(
+    entradaDasAreas &&
+      entradaDaProficiencia &&
+      entradaDasAreas.simuladoId !== entradaDaProficiencia.simuladoId,
+  );
+  const areasSemResultado = Boolean(entradaDasAreas && entradaDasAreas.proficiencia === null);
 
   /**
    * % de acerto por grande área que a RPC do simulado JÁ devolve
-   * (`acertoPorArea`). Quando existe, prevalece sobre o valor recalculado a
-   * partir dos temas no nível 1 da cascata — número da RPC ganha de número
-   * derivado, mesmo que a diferença seja de arredondamento.
-   * Só faz sentido casar quando as duas seções falam do MESMO simulado.
+   * (`acertoPorArea`). Prevalece sobre o valor recalculado no nível 1 — mas só
+   * na visão individual: aquele número é de UM simulado e não vale como número
+   * do recorte consolidado.
    */
   const acertoOficialPorArea =
-    entradaDasAreas && entradaAreaDetalhada && entradaDasAreas.simuladoId === entradaAreaDetalhada.simuladoId
+    !modoTodos &&
+    entradaDasAreas &&
+    entradaAreaDetalhada &&
+    entradaDasAreas.simuladoId === entradaAreaDetalhada.simuladoId
       ? new Map(areasDoAluno.map((a) => [a.area, a.acertoPct]))
       : undefined;
+
 
 
 
@@ -1251,15 +1361,80 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
             */}
             <div data-testid="drawer-areas" className="space-y-2">
               <TituloSecao>Desempenho por área · % de acerto</TituloSecao>
-              {/* De QUAL simulado sai o bloco. Sem esta linha, barras sem
+
+              {/* Chips do recorte: "Todos" (consolidado, padrão) + um por
+                  simulado. Só aparece quando há mais de uma leitura possível —
+                  um chip solitário seria controle sem escolha. */}
+              {candidatasAreas.length > 1 ? (
+                <div
+                  role="group"
+                  aria-label="Recorte do desempenho por área"
+                  className="flex flex-wrap gap-1.5"
+                >
+                  {[
+                    ...(podeConsolidar ? [{ id: 'todos', rotulo: 'Todos' }] : []),
+                    ...candidatasAreas.map((e, indice) => ({
+                      id: e.simuladoId,
+                      rotulo: `${indice + 1}º sim.`,
+                    })),
+                  ].map((opcao) => {
+                    const ativo =
+                      opcao.id === 'todos' ? modoTodos : opcao.id === entradaDasAreas?.simuladoId;
+                    return (
+                      <button
+                        key={opcao.id}
+                        type="button"
+                        aria-pressed={ativo}
+                        onClick={() => setAreaEscolhida({ aluno: alunoId, simulado: opcao.id })}
+                        className="rounded-full px-2.5 py-1 text-[11px] transition-colors"
+                        style={{
+                          border: `1px solid ${ativo ? 'var(--gp-brand)' : 'var(--gp-border-strong)'}`,
+                          background: ativo ? 'var(--gp-brand-surface)' : 'transparent',
+                          color: ativo ? 'var(--gp-brand)' : 'var(--gp-text-3)',
+                          fontWeight: ativo ? 600 : 400,
+                        }}
+                      >
+                        {opcao.rotulo}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {/* De QUAL recorte sai o bloco. Sem esta linha, barras sem
                   procedência viram média imaginária na cabeça de quem lê. */}
               {entradaDasAreas || entradaAreaDetalhada ? (
-                <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                  {entradaDasAreas
-                    ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)} · toque para expandir`
-                    : `${entradaAreaDetalhada?.nome} · toque para expandir`}
-                </p>
+                <div className="space-y-1">
+                  <p style={{ fontSize: 11, color: 'var(--gp-text-2)', fontWeight: 600 }}>
+                    {modoTodos
+                      ? `Todos os simulados · ${entradasComTemas.length} ${entradasComTemas.length === 1 ? 'simulado considerado' : 'simulados considerados'}`
+                      : entradaDasAreas
+                        ? `${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)}`
+                        : entradaAreaDetalhada?.nome}
+                    {!modoTodos && areasSemResultado ? (
+                      <span style={{ fontWeight: 400, color: 'var(--gp-text-3)' }}>
+                        {' · resultado em processamento'}
+                      </span>
+                    ) : null}
+                  </p>
+                  {modoTodos ? (
+                    <p data-testid="rotulo-areas-consolidado" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                      {`% de acerto médio, ponderado pelas questões respondidas.${
+                        foraDoConsolidado > 0
+                          ? ` ${foraDoConsolidado} ${foraDoConsolidado === 1 ? 'simulado feito ficou' : 'simulados feitos ficaram'} fora por não ter classificação por área.`
+                          : ''
+                      }`}
+                    </p>
+                  ) : null}
+                  {!modoTodos && divergeDaProficiencia && entradaDaProficiencia ? (
+                    <p data-testid="aviso-simulado-areas" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                      {`As barras abaixo são do ${entradaDasAreas?.simuladoNome}. A proficiência ${formatNumero(entradaDaProficiencia.proficiencia)} mostrada acima é do ${entradaDaProficiencia.simuladoNome}.`}
+                    </p>
+                  ) : null}
+                  <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>toque para expandir</p>
+                </div>
               ) : null}
+
 
               <div data-testid="drawer-desempenho-area" className="space-y-2">
                 {desempenhoArea.isLoading ? (

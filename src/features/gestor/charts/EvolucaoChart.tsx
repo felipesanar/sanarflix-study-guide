@@ -38,12 +38,12 @@ export interface EvolucaoChartProps {
 }
 
 /**
- * Sem o valor da meta: a linha tracejada de meta já ocupa essa altura e traz o
- * próprio rótulo. Mantê-lo aqui desenhava duas linhas e dois rótulos na mesma
- * faixa (handoff §7 / LIGHT.html, cujos rótulos de Y saltam de 40 para 80).
+ * Escala completa: a linha tracejada de meta 60 saiu deste modo (a série mede
+ * PERCENTUAL DE ALUNOS proficientes, não nota de aluno — 60 é corte de nota,
+ * não meta de percentual de turma), então o tick de 60 volta ao eixo.
  */
-const TICKS_Y = [0, 20, 40, 80, 100];
-const TITULO = 'Evolução da proficiência institucional por simulado';
+const TICKS_Y = [0, 20, 40, 60, 80, 100];
+const TITULO = 'Evolução do percentual de alunos proficientes por simulado';
 
 /**
  * Dataset mudo, só para o `<XAxis dataKey="rotulo">` ter algo a iterar
@@ -152,7 +152,7 @@ export function TooltipEvolucao(props: { active?: boolean; payload?: { payload: 
         {ponto.rotulo}
       </p>
       <p className="mt-0.5 tabular-nums" style={{ color: 'var(--gp-tooltip-label)' }}>
-        {`${formatNumero(ponto.valor)} de proficiência · ${formatNumero(ponto.participantes)} alunos`}
+        {`${formatNumero(ponto.valor)}% de alunos proficientes · ${formatNumero(ponto.participantes)} alunos`}
       </p>
       <p style={{ color: 'var(--gp-tooltip-label)' }}>{formatData(ponto.data)}</p>
     </div>
@@ -172,15 +172,7 @@ function LegendaEvolucao({ semTri }: { semTri: number }) {
           className="h-[3px] w-4 rounded-full"
           style={{ background: 'var(--gp-brand)' }}
         />
-        Proficiência institucional
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span
-          aria-hidden="true"
-          className="w-4"
-          style={{ borderTop: '1.5px dashed var(--gp-border-input)' }}
-        />
-        {`Meta ${PROFICIENCIA_MINIMA}`}
+        Alunos proficientes (%)
       </span>
       {/*
        * A série só pode conter simulados cujo TRI já foi processado — sem
@@ -222,15 +214,9 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
           axisLine={false}
           tickLine={false}
         />
-        <ReferenceLine
-          y={PROFICIENCIA_MINIMA}
-          stroke="var(--gp-border-input)"
-          strokeWidth={1.5}
-          strokeDasharray="6 5"
-        />
         {/* O traço da série ainda não existe: uma barra em skeleton no meio
             da faixa (spec §5, item 2), não um retângulo cinza cobrindo o
-            plot inteiro — a moldura (eixos, grade, meta) já está de pé. */}
+            plot inteiro — a moldura (eixos e grade) já está de pé. */}
         <ReferenceLine
           y={50}
           stroke="var(--gp-skeleton)"
@@ -263,10 +249,20 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
     );
   }
 
-  const comTri = pontos.filter((ponto) => ponto.valor !== null && ponto.valor !== undefined);
+  /*
+   * A série é o PERCENTUAL DE ALUNOS PROFICIENTES (nota >= 60) do simulado —
+   * a mesma conta do KPI "Alunos proficientes", não mais a média da nota.
+   * O critério de entrada no gráfico continua sendo TER TRI PROCESSADO
+   * (`valor`, a média de proficiência, existir): sem TRI não há proficiência
+   * nem contagem de proficientes, e emendar a linha por cima inventaria
+   * evolução (§4.10).
+   */
+  const comTri = pontos
+    .filter((ponto) => ponto.valor !== null && ponto.valor !== undefined)
+    .map((ponto) => ({ ...ponto, valor: ponto.proficientesPct ?? null }));
   const semTri = pontos.length - comTri.length;
 
-  const descricao = `Proficiência institucional por simulado, escala 0 a 100, com ${comTri.length} simulado(s) com TRI processado. Meta institucional de ${PROFICIENCIA_MINIMA}.`;
+  const descricao = `Percentual de alunos proficientes (nota ${PROFICIENCIA_MINIMA} ou mais) por simulado, escala 0 a 100%, com ${comTri.length} simulado(s) com TRI processado.`;
 
   const tabela = (
     <details className="mt-2">
@@ -277,7 +273,7 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
           <tr className="text-muted-foreground">
             <th scope="col" className="py-1 pr-3 font-medium">Simulado</th>
             <th scope="col" className="py-1 pr-3 font-medium">Data</th>
-            <th scope="col" className="py-1 pr-3 font-medium">Proficiência</th>
+            <th scope="col" className="py-1 pr-3 font-medium">Alunos proficientes</th>
             <th scope="col" className="py-1 font-medium">Participantes</th>
           </tr>
         </thead>
@@ -286,7 +282,7 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
             <tr key={ponto.simuladoId} className="border-t border-border/60">
               <th scope="row" className="py-1 pr-3 font-normal">{ponto.nome}</th>
               <td className="py-1 pr-3 tabular-nums">{formatData(ponto.data)}</td>
-              <td className="py-1 pr-3 tabular-nums">{formatNumero(ponto.valor)}</td>
+              <td className="py-1 pr-3 tabular-nums">{`${formatNumero(ponto.valor)}%`}</td>
               <td className="py-1 tabular-nums">{formatNumero(ponto.participantes)}</td>
             </tr>
           ))}
@@ -294,6 +290,16 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
       </table>
     </details>
   );
+
+  if (comTri.length > 0 && comTri.every((ponto) => ponto.valor === null)) {
+    return (
+      <MolduraVazia
+        testId="evolucao-vazio"
+        altura={altura}
+        mensagem="Nenhum simulado deste recorte tem percentual de alunos proficientes calculado."
+      />
+    );
+  }
 
   if (comTri.length === 0) {
     return (
@@ -340,7 +346,7 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
               <span className="h-2 w-2 rounded-full" style={{ background: 'var(--gp-brand)' }} />
             </span>
           </span>
-          <span className="text-3xl font-semibold tabular-nums">{formatNumero(unico.valor)}</span>
+          <span className="text-3xl font-semibold tabular-nums">{`${formatNumero(unico.valor)}%`}</span>
           <span className="text-xs text-muted-foreground">
             {`${unico.nome} · ${formatData(unico.data)} · ${formatNumero(unico.participantes)} alunos`}
           </span>
@@ -428,23 +434,6 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
         tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
         axisLine={false}
         tickLine={false}
-      />
-      <ReferenceLine
-        y={PROFICIENCIA_MINIMA}
-        stroke="var(--gp-border-input)"
-        strokeWidth={1.5}
-        strokeDasharray="6 5"
-        /*
-         * `insideTopRight`: o rótulo mora DENTRO do plot, ancorado à direita e
-         * acima da linha. Fora dele (o antigo `position: 'right'`) obrigava a
-         * reservar 56px de margem morta à direita só para caber o texto.
-         */
-        label={{
-          value: `meta de proficiência · ${PROFICIENCIA_MINIMA}`,
-          position: 'insideTopRight',
-          fontSize: 11,
-          fill: 'var(--gp-text-3)',
-        }}
       />
       <Tooltip content={<TooltipEvolucao />} />
       <Area

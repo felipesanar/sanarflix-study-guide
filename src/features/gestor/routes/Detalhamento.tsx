@@ -311,6 +311,19 @@ export default function Detalhamento() {
   const multiSimulado = simuladosNoRecorte.length > 1;
 
   /**
+   * Base da coluna "Variação" da tabela de alunos: a RPC compara SEMPRE o
+   * simulado mais recente do recorte com o imediatamente anterior, então a
+   * base é o penúltimo item de `metricas` (que vem em ordem cronológica).
+   * `null` com menos de dois simulados — a célula então mostra só o delta.
+   */
+  const simuladoBaseVariacao = React.useMemo(() => {
+    const lista = dados?.metricas ?? [];
+    if (lista.length < 2) return null;
+    const ordenados = [...lista].sort((a, b) => a.data.localeCompare(b.data));
+    return ordenados[ordenados.length - 2]?.nome ?? null;
+  }, [dados?.metricas]);
+
+  /**
    * Retry dos blocos desta tela, no mesmo padrão da Visão Geral. Sem ele, o
    * `BlocoGestor` caía no fallback `onRetry={aoTentarNovamente ?? (() => undefined)}`:
    * o botão "Tentar novamente" renderizava, recebia foco, era clicável — e não
@@ -711,6 +724,7 @@ export default function Detalhamento() {
                   <TabelaAlunosSimulado
                     alunos={dados.alunos}
                     multiSimulado={multiSimulado}
+                    simuladoBase={simuladoBaseVariacao}
                     alunoSelecionadoId={alunoSelecionadoId}
                     onSelecionarAluno={aoSelecionarAluno}
                   />

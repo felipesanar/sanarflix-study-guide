@@ -132,9 +132,9 @@ export interface CascataDiagnosticoProps {
 }
 
 /**
- * Vazio do grupo crítico — o CAMINHO PRINCIPAL desta tela, não uma borda.
- * Com `NIVEL_CRITICO_MAX = 30`, 87,9% dos recortes reais não têm nenhuma
- * área crítica (100% descontada a IES de teste, ver `lib/regras.ts`). Uma
+ * Vazio do grupo crítico — continua sendo um caminho comum, ainda que menos
+ * que com o corte antigo de 30 (que deixava 87,9% dos recortes reais sem
+ * nenhuma área crítica; hoje o corte é `NIVEL_CRITICO_MAX = 50`). Uma
  * gestora que vê a seção em branco conclui que a ferramenta quebrou — então
  * este bloco sempre diz o que aconteceu (com o corte vindo de `regras.ts`,
  * nunca escrito na mão) e aponta por onde começar: as áreas medianas, da
@@ -426,7 +426,7 @@ function NivelCascata({
                   <motion.div
                     key={no.id}
                     data-testid={`filhos-${no.id}`}
-                    className="ml-4 overflow-hidden border-l border-border pl-2"
+                    className="ml-4 overflow-hidden border-l-[3px] border-border pl-3"
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{
                       opacity: 1,

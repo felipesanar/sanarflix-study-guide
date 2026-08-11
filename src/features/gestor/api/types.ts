@@ -174,9 +174,18 @@ export interface VisaoGeral {
     simuladoId: string;
     nome: string;
     data: string;
+    /** Média de proficiência do simulado. `null` = TRI ainda não processado. */
     valor: number | null;
+    /**
+     * Percentual de alunos proficientes (nota >= 60) no simulado — a MESMA
+     * conta do KPI "Alunos proficientes". É a série do gráfico "Evolução
+     * institucional" no modo Geral. Opcional porque RPCs antigas e mocks não
+     * devolvem o campo; `null`/ausente é buraco na série, nunca zero (§4.10).
+     */
+    proficientesPct?: number | null;
     participantes: number;
   }[];
+
   evolucaoPorArea: { area: string; pontos: PontoSerie[]; critica: boolean }[];
   diagnosticoResumo: {
     nivel: NivelDesempenho;
@@ -403,6 +412,13 @@ export interface MetricasSimulado {
   acertoMedioPct: number | null;
   enamedProjetado: number | null;
   proficienciaMedia: number | null;
+  /**
+   * Percentual de alunos proficientes (nota ≥ 60) entre quem tem nota TRI no
+   * simulado. Campo aditivo do envelope de `get_gestor_detalhamento`
+   * (11/08): é a série que "Evolução do recorte" plota, no lugar da média de
+   * proficiência. `null` quando nenhum aluno tem TRI no simulado — nunca 0.
+   */
+  proficientesPct?: number | null;
 }
 
 export interface Alternativa {
@@ -448,16 +464,12 @@ export interface Questao {
    * por alternativa (`DistribuicaoAlternativas`) chama ao clicar numa
    * alternativa para listar quem a marcou.
    *
-   * OPCIONAL, e por um motivo real: `get_gestor_questoes` (mesma migration
-   * acima) SELECIONA `q.id` internamente (`q_base`/`q_full`/`q_alts` o usam
-   * para fazer JOIN entre as CTEs) mas nunca o inclui no `jsonb_build_object`
-   * de cada questão — conferido nas duas versões da função (a `CREATE OR
-   * REPLACE` de 29/07 e o patch textual de 09/08, nenhuma das duas expõe uma
-   * chave `id`/`questaoId`). Até uma migration futura acrescentar essa chave,
-   * este campo chega `undefined` em todo payload real, e a UI mostra "lista
-   * indisponível" no clique em vez de chamar a RPC com um id inventado.
+   * Exposto pela RPC `get_gestor_questoes` desde a migration de 11/08 (chave
+   * `'id', o.id` no `jsonb_build_object` de cada questão). Segue opcional no
+   * tipo apenas para não quebrar fixtures antigas; em payload real vem sempre.
    */
   id?: string;
+
 }
 
 /**

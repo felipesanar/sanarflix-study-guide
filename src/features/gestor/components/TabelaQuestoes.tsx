@@ -10,6 +10,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { DistribuicaoAlternativas } from '../charts/DistribuicaoAlternativas';
+import { DrawerAluno } from './DrawerAluno';
+import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { Icon } from './Icon';
 import type { DendeIconName } from './icon-names';
 import {
@@ -138,6 +140,12 @@ export function TabelaQuestoes({
   carregando = false,
 }: TabelaQuestoesProps) {
   const [expandida, setExpandida] = React.useState<number | null>(null);
+  /**
+   * Aluno clicado na lista de "quem marcou" de uma alternativa — abre o mesmo
+   * `DrawerAluno` de "Visão de alunos", com o recorte de simulados do filtro.
+   */
+  const [alunoAberto, setAlunoAberto] = React.useState<{ id: string; nome: string } | null>(null);
+  const { simulados: simuladosDoRecorte } = useFiltrosGestor();
   /**
    * Achado da auditoria (linhas ~388-441 antes desta mudança): a linha de
    * detalhe só tinha ENTRADA (`animate-in fade-in-0 slide-in-from-top-1`,
@@ -559,6 +567,7 @@ export function TabelaQuestoes({
                                 alternativas={q.alternativas}
                                 distratorDominante={q.distratorDominante}
                                 questionId={q.id}
+                                onAbrirAluno={(id, nome) => setAlunoAberto({ id, nome })}
                               />
                               {q.imagemComentario && (
                                 <div className="flex flex-col gap-1.5" data-testid={`imagem-comentario-${q.numero}`}>
@@ -599,6 +608,18 @@ export function TabelaQuestoes({
             />
           </RodapeTabela>
         </>
+      )}
+
+      {/* Montado só com aluno escolhido: `DrawerAluno` dispara `useAluno` no
+          próprio corpo, então manter o componente vivo com `alunoId` nulo
+          custaria hooks (e contexto de auth) a cada render da tabela. */}
+      {alunoAberto && (
+      <DrawerAluno
+        alunoId={alunoAberto.id}
+        nome={alunoAberto.nome}
+        simulados={simuladosDoRecorte}
+        onFechar={() => setAlunoAberto(null)}
+      />
       )}
     </section>
   );

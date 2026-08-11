@@ -45,12 +45,18 @@ export function EvolucaoRecorte({ metricas, semestre, dispersao }: EvolucaoRecor
       <h2 id="evolucao-recorte-titulo" className="mb-2 text-base font-semibold text-foreground">
         Evolução do recorte
       </h2>
+      {/* A série é o PERCENTUAL DE ALUNOS PROFICIENTES por simulado (11/08),
+          igual ao gráfico da Visão Geral — a média de proficiência não
+          responde nada de gestão. `valor` segue sendo a média porque é ela
+          que o gráfico usa para decidir se o simulado TEM TRI processado;
+          `proficientesPct` é o que ele desenha. */}
       <EvolucaoChart
         pontos={metricas.map((m) => ({
           simuladoId: m.simuladoId,
           nome: m.nome,
           data: m.data,
           valor: m.proficienciaMedia,
+          proficientesPct: m.proficientesPct ?? null,
           participantes: m.participantes,
         }))}
       />
