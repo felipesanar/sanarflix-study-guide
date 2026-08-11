@@ -6,6 +6,8 @@ import { Icon } from '@/features/gestor/components/Icon';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import { GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
+import { DialogExportarDados } from '@/features/gestor/components/DialogExportarDados';
+import { useGestorContexto } from '@/features/gestor/api/queries';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
 
 /**
@@ -103,6 +105,8 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
    * vez de recebê-lo por prop.
    */
   const { user } = useAuth();
+  const { data: contexto } = useGestorContexto();
+  const [exportarAberto, setExportarAberto] = React.useState(false);
   const aquecer = () => void prefetchVisaoGeral(queryClient, user?.id, iesId, semestre);
 
   /**
@@ -114,12 +118,12 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
   const comFiltroAtual = (pathname: string) => ({ pathname, search: location.search });
 
   return (
-    /* O overline "O que você quer ver?" NÃO mora aqui: ele rotula a SEÇÃO, e
+    /* O overline "O que você quer fazer?" NÃO mora aqui: ele rotula a SEÇÃO, e
        quem decide o que a seção mostra é a rota — com a IES ainda não
        resolvida, `Inicio` troca estes cartões por skeletons, e o rótulo tem que
        sobreviver a esse estado. Ele viveu nos dois por um tempo, e a tela
        imprimia a frase duas vezes. */
-    <div className="grid gap-4 md:grid-cols-2" data-testid="direcionadores">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" data-testid="direcionadores">
         <Link
           to={comFiltroAtual('/gestor/visao-geral')}
           data-testid="direcionador-visao-geral"
@@ -163,6 +167,46 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           </span>
           <Chevron />
         </Link>
+
+        {/* Terceiro direcionador (11/08): exportar é AÇÃO, não navegação — por
+            isso é `<button>` com a mesma anatomia dos dois cartões, e não um
+            `<Link>` para uma tela que não existe. Ausente (nunca desabilitado)
+            quando o papel não pode exportar, mesma regra do `AcoesRecorte`. */}
+        {contexto?.podeExportar && (
+          <>
+            <button
+              type="button"
+              data-testid="direcionador-exportar"
+              onClick={() => setExportarAberto(true)}
+              className={`${CARTAO} text-left`}
+              style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18, ...TRANSICAO_CARTAO }}
+            >
+              <TileIcone icone="download" tom="neutro" />
+              <span className="min-w-0 flex-1">
+                <span className="block" style={{ fontSize: 16, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+                  Exportar dados
+                </span>
+                <span
+                  className="block"
+                  style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
+                >
+                  Os números deste recorte em PDF para circular ou em planilha formatada.
+                </span>
+              </span>
+              <Chevron />
+            </button>
+            {/* Montado só depois do clique: o dialog consulta a Visão Geral, e
+                não faz sentido pagar essa query em quem nunca vai exportar. */}
+            {exportarAberto && (
+            <DialogExportarDados
+              aberto={exportarAberto}
+              onAbertoChange={setExportarAberto}
+              iesId={iesId}
+            />
+            )}
+          </>
+        )}
     </div>
   );
 }
+

@@ -91,16 +91,17 @@ export default function Inicio() {
           className="uppercase text-muted-foreground"
           style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em' }}
         >
-          O que você quer ver?
+          O que você quer fazer?
         </span>
 
         {iesAtivaId ? (
           <DirecionadoresGestor iesId={iesAtivaId} semestre={semestre} />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div data-testid="inicio-skeleton-direcionadores">
               <GestorSkeleton altura={160} rotulo="Carregando direcionadores" />
             </div>
+            <GestorSkeleton altura={160} rotulo="Carregando direcionadores" />
             <GestorSkeleton altura={160} rotulo="Carregando direcionadores" />
           </div>
         )}
