@@ -426,7 +426,9 @@ git commit -m "feat(gestor): RPC get_gestor_portal_versao decide console antigo 
 ### Task 4: Restaurar a camada de dados do console antigo
 
 **Files:**
-- Create (via `git show`, conteúdo idêntico a `58226452^`): `src/services/institutional.ts`, `src/hooks/useInstitutionalPerformanceData.ts`, `src/hooks/useDesempenhoV2State.ts`, `src/utils/mapInstitutionalData.ts`, `src/utils/desempenhoV2Filters.ts`, `src/types/desempenhoV2.ts`, `src/mocks/desempenhoInstitucionalV2.ts`
+- Create (via `git show`, conteúdo idêntico a `58226452^`): `src/services/institutional.ts`, `src/hooks/useInstitutionalPerformanceData.ts`, `src/hooks/useDesempenhoV2State.ts`, `src/utils/mapInstitutionalData.ts`, `src/utils/desempenhoV2Filters.ts`, `src/utils/activeBase.ts`, `src/types/desempenhoV2.ts`, `src/mocks/desempenhoInstitucionalV2.ts`
+
+**Correção pós-Task 1-3 (achado do implementador):** `src/utils/activeBase.ts` estava faltando nesta lista — foi apagado no mesmo commit `58226452` e é importado por `useInstitutionalPerformanceData.ts:18` e `mapInstitutionalData.ts:24` (`resolveActiveBase`/`ActiveBase`/`ActiveBaseMode`/`SIXTH_YEAR_SEMESTRES`). Adicionado à lista acima. Também corrigido: este repo usa `tsconfig.json` "solution-style" (`files: []` + `references`), então `npx tsc --noEmit -p .` é um no-op silencioso — todo passo de type-check deste plano (Tasks 4, 5, 6, 7, 9) usa `npx tsc --noEmit -p tsconfig.app.json` em vez disso.
 
 **Interfaces:**
 - Produces: `resolveIesId`, `fetchInstitutionalPerformance`, `fetchStudentScores`, `fetchInstitutionalEvolution`, `fetchInstitutionalTri*`, `fetchSimuladoTemTri`, `fetchIesStudentCount`, `fetchStudentGrowthTri`, `fetchAlunoContato` (de `src/services/institutional.ts`); hook `useInstitutionalPerformanceData(filters)`; hook `useDesempenhoV2State()`; tipo `InstitutionalViewModel` e `DesempenhoV2Tab` (de `src/types/desempenhoV2.ts`). Task 5 e Task 6 importam esses símbolos sem alteração de nome.
@@ -440,13 +442,14 @@ git show 58226452^:src/hooks/useInstitutionalPerformanceData.ts > src/hooks/useI
 git show 58226452^:src/hooks/useDesempenhoV2State.ts > src/hooks/useDesempenhoV2State.ts
 git show 58226452^:src/utils/mapInstitutionalData.ts > src/utils/mapInstitutionalData.ts
 git show 58226452^:src/utils/desempenhoV2Filters.ts > src/utils/desempenhoV2Filters.ts
+git show 58226452^:src/utils/activeBase.ts > src/utils/activeBase.ts
 git show 58226452^:src/types/desempenhoV2.ts > src/types/desempenhoV2.ts
 git show 58226452^:src/mocks/desempenhoInstitucionalV2.ts > src/mocks/desempenhoInstitucionalV2.ts
 ```
 
 - [ ] **Step 2: Checar se algum import desses arquivos aponta para algo que não existe mais**
 
-Run: `npx tsc --noEmit -p . 2>&1 | grep -E "institutional|desempenhoV2|useDesempenhoV2State"`
+Run: `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -E "institutional|desempenhoV2|useDesempenhoV2State"`
 
 Expected: idealmente vazio. Se aparecer erro de import quebrado (ex.: `withRetry` de `@/utils/networkRetry`, `Logger` de `@/utils/logger`, `withTimeout` local), abra o arquivo alvo do import e confirme se ele ainda existe com o mesmo nome exportado — esses três são utilitários genéricos usados em dezenas de outros arquivos ativos hoje, então a expectativa é que sigam intactos. Se algum símbolo específico realmente sumiu (não o arquivo inteiro), ajuste **só a linha do import** no arquivo restaurado para o equivalente atual — não invente um novo utilitário. Se o arquivo inteiro sumiu sem substituto, pare e escale para o Felipe antes de prosseguir — é sinal de que a Task 4 depende de mais uma peça que a spec não previu.
 
@@ -512,7 +515,7 @@ git show 58226452^:src/utils/institutionalReportXlsx.ts > src/utils/institutiona
 
 - [ ] **Step 2: Checar imports quebrados, mesmo procedimento da Task 4**
 
-Run: `npx tsc --noEmit -p . 2>&1 | grep -E "analytics/v2|institutionalReport"`
+Run: `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -E "analytics/v2|institutionalReport"`
 
 Expected: idealmente vazio. Mesmo critério da Task 4 — corrija só a linha de import quebrada nos arquivos restaurados (ex.: se algum componente de UI compartilhado, tipo `Button`/`Badge`/`Tooltip` de `@/components/ui/*`, mudou de props obrigatórias desde 05/08, ajuste a chamada no arquivo restaurado, nunca o componente de UI compartilhado em si). Se um import inteiro não tiver mais equivalente, pare e escale.
 
@@ -588,7 +591,7 @@ O restante do arquivo (imports de `InstitutionalHeader`, `GlobalFilterBar`, `Exp
 
 - [ ] **Step 3: Checar imports quebrados**
 
-Run: `npx tsc --noEmit -p . 2>&1 | grep -E "experiences/gestor"`
+Run: `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -E "experiences/gestor"`
 
 Expected: vazio, exceto possivelmente `src/experiences/gestor/GestorFeatureGate.tsx` reclamando de `getDefaultRouteForUser` — confirme que esse util ainda existe em `@/utils/experiences` com a mesma assinatura (é consumido hoje por `ExperienceGuard.tsx`, então deve estar intacto). Mesmo critério de escalar das Tasks 4/5 se algo além disso quebrar.
 
@@ -878,7 +881,7 @@ export const gestorV2Routes = (): RouteObject[] => {
 
 - [ ] **Step 6: Checar imports/tipos**
 
-Run: `npx tsc --noEmit -p . 2>&1 | grep -E "gestorV2Routes|portalV2Gates|useGestorPortalVersao"`
+Run: `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep -E "gestorV2Routes|portalV2Gates|useGestorPortalVersao"`
 Expected: vazio.
 
 - [ ] **Step 7: Commit**
@@ -1006,7 +1009,7 @@ Expected: todos os testes passam, incluindo os novos das Tasks 1–3 e 7–8 e o
 
 - [ ] **Step 2: Type-check na árvore inteira**
 
-Run: `npx tsc --noEmit -p .`
+Run: `npx tsc --noEmit -p tsconfig.app.json`
 Expected: exit 0. Este projeto já teve suíte verde com type-check quebrado três vezes na mesma frente (memória `portal-gestor-v2`) — não pular este passo.
 
 - [ ] **Step 3: Build**
