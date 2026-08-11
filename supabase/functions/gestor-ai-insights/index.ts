@@ -290,7 +290,14 @@ interface AlunoBody {
   iesId: string;
   alunoId: string;
   simulados: string[];
+  /**
+   * Visão ativa do bloco "Desempenho por área" no drawer: `"todos"` (consolidado
+   * ponderado pelas questões respondidas) ou o id do simulado selecionado.
+   * Entra na chave de cache — consolidado e por simulado são leituras distintas.
+   */
+  visao?: string | null;
   refresh?: boolean;
+
 }
 
 interface MovimentoBody {
