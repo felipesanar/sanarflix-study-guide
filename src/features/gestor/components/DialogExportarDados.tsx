@@ -246,10 +246,13 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                 </p>
               ) : (
                 <SeletorSimulados
+                  inline
+                  opcional
                   itens={itensCronograma}
                   selecionados={simuladosValidos}
                   onChange={setSimuladosArquivo}
                 />
+
               )}
               <p className="mt-2" style={{ fontSize: 12, color: 'var(--gp-text-3)' }}>
                 Escolher aqui só muda este arquivo. O filtro das telas continua como está.

@@ -52,7 +52,21 @@ export interface SeletorSimuladosProps {
   itens: ItemCronograma[];
   selecionados: string[];
   onChange: (ids: string[]) => void;
+  /**
+   * `true` = a lista fica sempre aberta e no fluxo do documento, sem popover
+   * flutuante. É o que o drawer de exportação precisa: lá dentro um painel
+   * `absolute` cai por cima dos blocos do arquivo e fica ilegível.
+   */
+  inline?: boolean;
+  /**
+   * `true` = nenhum simulado escolhido é estado válido (é o caso do arquivo de
+   * exportação, que sempre tem blocos do período). Sem isso o controle pinta a
+   * borda de erro e cobra uma escolha que ali não é obrigatória.
+   */
+  opcional?: boolean;
+
 }
+
 
 /** Ordena por data desc (sem data vai para o fim) — usado no atalho de recentes. */
 function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
@@ -75,11 +89,20 @@ function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
  * indisponível DEPOIS de selecionado (a outra metade da correção, o filtro de
  * ids indisponíveis, mora em `routes/Detalhamento.tsx`).
  */
-export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimuladosProps) {
-  const [aberto, setAberto] = React.useState(false);
+export function SeletorSimulados({
+  itens,
+  selecionados,
+  onChange,
+  inline = false,
+  opcional = false,
+
+}: SeletorSimuladosProps) {
+  const [abertoPorClique, setAberto] = React.useState(false);
+  const aberto = inline || abertoPorClique;
   const idPainel = React.useId();
   const raiz = React.useRef<HTMLDivElement>(null);
   const painel = React.useRef<HTMLDivElement>(null);
+
 
   const semSelecao = selecionados.length === 0;
   const excedeLegibilidade = selecionados.length > LIMITE_LEGIBILIDADE;
@@ -102,7 +125,7 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
   // Fecha no ESC e no clique fora: o painel flutua sobre o conteúdo, então
   // precisa das duas saídas que todo mundo já espera de um popover.
   React.useEffect(() => {
-    if (!aberto) return;
+    if (!aberto || inline) return;
     const noEsc = (evento: KeyboardEvent) => {
       if (evento.key === 'Escape') setAberto(false);
     };
@@ -115,16 +138,17 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
       document.removeEventListener('keydown', noEsc);
       document.removeEventListener('mousedown', noClique);
     };
-  }, [aberto]);
+  }, [aberto, inline]);
 
   // Abriu = o teclado precisa de um ponto de entrada dentro do painel. Sem a
   // busca, esse ponto é o primeiro controle focável (atalho ou 1ª linha).
   React.useEffect(() => {
-    if (!aberto) return;
+    if (!aberto || inline) return;
     painel.current
       ?.querySelector<HTMLElement>('button, input[type="checkbox"]:not([disabled])')
       ?.focus();
-  }, [aberto]);
+  }, [aberto, inline]);
+
 
   const maisRecentes = [...disponiveis].sort(porDataDesc).slice(0, 2);
   const doisMaisRecentes = maisRecentes.map((item) => item.id);
@@ -233,7 +257,7 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
       data-testid="seletor-simulados"
       className={cn(
         'relative rounded-xl border border-border bg-card p-3.5',
-        semSelecao && 'border-destructive ring-2 ring-destructive/20',
+        semSelecao && !opcional && 'border-destructive ring-2 ring-destructive/20',
       )}
     >
       {/* Cabeçalho: o que é isto, quantos entraram e a saída rápida. */}
@@ -310,25 +334,31 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
           </span>
         ))}
 
-        <button
-          type="button"
-          onClick={() => setAberto((estava) => !estava)}
-          aria-expanded={aberto}
-          // Só referencia o painel quando ele existe: `aria-controls` apontando
-          // para um id ausente é atributo inválido para a AT (e para o axe).
-          aria-controls={aberto ? idPainel : undefined}
-          aria-label="Escolher simulados"
-          className="flex flex-1 items-center justify-between gap-2 rounded-sm py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span className="text-[color:var(--gp-text-3)]">
-            {semSelecao ? 'Selecione 1 ou mais simulados' : 'Adicionar outro'}
+        {inline ? (
+          <span className="flex-1 py-0.5 text-[color:var(--gp-text-3)]">
+            {semSelecao ? 'Marque os simulados na lista abaixo' : 'Marque outro na lista abaixo'}
           </span>
-          <Icon
-            name={aberto ? 'expand_less' : 'expand_more'}
-            size={16}
-            className="text-[color:var(--gp-text-3)]"
-          />
-        </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAberto((estava) => !estava)}
+            aria-expanded={aberto}
+            // Só referencia o painel quando ele existe: `aria-controls` apontando
+            // para um id ausente é atributo inválido para a AT (e para o axe).
+            aria-controls={aberto ? idPainel : undefined}
+            aria-label="Escolher simulados"
+            className="flex flex-1 items-center justify-between gap-2 rounded-sm py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="text-[color:var(--gp-text-3)]">
+              {semSelecao ? 'Selecione 1 ou mais simulados' : 'Adicionar outro'}
+            </span>
+            <Icon
+              name={aberto ? 'expand_less' : 'expand_more'}
+              size={16}
+              className="text-[color:var(--gp-text-3)]"
+            />
+          </button>
+        )}
       </div>
 
       {aberto && (
@@ -338,7 +368,13 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
 
           role="group"
           aria-label="Simulados do recorte"
-          className="absolute left-3.5 right-3.5 z-30 mt-2 overflow-hidden animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]"
+          className={cn(
+            'mt-2 overflow-hidden',
+            inline
+              ? 'relative'
+              : 'absolute left-3.5 right-3.5 z-30 animate-in fade-in-0 slide-in-from-top-1 [animation-duration:140ms]',
+          )}
+
           style={{
             border: '1px solid var(--gp-border-strong)',
             borderRadius: 'var(--gp-radius-md)',
@@ -454,20 +490,23 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
             <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
               {selecionados.length} selecionado{selecionados.length === 1 ? '' : 's'}
             </span>
-            <button
-              type="button"
-              onClick={() => setAberto(false)}
-              className="rounded-sm px-2.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                background: 'var(--gp-brand)',
-                color: 'var(--gp-on-brand)',
-                borderRadius: 'var(--gp-radius-sm)',
-              }}
-            >
-              Concluir
-            </button>
+            {!inline && (
+              <button
+                type="button"
+                onClick={() => setAberto(false)}
+                className="rounded-sm px-2.5 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: 'var(--gp-brand)',
+                  color: 'var(--gp-on-brand)',
+                  borderRadius: 'var(--gp-radius-sm)',
+                }}
+              >
+                Concluir
+              </button>
+            )}
+
           </div>
         </div>
       )}
@@ -480,7 +519,7 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
         Previstos/em processamento ficam desabilitados.
       </p>
 
-      {semSelecao && (
+      {semSelecao && !opcional && (
         // Contraste AA: `text-destructive` reprovava sobre o bg-card (3,78:1 no
         // claro). `gp-text-danger` (--gp-danger-on) dá 11,09:1 / 7,15:1.
         <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm gp-text-danger">
