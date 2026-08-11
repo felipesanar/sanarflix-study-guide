@@ -937,7 +937,26 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const container = useGestorPortalContainer();
   const { toast } = useToast();
 
+  /**
+   * Simulado escolhido para a seção "Desempenho por área" (achado 11/08).
+   *
+   * O bloco de área SEMPRE fala de UM simulado (nunca fundido — regra de
+   * agregação honesta), mas até aqui esse simulado era imposto: o mais recente
+   * com classificação por área, ainda que fosse um simulado sem nota TRI
+   * liberada. Resultado real em produção: selo "Proficiente 80,3" (1º simulado)
+   * no topo e barras de 0–28% (3º simulado, resultado em processamento)
+   * embaixo, sem nada dizendo que eram simulados diferentes.
+   *
+   * O par `{ aluno, simulado }` no estado é o que dispensa `useEffect` de
+   * reset: se o `alunoId` do estado não é o aluno em tela, a escolha não vale
+   * e o padrão volta a decidir.
+   */
+  const [areaEscolhida, setAreaEscolhida] = React.useState<{ aluno: string; simulado: string } | null>(
+    null,
+  );
+
   if (!alunoId) return null;
+
 
   const semestre = entradas[0]?.semestre ?? null;
 
