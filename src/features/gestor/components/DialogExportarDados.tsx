@@ -82,7 +82,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
     setGerando(formato);
     try {
       const arquivo = exportarRecorte(formato, { iesNome, semestreRotulo, visaoGeral, meta });
-      exportSolicitado('inicio');
+      exportSolicitado('visao_geral');
       toast({ description: `Arquivo gerado: ${arquivo}` });
       onAbertoChange(false);
     } catch {
@@ -159,7 +159,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                   </span>
                 </span>
                 <span className="flex flex-none items-center" style={{ color: 'var(--gp-border-input)' }}>
-                  <Icon name={gerando === formato.id ? 'downloading' : 'download'} size={20} />
+                  <Icon name="download" size={20} />
                 </span>
               </button>
             ))}
