@@ -464,16 +464,12 @@ export interface Questao {
    * por alternativa (`DistribuicaoAlternativas`) chama ao clicar numa
    * alternativa para listar quem a marcou.
    *
-   * OPCIONAL, e por um motivo real: `get_gestor_questoes` (mesma migration
-   * acima) SELECIONA `q.id` internamente (`q_base`/`q_full`/`q_alts` o usam
-   * para fazer JOIN entre as CTEs) mas nunca o inclui no `jsonb_build_object`
-   * de cada questão — conferido nas duas versões da função (a `CREATE OR
-   * REPLACE` de 29/07 e o patch textual de 09/08, nenhuma das duas expõe uma
-   * chave `id`/`questaoId`). Até uma migration futura acrescentar essa chave,
-   * este campo chega `undefined` em todo payload real, e a UI mostra "lista
-   * indisponível" no clique em vez de chamar a RPC com um id inventado.
+   * Exposto pela RPC `get_gestor_questoes` desde a migration de 11/08 (chave
+   * `'id', o.id` no `jsonb_build_object` de cada questão). Segue opcional no
+   * tipo apenas para não quebrar fixtures antigas; em payload real vem sempre.
    */
   id?: string;
+
 }
 
 /**
