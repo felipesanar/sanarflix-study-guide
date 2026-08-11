@@ -206,13 +206,12 @@ describe('TabelaQuestoes', () => {
   it('a coluna de índice de acerto tem barra colorida pela régua única, e o crítico marca o valor', () => {
     render(<TabelaQuestoes {...props()} />);
 
-    // 42% e 28% = crítico com o corte de 50 (lib/regras.nivelDesempenho).
+    // Com NIVEL_CRITICO_MAX = 50, tanto 42% como 28% são críticos.
     expect(screen.getByTestId('barra-acerto-1')).toBeInTheDocument();
     const critica = screen.getByTestId('linha-questao-2');
     expect(within(critica).getByText('28%').className).toMatch(/gp-text-danger/);
-    // O mediano não é pintado de vermelho.
-    const mediana = screen.getByTestId('linha-questao-1');
-    expect(within(mediana).getByText('42%').className).not.toMatch(/gp-text-danger/);
+    const tambemCritica = screen.getByTestId('linha-questao-1');
+    expect(within(tambemCritica).getByText('42%').className).toMatch(/gp-text-danger/);
   });
 
   it('acertoPct null não desenha barra e mostra TRACO (§4.10)', () => {
