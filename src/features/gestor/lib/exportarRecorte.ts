@@ -1,41 +1,139 @@
 /**
- * Exportação do RECORTE INSTITUCIONAL (pedido de 11/08) — o export que existia
- * no painel institucional antigo e saiu junto com aquela rota. Aqui ele volta
- * como terceira opção do Início ("Exportar dados"), em dois formatos:
+ * Exportação do RECORTE INSTITUCIONAL — o relatório que existia no painel
+ * institucional antigo, agora como terceira opção do Início ("Exportar dados").
  *
- *  - PDF: relatório de leitura, uma folha A4 retrato com KPIs, evolução,
- *    diagnóstico por grande área e distribuição de alunos.
- *  - XLSX: planilha formatada (larguras, cabeçalho congelado, formato numérico
- *    por coluna), uma aba por bloco, para quem vai continuar a análise.
+ * Dois formatos, mesmo conteúdo:
+ *  - PDF: relatório de leitura (capa vinho, seções, KPIs, tabelas zebradas,
+ *    rodapé paginado) desenhado por `lib/relatorioPdf.ts`.
+ *  - XLSX: planilha formatada — uma aba por bloco, largura de coluna,
+ *    cabeçalho congelado e formato numérico por coluna.
  *
- * Privacidade (handoff §7.7): NENHUM dos dois leva lista nominal de aluno — só
- * agregados que já estão na tela. O gate de `podeExportar` fica em quem chama.
+ * O gestor ESCOLHE os blocos (`BlocoExport`). Blocos que dependem de simulado
+ * selecionado só ficam disponíveis quando há simulado no recorte; a lista
+ * nominal de alunos é opcional, sai desmarcada e leva aviso de LGPD no arquivo.
  *
  * Regras de dado (CLAUDE.md §2): nada é inventado. Valor ausente sai como
  * TRAÇO no PDF e como célula VAZIA no XLSX — nunca zero.
  */
 
-import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
-import type { Meta, VisaoGeral } from '@/features/gestor/api/types';
-import { ROTULO_GRUPO_PLURAL, ROTULO_NIVEL, TRACO } from '@/features/gestor/lib/rotulos';
+import type {
+  Detalhamento,
+  LinhaAluno,
+  Meta,
+  Questao,
+  VisaoGeral,
+} from '@/features/gestor/api/types';
+import {
+  ROTULO_GRUPO_PLURAL,
+  ROTULO_NIVEL,
+  ROTULO_TENDENCIA,
+  TRACO,
+  rotuloGrupo,
+} from '@/features/gestor/lib/rotulos';
+import { Relatorio, type Celula, type Coluna } from '@/features/gestor/lib/relatorioPdf';
 
 export type FormatoExport = 'pdf' | 'xlsx';
+
+export type BlocoExport =
+  | 'indicadores'
+  | 'evolucao'
+  | 'areas'
+  | 'distribuicao'
+  | 'metricasSimulados'
+  | 'acertoSemestre'
+  | 'questoes'
+  | 'alunos';
+
+export interface DefinicaoBloco {
+  id: BlocoExport;
+  titulo: string;
+  descricao: string;
+  /** `true` quando o bloco só existe com simulado escolhido no recorte. */
+  exigeSimulado?: boolean;
+  /** `true` quando o bloco só existe com UM simulado escolhido. */
+  exigeSimuladoUnico?: boolean;
+  /** `true` para bloco com dado nominal de aluno (LGPD). */
+  nominal?: boolean;
+}
+
+/** Catálogo dos blocos exportáveis, na ordem em que entram no arquivo. */
+export const BLOCOS_EXPORT: readonly DefinicaoBloco[] = [
+  {
+    id: 'indicadores',
+    titulo: 'Indicadores do recorte',
+    descricao: 'Conceito ENAMED, proficiência, acerto médio e simulados com nota.',
+  },
+  {
+    id: 'evolucao',
+    titulo: 'Evolução institucional',
+    descricao: 'Proficiência e participantes simulado a simulado.',
+  },
+  {
+    id: 'areas',
+    titulo: 'Acerto por grande área',
+    descricao: 'Percentual de acerto e classificação de cada grande área.',
+  },
+  {
+    id: 'distribuicao',
+    titulo: 'Distribuição de alunos',
+    descricao: 'Quantos alunos estão em cada grupo de evolução.',
+  },
+  {
+    id: 'metricasSimulados',
+    titulo: 'Resultado por simulado',
+    descricao: 'Participantes, acerto médio e proficiência de cada simulado escolhido.',
+    exigeSimulado: true,
+  },
+  {
+    id: 'acertoSemestre',
+    titulo: 'Acerto por semestre',
+    descricao: 'Percentual de acerto de cada semestre nos simulados escolhidos.',
+    exigeSimulado: true,
+  },
+  {
+    id: 'questoes',
+    titulo: 'Questão por questão',
+    descricao: 'Acerto de cada questão, com área, especialidade e tema.',
+    exigeSimuladoUnico: true,
+  },
+  {
+    id: 'alunos',
+    titulo: 'Lista de alunos',
+    descricao: 'Nome, semestre, grupo e proficiência de cada aluno do recorte.',
+    nominal: true,
+  },
+];
+
+export const BLOCOS_PADRAO: readonly BlocoExport[] = [
+  'indicadores',
+  'evolucao',
+  'areas',
+  'distribuicao',
+];
 
 export interface DadosExportRecorte {
   iesNome: string;
   /** Rótulo legível do recorte de semestre, ex.: "6º ano" / "Geral" / "8º período". */
   semestreRotulo: string;
+  /** Nomes dos simulados escolhidos no recorte (vazio = nenhum escolhido). */
+  simuladosRotulos?: string[];
   visaoGeral: VisaoGeral;
+  detalhamento?: Detalhamento;
+  questoes?: Questao[];
+  alunos?: LinhaAluno[];
   meta?: Meta;
 }
 
-const pct = (valor: number | null): string =>
+const AVISO_LGPD =
+  'Este arquivo contém dados nominais de alunos. Trate como informação pessoal: compartilhe apenas com quem tem finalidade pedagógica legítima e não publique em canais abertos (LGPD, art. 6º).';
+
+const pct = (valor: number | null | undefined): string =>
   valor === null || valor === undefined || Number.isNaN(valor)
     ? TRACO
     : `${valor.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 
-const num = (valor: number | null): string =>
+const num = (valor: number | null | undefined): string =>
   valor === null || valor === undefined || Number.isNaN(valor)
     ? TRACO
     : valor.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
@@ -47,10 +145,21 @@ const dataBr = (iso: string | null): string => {
 };
 
 /** Célula de planilha: `null` vira vazio (nunca 0) — mesma regra do TRAÇO na UI. */
-const celula = (valor: number | null): number | null =>
+const celula = (valor: number | null | undefined): number | null =>
   valor === null || valor === undefined || Number.isNaN(valor) ? null : valor;
 
-function nomeArquivo(dados: DadosExportRecorte, ext: FormatoExport): string {
+/** Blocos que o recorte atual comporta — a UI usa isto para habilitar as opções. */
+export function blocosDisponiveis(quantidadeSimulados: number): Set<BlocoExport> {
+  const disponiveis = new Set<BlocoExport>();
+  BLOCOS_EXPORT.forEach((bloco) => {
+    if (bloco.exigeSimuladoUnico && quantidadeSimulados !== 1) return;
+    if (bloco.exigeSimulado && quantidadeSimulados < 1) return;
+    disponiveis.add(bloco.id);
+  });
+  return disponiveis;
+}
+
+export function nomeArquivoExport(dados: DadosExportRecorte, ext: FormatoExport): string {
   const agora = new Date();
   const data = [
     agora.getFullYear(),
@@ -65,178 +174,271 @@ function nomeArquivo(dados: DadosExportRecorte, ext: FormatoExport): string {
     .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .toLowerCase();
-  return `gestor-${miolo || 'recorte'}-${data}.${ext}`;
+  return `relatorio-${miolo || 'recorte'}-${data}.${ext}`;
 }
 
 /* ------------------------------- blocos de dado ------------------------------ */
 
-interface Linha {
-  rotulo: string;
-  valores: string[];
+const nivelDoAcerto = (valor: number | null): Celula['tom'] => {
+  if (valor === null) return 'suave';
+  if (valor >= 80) return 'sucesso';
+  if (valor < 30) return 'perigo';
+  return 'normal';
+};
+
+interface Tabela {
+  colunas: Coluna[];
+  linhas: Celula[][];
 }
 
-function linhasKpis(vg: VisaoGeral): Linha[] {
-  const k = vg.kpis;
-  return [
-    {
-      rotulo: 'Conceito ENAMED projetado',
-      valores: [
-        num(k.enamedProjetado.valor),
-        k.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
-      ],
-    },
-    { rotulo: 'Alunos proficientes', valores: [pct(k.proficientesPct.valor), ''] },
-    { rotulo: 'Acerto médio', valores: [pct(k.acertoPct.valor), ''] },
-    {
-      rotulo: 'Simulados com nota',
-      valores: [
-        `${k.simulados.realizados}`,
-        k.simulados.contratados === null ? TRACO : `de ${k.simulados.contratados} contratados`,
-      ],
-    },
-    { rotulo: 'Alunos matriculados no recorte', valores: [num(vg.alunosMatriculadosNoRecorte), ''] },
-  ];
+function tabelaEvolucao(vg: VisaoGeral): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Ordem', fracao: 0.12 },
+      { titulo: 'Simulado', fracao: 0.42 },
+      { titulo: 'Data', fracao: 0.14, alinhar: 'centro' },
+      { titulo: 'Proficiência', fracao: 0.16, alinhar: 'direita' },
+      { titulo: 'Participantes', fracao: 0.16, alinhar: 'direita' },
+    ],
+    linhas: vg.evolucao.map((ponto, i) => [
+      { texto: `${i + 1}º`, tom: 'suave' as const },
+      { texto: ponto.nome },
+      { texto: dataBr(ponto.data), tom: 'suave' as const },
+      { texto: pct(ponto.valor), negrito: true },
+      { texto: num(ponto.participantes) },
+    ]),
+  };
 }
 
-function linhasEvolucao(vg: VisaoGeral): Linha[] {
-  return vg.evolucao.map((ponto, indice) => ({
-    rotulo: `${indice + 1}º simulado`,
-    valores: [ponto.nome, dataBr(ponto.data), pct(ponto.valor), num(ponto.participantes)],
-  }));
+function tabelaAreas(vg: VisaoGeral): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Grande área', fracao: 0.5 },
+      { titulo: 'Acerto', fracao: 0.2, alinhar: 'direita' },
+      { titulo: 'Classificação', fracao: 0.3 },
+    ],
+    linhas: vg.diagnosticoResumo.flatMap((bloco) =>
+      bloco.areas.map((area) => [
+        { texto: area.nome },
+        { texto: pct(area.acertoPct), negrito: true, tom: nivelDoAcerto(area.acertoPct) },
+        { texto: ROTULO_NIVEL[bloco.nivel], tom: 'suave' as const },
+      ]),
+    ),
+  };
 }
 
-function linhasDiagnostico(vg: VisaoGeral): Linha[] {
-  return vg.diagnosticoResumo.flatMap((bloco) =>
-    bloco.areas.map((area) => ({
-      rotulo: area.nome,
-      valores: [pct(area.acertoPct), ROTULO_NIVEL[bloco.nivel]],
-    })),
-  );
+function tabelaDistribuicao(vg: VisaoGeral): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Grupo', fracao: 0.56 },
+      { titulo: 'Alunos', fracao: 0.22, alinhar: 'direita' },
+      { titulo: '% do recorte', fracao: 0.22, alinhar: 'direita' },
+    ],
+    linhas: vg.distribuicaoAlunos.map((item) => [
+      { texto: ROTULO_GRUPO_PLURAL[item.grupo] },
+      { texto: num(item.quantidade), negrito: true },
+      { texto: pct(item.percentual) },
+    ]),
+  };
 }
 
-function linhasDistribuicao(vg: VisaoGeral): Linha[] {
-  return vg.distribuicaoAlunos.map((item) => ({
-    rotulo: ROTULO_GRUPO_PLURAL[item.grupo],
-    valores: [num(item.quantidade), pct(item.percentual)],
-  }));
+function tabelaMetricas(det: Detalhamento | undefined): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Simulado', fracao: 0.36 },
+      { titulo: 'Data', fracao: 0.13, alinhar: 'centro' },
+      { titulo: 'Participantes', fracao: 0.15, alinhar: 'direita' },
+      { titulo: 'Acerto médio', fracao: 0.14, alinhar: 'direita' },
+      { titulo: 'Proficiência', fracao: 0.13, alinhar: 'direita' },
+      { titulo: 'ENAMED', fracao: 0.09, alinhar: 'direita' },
+    ],
+    linhas: (det?.metricas ?? []).map((m) => [
+      { texto: m.nome },
+      { texto: dataBr(m.data), tom: 'suave' as const },
+      { texto: num(m.participantes) },
+      { texto: pct(m.acertoMedioPct) },
+      { texto: pct(m.proficienciaMedia), negrito: true },
+      { texto: num(m.enamedProjetado) },
+    ]),
+  };
+}
+
+function tabelaAcertoSemestre(det: Detalhamento | undefined): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Semestre', fracao: 0.5 },
+      { titulo: 'Acerto', fracao: 0.25, alinhar: 'direita' },
+      { titulo: 'Em evidência', fracao: 0.25, alinhar: 'centro' },
+    ],
+    linhas: (det?.acertoPorAreaESemestre.semestres ?? []).map((s) => [
+      { texto: `${s.semestre}º período` },
+      { texto: pct(s.acertoPct), negrito: true, tom: nivelDoAcerto(s.acertoPct) },
+      { texto: s.emEvidencia ? 'Sim' : TRACO, tom: 'suave' as const },
+    ]),
+  };
+}
+
+function tabelaQuestoes(questoes: Questao[] | undefined): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Nº', fracao: 0.07, alinhar: 'centro' },
+      { titulo: 'Grande área', fracao: 0.22 },
+      { titulo: 'Especialidade', fracao: 0.24 },
+      { titulo: 'Tema', fracao: 0.31 },
+      { titulo: 'Acerto', fracao: 0.16, alinhar: 'direita' },
+    ],
+    linhas: (questoes ?? []).map((q) => [
+      { texto: String(q.numero), tom: 'suave' as const },
+      { texto: q.grandeArea },
+      { texto: q.especialidade },
+      { texto: q.tema },
+      { texto: pct(q.acertoPct), negrito: true, tom: nivelDoAcerto(q.acertoPct) },
+    ]),
+  };
+}
+
+function tabelaAlunos(alunos: LinhaAluno[] | undefined): Tabela {
+  const linhas = (alunos ?? []).map((aluno) => {
+    const notas = aluno.proficiencias.map((p) => p.valor).filter((v): v is number => v !== null);
+    const ultima = notas.length > 0 ? notas[notas.length - 1] : null;
+    return [
+      { texto: aluno.nome },
+      { texto: aluno.semestre === null ? TRACO : `${aluno.semestre}º`, tom: 'suave' as const },
+      { texto: rotuloGrupo(aluno.grupo) },
+      { texto: ROTULO_TENDENCIA[aluno.tendencia], tom: 'suave' as const },
+      { texto: num(notas.length) },
+      { texto: pct(ultima), negrito: true, tom: nivelDoAcerto(ultima) },
+    ] satisfies Celula[];
+  });
+  return {
+    colunas: [
+      { titulo: 'Aluno', fracao: 0.32 },
+      { titulo: 'Semestre', fracao: 0.11, alinhar: 'centro' },
+      { titulo: 'Grupo', fracao: 0.24 },
+      { titulo: 'Tendência', fracao: 0.13 },
+      { titulo: 'Simulados com nota', fracao: 0.1, alinhar: 'direita' },
+      { titulo: 'Última proficiência', fracao: 0.1, alinhar: 'direita' },
+    ],
+    linhas,
+  };
 }
 
 /* ----------------------------------- PDF ----------------------------------- */
 
-const MARGEM = 14;
-const CINZA = 110;
-
-/** Uma tabela simples desenhada à mão (sem jspdf-autotable, que não está no bundle). */
-function tabela(
-  doc: jsPDF,
-  y: number,
-  titulo: string,
-  cabecalhos: string[],
-  linhas: Linha[],
-  larguras: number[],
-): number {
-  const larguraUtil = doc.internal.pageSize.getWidth() - MARGEM * 2;
-  const alturaPagina = doc.internal.pageSize.getHeight();
-  let cursor = y;
-
-  const novaPaginaSePreciso = (altura: number) => {
-    if (cursor + altura > alturaPagina - MARGEM) {
-      doc.addPage();
-      cursor = MARGEM;
-    }
-  };
-
-  novaPaginaSePreciso(18);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(30);
-  doc.text(titulo, MARGEM, cursor);
-  cursor += 5;
-
-  const colunas = [larguraUtil - larguras.reduce((a, b) => a + b, 0), ...larguras];
-  const desenharLinha = (celulas: string[], negrito: boolean) => {
-    novaPaginaSePreciso(7);
-    doc.setFont('helvetica', negrito ? 'bold' : 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(negrito ? CINZA : 40);
-    let x = MARGEM;
-    celulas.forEach((texto, i) => {
-      const largura = colunas[i] ?? 25;
-      const cortado = doc.splitTextToSize(texto || '', largura - 2)[0] ?? '';
-      doc.text(cortado, x, cursor);
-      x += largura;
-    });
-    cursor += 5.2;
-    doc.setDrawColor(228);
-    doc.line(MARGEM, cursor - 3.4, MARGEM + larguraUtil, cursor - 3.4);
-  };
-
-  desenharLinha(cabecalhos, true);
-  if (linhas.length === 0) {
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.setTextColor(CINZA);
-    doc.text('Sem dados para este recorte.', MARGEM, cursor);
-    cursor += 5.2;
-  } else {
-    linhas.forEach((linha) => desenharLinha([linha.rotulo, ...linha.valores], false));
-  }
-
-  return cursor + 6;
-}
-
-export function exportarRecortePdf(dados: DadosExportRecorte): string {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
+  const escolhidos = BLOCOS_EXPORT.filter((b) => blocos.includes(b.id));
+  const relatorio = new Relatorio();
+  const geradoEm = new Date().toLocaleString('pt-BR');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(25);
-  doc.text('Relatório institucional', MARGEM, 20);
+  const linhasCapa = [
+    `Recorte de semestre: ${dados.semestreRotulo}`,
+    dados.meta?.periodo ? `Período: ${dados.meta.periodo}` : '',
+    dados.simuladosRotulos && dados.simuladosRotulos.length > 0
+      ? `Simulados: ${dados.simuladosRotulos.join(' · ')}`
+      : 'Simulados: todos os do recorte',
+  ].filter(Boolean);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(CINZA);
-  doc.text(`${dados.iesNome || 'Instituição'} · ${dados.semestreRotulo}`, MARGEM, 26.5);
-  doc.text(
-    `Gerado em ${new Date().toLocaleString('pt-BR')}${dados.meta?.periodo ? ` · Período: ${dados.meta.periodo}` : ''}`,
-    MARGEM,
-    31.5,
-  );
+  relatorio.capa({
+    instituicao: dados.iesNome,
+    recorte: dados.semestreRotulo,
+    linhas: linhasCapa,
+    dataExtenso: new Date().toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }),
+  });
 
-  let y = 42;
-  y = tabela(doc, y, 'Indicadores do recorte', ['Indicador', 'Valor', 'Observação'], linhasKpis(vg), [30, 45]);
-  y = tabela(
-    doc,
-    y,
-    'Evolução institucional',
-    ['Ordem', 'Simulado', 'Data', 'Proficiência', 'Participantes'],
-    linhasEvolucao(vg),
-    [60, 22, 26, 26],
-  );
-  y = tabela(doc, y, 'Acerto por grande área', ['Grande área', 'Acerto', 'Classificação'], linhasDiagnostico(vg), [
-    24,
-    50,
-  ]);
-  y = tabela(doc, y, 'Distribuição de alunos', ['Grupo', 'Alunos', '% do recorte'], linhasDistribuicao(vg), [26, 30]);
+  if (escolhidos.length > 1) relatorio.sumario(escolhidos.map((b) => b.titulo));
 
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(8);
-  doc.setTextColor(140);
-  doc.text(
-    'Dados agregados do recorte selecionado. Nenhuma informação nominal de aluno é incluída neste arquivo.',
-    MARGEM,
-    Math.min(y + 2, doc.internal.pageSize.getHeight() - 8),
-  );
+  escolhidos.forEach((bloco) => {
+    switch (bloco.id) {
+      case 'indicadores': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        relatorio.kpis([
+          {
+            rotulo: 'Conceito ENAMED projetado (1–5)',
+            valor: num(vg.kpis.enamedProjetado.valor),
+            observacao: vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
+          },
+          { rotulo: 'Alunos proficientes', valor: pct(vg.kpis.proficientesPct.valor) },
+          { rotulo: 'Acerto médio', valor: pct(vg.kpis.acertoPct.valor) },
+          {
+            rotulo: 'Simulados com nota',
+            valor: String(vg.kpis.simulados.realizados),
+            observacao:
+              vg.kpis.simulados.contratados === null
+                ? 'Sem contrato cadastrado'
+                : `de ${vg.kpis.simulados.contratados} contratados`,
+          },
+          {
+            rotulo: 'Alunos matriculados no recorte',
+            valor: num(vg.alunosMatriculadosNoRecorte),
+          },
+        ]);
+        relatorio.nota(
+          'Onde não há dado medido o relatório mostra “—”. Nenhum valor é estimado além do conceito ENAMED marcado como tal.',
+        );
+        break;
+      }
+      case 'evolucao': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        const t = tabelaEvolucao(vg);
+        relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado com nota neste recorte.');
+        break;
+      }
+      case 'areas': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        const t = tabelaAreas(vg);
+        relatorio.tabela(t.colunas, t.linhas);
+        relatorio.nota(
+          'Classificação por percentual de acerto: excelente a partir de 80%, mediano entre 30% e 79%, crítico abaixo de 30%.',
+        );
+        break;
+      }
+      case 'distribuicao': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        const t = tabelaDistribuicao(vg);
+        relatorio.tabela(t.colunas, t.linhas);
+        break;
+      }
+      case 'metricasSimulados': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        const t = tabelaMetricas(dados.detalhamento);
+        relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado escolhido no recorte.');
+        break;
+      }
+      case 'acertoSemestre': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        const t = tabelaAcertoSemestre(dados.detalhamento);
+        relatorio.tabela(t.colunas, t.linhas, 'Sem acerto por semestre neste recorte.');
+        break;
+      }
+      case 'questoes': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        const t = tabelaQuestoes(dados.questoes);
+        relatorio.tabela(t.colunas, t.linhas, 'Questões indisponíveis para este simulado.');
+        break;
+      }
+      case 'alunos': {
+        relatorio.secao(bloco.titulo, bloco.descricao);
+        relatorio.nota(AVISO_LGPD, true);
+        const t = tabelaAlunos(dados.alunos);
+        relatorio.tabela(t.colunas, t.linhas, 'Nenhum aluno com resultado neste recorte.');
+        break;
+      }
+      default:
+        break;
+    }
+  });
 
-  const arquivo = nomeArquivo(dados, 'pdf');
-  doc.save(arquivo);
-  return arquivo;
+  return relatorio.finalizar(nomeArquivoExport(dados, 'pdf'), geradoEm);
 }
 
 /* ----------------------------------- XLSX ---------------------------------- */
 
-/** Formato numérico por coluna (SheetJS: `z` na célula) — percentual com 1 casa, inteiro sem casa. */
+/** Formato numérico por coluna (SheetJS: `z` na célula) — percentual com 1 casa. */
 function aplicarFormato(aba: XLSX.WorkSheet, colunasPct: number[], totalLinhas: number) {
   colunasPct.forEach((col) => {
     for (let linha = 1; linha <= totalLinhas; linha += 1) {
@@ -247,80 +449,175 @@ function aplicarFormato(aba: XLSX.WorkSheet, colunasPct: number[], totalLinhas: 
   });
 }
 
-export function exportarRecorteXlsx(dados: DadosExportRecorte): string {
+export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
   const livro = XLSX.utils.book_new();
 
-  const resumo = XLSX.utils.aoa_to_sheet([
-    ['Relatório institucional'],
+  const capa = XLSX.utils.aoa_to_sheet([
+    ['Relatório de desempenho institucional'],
     ['Instituição', dados.iesNome || TRACO],
-    ['Recorte', dados.semestreRotulo],
-    ['Gerado em', new Date().toLocaleString('pt-BR')],
+    ['Recorte de semestre', dados.semestreRotulo],
+    [
+      'Simulados',
+      dados.simuladosRotulos && dados.simuladosRotulos.length > 0
+        ? dados.simuladosRotulos.join(' · ')
+        : 'Todos os do recorte',
+    ],
     ['Período', dados.meta?.periodo ?? TRACO],
+    ['Gerado em', new Date().toLocaleString('pt-BR')],
+    ['Blocos', BLOCOS_EXPORT.filter((b) => blocos.includes(b.id)).map((b) => b.titulo).join(' · ')],
     [],
-    ['Indicador', 'Valor', 'Observação'],
-    [
-      'Conceito ENAMED projetado (1–5)',
-      celula(vg.kpis.enamedProjetado.valor),
-      vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
-    ],
-    ['Alunos proficientes (%)', celula(vg.kpis.proficientesPct.valor), ''],
-    ['Acerto médio (%)', celula(vg.kpis.acertoPct.valor), ''],
-    [
-      'Simulados com nota',
-      vg.kpis.simulados.realizados,
-      vg.kpis.simulados.contratados === null ? 'Sem contrato cadastrado' : `de ${vg.kpis.simulados.contratados} contratados`,
-    ],
-    ['Alunos matriculados no recorte', vg.alunosMatriculadosNoRecorte, ''],
+    ['Células vazias significam dado não medido — nunca zero.'],
+    ...(blocos.includes('alunos') ? [[AVISO_LGPD]] : []),
   ]);
-  resumo['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 30 }];
-  resumo['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
-  XLSX.utils.book_append_sheet(livro, resumo, 'Resumo');
+  capa['!cols'] = [{ wch: 24 }, { wch: 78 }];
+  capa['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+  XLSX.utils.book_append_sheet(livro, capa, 'Capa');
 
-  const evolucao = XLSX.utils.aoa_to_sheet([
-    ['Ordem', 'Simulado', 'Data', 'Proficiência (%)', 'Participantes'],
-    ...vg.evolucao.map((ponto, i) => [
-      `${i + 1}º simulado`,
-      ponto.nome,
-      dataBr(ponto.data),
-      celula(ponto.valor),
-      ponto.participantes,
-    ]),
-  ]);
-  evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
-  evolucao['!freeze'] = 'A2';
-  aplicarFormato(evolucao, [3], vg.evolucao.length);
-  XLSX.utils.book_append_sheet(livro, evolucao, 'Evolução');
+  if (blocos.includes('indicadores')) {
+    const resumo = XLSX.utils.aoa_to_sheet([
+      ['Indicador', 'Valor', 'Observação'],
+      [
+        'Conceito ENAMED projetado (1–5)',
+        celula(vg.kpis.enamedProjetado.valor),
+        vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
+      ],
+      ['Alunos proficientes (%)', celula(vg.kpis.proficientesPct.valor), ''],
+      ['Acerto médio (%)', celula(vg.kpis.acertoPct.valor), ''],
+      [
+        'Simulados com nota',
+        vg.kpis.simulados.realizados,
+        vg.kpis.simulados.contratados === null
+          ? 'Sem contrato cadastrado'
+          : `de ${vg.kpis.simulados.contratados} contratados`,
+      ],
+      ['Alunos matriculados no recorte', vg.alunosMatriculadosNoRecorte, ''],
+    ]);
+    resumo['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 30 }];
+    resumo['!freeze'] = 'A2';
+    XLSX.utils.book_append_sheet(livro, resumo, 'Indicadores');
+  }
 
-  const areas = XLSX.utils.aoa_to_sheet([
-    ['Grande área', 'Acerto (%)', 'Classificação'],
-    ...vg.diagnosticoResumo.flatMap((bloco) =>
-      bloco.areas.map((area) => [area.nome, celula(area.acertoPct), ROTULO_NIVEL[bloco.nivel]]),
-    ),
-  ]);
-  areas['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 24 }];
-  areas['!freeze'] = 'A2';
-  aplicarFormato(areas, [1], vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0));
-  XLSX.utils.book_append_sheet(livro, areas, 'Acerto por área');
+  if (blocos.includes('evolucao')) {
+    const evolucao = XLSX.utils.aoa_to_sheet([
+      ['Ordem', 'Simulado', 'Data', 'Proficiência (%)', 'Participantes'],
+      ...vg.evolucao.map((ponto, i) => [
+        `${i + 1}º simulado`,
+        ponto.nome,
+        dataBr(ponto.data),
+        celula(ponto.valor),
+        ponto.participantes,
+      ]),
+    ]);
+    evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
+    evolucao['!freeze'] = 'A2';
+    aplicarFormato(evolucao, [3], vg.evolucao.length);
+    XLSX.utils.book_append_sheet(livro, evolucao, 'Evolução');
+  }
 
-  const distribuicao = XLSX.utils.aoa_to_sheet([
-    ['Grupo', 'Alunos', '% do recorte'],
-    ...vg.distribuicaoAlunos.map((item) => [
-      ROTULO_GRUPO_PLURAL[item.grupo],
-      item.quantidade,
-      celula(item.percentual),
-    ]),
-  ]);
-  distribuicao['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 14 }];
-  distribuicao['!freeze'] = 'A2';
-  aplicarFormato(distribuicao, [2], vg.distribuicaoAlunos.length);
-  XLSX.utils.book_append_sheet(livro, distribuicao, 'Distribuição');
+  if (blocos.includes('areas')) {
+    const areas = XLSX.utils.aoa_to_sheet([
+      ['Grande área', 'Acerto (%)', 'Classificação'],
+      ...vg.diagnosticoResumo.flatMap((bloco) =>
+        bloco.areas.map((area) => [area.nome, celula(area.acertoPct), ROTULO_NIVEL[bloco.nivel]]),
+      ),
+    ]);
+    areas['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 24 }];
+    areas['!freeze'] = 'A2';
+    aplicarFormato(areas, [1], vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0));
+    XLSX.utils.book_append_sheet(livro, areas, 'Acerto por área');
+  }
 
-  const arquivo = nomeArquivo(dados, 'xlsx');
+  if (blocos.includes('distribuicao')) {
+    const distribuicao = XLSX.utils.aoa_to_sheet([
+      ['Grupo', 'Alunos', '% do recorte'],
+      ...vg.distribuicaoAlunos.map((item) => [
+        ROTULO_GRUPO_PLURAL[item.grupo],
+        item.quantidade,
+        celula(item.percentual),
+      ]),
+    ]);
+    distribuicao['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 14 }];
+    distribuicao['!freeze'] = 'A2';
+    aplicarFormato(distribuicao, [2], vg.distribuicaoAlunos.length);
+    XLSX.utils.book_append_sheet(livro, distribuicao, 'Distribuição');
+  }
+
+  if (blocos.includes('metricasSimulados')) {
+    const metricas = dados.detalhamento?.metricas ?? [];
+    const aba = XLSX.utils.aoa_to_sheet([
+      ['Simulado', 'Data', 'Participantes', 'Acerto médio (%)', 'Proficiência média (%)', 'ENAMED projetado'],
+      ...metricas.map((m) => [
+        m.nome,
+        dataBr(m.data),
+        m.participantes,
+        celula(m.acertoMedioPct),
+        celula(m.proficienciaMedia),
+        celula(m.enamedProjetado),
+      ]),
+    ]);
+    aba['!cols'] = [{ wch: 46 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 16 }];
+    aba['!freeze'] = 'A2';
+    aplicarFormato(aba, [3, 4], metricas.length);
+    XLSX.utils.book_append_sheet(livro, aba, 'Simulados');
+  }
+
+  if (blocos.includes('acertoSemestre')) {
+    const semestres = dados.detalhamento?.acertoPorAreaESemestre.semestres ?? [];
+    const aba = XLSX.utils.aoa_to_sheet([
+      ['Semestre', 'Acerto (%)', 'Em evidência'],
+      ...semestres.map((s) => [`${s.semestre}º período`, celula(s.acertoPct), s.emEvidencia ? 'Sim' : '']),
+    ]);
+    aba['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 14 }];
+    aba['!freeze'] = 'A2';
+    aplicarFormato(aba, [1], semestres.length);
+    XLSX.utils.book_append_sheet(livro, aba, 'Acerto por semestre');
+  }
+
+  if (blocos.includes('questoes')) {
+    const questoes = dados.questoes ?? [];
+    const aba = XLSX.utils.aoa_to_sheet([
+      ['Nº', 'Grande área', 'Especialidade', 'Tema', 'Acerto (%)'],
+      ...questoes.map((q) => [q.numero, q.grandeArea, q.especialidade, q.tema, celula(q.acertoPct)]),
+    ]);
+    aba['!cols'] = [{ wch: 6 }, { wch: 26 }, { wch: 30 }, { wch: 44 }, { wch: 12 }];
+    aba['!freeze'] = 'A2';
+    aplicarFormato(aba, [4], questoes.length);
+    XLSX.utils.book_append_sheet(livro, aba, 'Questões');
+  }
+
+  if (blocos.includes('alunos')) {
+    const alunos = dados.alunos ?? [];
+    const aba = XLSX.utils.aoa_to_sheet([
+      [AVISO_LGPD],
+      [],
+      ['Aluno', 'Semestre', 'Grupo', 'Tendência', 'Simulados com nota', 'Última proficiência (%)'],
+      ...alunos.map((aluno) => {
+        const notas = aluno.proficiencias.map((p) => p.valor).filter((v): v is number => v !== null);
+        return [
+          aluno.nome,
+          aluno.semestre,
+          rotuloGrupo(aluno.grupo),
+          ROTULO_TENDENCIA[aluno.tendencia],
+          notas.length,
+          celula(notas.length > 0 ? notas[notas.length - 1] : null),
+        ];
+      }),
+    ]);
+    aba['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 22 }];
+    aba['!freeze'] = 'A4';
+    XLSX.utils.book_append_sheet(livro, aba, 'Alunos');
+  }
+
+  const arquivo = nomeArquivoExport(dados, 'xlsx');
   XLSX.writeFile(livro, arquivo);
   return arquivo;
 }
 
-export function exportarRecorte(formato: FormatoExport, dados: DadosExportRecorte): string {
-  return formato === 'pdf' ? exportarRecortePdf(dados) : exportarRecorteXlsx(dados);
+export function exportarRecorte(
+  formato: FormatoExport,
+  dados: DadosExportRecorte,
+  blocos: BlocoExport[] = [...BLOCOS_PADRAO],
+): string {
+  return formato === 'pdf' ? exportarRecortePdf(dados, blocos) : exportarRecorteXlsx(dados, blocos);
 }
