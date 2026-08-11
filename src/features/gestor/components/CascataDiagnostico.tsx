@@ -426,7 +426,7 @@ function NivelCascata({
                   <motion.div
                     key={no.id}
                     data-testid={`filhos-${no.id}`}
-                    className="ml-4 overflow-hidden border-l-[3px] border-primary/40 pl-3"
+                    className="ml-4 overflow-hidden border-l-[3px] border-border pl-3"
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{
                       opacity: 1,
