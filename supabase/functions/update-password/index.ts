@@ -115,6 +115,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = userData.user.id
+    const currentMetadata = (userData.user.user_metadata ?? {}) as Record<string, unknown>
 
     const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password: newPassword })
 
@@ -129,13 +130,38 @@ Deno.serve(async (req) => {
       )
     }
 
+    // A flag `must_change_password` é o que faz o app exibir "Primeiro acesso
+    // detectado" + o modal bloqueante de troca de senha. Ela precisa ser
+    // desligada aqui (mesclando o metadado existente, para não perder
+    // full_name/id_ies/semestre), senão o aviso volta em todo login.
+    let flagCleared = true
+    if (currentMetadata.must_change_password !== false) {
+      const clearFlag = () => supabase.auth.admin.updateUserById(userId, {
+        user_metadata: { ...currentMetadata, must_change_password: false }
+      })
+
+      let { error: metaError } = await clearFlag()
+      if (metaError) {
+        // Uma nova tentativa no mesmo request: falha transitória do Auth admin
+        // não deve deixar o usuário preso no modal de primeiro acesso.
+        console.error('[Internal] Failed to clear must_change_password (attempt 1):', metaError)
+        const retry = await clearFlag()
+        metaError = retry.error
+      }
+      if (metaError) {
+        console.error('[Internal] Failed to clear must_change_password (attempt 2):', metaError)
+        flagCleared = false
+      }
+    }
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, mustChangePasswordCleared: flagCleared }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
+
 
   } catch (error) {
     // SECURITY: Log detailed error server-side only
