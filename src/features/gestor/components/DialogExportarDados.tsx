@@ -14,11 +14,13 @@ import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { useToast } from '@/hooks/use-toast';
 import {
   useAlunos,
+  useCronograma,
   useDetalhamento,
   useGestorContexto,
   useQuestoes,
   useVisaoGeral,
 } from '@/features/gestor/api/queries';
+import { SeletorSimulados, motivoIndisponivel } from '@/features/gestor/components/SeletorSimulados';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';
 import {
