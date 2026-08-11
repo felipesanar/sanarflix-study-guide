@@ -295,7 +295,12 @@ export function DistribuicaoAlternativas({
                       Quem marcou {alt.letra}
                     </p>
                     {questionId ? (
-                      <RespondentesAlternativa questionId={questionId} alternativa={alt.letra} />
+                      <RespondentesAlternativa
+                        questionId={questionId}
+                        alternativa={alt.letra}
+                        onAbrirAluno={onAbrirAluno}
+                      />
+
                     ) : (
                       <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
                         Lista de alunos indisponível para esta questão.
