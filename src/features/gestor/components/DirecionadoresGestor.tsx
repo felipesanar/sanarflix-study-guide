@@ -6,6 +6,8 @@ import { Icon } from '@/features/gestor/components/Icon';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import { GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
+import { DialogExportarDados } from '@/features/gestor/components/DialogExportarDados';
+import { useGestorContexto } from '@/features/gestor/api/queries';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
 
 /**
@@ -103,6 +105,8 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
    * vez de recebê-lo por prop.
    */
   const { user } = useAuth();
+  const { data: contexto } = useGestorContexto();
+  const [exportarAberto, setExportarAberto] = React.useState(false);
   const aquecer = () => void prefetchVisaoGeral(queryClient, user?.id, iesId, semestre);
 
   /**
