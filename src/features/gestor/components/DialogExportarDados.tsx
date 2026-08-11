@@ -14,11 +14,13 @@ import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { useToast } from '@/hooks/use-toast';
 import {
   useAlunos,
+  useCronograma,
   useDetalhamento,
   useGestorContexto,
   useQuestoes,
   useVisaoGeral,
 } from '@/features/gestor/api/queries';
+import { SeletorSimulados, motivoIndisponivel } from '@/features/gestor/components/SeletorSimulados';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';
 import {
@@ -69,11 +71,39 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
     () => new Set(BLOCOS_PADRAO),
   );
 
-  const disponiveis = React.useMemo(() => blocosDisponiveis(simulados.length), [simulados.length]);
-  const filtros = React.useMemo(
-    () => ({ iesId: aberto ? iesId : null, semestre, simulados }),
-    [aberto, iesId, semestre, simulados],
+  /**
+   * Escolha de simulados LOCAL do arquivo: o gestor precisa poder liberar os
+   * blocos por simulado aqui dentro, sem voltar para a tela só para mexer no
+   * filtro. Parte do recorte da URL a cada abertura e não escreve na URL —
+   * exportar não muda o que as outras telas estão mostrando.
+   */
+  const [simuladosArquivo, setSimuladosArquivo] = React.useState<string[]>(simulados);
+  React.useEffect(() => {
+    if (aberto) setSimuladosArquivo(simulados);
+    // Só reagir à abertura: mexer no seletor não pode ser sobrescrito pela URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto]);
+
+  const cronograma = useCronograma(aberto ? iesId : null);
+  const itensCronograma = React.useMemo(() => cronograma.data ?? [], [cronograma.data]);
+
+  /** Um id que ficou indisponível no cronograma não pode contar como recorte válido. */
+  const simuladosValidos = React.useMemo(() => {
+    if (itensCronograma.length === 0) return simuladosArquivo;
+    return simuladosArquivo.filter((id) =>
+      itensCronograma.some((item) => item.id === id && motivoIndisponivel(item) === null),
+    );
+  }, [itensCronograma, simuladosArquivo]);
+
+  const disponiveis = React.useMemo(
+    () => blocosDisponiveis(simuladosValidos.length),
+    [simuladosValidos.length],
   );
+  const filtros = React.useMemo(
+    () => ({ iesId: aberto ? iesId : null, semestre, simulados: simuladosValidos }),
+    [aberto, iesId, semestre, simuladosValidos],
+  );
+
 
   const {
     data: visaoGeral,
@@ -113,10 +143,11 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
   const simuladosRotulos = React.useMemo(
     () =>
       (visaoGeral?.evolucao ?? [])
-        .filter((ponto) => simulados.includes(ponto.simuladoId))
+        .filter((ponto) => simuladosValidos.includes(ponto.simuladoId))
         .map((ponto) => ponto.nome),
-    [visaoGeral, simulados],
+    [visaoGeral, simuladosValidos],
   );
+
 
   const alternar = (id: BlocoExport) => {
     setSelecionados((atual) => {
@@ -195,6 +226,39 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                 className="pb-3"
                 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
               >
+                SIMULADOS DO ARQUIVO
+              </p>
+              {cronograma.isLoading ? (
+                <GestorSkeleton altura={92} rotulo="Carregando simulados" />
+              ) : itensCronograma.length === 0 ? (
+                <p
+                  className="p-3.5"
+                  style={{
+                    fontSize: 12.5,
+                    lineHeight: '18px',
+                    borderRadius: 'var(--gp-radius-md)',
+                    background: 'var(--gp-surface-3)',
+                    color: 'var(--gp-text-3)',
+                  }}
+                >
+                  Esta instituição ainda não tem simulados disponíveis. Os blocos por simulado ficam
+                  indisponíveis.
+                </p>
+              ) : (
+                <SeletorSimulados
+                  itens={itensCronograma}
+                  selecionados={simuladosValidos}
+                  onChange={setSimuladosArquivo}
+                />
+              )}
+              <p className="mt-2" style={{ fontSize: 12, color: 'var(--gp-text-3)' }}>
+                Escolher aqui só muda este arquivo. O filtro das telas continua como está.
+              </p>
+
+              <p
+                className="pb-3 pt-5"
+                style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
+              >
                 O QUE ENTRA NO ARQUIVO
               </p>
 
@@ -203,8 +267,9 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                   const habilitado = disponiveis.has(bloco.id);
                   const marcado = habilitado && selecionados.has(bloco.id);
                   const motivo = bloco.exigeSimuladoUnico
-                    ? 'Escolha um único simulado no filtro para incluir.'
-                    : 'Escolha ao menos um simulado no filtro para incluir.';
+                    ? 'Escolha um único simulado acima para incluir.'
+                    : 'Escolha ao menos um simulado acima para incluir.';
+
                   return (
                     <label
                       key={bloco.id}
