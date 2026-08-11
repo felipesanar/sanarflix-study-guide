@@ -294,9 +294,10 @@ export function KpiCard({
                   /* O `span` externo existe só para carregar o `data-testid` e o
                      `ml-auto`: `TagDelta` é anatomia fechada (§5) e não recebe
                      atributos arbitrários. */
-                  <span data-testid="kpi-delta" className="ml-auto inline-flex shrink-0">
-                    <TagDelta valor={delta} sufixo=" vs anterior" densidade="kpi" />
+                  <span data-testid="kpi-delta" className="ml-auto inline-flex min-w-0 max-w-full">
+                    <TagDelta valor={delta} sufixo=" vs anterior" densidade="kpi" className="max-w-full overflow-hidden text-ellipsis" />
                   </span>
+
                 ) : null}
               </div>
             )}
