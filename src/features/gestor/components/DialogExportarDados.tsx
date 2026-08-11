@@ -203,15 +203,22 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
         className="gestor-portal flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[620px]"
         data-testid="dialog-exportar-dados"
       >
-        <SheetHeader className="border-b border-border bg-card px-5 pb-5 pt-6 text-left sm:px-7">
-          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <SheetHeader
+          className="border-b border-border px-5 pb-5 pt-6 text-left sm:px-7"
+          style={{ background: 'linear-gradient(135deg, var(--gp-brand-surface), var(--gp-info-surface))' }}
+        >
+          <div
+            className="mb-3 flex h-9 w-9 items-center justify-center rounded-md text-primary-foreground shadow-sm"
+            style={{ background: 'var(--gp-brand-gradient)' }}
+          >
             <Icon name="download" variant="filled" size={18} />
           </div>
-          <SheetTitle className="font-sans" style={{ fontSize: 21, fontWeight: 700 }}>Montar relatório</SheetTitle>
-          <SheetDescription>
+          <SheetTitle className="font-sans" style={{ fontSize: 21, fontWeight: 700, color: 'var(--gp-brand-strong)' }}>Montar relatório</SheetTitle>
+          <SheetDescription style={{ color: 'var(--gp-text-2)' }}>
             {iesNome ? `${iesNome} · ` : ''}{semestreRotulo}. Selecione o recorte, confira o conteúdo e baixe.
           </SheetDescription>
         </SheetHeader>
+
 
         {isError ? (
           <div className="px-6 pb-6">
@@ -228,9 +235,9 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
         ) : (
           <>
             <div className="flex-1 space-y-6 bg-muted/30 px-5 py-6 sm:px-7">
-              <section aria-labelledby="etapa-simulados" className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <section aria-labelledby="etapa-simulados" className="rounded-lg border border-border border-l-4 bg-card p-4 shadow-sm" style={{ borderLeftColor: 'var(--gp-brand)' }}>
                 <div className="mb-4 flex items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gp-info)] text-xs font-bold text-primary-foreground">1</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-primary-foreground shadow-sm" style={{ background: 'var(--gp-brand)' }}>1</span>
                   <div><h3 id="etapa-simulados" className="text-sm font-bold text-foreground">Escolha os simulados</h3><p className="mt-0.5 text-xs text-muted-foreground">Essa seleção afeta somente o arquivo.</p></div>
                 </div>
               {cronograma.isLoading ? (
@@ -261,9 +268,9 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
               )}
               </section>
 
-              <section aria-labelledby="etapa-conteudo" className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <section aria-labelledby="etapa-conteudo" className="rounded-lg border border-border border-l-4 bg-card p-4 shadow-sm" style={{ borderLeftColor: 'var(--gp-info)' }}>
                 <div className="mb-4 flex items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gp-info)] text-xs font-bold text-primary-foreground">2</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-primary-foreground shadow-sm" style={{ background: 'var(--gp-info)' }}>2</span>
                   <div><h3 id="etapa-conteudo" className="text-sm font-bold text-foreground">Defina o conteúdo</h3><p className="mt-0.5 text-xs text-muted-foreground">Marque apenas as análises necessárias.</p></div>
                 </div>
               <div className="flex flex-col gap-2">
@@ -324,23 +331,23 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
               </div>
 
               {selecionados.has('alunos') && disponiveis.has('alunos') && (
-                <div className="mt-3 flex gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-foreground">
-                  <Icon name="info" size={16} className="mt-0.5 shrink-0 text-primary" />
+                <div className="mt-3 flex gap-2 rounded-md p-3 text-xs leading-5" style={{ border: '1px solid var(--gp-warning)', background: 'var(--gp-warning-surface)', color: 'var(--gp-warning-on)' }}>
+                  <Icon name="info" size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--gp-warning)' }} />
                   <span><strong>Dado pessoal.</strong> O arquivo terá nomes de alunos. Compartilhe apenas com finalidade pedagógica.</span>
                 </div>
               )}
               </section>
 
-              <section aria-labelledby="etapa-formato" className="rounded-lg border border-border bg-card p-4 shadow-sm">
+              <section aria-labelledby="etapa-formato" className="rounded-lg border border-border border-l-4 bg-card p-4 shadow-sm" style={{ borderLeftColor: 'var(--gp-success)' }}>
                 <div className="mb-4 flex items-start gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[color:var(--gp-info)] text-xs font-bold text-primary-foreground">3</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-primary-foreground shadow-sm" style={{ background: 'var(--gp-success)' }}>3</span>
                   <div><h3 id="etapa-formato" className="text-sm font-bold text-foreground">Confira e baixe</h3><p className="mt-0.5 text-xs text-muted-foreground">O arquivo só é liberado quando todos os dados estiverem completos.</p></div>
                 </div>
 
-                <div className="mb-4 grid grid-cols-2 gap-2 rounded-md bg-muted p-3 text-xs sm:grid-cols-3">
-                  <div><span className="block text-muted-foreground">Blocos</span><strong>{escolhidos.length}</strong></div>
-                  <div><span className="block text-muted-foreground">Simulados</span><strong>{simuladosValidos.length || 'Recorte geral'}</strong></div>
-                  <div className="col-span-2 sm:col-span-1"><span className="block text-muted-foreground">Alunos</span><strong>{querAlunos ? (carregandoAlunos ? 'Carregando…' : alunos?.total ?? 'Indisponível') : 'Não incluídos'}</strong></div>
+                <div className="mb-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                  <div className="rounded-md p-3" style={{ background: 'var(--gp-info-surface)', color: 'var(--gp-info-on)' }}><span className="block opacity-80">Blocos</span><strong>{escolhidos.length}</strong></div>
+                  <div className="rounded-md p-3" style={{ background: 'var(--gp-brand-surface)', color: 'var(--gp-brand-strong)' }}><span className="block opacity-80">Simulados</span><strong>{simuladosValidos.length || 'Recorte geral'}</strong></div>
+                  <div className="col-span-2 rounded-md p-3 sm:col-span-1" style={{ background: 'var(--gp-success-surface)', color: 'var(--gp-success-on)' }}><span className="block opacity-80">Alunos</span><strong>{querAlunos ? (carregandoAlunos ? 'Carregando…' : alunos?.total ?? 'Indisponível') : 'Não incluídos'}</strong></div>
                 </div>
 
                 {erroExtras && (
@@ -360,6 +367,9 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
                     onClick={() => void gerar(formato.id)}
                     variant={formato.id === 'pdf' ? 'default' : 'outline'}
                     className="h-11 justify-start gap-2 px-3"
+                    style={formato.id === 'pdf'
+                      ? { background: 'var(--gp-brand-gradient)', color: 'var(--gp-on-brand)', border: 'none' }
+                      : { borderColor: 'var(--gp-success)', color: 'var(--gp-success-on)', background: 'var(--gp-success-surface)' }}
                   >
                     <Icon name={formato.id === 'pdf' ? 'documents' : 'download'} variant="filled" size={16} />
                     {gerando === formato.id ? 'Gerando…' : `Baixar ${formato.titulo}`}
