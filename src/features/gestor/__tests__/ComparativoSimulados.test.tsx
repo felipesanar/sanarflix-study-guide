@@ -15,7 +15,14 @@ const metrica = (over: Partial<MetricasSimulado>): MetricasSimulado => ({
 });
 
 const DUAS = [
-  metrica({ simuladoId: 's1', nome: 'Simulado 1', acertoMedioPct: 60, proficienciaMedia: 55, enamedProjetado: 3 }),
+  metrica({
+    simuladoId: 's1',
+    nome: 'Simulado 1',
+    acertoMedioPct: 60,
+    proficienciaMedia: 55,
+    enamedProjetado: 3,
+    proficientesPct: 40,
+  }),
   metrica({
     simuladoId: 's2',
     nome: 'Simulado 2',
@@ -24,6 +31,7 @@ const DUAS = [
     acertoMedioPct: 68,
     proficienciaMedia: 62,
     enamedProjetado: 4,
+    proficientesPct: 52,
   }),
 ];
 
@@ -116,6 +124,39 @@ describe('ComparativoSimulados', () => {
     expect(within(s1).queryByTestId('card-delta-acerto')).toBeNull();
     expect(within(s1).queryByTestId('card-delta-enamed')).toBeNull();
     expect(within(s1).queryByTestId('card-delta-proficiencia')).toBeNull();
+  });
+
+  it('cada card traz o 4º indicador, Alunos proficientes, com delta contra o anterior', () => {
+    render(<ComparativoSimulados metricas={DUAS} comparativoTemas={TEMAS} />);
+
+    expect(within(screen.getByTestId('card-simulado-s1')).getByTestId('card-proficientes')).toHaveTextContent('40%');
+    const s2 = screen.getByTestId('card-simulado-s2');
+    expect(within(s2).getByTestId('card-proficientes')).toHaveTextContent('52%');
+    expect(within(s2).getByTestId('card-delta-proficientes')).toHaveTextContent('+12');
+  });
+
+  it('sem TRI processado o indicador mostra — e nenhum delta (§4.10)', () => {
+    render(
+      <ComparativoSimulados
+        metricas={[metrica({ simuladoId: 's1', proficientesPct: null }), metrica({ simuladoId: 's2', nome: 'Simulado 2' })]}
+      />,
+    );
+
+    expect(within(screen.getByTestId('card-simulado-s1')).getByTestId('card-proficientes')).toHaveTextContent('—');
+    expect(within(screen.getByTestId('card-simulado-s2')).queryByTestId('card-delta-proficientes')).toBeNull();
+  });
+
+  it('a tabela expandida traz a linha de Alunos proficientes, uma coluna por simulado', async () => {
+    const user = userEvent.setup();
+    render(<ComparativoSimulados metricas={DUAS} comparativoTemas={TEMAS} />);
+
+    await user.click(screen.getByRole('button', { name: /ver comparativo completo/i }));
+
+    const metricas = screen.getByTestId('comparativo-metricas');
+    const linha = within(metricas).getByRole('row', { name: /Alunos proficientes/ });
+    expect(linha).toHaveTextContent('40%');
+    expect(linha).toHaveTextContent('52%');
+    expect(linha).toHaveTextContent('+12');
   });
 
   it('expande sob demanda e mostra as métricas lado a lado, uma coluna por simulado', async () => {
