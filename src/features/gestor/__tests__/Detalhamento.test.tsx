@@ -475,10 +475,12 @@ describe('Rota Detalhamento — 2 simulados (§4.7.4, §12 casos 3, 6, 8)', () =
     expect(screen.queryByTestId('bloco-questoes')).toBeNull();
   });
 
-  it('a partir de 2 simulados, "Evolução do recorte" volta — aí há o que comparar', () => {
+  it('com 2 simulados, "Evolução do recorte" segue inexistente — a leitura é o comparativo', () => {
     renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
-    expect(screen.getByTestId('bloco-evolucao')).toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-evolucao')).toBeNull();
+    expect(screen.getByTestId('bloco-comparativo')).toBeInTheDocument();
   });
+
 
   it('mostra a coluna Variação e o comparativo colapsado', () => {
     renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
