@@ -315,8 +315,15 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                         metricas={metricas}
                         valor={(m) => formatNumero(m.proficienciaMedia)}
                         bruto={(m) => m.proficienciaMedia}
+                      />
+                      <LinhaMetrica
+                        rotulo="Alunos proficientes"
+                        metricas={metricas}
+                        valor={(m) => formatPct(m.proficientesPct ?? null)}
+                        bruto={(m) => m.proficientesPct ?? null}
                         ultima
                       />
+
                     </CorpoTabela>
                   </TabelaGestor>
                 </div>
