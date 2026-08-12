@@ -535,39 +535,10 @@ export default function Detalhamento() {
             </div>
           )}
 
-          {/*
-            "Evolução do recorte" só com 2+ simulados no recorte.
+          {/* "Evolução do recorte" foi descontinuado (12/08): a evolução entre
+              simulados é lida no comparativo acima, e a proficiência do
+              recorte segue no KPI. */}
 
-            Com um simulado não há evolução: o card ficava 300px de altura
-            para mostrar um ponto solto no meio do vazio e a frase "primeira
-            medição; a evolução aparece a partir do segundo simulado" — meia
-            tela de scroll para dizer que não há o que dizer, entre dois
-            blocos que TÊM conteúdo. O número daquele ponto já está no KPI de
-            proficiência logo acima, então nada se perde ao remover o bloco.
-            A decisão sai da SELEÇÃO (`simuladosNoRecorte`), conhecida antes
-            da resposta, e não da contagem de pontos medidos: assim o bloco
-            nunca aparece como skeleton para sumir quando o dado chega.
-
-            Com um semestre específico o bloco não é evolução — é a
-            distribuição daquele semestre (`ehSemestreEspecifico`, §4.5), que
-            faz sentido com um simulado só e por isso continua aparecendo.
-          */}
-          {ehSemestreEspecifico(filtros.semestre) || simuladosNoRecorte.length > 1 ? (
-            <div data-testid="bloco-evolucao" className={classeRevelacao(2)}>
-              <BlocoGestor
-                estado={estado}
-                parcial={parcial}
-                alturaSkeleton={300}
-                bloco="evolucao"
-                testIdLoading="bloco-evolucao-loading"
-                aoTentarNovamente={aoTentarNovamente}
-              >
-                {dados ? (
-                  <EvolucaoRecorte metricas={dados.metricas} semestre={filtros.semestre} dispersao={dados.dispersao} />
-                ) : null}
-              </BlocoGestor>
-            </div>
-          ) : null}
 
           {/* Área × semestre e proficiência por semestre são o MESMO movimento
               de exploração — a referência os põe lado a lado (1.15fr/1fr).
