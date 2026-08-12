@@ -16,7 +16,6 @@ import { ProficienciaPorSemestreChart } from '../charts/ProficienciaPorSemestreC
 import { LeituraEstrategica } from '../components/LeituraEstrategica';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
-import { EvolucaoRecorte, ehSemestreEspecifico } from '../components/EvolucaoRecorte';
 import { FiltroSemestre } from '../components/FiltroSemestre';
 import { KpisDetalhamento } from '../components/KpisDetalhamento';
 import { SeletorSimulados, motivoIndisponivel } from '../components/SeletorSimulados';
@@ -553,7 +552,7 @@ export default function Detalhamento() {
               semestre") e um card com uma lista só ficava visualmente
               descasada. */}
           <div
-            className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}
+            className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(2)}`}
           >
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
@@ -667,7 +666,7 @@ export default function Detalhamento() {
           </div>
 
 
-          <div data-testid="bloco-alunos" className={classeRevelacao(4)}>
+          <div data-testid="bloco-alunos" className={classeRevelacao(3)}>
             <BlocoGestor
               estado={estado}
               parcial={parcial}
@@ -706,7 +705,7 @@ export default function Detalhamento() {
 
           {/* §4.7.3-4: último componente da página e ausente com 2+ simulados. */}
           {mostrarQuestoes && (
-            <div data-testid="bloco-questoes" className={classeRevelacao(5)}>
+            <div data-testid="bloco-questoes" className={classeRevelacao(4)}>
               <BlocoGestor
                 estado={estadoQuestoes}
                 alturaSkeleton={360}
