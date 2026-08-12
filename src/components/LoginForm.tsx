@@ -205,20 +205,19 @@ export const LoginForm: React.FC = () => {
         <div className="absolute inset-0 flex flex-col items-center justify-center p-12 lg:p-16 text-white">
           <div className="max-w-xl space-y-10 text-center">
             {/* Logo */}
-            <div className="flex items-center justify-center mb-2">
-              <div className="w-12 h-12 bg-white/95 rounded-xl shadow-2xl flex items-center justify-center p-2">
-                <img
-                  src="/sanarflix-academy-symbol.svg"
-                  alt="SanarFlix Academy"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+            <div className="flex items-center justify-center">
+              <img
+                src="/sanarflix-academy-lockup.svg"
+                alt="SanarFlix Academy"
+                className="h-16 w-auto object-contain dark:hidden"
+              />
+              <img
+                src="/sanarflix-academy-lockup-white.svg"
+                alt="SanarFlix Academy"
+                className="h-16 w-auto object-contain hidden dark:block"
+              />
             </div>
 
-            {/* Title */}
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight text-neutral-900 dark:text-white">
-              SanarFlix Academy
-            </h2>
 
             {/* Description */}
             <p className="text-base lg:text-lg text-neutral-700 dark:text-white/95 leading-relaxed font-light">
