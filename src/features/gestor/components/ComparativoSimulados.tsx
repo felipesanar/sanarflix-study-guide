@@ -124,7 +124,7 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                 Comparativo entre simulados
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                O que mudou de um simulado para o outro em acerto, conceito e proficiência.
+                O que mudou de um simulado para o outro em acerto, conceito, proficiência e alunos proficientes.
               </p>
             </div>
           </div>
