@@ -632,13 +632,10 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
     await user.click(screen.getByRole('button', { name: 'Grande área' }));
     expect(await screen.findByText('Evolução por grande área')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Aluno' }));
-    expect(await screen.findByText('Alunos por semestre')).toBeInTheDocument();
-
     await user.click(screen.getByRole('button', { name: 'Geral' }));
     expect(await screen.findByText('Evolução institucional')).toBeInTheDocument();
 
-    // Nenhuma das 3 trocas re-chamou o hook de dado da tela.
+    // Nenhuma das trocas re-chamou o hook de dado da tela.
     expect(vi.mocked(useVisaoGeral).mock.calls.length).toBe(chamadasAntes);
   });
 

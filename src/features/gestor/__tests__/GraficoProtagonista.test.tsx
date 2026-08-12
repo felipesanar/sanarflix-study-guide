@@ -43,9 +43,9 @@ const VISAO_GERAL_FAKE: VisaoGeral = {
     simulados: { realizados: 3, contratados: 7 },
   },
   evolucao: [
-    { simuladoId: 's1', nome: 'Simulado 1', data: '2026-03-10T00:00:00.000Z', valor: 51, participantes: 120 },
-    { simuladoId: 's2', nome: 'Simulado 2', data: '2026-05-12T00:00:00.000Z', valor: 58, participantes: 118 },
-    { simuladoId: 's3', nome: 'Simulado 3', data: '2026-07-14T00:00:00.000Z', valor: 62, participantes: 115 },
+    { simuladoId: 's1', nome: 'Simulado 1', data: '2026-03-10T00:00:00.000Z', valor: 51, proficientesPct: 38, participantes: 120 },
+    { simuladoId: 's2', nome: 'Simulado 2', data: '2026-05-12T00:00:00.000Z', valor: 58, proficientesPct: 47, participantes: 118 },
+    { simuladoId: 's3', nome: 'Simulado 3', data: '2026-07-14T00:00:00.000Z', valor: 62, proficientesPct: 55, participantes: 115 },
   ],
   evolucaoPorArea: [
     {
@@ -115,7 +115,7 @@ describe('GraficoProtagonista', () => {
   it('abre no modo Geral', () => {
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
     expect(screen.getByRole('button', { name: 'Geral', pressed: true })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Evolução da proficiência institucional/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Evolução do percentual de alunos proficientes/i })).toBeInTheDocument();
   });
 
   it('mantém o controle de modo dentro do card do gráfico', () => {
@@ -125,33 +125,29 @@ describe('GraficoProtagonista', () => {
   });
 
   /**
-   * Os rótulos são os da referência, ao pé da letra: "Geral", "Grande área",
-   * "Aluno". O "Por " que existia antes ("Por grande área", "Por aluno")
-   * transformava um seletor de MODO DE LEITURA em algo que se lia como filtro,
-   * e alargava os segmentos a ponto de empurrar o título do card.
+   * Os rótulos são os da referência, ao pé da letra: "Geral" e "Grande área".
+   * O modo "Aluno" (dispersão de proficiência por semestre) foi descontinuado
+   * nesta tela em 12/08 — o gráfico de dispersão segue vivo no Detalhamento.
    */
-  it('rotula os três modos exatamente como a referência: Geral · Grande área · Aluno', () => {
+  it('rotula os dois modos exatamente como a referência: Geral · Grande área, sem "Aluno"', () => {
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
     const barra = screen.getByTestId('grafico-modos');
     expect(within(barra).getAllByRole('button').map((botao) => botao.textContent)).toEqual([
       'Geral',
       'Grande área',
-      'Aluno',
     ]);
+    expect(screen.queryByRole('button', { name: 'Aluno' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Por / })).not.toBeInTheDocument();
   });
 
-  it('alterna para Grande área e para Aluno trocando o componente exibido', async () => {
+  it('alterna para Grande área trocando o componente exibido, e nunca mostra a dispersão por aluno', async () => {
     const user = userEvent.setup();
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
 
     await user.click(screen.getByRole('button', { name: 'Grande área' }));
     expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: /Evolução da proficiência institucional/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Aluno' }));
-    expect(screen.getByRole('img', { name: /Dispersão de proficiência por semestre/i })).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: /Desempenho por grande área/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /Evolução do percentual de alunos proficientes/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /Dispersão de proficiência por semestre/i })).not.toBeInTheDocument();
   });
 
   /**
@@ -171,9 +167,6 @@ describe('GraficoProtagonista', () => {
     await user.click(screen.getByRole('button', { name: 'Grande área' }));
     expect(screen.getByTestId('grafico-modos-indicador').style.transform).toBe('translateX(100%)');
 
-    await user.click(screen.getByRole('button', { name: 'Aluno' }));
-    expect(screen.getByTestId('grafico-modos-indicador').style.transform).toBe('translateX(200%)');
-
     // Um só indicador, e nenhum segmento carrega sombra própria.
     expect(screen.getAllByTestId('grafico-modos-indicador')).toHaveLength(1);
     within(screen.getByTestId('grafico-modos'))
@@ -190,7 +183,6 @@ describe('GraficoProtagonista', () => {
     expect(rpcSpy).toHaveBeenCalledWith('get_gestor_visao_geral', expect.anything());
 
     await user.click(screen.getByRole('button', { name: 'Grande área' }));
-    await user.click(screen.getByRole('button', { name: 'Aluno' }));
     await user.click(screen.getByRole('button', { name: 'Geral' }));
 
     expect(rpcSpy).toHaveBeenCalledTimes(1);
@@ -200,7 +192,7 @@ describe('GraficoProtagonista', () => {
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
     const barra = screen.getByRole('toolbar', { name: 'Modo do gráfico' });
     expect(barra).toBe(screen.getByTestId('grafico-modos'));
-    expect(within(barra).getAllByRole('button')).toHaveLength(3);
+    expect(within(barra).getAllByRole('button')).toHaveLength(2);
   });
 
   it('navegação por teclado no controle de modo: setas movem seleção e foco (roving tabIndex)', () => {
@@ -208,7 +200,6 @@ describe('GraficoProtagonista', () => {
     const geral = screen.getByRole('button', { name: 'Geral' });
     expect(geral).toHaveAttribute('tabindex', '0');
     expect(screen.getByRole('button', { name: 'Grande área' })).toHaveAttribute('tabindex', '-1');
-    expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('tabindex', '-1');
 
     geral.focus();
     fireEvent.keyDown(geral, { key: 'ArrowRight' });
@@ -218,23 +209,18 @@ describe('GraficoProtagonista', () => {
     expect(porArea).toHaveAttribute('tabindex', '0');
     expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
 
-    fireEvent.keyDown(porArea, { key: 'ArrowRight' });
-    const porAluno = screen.getByRole('button', { name: 'Aluno' });
-    expect(porAluno).toHaveAttribute('aria-pressed', 'true');
-    expect(porAluno).toHaveFocus();
-
     // ArrowRight no último segmento roda de volta para o primeiro (wrap).
-    fireEvent.keyDown(porAluno, { key: 'ArrowRight' });
+    fireEvent.keyDown(porArea, { key: 'ArrowRight' });
     expect(screen.getByRole('button', { name: 'Geral' })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'Geral' }), { key: 'ArrowLeft' });
-    expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Grande área' })).toHaveAttribute('aria-pressed', 'true');
 
     // Home/End vão direto às pontas, como manda o padrão APG Toolbar.
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Aluno' }), { key: 'Home' });
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Grande área' }), { key: 'Home' });
     expect(screen.getByRole('button', { name: 'Geral' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.keyDown(screen.getByRole('button', { name: 'Geral' }), { key: 'End' });
-    expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Grande área' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   /**
@@ -286,19 +272,19 @@ describe('GraficoProtagonista', () => {
       await waitFor(() => expect(conteudoDepois.style.opacity).toBe('1'));
     });
 
-    it('as três séries seguem sem animação própria (isAnimationActive={false} continua cravado — decisão separada de 05/08)', async () => {
+    it('as séries seguem sem animação própria (isAnimationActive={false} continua cravado — decisão separada de 05/08)', async () => {
       const user = userEvent.setup();
       render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
 
       await user.click(screen.getByRole('button', { name: 'Grande área' }));
       expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: 'Aluno' }));
-      expect(screen.getByRole('img', { name: /Dispersão de proficiência por semestre/i })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Geral' }));
+      expect(screen.getByRole('img', { name: /Evolução do percentual de alunos proficientes/i })).toBeInTheDocument();
       // A garantia de `isAnimationActive={false}` propriamente dita é
       // travada por análise estática em `movimentoGraficos.test.tsx`
-      // (EvolucaoChart/AreasChart/DispersaoChart); aqui só se confirma que a
-      // troca de modo continua funcionando com o contêiner de fade no meio.
+      // (EvolucaoChart/AreasChart); aqui só se confirma que a troca de modo
+      // continua funcionando com o contêiner de fade no meio.
     });
   });
 });
