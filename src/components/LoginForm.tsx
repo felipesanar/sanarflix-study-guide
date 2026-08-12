@@ -94,18 +94,19 @@ export const LoginForm: React.FC = () => {
         <div className="w-full max-w-md animate-slide-in-left">
           <div className="flex items-center mb-8">
             <img
-              src="/sanarflix-academy-symbol.svg"
-              alt="Logo SanarFlix Academy"
-              className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
+              src="/sanarflix-academy-lockup.svg"
+              alt="SanarFlix Academy"
+              className="h-12 w-auto object-contain dark:hidden"
               loading="eager"
-              width="48"
-              height="48"
             />
-            <div>
-              <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">SanarFlix Academy</h1>
-              <p className="text-sm text-neutral-600 dark:text-muted-foreground">Para Universidades Parceiras</p>
-            </div>
+            <img
+              src="/sanarflix-academy-lockup-white.svg"
+              alt="SanarFlix Academy"
+              className="h-12 w-auto object-contain hidden dark:block"
+              loading="eager"
+            />
           </div>
+
 
           <Card className="border border-border shadow-2xl bg-card/95 backdrop-blur-sm">
             <CardHeader className="space-y-1 pb-6">
