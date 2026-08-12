@@ -53,13 +53,13 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
         <img
           src="/sanarflix-academy-lockup.svg"
           alt="SanarFlix Academy"
-          className="h-8 w-auto dark:hidden"
+          className="h-9 w-auto dark:hidden"
         />
         <img
           src="/sanarflix-academy-lockup-white.svg"
           alt=""
           aria-hidden="true"
-          className="hidden h-8 w-auto dark:block"
+          className="hidden h-9 w-auto dark:block"
         />
       </div>
 

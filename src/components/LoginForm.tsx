@@ -205,7 +205,7 @@ export const LoginForm: React.FC = () => {
           <div className="max-w-xl space-y-10 text-center">
             {/* Logo */}
             <div className="flex items-center justify-center mb-2">
-              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/95 rounded-2xl shadow-2xl flex items-center justify-center p-3">
+              <div className="w-12 h-12 bg-white/95 rounded-xl shadow-2xl flex items-center justify-center p-2">
                 <img
                   src="/sanarflix-academy-symbol.svg"
                   alt="SanarFlix Academy"
