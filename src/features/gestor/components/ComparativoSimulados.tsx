@@ -151,6 +151,12 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
               const deltaProficiencia = anterior
                 ? calcularVariacao(anterior.proficienciaMedia, m.proficienciaMedia)
                 : null;
+              /* `proficientesPct` é opcional no envelope: ausente ou `null` = TRI
+                 não processado, então nem valor nem delta (§4.10). */
+              const deltaProficientes = anterior
+                ? calcularVariacao(anterior.proficientesPct ?? null, m.proficientesPct ?? null)
+                : null;
+
 
               return (
                 <Card
