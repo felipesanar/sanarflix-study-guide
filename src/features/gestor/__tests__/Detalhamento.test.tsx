@@ -338,13 +338,8 @@ describe('Rota Detalhamento — 1 simulado (§4.7.3)', () => {
   });
 
   /**
-   * Com um simulado não há evolução: o bloco ocupava 300px para mostrar um
-   * ponto solto e a frase "a evolução aparece a partir do segundo simulado" —
-   * meia tela de scroll para dizer que não há o que dizer. O número daquele
-   * ponto continua no KPI de proficiência média, logo acima.
-   *
-   * A decisão sai da SELEÇÃO, não da contagem de pontos medidos: assim o
-   * bloco nunca aparece como skeleton para sumir quando o dado chega.
+   * "Evolução do recorte" foi descontinuado (12/08): a evolução entre
+   * simulados é lida no comparativo, e a proficiência do recorte segue no KPI.
    */
   it('não monta "Evolução do recorte" com um único simulado', () => {
     renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
@@ -355,14 +350,12 @@ describe('Rota Detalhamento — 1 simulado (§4.7.3)', () => {
     expect(screen.getByTestId('kpi-proficiencia-media')).toBeInTheDocument();
   });
 
-  /**
-   * Com um semestre específico o bloco não é evolução — é a distribuição
-   * daquele semestre (§4.5), que faz sentido com um simulado só.
-   */
-  it('com semestre específico, a distribuição do semestre continua aparecendo', () => {
+  it('não monta o bloco nem com semestre específico — o componente não existe mais', () => {
     renderRota('?ies=ies-1&semestre=11&simulados=s1');
-    expect(screen.getByTestId('bloco-evolucao')).toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-evolucao')).toBeNull();
+    expect(screen.queryByRole('heading', { name: /Distribuição do 11º semestre/ })).toBeNull();
   });
+
 
   it('abre o drawer do aluno ao clicar no nome, com o nome do aluno (real DrawerAluno exige a prop)', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -482,10 +475,12 @@ describe('Rota Detalhamento — 2 simulados (§4.7.4, §12 casos 3, 6, 8)', () =
     expect(screen.queryByTestId('bloco-questoes')).toBeNull();
   });
 
-  it('a partir de 2 simulados, "Evolução do recorte" volta — aí há o que comparar', () => {
+  it('com 2 simulados, "Evolução do recorte" segue inexistente — a leitura é o comparativo', () => {
     renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
-    expect(screen.getByTestId('bloco-evolucao')).toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-evolucao')).toBeNull();
+    expect(screen.getByTestId('bloco-comparativo')).toBeInTheDocument();
   });
+
 
   it('mostra a coluna Variação e o comparativo colapsado', () => {
     renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
