@@ -21,13 +21,11 @@ export interface GraficoProtagonistaProps {
 const MODOS: { valor: ModoGrafico; rotulo: string }[] = [
   { valor: 'geral', rotulo: 'Geral' },
   { valor: 'area', rotulo: 'Grande área' },
-  { valor: 'aluno', rotulo: 'Aluno' },
 ];
 
 const TITULOS: Record<ModoGrafico, string> = {
   geral: 'Evolução institucional',
   area: 'Evolução por grande área',
-  aluno: 'Alunos por semestre',
 };
 
 /** Padding do trilho, em px (referência: `padding:3px`). O indicador vive dentro dele. */
