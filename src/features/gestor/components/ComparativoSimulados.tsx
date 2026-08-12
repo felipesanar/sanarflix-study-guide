@@ -224,7 +224,16 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                         deltaTestId="card-delta-proficiencia"
                         separada
                       />
+                      <LinhaIndicador
+                        rotulo="Alunos proficientes"
+                        valor={formatPct(m.proficientesPct ?? null)}
+                        valorTestId="card-proficientes"
+                        delta={deltaProficientes}
+                        deltaTestId="card-delta-proficientes"
+                        separada
+                      />
                     </dl>
+
                   </CardContent>
                 </Card>
               );
