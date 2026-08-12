@@ -3,7 +3,6 @@ import { useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AreasChart } from '@/features/gestor/charts/AreasChart';
-import { DispersaoChart } from '@/features/gestor/charts/DispersaoChart';
 import { EvolucaoChart } from '@/features/gestor/charts/EvolucaoChart';
 import type { ModoGrafico, VisaoGeral } from '@/features/gestor/api/types';
 
@@ -168,7 +167,7 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
          * a régua proíbe, e um retângulo que PISCAVA de um segmento para o
          * outro em vez de deslizar.
          *
-         * As três colunas têm largura igual (`grid-cols-3`) de propósito: com
+         * As colunas têm largura igual (`grid-cols-2`) de propósito: com
          * larguras variáveis, acompanhar o indicador exigiria animar `width`,
          * e §7 só permite animar `transform` e `opacity`.
          */}
@@ -177,7 +176,7 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
           role="toolbar"
           aria-label="Modo do gráfico"
           aria-orientation="horizontal"
-          className="relative grid w-fit grid-cols-3"
+          className="relative grid w-fit grid-cols-2"
           style={{
             background: 'var(--gp-surface-3)',
             border: '1px solid var(--gp-border-strong)',
@@ -247,7 +246,6 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
         <FadeConteudoGrafico modo={modo}>
           {modo === 'geral' ? <EvolucaoChart pontos={visao.evolucao} /> : null}
           {modo === 'area' ? <AreasChart areas={visao.evolucaoPorArea} /> : null}
-          {modo === 'aluno' ? <DispersaoChart pontos={visao.dispersao} /> : null}
         </FadeConteudoGrafico>
       </CardContent>
     </Card>
