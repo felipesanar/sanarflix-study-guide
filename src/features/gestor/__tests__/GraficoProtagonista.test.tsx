@@ -115,7 +115,7 @@ describe('GraficoProtagonista', () => {
   it('abre no modo Geral', () => {
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
     expect(screen.getByRole('button', { name: 'Geral', pressed: true })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Evolução da proficiência institucional/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /Evolução do percentual de alunos proficientes/i })).toBeInTheDocument();
   });
 
   it('mantém o controle de modo dentro do card do gráfico', () => {
@@ -146,7 +146,7 @@ describe('GraficoProtagonista', () => {
 
     await user.click(screen.getByRole('button', { name: 'Grande área' }));
     expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
-    expect(screen.queryByRole('img', { name: /Evolução da proficiência institucional/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: /Evolução do percentual de alunos proficientes/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('img', { name: /Dispersão de proficiência por semestre/i })).not.toBeInTheDocument();
   });
 
@@ -280,7 +280,7 @@ describe('GraficoProtagonista', () => {
       expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Geral' }));
-      expect(screen.getByRole('img', { name: /Evolução da proficiência institucional/i })).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: /Evolução do percentual de alunos proficientes/i })).toBeInTheDocument();
       // A garantia de `isAnimationActive={false}` propriamente dita é
       // travada por análise estática em `movimentoGraficos.test.tsx`
       // (EvolucaoChart/AreasChart); aqui só se confirma que a troca de modo
