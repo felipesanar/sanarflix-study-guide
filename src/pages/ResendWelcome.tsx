@@ -53,7 +53,7 @@ const ResendWelcome = () => {
         <img
           src="/sanarflix-academy-symbol.svg"
           alt="SanarFlix Academy"
-          className="w-20 h-20 mx-auto rounded-2xl"
+          className="w-12 h-12 mx-auto rounded-xl object-contain"
         />
 
         {status === 'loading' && (

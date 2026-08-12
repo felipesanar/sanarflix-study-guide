@@ -76,7 +76,7 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
             loading="eager"
             decoding="sync"
             fetchPriority="high"
-            className="h-12 w-auto dark:hidden"
+            className="h-9 w-auto dark:hidden"
           />
           <img
             src="/sanarflix-academy-lockup-white.svg"
@@ -87,7 +87,7 @@ export const ConteudoSidebar: React.FC<ConteudoSidebarProps> = ({ aoNavegar }) =
             loading="eager"
             decoding="sync"
             fetchPriority="high"
-            className="hidden h-12 w-auto dark:block"
+            className="hidden h-9 w-auto dark:block"
           />
         </div>
         <span style={OVERLINE_SIDEBAR}>Portal do Gestor</span>
