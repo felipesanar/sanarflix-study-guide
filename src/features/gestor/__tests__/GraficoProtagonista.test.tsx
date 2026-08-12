@@ -43,9 +43,9 @@ const VISAO_GERAL_FAKE: VisaoGeral = {
     simulados: { realizados: 3, contratados: 7 },
   },
   evolucao: [
-    { simuladoId: 's1', nome: 'Simulado 1', data: '2026-03-10T00:00:00.000Z', valor: 51, participantes: 120 },
-    { simuladoId: 's2', nome: 'Simulado 2', data: '2026-05-12T00:00:00.000Z', valor: 58, participantes: 118 },
-    { simuladoId: 's3', nome: 'Simulado 3', data: '2026-07-14T00:00:00.000Z', valor: 62, participantes: 115 },
+    { simuladoId: 's1', nome: 'Simulado 1', data: '2026-03-10T00:00:00.000Z', valor: 51, proficientesPct: 38, participantes: 120 },
+    { simuladoId: 's2', nome: 'Simulado 2', data: '2026-05-12T00:00:00.000Z', valor: 58, proficientesPct: 47, participantes: 118 },
+    { simuladoId: 's3', nome: 'Simulado 3', data: '2026-07-14T00:00:00.000Z', valor: 62, proficientesPct: 55, participantes: 115 },
   ],
   evolucaoPorArea: [
     {
