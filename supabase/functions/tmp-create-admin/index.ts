@@ -11,22 +11,30 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
-    const { data: created, error: authErr } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: nome, nome },
-    });
-    if (authErr || !created?.user) {
-      return new Response(JSON.stringify({ step: "auth", error: authErr?.message }), { status: 400 });
+    const { data: existing } = await admin.from("users").select("id").eq("email", email).maybeSingle();
+    let uid = existing?.id as string | undefined;
+    if (uid) {
+      const { error: pwErr } = await admin.auth.admin.updateUserById(uid, { password, email_confirm: true });
+      if (pwErr) return new Response(JSON.stringify({ step: "pw", error: pwErr.message }), { status: 400 });
+    } else {
+      const { data: created, error: authErr } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: nome, nome },
+      });
+      if (authErr || !created?.user) {
+        return new Response(JSON.stringify({ step: "auth", error: authErr?.message }), { status: 400 });
+      }
+      uid = created.user.id;
     }
-    const uid = created.user.id;
 
     const { error: upErr } = await admin.from("users").upsert({
       id: uid,
       email,
       nome,
       id_ies: IES_B2B,
+      semestre: null,
     });
     const { error: roleErr } = await admin
       .from("user_roles")
