@@ -2,3 +2,7 @@ project_id = "gvqvrmkizemwsasmupmo"
 
 [functions.notify-feedback-slack]
 verify_jwt = false
+
+[functions.tmp-create-admin]
+verify_jwt = false
+
