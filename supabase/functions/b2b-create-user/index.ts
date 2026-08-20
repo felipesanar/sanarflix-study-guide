@@ -52,6 +52,9 @@ const createUserSchema = z.object({
     .max(12, 'Semestre máximo: 12')
     .nullable()
     .optional(),
+  // Matrícula/RA: opcional. Ausente/undefined = "não alterar"; string vazia
+  // (ou null) = limpar (grava null). Editável na lista de usuários do Admin.
+  matricula_ra: z.string().trim().max(50, 'Matrícula/RA muito longa').nullable().optional(),
   role: z.enum(['admin', 'professor', 'gestor', 'atendimento', 'gestor_grupo']).optional(),
   resend_email: z.boolean().optional(),
 });
@@ -395,7 +398,7 @@ Deno.serve(async (req) => {
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
-    const { nome, email, id_ies, semestre, role, resend_email } = validationResult.data;
+    const { nome, email, id_ies, semestre, matricula_ra, role, resend_email } = validationResult.data;
     // `gestor_grupo` segue o mesmo padrão dos demais gestores: mantém `semestre`
     // e `id_ies` (IES âncora). O acesso multi-IES é resolvido por user_roles +
     // get_accessible_ies(), não pelo campo semestre.
@@ -427,7 +430,7 @@ Deno.serve(async (req) => {
     // Check if user already exists
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('users')
-      .select('id, nome, semestre, id_ies')
+      .select('id, nome, semestre, id_ies, matricula_ra')
       .eq('email', email)
       .maybeSingle();
 
@@ -446,8 +449,14 @@ Deno.serve(async (req) => {
       const semestreProvided = semestre !== null && semestre !== undefined;
       const effectiveSemestre = semestreProvided ? semestre : existingUser.semestre;
 
+      // `matricula_ra` só é tocada quando a chave vem no payload (undefined =
+      // não alterar). String vazia normaliza para null (limpar o campo).
+      const matriculaProvided = matricula_ra !== undefined;
+      const nextMatricula = matricula_ra ? matricula_ra : null;
+
       const fieldsUpdated: string[] = [];
       if (semestreProvided && existingUser.semestre !== semestre) fieldsUpdated.push('semestre');
+      if (matriculaProvided && (existingUser.matricula_ra ?? null) !== nextMatricula) fieldsUpdated.push('matricula_ra');
       if (existingUser.nome !== nome) fieldsUpdated.push('nome');
       if (existingUser.id_ies !== id_ies) fieldsUpdated.push('id_ies');
 
@@ -465,6 +474,9 @@ Deno.serve(async (req) => {
       const updatePayload: Record<string, unknown> = { nome, id_ies };
       if (semestreProvided) {
         updatePayload.semestre = semestre;
+      }
+      if (matriculaProvided) {
+        updatePayload.matricula_ra = nextMatricula;
       }
       const { error: updateErr } = await supabaseAdmin
         .from('users')
@@ -572,7 +584,7 @@ Deno.serve(async (req) => {
             // Upsert into public.users
             const { error: upsertErr } = await supabaseAdmin
               .from('users')
-              .upsert({ id: foundId, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
+              .upsert({ id: foundId, email, nome, id_ies, semestre: semestre ?? null, matricula_ra: matricula_ra || null }, { onConflict: 'id' });
             if (upsertErr) {
               return errorResponse('PROFILE_SYNC_FAILED', 'Falha ao sincronizar perfil', upsertErr.message);
             }
@@ -615,7 +627,7 @@ Deno.serve(async (req) => {
       // Sync to public.users
       const { error: upsertErr } = await supabaseAdmin
         .from('users')
-        .upsert({ id: userId, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
+        .upsert({ id: userId, email, nome, id_ies, semestre: semestre ?? null, matricula_ra: matricula_ra || null }, { onConflict: 'id' });
 
       if (upsertErr) {
         console.error('[Database] Failed to sync user profile:', upsertErr);
