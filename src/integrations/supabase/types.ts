@@ -2078,6 +2078,7 @@ export type Database = {
           email: string
           id: string
           id_ies: string | null
+          matricula_ra: string | null
           nome: string
           semestre: number | null
           semestre_updated_at: string | null
@@ -2088,6 +2089,7 @@ export type Database = {
           email: string
           id: string
           id_ies?: string | null
+          matricula_ra?: string | null
           nome: string
           semestre?: number | null
           semestre_updated_at?: string | null
@@ -2098,6 +2100,7 @@ export type Database = {
           email?: string
           id?: string
           id_ies?: string | null
+          matricula_ra?: string | null
           nome?: string
           semestre?: number | null
           semestre_updated_at?: string | null
