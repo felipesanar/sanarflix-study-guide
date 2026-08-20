@@ -85,6 +85,7 @@ interface UserRow {
   email: string;
   id_ies: string | null;
   ies_nome: string | null;
+  matricula_ra: string | null;
   semestre: number | null;
   roles: string[];
 }
@@ -95,6 +96,7 @@ interface EditingState {
   userId: string | null;
   nome: string;
   id_ies: string;
+  matricula_ra: string;
   semestre: string;
   roles: AppRole[]; // papéis privilegiados marcados (aditivo — pode acumular vários)
 }
@@ -180,6 +182,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     userId: null,
     nome: '',
     id_ies: '',
+    matricula_ra: '',
     semestre: '',
     roles: [],
   });
@@ -241,6 +244,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           nome,
           email,
           id_ies,
+          matricula_ra,
           semestre,
           ies:ies!fk_ies(nome)
         `, { count: 'exact' });
@@ -288,6 +292,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         email: u.email,
         id_ies: u.id_ies,
         ies_nome: (u.ies as { nome: string } | null)?.nome || null,
+        matricula_ra: u.matricula_ra ?? null,
         semestre: u.semestre,
         roles: rolesMap.get(u.id) || [],
       }));
@@ -396,13 +401,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       userId: user.id,
       nome: user.nome,
       id_ies: user.id_ies || '',
+      matricula_ra: user.matricula_ra || '',
       semestre: user.semestre?.toString() || '',
       roles: deriveEditableRoles(user.roles),
     });
   };
 
   const cancelEditing = () => {
-    setEditing({ userId: null, nome: '', id_ies: '', semestre: '', roles: [] });
+    setEditing({ userId: null, nome: '', id_ies: '', matricula_ra: '', semestre: '', roles: [] });
   };
 
   const toggleEditingRole = (role: AppRole, checked: boolean) => {
@@ -434,7 +440,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: { nome: editing.nome.trim(), email: user.email, id_ies: editing.id_ies, semestre },
+        body: {
+          nome: editing.nome.trim(),
+          email: user.email,
+          id_ies: editing.id_ies,
+          semestre,
+          matricula_ra: editing.matricula_ra.trim(),
+        },
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
 
@@ -654,6 +666,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
             )}
             <TableHead className={adminTableHeadClass}>Usuário</TableHead>
             <TableHead className={adminTableHeadClass}>IES</TableHead>
+            <TableHead className={adminTableHeadClass}>Matrícula/RA</TableHead>
             <TableHead className={adminTableHeadClass}>Sem.</TableHead>
             <TableHead className={adminTableHeadClass}>Roles</TableHead>
             <TableHead className={`${adminTableHeadClass} text-right`}>Ações</TableHead>
@@ -700,6 +713,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                     </Select>
                   ) : (
                     <span>{user.ies_nome || '—'}</span>
+                  )}
+                </TableCell>
+
+                <TableCell className={adminTableCellClass}>
+                  {isEditing ? (
+                    <Input
+                      value={editing.matricula_ra}
+                      onChange={(e) => setEditing({ ...editing, matricula_ra: e.target.value })}
+                      maxLength={50}
+                      placeholder="Em branco"
+                      className="h-8 w-32"
+                      aria-label="Matrícula/RA"
+                    />
+                  ) : (
+                    <MonoValue muted={!user.matricula_ra}>{user.matricula_ra || 'Em branco'}</MonoValue>
                   )}
                 </TableCell>
 
