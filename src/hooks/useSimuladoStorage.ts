@@ -30,10 +30,27 @@ export const useSimuladoStorage = (simuladoId: string) => {
   const mesclarContadores = useCallback((estado: EstadoSimulado): EstadoSimulado => {
     const atual = carregarEstado();
     if (!atual) return estado;
+
+    const registroEstado = estado.saidas_registro || [];
+    const registroAtual = atual.saidas_registro || [];
+
+    // Mesma lógica monotônica dos contadores: um estado React defasado não
+    // pode encolher o array. Em empate de tamanho, prefere o registro com
+    // menos "voltou_em" pendente (null) — é o mais atualizado, já que
+    // registrarRetornoAba escreve o retorno direto no localStorage.
+    let saidasRegistro: typeof registroAtual;
+    if (registroEstado.length !== registroAtual.length) {
+      saidasRegistro = registroEstado.length > registroAtual.length ? registroEstado : registroAtual;
+    } else {
+      const pendentes = (arr: typeof registroAtual) => arr.filter(r => r.voltou_em === null).length;
+      saidasRegistro = pendentes(registroAtual) <= pendentes(registroEstado) ? registroAtual : registroEstado;
+    }
+
     return {
       ...estado,
       saidas_de_aba: Math.max(estado.saidas_de_aba, atual.saidas_de_aba),
-      saidas_de_fullscreen: Math.max(estado.saidas_de_fullscreen || 0, atual.saidas_de_fullscreen || 0)
+      saidas_de_fullscreen: Math.max(estado.saidas_de_fullscreen || 0, atual.saidas_de_fullscreen || 0),
+      saidas_registro: saidasRegistro
     };
   }, [carregarEstado]);
 
@@ -156,13 +173,39 @@ export const useSimuladoStorage = (simuladoId: string) => {
     if (!estado) return null;
 
     const novoValor = estado.saidas_de_aba + 1;
+    const saidasRegistro = [
+      ...(estado.saidas_registro || []),
+      { saiu_em: new Date().toISOString(), voltou_em: null }
+    ];
 
     salvarEstado({
       ...estado,
-      saidas_de_aba: novoValor
+      saidas_de_aba: novoValor,
+      saidas_registro: saidasRegistro
     });
 
     return novoValor;
+  }, [carregarEstado, salvarEstado]);
+
+  // Preenche o voltou_em da última saída em aberto (voltou_em === null).
+  // No-op se não houver saída em aberto (ex.: chamado sem uma saída anterior).
+  const registrarRetornoAba = useCallback(() => {
+    const estado = carregarEstado();
+    const registro = estado?.saidas_registro;
+    if (!estado || !registro || registro.length === 0) return;
+
+    const idxReverso = [...registro].reverse().findIndex(r => r.voltou_em === null);
+    if (idxReverso === -1) return;
+
+    const idx = registro.length - 1 - idxReverso;
+    const saidasRegistro = registro.map((r, i) =>
+      i === idx ? { ...r, voltou_em: new Date().toISOString() } : r
+    );
+
+    salvarEstado({
+      ...estado,
+      saidas_registro: saidasRegistro
+    });
   }, [carregarEstado, salvarEstado]);
 
   const registrarSaidaFullscreen = useCallback(() => {
@@ -213,6 +256,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
       respostas: {},
       saidas_de_aba: 0,
       saidas_de_fullscreen: 0,
+      saidas_registro: [],
       iniciado_em: agora.toISOString(),
       deadline_efetivo: deadlineEfetivo.toISOString(),
       ultima_atualizacao: agora.toISOString()
@@ -260,6 +304,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
     marcarRevisao,
     eliminarAlternativa,
     registrarSaidaAba,
+    registrarRetornoAba,
     registrarSaidaFullscreen,
     limparEstado,
     inicializarEstado,

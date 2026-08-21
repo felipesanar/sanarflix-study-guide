@@ -46,12 +46,10 @@ export const ModoProva = () => {
   const jaFinalizouRef = useRef(false); // Flag para evitar envio duplicado
 
   // IES com regra estrita de permanência na página (hoje só Claretiano).
-  // `user` pode carregar de forma assíncrona, então mantemos um ref sempre
-  // atualizado no corpo do render para o callback onSaidaAba (registrado no
-  // useFocusControl logo abaixo) nunca ler um valor stale.
+  // Usado só para o JSX; dentro de callbacks (onSaidaAba etc.) usamos
+  // iesTemBloqueioPorSaida(userRef.current?.id_ies) para nunca ler um `user`
+  // stale, já que ele pode carregar de forma assíncrona.
   const bloqueioAtivo = iesTemBloqueioPorSaida(user?.id_ies);
-  const bloqueioAtivoRef = useRef(bloqueioAtivo);
-  bloqueioAtivoRef.current = bloqueioAtivo;
 
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [questaoAtual, setQuestaoAtual] = useState(0);
@@ -64,6 +62,15 @@ export const ModoProva = () => {
   const [dataEncerramento, setDataEncerramento] = useState<string | null>(null);
   const [bloqueado, setBloqueado] = useState(false);
   const [erroEnvioBloqueio, setErroEnvioBloqueio] = useState(false);
+
+  // A tela de bloqueio aparece sem navegação (efeito colateral de uma saída
+  // de aba, não de um clique); leitores de tela precisam ser levados até ela.
+  const bloqueadoHeadingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (bloqueado) {
+      bloqueadoHeadingRef.current?.focus();
+    }
+  }, [bloqueado]);
 
   // Refs estáveis para evitar re-registrar o listener a cada tick do cronômetro
   // ou a cada mudança de state. Antes este effect re-rodava a cada segundo,
@@ -91,10 +98,10 @@ export const ModoProva = () => {
 
       // Regra estrita (ex.: Claretiano): a partir da 2ª saída, bloqueia e
       // finaliza automaticamente o simulado com a flag bloqueado_por_saidas.
+      // deveBloquearPorSaidas é a fonte única da regra (testada).
       if (
-        bloqueioAtivoRef.current &&
         novaContagem !== null &&
-        novaContagem > LIMITE_SAIDAS_DE_ABA &&
+        deveBloquearPorSaidas(userRef.current?.id_ies, novaContagem) &&
         !jaFinalizouRef.current &&
         !finalizandoRef.current &&
         !bloqueadoRef.current
@@ -105,7 +112,8 @@ export const ModoProva = () => {
       }
     },
     onRetornoAba: () => {
-      // Não faz nada ao retornar, apenas verifica fullscreen
+      storage.registrarRetornoAba();
+      // Apenas verifica fullscreen além disso
     },
     onSaidaFullscreen: () => {
       storage.registrarSaidaFullscreen();
@@ -352,7 +360,14 @@ export const ModoProva = () => {
   }, [storage]);
 
   const finalizarSimulado = async (opcoes?: { bloqueadoPorSaidas?: boolean }) => {
-    const bloqueadoPorSaidas = opcoes?.bloqueadoPorSaidas === true;
+    // Tempo esgotado, bloqueio automático por saídas e clique no botão podem
+    // colidir; evita reentrância (ex.: dois POSTs em paralelo).
+    if (finalizandoRef.current || jaFinalizouRef.current) return;
+
+    // Herda o bloqueio do estado atual: se a tela de bloqueio está ativa,
+    // qualquer finalização (ex.: tempo esgotado após falha do envio do
+    // bloqueio) deve carregar a flag, não regravar como finalização normal.
+    const bloqueadoPorSaidas = opcoes?.bloqueadoPorSaidas === true || bloqueadoRef.current === true;
 
     // Sob FF_PROVA_RACE_FIX: só marcamos jaFinalizouRef após sucesso do envio,
     // garantindo que beforeunload (sendBeacon) continue funcionando como
@@ -362,6 +377,10 @@ export const ModoProva = () => {
     if (!env.FF_PROVA_RACE_FIX) {
       jaFinalizouRef.current = true; // legado
     }
+    // Espelha no ref imediatamente: o espelhamento via corpo do render
+    // (finalizandoRef.current = finalizando) só acontece no próximo commit do
+    // React, e o guard do beforeunload e do onSaidaAba leem o ref agora.
+    finalizandoRef.current = true;
     setFinalizando(true);
     if (bloqueadoPorSaidas) {
       // Limpa aviso de tentativa anterior (caso seja um retry via "Reenviar")
@@ -389,6 +408,7 @@ export const ModoProva = () => {
         tempo_total_segundos: tempoTotalSegundos,
         saidas_de_aba: estadoFinal.saidas_de_aba,
         saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
+        saidas_detalhe: estadoFinal.saidas_registro ?? [],
         finalizado_em: new Date().toISOString(),
         bloqueado_por_saidas: bloqueadoPorSaidas
       };
@@ -435,6 +455,10 @@ export const ModoProva = () => {
       }
     } catch (error) {
       Logger.error('Erro ao finalizar simulado:', error);
+      // No modo legado (FF_PROVA_RACE_FIX=false, default atual) o ref é
+      // setado antes do envio; se o envio falhou, precisa ser revertido para
+      // o fallback do beforeunload (sendBeacon) voltar a funcionar.
+      jaFinalizouRef.current = false;
       if (bloqueadoPorSaidas) {
         // Aviso discreto na própria tela de bloqueio + botão "Reenviar",
         // em vez do toast destrutivo padrão — o aluno não volta para a prova.
@@ -443,6 +467,7 @@ export const ModoProva = () => {
         toast.error('Erro ao enviar simulado. Tente novamente.');
       }
       setFinalizando(false);
+      finalizandoRef.current = false;
     }
   };
 
@@ -511,17 +536,25 @@ export const ModoProva = () => {
         // sessionStorage/localStorage indisponível — segue sem token; servidor rejeitará.
       }
 
+      // beforeunload dispara antes do visibilitychange: a saída em curso (fechar
+      // a aba/janela) ainda não está na contagem persistida. Para IES com regra
+      // estrita, contamos esta saída aqui; para as demais, contagem inalterada
+      // (preserva a semântica histórica do dado).
+      const contagemComEstaSaida =
+        estadoFinal.saidas_de_aba + (iesTemBloqueioPorSaida(currentUser.id_ies) ? 1 : 0);
+
       const payload = {
         simulado_id: simuladoId,
         user_id: currentUser.id,
         respostas: respostasCompletas,
         tempo_total_segundos: tempoTotalSegundos,
-        saidas_de_aba: estadoFinal.saidas_de_aba,
+        saidas_de_aba: contagemComEstaSaida,
         saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
+        saidas_detalhe: estadoFinal.saidas_registro ?? [],
         finalizado_em: new Date().toISOString(),
         auto_finalizado: true,
         __access_token: accessToken,
-        bloqueado_por_saidas: deveBloquearPorSaidas(currentUser.id_ies, estadoFinal.saidas_de_aba),
+        bloqueado_por_saidas: deveBloquearPorSaidas(currentUser.id_ies, contagemComEstaSaida),
       };
 
       // sendBeacon garante que a requisição seja enviada mesmo fechando a aba.
@@ -565,7 +598,7 @@ export const ModoProva = () => {
           <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
             <ShieldAlert className="h-8 w-8 text-destructive" />
           </div>
-          <h1 className="text-2xl font-bold">Simulado bloqueado</h1>
+          <h1 ref={bloqueadoHeadingRef} tabIndex={-1} className="text-2xl font-bold outline-none">Simulado bloqueado</h1>
           <p className="text-muted-foreground">
             Você saiu da página do simulado mais de uma vez. Conforme as regras da sua instituição,
             o simulado foi encerrado automaticamente e as respostas dadas até aqui foram enviadas.
@@ -603,7 +636,8 @@ export const ModoProva = () => {
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Atenção: você saiu da página 1 vez. Se sair novamente, seu simulado será bloqueado automaticamente.
+            Atenção: você já saiu da página {estado?.saidas_de_aba ?? 0}x — o tolerado é {LIMITE_SAIDAS_DE_ABA}x.
+            Se sair novamente, seu simulado será bloqueado automaticamente.
           </AlertDescription>
         </Alert>
       ) : (
@@ -852,7 +886,7 @@ export const ModoProva = () => {
             <AlertDialogTitle>Regras deste simulado</AlertDialogTitle>
             <AlertDialogDescription>
               Sua instituição exige permanência na página durante toda a prova. Sair da página
-              (trocar de aba ou minimizar) mais de 1 vez bloqueia o simulado automaticamente.
+              (trocar de aba ou minimizar) mais de {LIMITE_SAIDAS_DE_ABA}x bloqueia o simulado automaticamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

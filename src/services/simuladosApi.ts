@@ -158,6 +158,7 @@ export const simuladosApi = {
         tempo_total_segundos: resultado.tempo_total_segundos,
         saidas_de_aba: resultado.saidas_de_aba,
         saidas_de_fullscreen: resultado.saidas_de_fullscreen,
+        saidas_detalhe: resultado.saidas_detalhe ?? [],
         finalizado_em: resultado.finalizado_em,
         bloqueado_por_saidas: resultado.bloqueado_por_saidas === true
       }

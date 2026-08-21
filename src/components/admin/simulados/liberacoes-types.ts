@@ -13,6 +13,8 @@ export interface FinalizacaoRow {
   tentativa_numero: number;
   /** Finalização automática por regra anti-cola (IES estrita, >1 saída de aba). */
   bloqueado_por_saidas: boolean;
+  /** Cada saída de página durante a prova; `voltou_em: null` = não retornou. */
+  saidas_detalhe?: { saiu_em: string; voltou_em: string | null }[] | null;
   user_email?: string;
   user_nome?: string;
   simulado_nome?: string;

@@ -20,6 +20,8 @@ interface CorrecaoRequest {
   auto_finalizado?: boolean;
   /** true quando o cliente bloqueou a prova por excesso de saídas da página (regra anti-cola por IES) */
   bloqueado_por_saidas?: boolean;
+  /** Detalhe de cada saída de página durante a prova: [{saiu_em, voltou_em|null}, ...] */
+  saidas_detalhe?: { saiu_em: string; voltou_em: string | null }[];
   /**
    * Access token usado apenas no fluxo de sendBeacon (que não permite
    * cabeçalhos customizados). Quando presente, o servidor o trata como
@@ -72,6 +74,7 @@ Deno.serve(async (req) => {
       finalizado_em,
       auto_finalizado,
       bloqueado_por_saidas,
+      saidas_detalhe,
       __access_token,
     } = body;
 
@@ -334,6 +337,15 @@ Deno.serve(async (req) => {
     console.log(`[corrigir-simulado] Registrando finalização em simulados_finalizados (tentativa ${proximaTentativa})...`);
     console.log(`[corrigir-simulado] Dados: user_id=${user_id}, simulado_id=${simulado_id}, tempo=${tempo_total_segundos}s, saidas_aba=${saidas_de_aba}, saidas_fullscreen=${saidas_de_fullscreen ?? 0}, bloqueado_saidas=${bloqueado_por_saidas === true}`);
 
+    // Sanitiza o detalhe de saídas vindo do cliente: só objetos {saiu_em, voltou_em}
+    // com tipos esperados, no máximo 50 entradas — o resto é descartado.
+    const saidasDetalheSeguras = Array.isArray(saidas_detalhe)
+      ? saidas_detalhe
+          .filter((s) => s && typeof s.saiu_em === 'string' && (s.voltou_em === null || typeof s.voltou_em === 'string'))
+          .slice(0, 50)
+          .map((s) => ({ saiu_em: s.saiu_em, voltou_em: s.voltou_em ?? null }))
+      : null;
+
     const { error: finalizadoError } = await supabaseAdmin
       .from('simulados_finalizados')
       .insert({
@@ -348,6 +360,7 @@ Deno.serve(async (req) => {
         liberado_por: null,
         tentativa_numero: proximaTentativa,
         bloqueado_por_saidas: bloqueado_por_saidas === true,
+        saidas_detalhe: saidasDetalheSeguras,
       });
 
     if (finalizadoError) {

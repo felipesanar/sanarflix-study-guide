@@ -60,6 +60,8 @@ async function fetchFinalizacoes(): Promise<FinalizacaoRow[]> {
     const simulado = simuladosById.get(f.simulado_id);
     return {
       ...f,
+      // `saidas_detalhe` ainda não está nos types gerados do Supabase.
+      saidas_detalhe: (f as any).saidas_detalhe,
       user_email: user?.email,
       user_nome: user?.nome,
       simulado_nome: simulado?.nome,

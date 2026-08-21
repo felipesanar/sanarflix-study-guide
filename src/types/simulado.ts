@@ -48,6 +48,8 @@ export interface EstadoSimulado {
   iniciado_em: string;
   deadline_efetivo: string;
   ultima_atualizacao: string;
+  // Opcional: estados antigos persistidos no localStorage não têm esse campo.
+  saidas_registro?: { saiu_em: string; voltou_em: string | null }[];
 }
 
 export interface ResultadoSimulado {
@@ -60,4 +62,5 @@ export interface ResultadoSimulado {
   finalizado_em: string;
   auto_finalizado?: boolean;
   bloqueado_por_saidas?: boolean;
+  saidas_detalhe?: { saiu_em: string; voltou_em: string | null }[];
 }
