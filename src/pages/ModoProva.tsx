@@ -28,10 +28,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ChevronLeft, ChevronRight, Flag, Maximize, AlertCircle, Check, Keyboard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Maximize, AlertCircle, Check, Keyboard, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Logger } from '@/utils/logger';
+import { iesTemBloqueioPorSaida, deveBloquearPorSaidas, LIMITE_SAIDAS_DE_ABA } from '@/config/antiCola';
 
 export const ModoProva = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,21 +44,65 @@ export const ModoProva = () => {
   const { trackSimuladoStart, trackSimuladoComplete } = useAnalyticsTracker();
   const hasTrackedStart = useRef(false);
   const jaFinalizouRef = useRef(false); // Flag para evitar envio duplicado
-  
+
+  // IES com regra estrita de permanência na página (hoje só Claretiano).
+  // `user` pode carregar de forma assíncrona, então mantemos um ref sempre
+  // atualizado no corpo do render para o callback onSaidaAba (registrado no
+  // useFocusControl logo abaixo) nunca ler um valor stale.
+  const bloqueioAtivo = iesTemBloqueioPorSaida(user?.id_ies);
+  const bloqueioAtivoRef = useRef(bloqueioAtivo);
+  bloqueioAtivoRef.current = bloqueioAtivo;
+
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [questaoAtual, setQuestaoAtual] = useState(0);
   const [loading, setLoading] = useState(true);
   const [estado, setEstado] = useState<EstadoSimulado | null>(null);
   const [mostrarDialogFinalizar, setMostrarDialogFinalizar] = useState(false);
+  const [mostrarDialogRegras, setMostrarDialogRegras] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [simuladoTitulo, setSimuladoTitulo] = useState('');
   const [dataEncerramento, setDataEncerramento] = useState<string | null>(null);
+  const [bloqueado, setBloqueado] = useState(false);
+  const [erroEnvioBloqueio, setErroEnvioBloqueio] = useState(false);
+
+  // Refs estáveis para evitar re-registrar o listener a cada tick do cronômetro
+  // ou a cada mudança de state. Antes este effect re-rodava a cada segundo,
+  // causando memory leak de listeners durante toda a prova.
+  const finalizandoRef = useRef(finalizando);
+  finalizandoRef.current = finalizando;
+  const questoesRef = useRef(questoes);
+  questoesRef.current = questoes;
+  const userRef = useRef(user);
+  userRef.current = user;
+  const bloqueadoRef = useRef(bloqueado);
+  bloqueadoRef.current = bloqueado;
 
   // Controles de foco e tela cheia
   const { foraDeAba, foraDeTelaCheia, podeInteragir, entrarTelaCheia } = useFocusControl({
     onSaidaAba: () => {
-      storage.registrarSaidaAba();
+      const novaContagem = storage.registrarSaidaAba();
       // NÃO pausa mais o cronômetro ao sair da aba
+
+      // Espelha a contagem no estado React: registrarSaidaAba escreve direto
+      // no localStorage, e o alerta pós-1ª-saída lê o estado React.
+      if (novaContagem !== null) {
+        setEstado(prev => (prev ? { ...prev, saidas_de_aba: novaContagem } : prev));
+      }
+
+      // Regra estrita (ex.: Claretiano): a partir da 2ª saída, bloqueia e
+      // finaliza automaticamente o simulado com a flag bloqueado_por_saidas.
+      if (
+        bloqueioAtivoRef.current &&
+        novaContagem !== null &&
+        novaContagem > LIMITE_SAIDAS_DE_ABA &&
+        !jaFinalizouRef.current &&
+        !finalizandoRef.current &&
+        !bloqueadoRef.current
+      ) {
+        bloqueadoRef.current = true;
+        setBloqueado(true);
+        finalizarSimulado({ bloqueadoPorSaidas: true });
+      }
     },
     onRetornoAba: () => {
       // Não faz nada ao retornar, apenas verifica fullscreen
@@ -92,9 +137,13 @@ export const ModoProva = () => {
     try {
       // VERIFICAÇÃO DE SEGURANÇA: Bloquear acesso se já finalizou e não foi liberado
       if (user?.id) {
-        const jaConcluido = await simuladosApi.verificarProgressoSimulado(user.id, simuladoId);
-        if (jaConcluido) {
-          toast.error('Você já finalizou este simulado');
+        const { finalizado, bloqueadoPorSaidas } = await simuladosApi.buscarStatusFinalizacao(user.id, simuladoId);
+        if (finalizado) {
+          if (bloqueadoPorSaidas) {
+            toast.error('Simulado bloqueado: você saiu da página mais de uma vez durante a prova.');
+          } else {
+            toast.error('Você já finalizou este simulado');
+          }
           navigate('/simulados');
           return;
         }
@@ -106,6 +155,9 @@ export const ModoProva = () => {
 
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
+      // Sincroniza o ref na hora: o bloqueio imediato na retomada (abaixo)
+      // pode finalizar antes do re-render que atualizaria questoesRef.
+      questoesRef.current = questoesData;
 
       // Diagnóstico: verifica se as imagens vieram do banco para o aluno
       const comImagem = questoesData.filter((q) => q.imagem).length;
@@ -152,6 +204,23 @@ export const ModoProva = () => {
       setDataEncerramento(estadoAtual.deadline_efetivo);
       setEstado(estadoAtual);
       setQuestaoAtual(estadoAtual.questao_atual);
+
+      // Retomada com a contagem já estourada (ex.: o envio do bloqueio falhou
+      // e o aluno recarregou a página): bloqueia imediatamente, sem esperar
+      // uma nova saída.
+      if (deveBloquearPorSaidas(user?.id_ies, estadoAtual.saidas_de_aba)) {
+        bloqueadoRef.current = true;
+        setBloqueado(true);
+        finalizarSimulado({ bloqueadoPorSaidas: true });
+        return;
+      }
+
+      // Dialog informativo de regras: só na IES com bloqueio estrito e só
+      // enquanto o aluno ainda não saiu da aba nenhuma vez (uma vez por
+      // montagem, já que inicializarSimulado só roda uma vez por simuladoId).
+      if (bloqueioAtivo && estadoAtual.saidas_de_aba === 0) {
+        setMostrarDialogRegras(true);
+      }
     } catch (error) {
       Logger.error('Erro ao inicializar simulado:', error);
       toast.error('Erro ao carregar o simulado');
@@ -282,7 +351,9 @@ export const ModoProva = () => {
     });
   }, [storage]);
 
-  const finalizarSimulado = async () => {
+  const finalizarSimulado = async (opcoes?: { bloqueadoPorSaidas?: boolean }) => {
+    const bloqueadoPorSaidas = opcoes?.bloqueadoPorSaidas === true;
+
     // Sob FF_PROVA_RACE_FIX: só marcamos jaFinalizouRef após sucesso do envio,
     // garantindo que beforeunload (sendBeacon) continue funcionando como
     // fallback se a requisição falhar antes do término. Comportamento
@@ -292,12 +363,18 @@ export const ModoProva = () => {
       jaFinalizouRef.current = true; // legado
     }
     setFinalizando(true);
+    if (bloqueadoPorSaidas) {
+      // Limpa aviso de tentativa anterior (caso seja um retry via "Reenviar")
+      setErroEnvioBloqueio(false);
+    }
     try {
       const estadoFinal = storage.carregarEstado();
       if (!estadoFinal || !user) return;
 
       // Preparar TODAS as questões (respondidas e não respondidas)
-      const todasQuestoesIds = questoes.map(q => q.id);
+      // Via ref: no bloqueio imediato da retomada, o state `questoes` desta
+      // closure ainda é o do primeiro render (vazio) — o ref é sempre atual.
+      const todasQuestoesIds = questoesRef.current.map(q => q.id);
       const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
 
       // Calcula tempo gasto desde o início do simulado
@@ -312,7 +389,8 @@ export const ModoProva = () => {
         tempo_total_segundos: tempoTotalSegundos,
         saidas_de_aba: estadoFinal.saidas_de_aba,
         saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
-        finalizado_em: new Date().toISOString()
+        finalizado_em: new Date().toISOString(),
+        bloqueado_por_saidas: bloqueadoPorSaidas
       };
       await simuladosApi.enviarResultado(payload);
 
@@ -325,7 +403,7 @@ export const ModoProva = () => {
         tempoTotalSegundos,
         saidasDeAba: estadoFinal.saidas_de_aba,
         saidasDeFullscreen: estadoFinal.saidas_de_fullscreen || 0,
-        totalQuestoes: questoes.length,
+        totalQuestoes: questoesRef.current.length,
         totalRespondidas
       });
 
@@ -343,17 +421,27 @@ export const ModoProva = () => {
 
       window.dispatchEvent(new CustomEvent('simulado:finalizado', { detail: { simuladoId } }));
 
-      toast.success('Simulado enviado com sucesso!', {
-        description: 'Redirecionando para a página de simulados...',
-        duration: 3000
-      });
+      // Bloqueado por saídas: permanece na tela de bloqueio, sem toast de
+      // sucesso e sem redirecionar — o aluno nunca volta para a prova.
+      if (!bloqueadoPorSaidas) {
+        toast.success('Simulado enviado com sucesso!', {
+          description: 'Redirecionando para a página de simulados...',
+          duration: 3000
+        });
 
-      setTimeout(() => {
-        navigate(`/simulados?aba=simulados&just_finished=${simuladoId}`);
-      }, 1500);
+        setTimeout(() => {
+          navigate(`/simulados?aba=simulados&just_finished=${simuladoId}`);
+        }, 1500);
+      }
     } catch (error) {
       Logger.error('Erro ao finalizar simulado:', error);
-      toast.error('Erro ao enviar simulado. Tente novamente.');
+      if (bloqueadoPorSaidas) {
+        // Aviso discreto na própria tela de bloqueio + botão "Reenviar",
+        // em vez do toast destrutivo padrão — o aluno não volta para a prova.
+        setErroEnvioBloqueio(true);
+      } else {
+        toast.error('Erro ao enviar simulado. Tente novamente.');
+      }
       setFinalizando(false);
     }
   };
@@ -384,19 +472,9 @@ export const ModoProva = () => {
     'Escape': () => setMostrarDialogFinalizar(true),
   }), [podeInteragir, questaoAtualData, handleSelecionarAlternativa, handleAnterior, handleProxima, handleMarcarRevisao]);
 
-  useKeyboardShortcuts(keyboardShortcuts, { 
-    enabled: !loading && !mostrarDialogFinalizar && !finalizando 
+  useKeyboardShortcuts(keyboardShortcuts, {
+    enabled: !loading && !mostrarDialogFinalizar && !mostrarDialogRegras && !bloqueado && !finalizando
   });
-
-  // Refs estáveis para evitar re-registrar o listener a cada tick do cronômetro
-  // ou a cada mudança de state. Antes este effect re-rodava a cada segundo,
-  // causando memory leak de listeners durante toda a prova.
-  const finalizandoRef = useRef(finalizando);
-  finalizandoRef.current = finalizando;
-  const questoesRef = useRef(questoes);
-  questoesRef.current = questoes;
-  const userRef = useRef(user);
-  userRef.current = user;
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -443,6 +521,7 @@ export const ModoProva = () => {
         finalizado_em: new Date().toISOString(),
         auto_finalizado: true,
         __access_token: accessToken,
+        bloqueado_por_saidas: deveBloquearPorSaidas(currentUser.id_ies, estadoFinal.saidas_de_aba),
       };
 
       // sendBeacon garante que a requisição seja enviada mesmo fechando a aba.
@@ -475,16 +554,67 @@ export const ModoProva = () => {
     );
   }
 
+  // Simulado bloqueado por excesso de saídas da página (regra estrita da
+  // IES): tela final, o aluno não volta para a prova. O envio automático já
+  // foi disparado por onSaidaAba/finalizarSimulado; aqui só cobrimos o caso
+  // de falha desse envio com um aviso discreto + retry.
+  if (bloqueado) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+            <ShieldAlert className="h-8 w-8 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold">Simulado bloqueado</h1>
+          <p className="text-muted-foreground">
+            Você saiu da página do simulado mais de uma vez. Conforme as regras da sua instituição,
+            o simulado foi encerrado automaticamente e as respostas dadas até aqui foram enviadas.
+          </p>
+
+          {erroEnvioBloqueio && (
+            <Alert variant="destructive" className="text-left">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between gap-3 flex-wrap">
+                <span>Não foi possível confirmar o envio automático.</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={finalizando}
+                  onClick={() => finalizarSimulado({ bloqueadoPorSaidas: true })}
+                >
+                  {finalizando ? 'Reenviando...' : 'Reenviar'}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Button onClick={() => navigate('/simulados')} className="w-full">
+            Voltar para Simulados
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Alertas */}
-      {foraDeAba && (
+      {bloqueioAtivo && (estado?.saidas_de_aba ?? 0) >= 1 ? (
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Você saiu do modo prova. Seu tempo foi pausado. Retorne para continuar.
+            Atenção: você saiu da página 1 vez. Se sair novamente, seu simulado será bloqueado automaticamente.
           </AlertDescription>
         </Alert>
+      ) : (
+        foraDeAba && (
+          <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Você saiu do modo prova. Seu tempo foi pausado. Retorne para continuar.
+            </AlertDescription>
+          </Alert>
+        )
       )}
 
       {foraDeTelaCheia && (
@@ -695,7 +825,7 @@ export const ModoProva = () => {
               Continuar Respondendo
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={finalizarSimulado}
+              onClick={() => finalizarSimulado()}
               disabled={finalizando}
               className="bg-primary"
             >
@@ -710,6 +840,24 @@ export const ModoProva = () => {
                   Finalizar
                 </>
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog informativo de regras (IES com bloqueio estrito por saída de página) */}
+      <AlertDialog open={mostrarDialogRegras} onOpenChange={setMostrarDialogRegras}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regras deste simulado</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sua instituição exige permanência na página durante toda a prova. Sair da página
+              (trocar de aba ou minimizar) mais de 1 vez bloqueia o simulado automaticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setMostrarDialogRegras(false)}>
+              Entendi, começar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

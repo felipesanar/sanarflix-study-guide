@@ -22,17 +22,32 @@ export const useSimuladoStorage = (simuladoId: string) => {
     }
   }, [simuladoId]);
 
+  // Contadores de saída são monotônicos dentro de uma tentativa. O merge no
+  // momento da escrita impede que um estado React defasado (que não acompanha
+  // registrarSaidaAba/registrarSaidaFullscreen, que escrevem direto no
+  // localStorage) sobrescreva uma contagem já registrada — sem isso, responder
+  // uma questão depois de uma saída de aba zerava o contador.
+  const mesclarContadores = useCallback((estado: EstadoSimulado): EstadoSimulado => {
+    const atual = carregarEstado();
+    if (!atual) return estado;
+    return {
+      ...estado,
+      saidas_de_aba: Math.max(estado.saidas_de_aba, atual.saidas_de_aba),
+      saidas_de_fullscreen: Math.max(estado.saidas_de_fullscreen || 0, atual.saidas_de_fullscreen || 0)
+    };
+  }, [carregarEstado]);
+
   // Salvar síncrono - usado apenas quando necessário imediatamente
   const salvarEstado = useCallback((estado: EstadoSimulado) => {
     try {
       localStorage.setItem(getEstadoKey(), JSON.stringify({
-        ...estado,
+        ...mesclarContadores(estado),
         ultima_atualizacao: new Date().toISOString()
       }));
     } catch (error) {
       Logger.error('Erro ao salvar estado do simulado:', error);
     }
-  }, [simuladoId]);
+  }, [simuladoId, mesclarContadores]);
 
   // Salvar com debounce - não bloqueia a UI
   const salvarEstadoDebounced = useCallback((estado: EstadoSimulado) => {
@@ -48,13 +63,13 @@ export const useSimuladoStorage = (simuladoId: string) => {
     debouncedSaveRef.current = setTimeout(() => {
       if (pendingStateRef.current) {
         try {
-          localStorage.setItem(getEstadoKey(), JSON.stringify(pendingStateRef.current));
+          localStorage.setItem(getEstadoKey(), JSON.stringify(mesclarContadores(pendingStateRef.current)));
         } catch (error) {
           Logger.error('Erro ao salvar estado:', error);
         }
       }
     }, 100);
-  }, [simuladoId]);
+  }, [simuladoId, mesclarContadores]);
 
   // Força a persistência imediata (usado antes de fechar/finalizar)
   const flushPendingState = useCallback(() => {
@@ -63,12 +78,12 @@ export const useSimuladoStorage = (simuladoId: string) => {
     }
     if (pendingStateRef.current) {
       try {
-        localStorage.setItem(getEstadoKey(), JSON.stringify(pendingStateRef.current));
+        localStorage.setItem(getEstadoKey(), JSON.stringify(mesclarContadores(pendingStateRef.current)));
       } catch (error) {
         Logger.error('Erro ao forçar salvamento:', error);
       }
     }
-  }, [simuladoId]);
+  }, [simuladoId, mesclarContadores]);
 
   const salvarResposta = useCallback((questaoId: string, resposta: RespostaSimulado) => {
     const estado = carregarEstado();
@@ -136,14 +151,18 @@ export const useSimuladoStorage = (simuladoId: string) => {
     salvarEstadoDebounced(novoEstado);
   }, [carregarEstado, salvarEstadoDebounced]);
 
-  const registrarSaidaAba = useCallback(() => {
+  const registrarSaidaAba = useCallback((): number | null => {
     const estado = carregarEstado();
-    if (!estado) return;
+    if (!estado) return null;
+
+    const novoValor = estado.saidas_de_aba + 1;
 
     salvarEstado({
       ...estado,
-      saidas_de_aba: estado.saidas_de_aba + 1
+      saidas_de_aba: novoValor
     });
+
+    return novoValor;
   }, [carregarEstado, salvarEstado]);
 
   const registrarSaidaFullscreen = useCallback(() => {

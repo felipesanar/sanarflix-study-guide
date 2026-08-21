@@ -158,7 +158,8 @@ export const simuladosApi = {
         tempo_total_segundos: resultado.tempo_total_segundos,
         saidas_de_aba: resultado.saidas_de_aba,
         saidas_de_fullscreen: resultado.saidas_de_fullscreen,
-        finalizado_em: resultado.finalizado_em
+        finalizado_em: resultado.finalizado_em,
+        bloqueado_por_saidas: resultado.bloqueado_por_saidas === true
       }
     });
 
@@ -169,10 +170,18 @@ export const simuladosApi = {
   },
 
   async verificarProgressoSimulado(userId: string, simuladoId: string): Promise<boolean> {
+    const { finalizado } = await this.buscarStatusFinalizacao(userId, simuladoId);
+    return finalizado;
+  },
+
+  async buscarStatusFinalizacao(
+    userId: string,
+    simuladoId: string
+  ): Promise<{ finalizado: boolean; bloqueadoPorSaidas: boolean }> {
     // Buscar o registro mais recente (maior tentativa_numero)
     const { data, error } = await supabase
       .from('simulados_finalizados')
-      .select('id, liberado_novamente, tentativa_numero')
+      .select('id, liberado_novamente, tentativa_numero, bloqueado_por_saidas')
       .eq('user_id', userId)
       .eq('simulado_id', simuladoId)
       .order('tentativa_numero', { ascending: false })
@@ -180,8 +189,11 @@ export const simuladosApi = {
       .maybeSingle();
 
     if (error) throw error;
-    
-    // Retorna true se existe registro E não foi liberado novamente (simulado bloqueado)
-    return data !== null && !data.liberado_novamente;
+
+    // finalizado = true se existe registro E não foi liberado novamente (simulado bloqueado)
+    const finalizado = data !== null && !data.liberado_novamente;
+    const bloqueadoPorSaidas = finalizado && data?.bloqueado_por_saidas === true;
+
+    return { finalizado, bloqueadoPorSaidas };
   }
 };

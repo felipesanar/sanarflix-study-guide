@@ -1605,6 +1605,7 @@ export type Database = {
       }
       simulados_finalizados: {
         Row: {
+          bloqueado_por_saidas: boolean
           finalizado_em: string
           id: string
           liberado_em: string | null
@@ -1618,6 +1619,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bloqueado_por_saidas?: boolean
           finalizado_em?: string
           id?: string
           liberado_em?: string | null
@@ -1631,6 +1633,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bloqueado_por_saidas?: boolean
           finalizado_em?: string
           id?: string
           liberado_em?: string | null

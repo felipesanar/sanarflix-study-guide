@@ -18,6 +18,8 @@ interface CorrecaoRequest {
   saidas_de_fullscreen?: number;
   finalizado_em?: string;
   auto_finalizado?: boolean;
+  /** true quando o cliente bloqueou a prova por excesso de saídas da página (regra anti-cola por IES) */
+  bloqueado_por_saidas?: boolean;
   /**
    * Access token usado apenas no fluxo de sendBeacon (que não permite
    * cabeçalhos customizados). Quando presente, o servidor o trata como
@@ -69,6 +71,7 @@ Deno.serve(async (req) => {
       saidas_de_fullscreen,
       finalizado_em,
       auto_finalizado,
+      bloqueado_por_saidas,
       __access_token,
     } = body;
 
@@ -329,7 +332,7 @@ Deno.serve(async (req) => {
     const finalizadoEmTimestamp = finalizado_em || new Date().toISOString();
     
     console.log(`[corrigir-simulado] Registrando finalização em simulados_finalizados (tentativa ${proximaTentativa})...`);
-    console.log(`[corrigir-simulado] Dados: user_id=${user_id}, simulado_id=${simulado_id}, tempo=${tempo_total_segundos}s, saidas_aba=${saidas_de_aba}, saidas_fullscreen=${saidas_de_fullscreen ?? 0}`);
+    console.log(`[corrigir-simulado] Dados: user_id=${user_id}, simulado_id=${simulado_id}, tempo=${tempo_total_segundos}s, saidas_aba=${saidas_de_aba}, saidas_fullscreen=${saidas_de_fullscreen ?? 0}, bloqueado_saidas=${bloqueado_por_saidas === true}`);
 
     const { error: finalizadoError } = await supabaseAdmin
       .from('simulados_finalizados')
@@ -343,7 +346,8 @@ Deno.serve(async (req) => {
         liberado_novamente: false,
         liberado_em: null,
         liberado_por: null,
-        tentativa_numero: proximaTentativa
+        tentativa_numero: proximaTentativa,
+        bloqueado_por_saidas: bloqueado_por_saidas === true,
       });
 
     if (finalizadoError) {
@@ -361,7 +365,8 @@ Deno.serve(async (req) => {
         saidas_de_aba,
         saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
         finalizado_em: finalizadoEmTimestamp,
-        tentativa_numero: proximaTentativa
+        tentativa_numero: proximaTentativa,
+        bloqueado_por_saidas: bloqueado_por_saidas === true
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Unlock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminTable, adminTableCellClass, adminTableHeadClass, MonoValue, StatusPill } from '@/experiences/admin/ui';
@@ -59,9 +60,18 @@ export function LiberacoesTable({ rows, toolbar, onLiberar }: LiberacoesTablePro
                 <MonoValue>{formatTempo(row.tempo_total_segundos)}</MonoValue>
               </TableCell>
               <TableCell className={adminTableCellClass}>
-                <StatusPill variant={totalSaidas > 0 ? 'red' : 'muted'}>
-                  {row.saidas_de_aba} aba · {row.saidas_de_fullscreen} tela
-                </StatusPill>
+                <div className="space-y-1">
+                  <StatusPill variant={totalSaidas > 0 ? 'red' : 'muted'}>
+                    {row.saidas_de_aba} aba · {row.saidas_de_fullscreen} tela
+                  </StatusPill>
+                  {row.bloqueado_por_saidas && (
+                    <div>
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                        Bloqueado por saídas
+                      </Badge>
+                    </div>
+                  )}
+                </div>
               </TableCell>
               <TableCell className={adminTableCellClass}>
                 {row.liberado_novamente ? (

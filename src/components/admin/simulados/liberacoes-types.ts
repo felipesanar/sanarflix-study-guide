@@ -11,6 +11,8 @@ export interface FinalizacaoRow {
   liberado_em: string | null;
   liberado_por: string | null;
   tentativa_numero: number;
+  /** Finalização automática por regra anti-cola (IES estrita, >1 saída de aba). */
+  bloqueado_por_saidas: boolean;
   user_email?: string;
   user_nome?: string;
   simulado_nome?: string;

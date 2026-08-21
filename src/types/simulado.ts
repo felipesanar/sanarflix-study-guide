@@ -59,4 +59,5 @@ export interface ResultadoSimulado {
   saidas_de_fullscreen: number;
   finalizado_em: string;
   auto_finalizado?: boolean;
+  bloqueado_por_saidas?: boolean;
 }
