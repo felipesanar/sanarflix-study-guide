@@ -30,7 +30,7 @@ export type StatusSimulado =
 
 export type Tendencia = 'subindo' | 'descendo' | 'alternando' | 'estavel';
 
-export type ModoGrafico = 'geral' | 'area' | 'aluno';
+export type ModoGrafico = 'geral' | 'area';
 
 /** Rastreabilidade obrigatória de todo indicador (spec §4.1). */
 export interface Meta {

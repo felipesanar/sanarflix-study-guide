@@ -2,3 +2,7 @@ project_id = "gvqvrmkizemwsasmupmo"
 
 [functions.notify-feedback-slack]
 verify_jwt = false
+
+[functions.metabase-proxy]
+verify_jwt = false
+

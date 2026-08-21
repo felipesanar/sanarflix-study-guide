@@ -44,7 +44,51 @@ const SYSTEM_PROMPT_ALUNO = `Você é analista pedagógico sênior de cursos de 
 
 ${BASE_ENAMED}
 
-Com base na trajetória de simulados e no desempenho por área do aluno, gere um insight curto (no máximo 4 frases): tendência (melhora, piora ou estabilidade), distância em relação à faixa de proficiência, área que mais pesa contra ele e qual intervenção tem maior retorno. ${ANTI_INVENCAO_GESTOR}`;
+Entregue, via a tool leitura_aluno, exatamente DUAS leituras sobre este aluno, aplicadas ao recorte e à visão informados no contexto:
+1. um PONTO FORTE: o que está sustentando o desempenho dele (área, especialidade, tema ou tendência de proficiência que subiu/se manteve);
+2. um PONTO DE ATENÇÃO: o que mais pesa contra ele agora e o que a coordenação deve olhar primeiro.
+
+Como escrever (obrigatório):
+- Fale como uma pessoa real conversando com outra: frases curtas, palavras do dia a dia, uma ideia por frase.
+- Cada texto tem 1 ou 2 frases e cita pelo menos um número que EXISTE no contexto (% de acerto, proficiência, variação, nº de questões).
+- Respeite a visão informada: se a visão é consolidada, fale do acumulado nos simulados considerados; se é um simulado específico, diga que o número é daquele simulado.
+- Proibido jargão ("alavancar", "potencializar", "acionável", "otimizar", "gap", "performance", "insight").
+- Sem linguagem dirigida ao aluno ("estude", "revise"): você fala com o gestor sobre o aluno.
+- Nunca escreva "o curso": use "a faculdade", "a instituição" ou "a escola médica".
+- Nunca invente número, área ou tendência que não esteja no contexto. Se falta dado para um dos dois pontos, diga isso na frase em vez de estimar.
+
+${ANTI_INVENCAO_GESTOR}`;
+
+const TOOL_LEITURA_ALUNO: ToolSchema = {
+  type: "function",
+  function: {
+    name: "leitura_aluno",
+    description: "Leitura curta do desempenho de um aluno: um ponto forte e um ponto de atenção.",
+    parameters: {
+      type: "object",
+      properties: {
+        ponto_forte: {
+          type: "object",
+          properties: {
+            titulo: { type: "string", description: "Até 40 caracteres: a área/tema/tendência que sustenta o aluno." },
+            texto: { type: "string", description: "1 a 2 frases, até 220 caracteres, com um número do contexto." },
+          },
+          required: ["titulo", "texto"],
+        },
+        ponto_atencao: {
+          type: "object",
+          properties: {
+            titulo: { type: "string", description: "Até 40 caracteres: o que mais pesa contra o aluno agora." },
+            texto: { type: "string", description: "1 a 2 frases, até 220 caracteres, com um número do contexto e o que olhar primeiro." },
+          },
+          required: ["titulo", "texto"],
+        },
+      },
+      required: ["ponto_forte", "ponto_atencao"],
+    },
+  },
+};
+
 
 const BASE_CONSULTOR = `Você é consultor sênior de desempenho no ENAMED, com histórico de levar faculdades de medicina às melhores notas do exame. Fala com o gestor da instituição: direto, estratégico, acionável.
 
@@ -246,7 +290,14 @@ interface AlunoBody {
   iesId: string;
   alunoId: string;
   simulados: string[];
+  /**
+   * Visão ativa do bloco "Desempenho por área" no drawer: `"todos"` (consolidado
+   * ponderado pelas questões respondidas) ou o id do simulado selecionado.
+   * Entra na chave de cache — consolidado e por simulado são leituras distintas.
+   */
+  visao?: string | null;
   refresh?: boolean;
+
 }
 
 interface MovimentoBody {
@@ -503,7 +554,104 @@ function buildPedagogicoPrompt(diagnostico: any, visaoGeral: any): string {
     .join("\n\n");
 }
 
-function buildAlunoPrompt(aluno: any, porArea: any): string {
+/**
+ * Resumo da VISÃO ATIVA do bloco "Desempenho por área" do drawer, na mesma
+ * regra do front (`consolidarAreas` em DrawerAluno.tsx): % ponderado pelas
+ * questões respondidas, nunca média de percentuais, e simulado em que o tema
+ * não foi cobrado simplesmente não entra. `visao = "todos"` funde as entradas;
+ * qualquer outro valor é o id do simulado selecionado.
+ */
+function resumoVisaoAreas(porArea: any, visao: string | null | undefined): string {
+  const entradas: any[] = Array.isArray(porArea?.data) ? porArea.data : Array.isArray(porArea) ? porArea : [];
+  const comAreas = entradas.filter((e: any) => Array.isArray(e?.areas));
+  if (!comAreas.length) return "Sem detalhe por especialidade/tema nesta visão.";
+
+  const consolidado = !visao || visao === "todos";
+  const selecionadas = consolidado ? comAreas : comAreas.filter((e: any) => e.simuladoId === visao);
+  if (!selecionadas.length) return "Sem detalhe por especialidade/tema nesta visão.";
+
+  const acumulado = new Map<
+    string,
+    { grandeArea: string; especialidade: string; tema: string; acertos: number; respondidas: number; critica: boolean }
+  >();
+  for (const entrada of selecionadas) {
+    for (const linha of entrada.areas as any[]) {
+      const respondidas = Number(linha?.questoesRespondidas ?? 0);
+      if (!(respondidas > 0)) continue;
+      const chave = `${linha.grandeArea}|${linha.especialidade}|${linha.tema}`;
+      const atual = acumulado.get(chave);
+      const acertos = (Number(linha.acertoPct ?? 0) / 100) * respondidas;
+      if (!atual) {
+        acumulado.set(chave, {
+          grandeArea: linha.grandeArea,
+          especialidade: linha.especialidade,
+          tema: linha.tema,
+          acertos,
+          respondidas,
+          critica: Boolean(linha.critica),
+        });
+        continue;
+      }
+      atual.acertos += acertos;
+      atual.respondidas += respondidas;
+      atual.critica = atual.critica || Boolean(linha.critica);
+    }
+  }
+
+  const temas = [...acumulado.values()];
+  if (!temas.length) return "Sem detalhe por especialidade/tema nesta visão.";
+
+  // Agrupamento textual em três níveis, cada nível com o % ponderado do nível.
+  const porGrandeArea = new Map<string, typeof temas>();
+  for (const tema of temas) {
+    const lista = porGrandeArea.get(tema.grandeArea) ?? [];
+    lista.push(tema);
+    porGrandeArea.set(tema.grandeArea, lista);
+  }
+
+  const pct = (lista: { acertos: number; respondidas: number }[]) => {
+    const respondidas = lista.reduce((s, t) => s + t.respondidas, 0);
+    const acertos = lista.reduce((s, t) => s + t.acertos, 0);
+    return respondidas > 0 ? formatNumber((acertos / respondidas) * 100) : "sem dado";
+  };
+
+  const blocos = [...porGrandeArea.entries()]
+    .sort((a, b) => Number(pct(a[1])) - Number(pct(b[1])))
+    .map(([grandeArea, lista]) => {
+      const porEspecialidade = new Map<string, typeof temas>();
+      for (const tema of lista) {
+        const atual = porEspecialidade.get(tema.especialidade) ?? [];
+        atual.push(tema);
+        porEspecialidade.set(tema.especialidade, atual);
+      }
+      const especialidadesTxt = [...porEspecialidade.entries()]
+        .sort((a, b) => Number(pct(a[1])) - Number(pct(b[1])))
+        .slice(0, 4)
+        .map(([especialidade, temasDaEsp]) => {
+          const temasTxt = [...temasDaEsp]
+            .sort((a, b) => a.acertos / a.respondidas - b.acertos / b.respondidas)
+            .slice(0, 3)
+            .map(
+              (t) =>
+                `${t.tema} ${formatNumber((t.acertos / t.respondidas) * 100)}% (${t.respondidas} q${t.critica ? ", tema crítico" : ""})`
+            )
+            .join("; ");
+          return `  - ${especialidade}: ${pct(temasDaEsp)}% — ${temasTxt}`;
+        })
+        .join("\n");
+      return `- ${grandeArea}: ${pct(lista)}% de acerto (${lista.reduce((s, t) => s + t.respondidas, 0)} questões respondidas)\n${especialidadesTxt}`;
+    })
+    .join("\n");
+
+  const cabecalho = consolidado
+    ? `Visão CONSOLIDADA (${selecionadas.length} ${selecionadas.length === 1 ? "simulado considerado" : "simulados considerados"}), % ponderado pelas questões respondidas:`
+    : `Visão do simulado "${selecionadas[0]?.nome ?? visao}":`;
+
+  return `${cabecalho}\n${blocos}`;
+}
+
+function buildAlunoPrompt(aluno: any, porArea: any, visao?: string | null): string {
+
   const linhas: any[] = Array.isArray(aluno?.data) ? aluno.data : [];
   const nome = linhas[0]?.nome ?? "aluno";
   const semestre = linhas[0]?.semestre ?? "não informado";
@@ -556,8 +704,10 @@ function buildAlunoPrompt(aluno: any, porArea: any): string {
     `Trajetória nos simulados, do mais antigo para o mais recente:\n${trajetoriaTxt}`,
     `Desempenho acumulado por grande área:\n${areasHistoricoTxt}`,
     `Desempenho por grande área no simulado mais recente em que participou:\n${ultimoTxt}`,
+    `Visão que o gestor está vendo agora no bloco "Desempenho por área" (é a ela que a leitura deve se referir):\n${resumoVisaoAreas(porArea, visao)}`,
     avisos.join(" "),
-    "Gere o insight sobre esse aluno com base apenas nesses números.",
+    "Com base apenas nesses números, chame a tool leitura_aluno com um ponto forte e um ponto de atenção.",
+
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1097,16 +1247,19 @@ serve(async (req) => {
 
     // -------------------------------------------------------------------
     if (body?.modo === "aluno") {
-      const { iesId, alunoId, simulados } = body;
+      const { iesId, alunoId, simulados, visao } = body;
       if (!iesId || !alunoId) return jsonResponse({ error: "ies_e_aluno_obrigatorios" }, 400, cors);
 
+      const visaoAtiva = typeof visao === "string" && visao ? visao : "todos";
       const listaSimulados = Array.isArray(simulados) && simulados.length ? [...simulados] : null;
       const cacheKey = await hashChave([
         "gestor-ai-insights",
         "aluno",
+        "v2-dois-pontos",
         iesId,
         alunoId,
         listaSimulados ? [...listaSimulados].sort() : null,
+        visaoAtiva,
       ]);
       if (!refresh) {
         const cached = await lerCache(supabaseAdmin, cacheKey);
@@ -1134,19 +1287,39 @@ serve(async (req) => {
         console.error("[gestor-ai-insights]", "por_area (opcional):", porAreaRes.error.message);
       }
 
-      const { texto } = await streamChatCompletion({
+      const { texto, toolArguments } = await streamChatCompletion({
         apiKey: LOVABLE_API_KEY,
         model: AI_MODEL_RAPIDO,
         messages: [
           { role: "system", content: SYSTEM_PROMPT_ALUNO },
-          { role: "user", content: buildAlunoPrompt(alunoRes.data, porAreaRes.error ? null : porAreaRes.data) },
+          {
+            role: "user",
+            content: buildAlunoPrompt(alunoRes.data, porAreaRes.error ? null : porAreaRes.data, visaoAtiva),
+          },
         ],
-        maxTokens: 2500,
+        tool: TOOL_LEITURA_ALUNO,
+        maxTokens: 1200,
         temperature: 0.4,
         signal: req.signal,
       });
 
-      const payload = { insight: texto };
+      const bruto = toolArguments
+        ? extrairJson<any>(toolArguments) ?? repararJsonParcial<any>(toolArguments)
+        : extrairJson<any>(texto);
+      const normalizar = (p: any) =>
+        p && typeof p.texto === "string" && p.texto.trim()
+          ? { titulo: typeof p.titulo === "string" ? p.titulo.trim() : "", texto: p.texto.trim() }
+          : null;
+      const pontoForte = normalizar(bruto?.ponto_forte ?? bruto?.pontoForte);
+      const pontoAtencao = normalizar(bruto?.ponto_atencao ?? bruto?.pontoAtencao);
+
+      if (!pontoForte || !pontoAtencao) {
+        console.error("[gestor-ai-insights]", "aluno: resposta sem os dois pontos");
+        return jsonResponse({ error: "resposta_incompleta" }, 502, cors);
+      }
+
+      const payload = { pontoForte, pontoAtencao, visao: visaoAtiva };
+
       await gravarCache(supabaseAdmin, {
         cacheKey,
         fn: "gestor-ai-insights",

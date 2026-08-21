@@ -192,17 +192,17 @@ export function SeletorSimulados({
           aria-hidden="true"
           // O input real é `sr-only`: sem isto o foco de teclado ficaria
           // invisível, porque o anel nasceria num nó de 1px.
-          className="flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+          className="flex items-center justify-center shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
           style={{
-            width: 16,
-            height: 16,
+            width: 20,
+            height: 20,
             flex: 'none',
             borderRadius: RAIO_CHECKBOX,
-            border: `1.5px ${motivo === null ? 'solid' : 'dashed'} ${
-              marcado ? 'var(--gp-brand)' : 'var(--gp-border-input)'
+            border: `2px ${motivo === null ? 'solid' : 'dashed'} ${
+              marcado ? 'var(--gp-info)' : 'var(--gp-text-1)'
             }`,
-            background: marcado ? 'var(--gp-brand)' : 'transparent',
-            color: 'var(--gp-on-brand)',
+            background: marcado ? 'var(--gp-info)' : 'var(--gp-surface-1)',
+            color: 'var(--gp-text-inverse)',
             transitionProperty: 'background-color, border-color',
             transitionDuration: 'var(--gp-motion-2)',
             transitionTimingFunction: 'var(--gp-ease)',
@@ -225,7 +225,7 @@ export function SeletorSimulados({
               transitionTimingFunction: 'var(--gp-ease)',
             }}
           >
-            <Icon name="check" size={11} />
+            <Icon name="check" size={15} />
           </span>
         </span>
 
@@ -379,7 +379,7 @@ export function SeletorSimulados({
             border: '1px solid var(--gp-border-strong)',
             borderRadius: 'var(--gp-radius-md)',
             background: 'var(--gp-surface-1)',
-            boxShadow: 'var(--gp-shadow-drawer)',
+            boxShadow: inline ? 'none' : 'var(--gp-shadow-drawer)',
           }}
         >
           {/* Sugestão discreta de um clique. Diz QUAIS dois simulados vai

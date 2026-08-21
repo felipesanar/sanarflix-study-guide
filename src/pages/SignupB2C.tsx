@@ -129,7 +129,7 @@ export const SignupB2C: React.FC = () => {
         <div className="w-full max-w-md animate-slide-in-left">
           <div className="flex items-center mb-8">
             <img
-              src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+              src="/sanarflix-academy-symbol.svg"
               alt="Logo SanarFlix Academy"
               className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
             />

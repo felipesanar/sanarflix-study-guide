@@ -189,8 +189,8 @@ export const sendTestNotification = async (
     
     await registration.showNotification(title, {
       body,
-      icon: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
-      badge: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
+      icon: '/sanarflix-academy-appicon-192.png',
+      badge: '/sanarflix-academy-appicon-192.png',
       tag: 'test-notification',
       requireInteraction: false,
     });
@@ -222,8 +222,8 @@ export const sendStudyReminderNotification = async (
 
     await registration.showNotification('📚 Lembrete de Estudo', {
       body,
-      icon: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
-      badge: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
+      icon: '/sanarflix-academy-appicon-192.png',
+      badge: '/sanarflix-academy-appicon-192.png',
       tag: 'study-reminder',
       requireInteraction: true,
       data: {

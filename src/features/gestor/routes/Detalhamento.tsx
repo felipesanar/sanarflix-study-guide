@@ -16,7 +16,6 @@ import { ProficienciaPorSemestreChart } from '../charts/ProficienciaPorSemestreC
 import { LeituraEstrategica } from '../components/LeituraEstrategica';
 import { EstadoVazio } from '../components/EstadoVazio';
 import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
-import { EvolucaoRecorte, ehSemestreEspecifico } from '../components/EvolucaoRecorte';
 import { FiltroSemestre } from '../components/FiltroSemestre';
 import { KpisDetalhamento } from '../components/KpisDetalhamento';
 import { SeletorSimulados, motivoIndisponivel } from '../components/SeletorSimulados';
@@ -535,39 +534,10 @@ export default function Detalhamento() {
             </div>
           )}
 
-          {/*
-            "Evolução do recorte" só com 2+ simulados no recorte.
+          {/* "Evolução do recorte" foi descontinuado (12/08): a evolução entre
+              simulados é lida no comparativo acima, e a proficiência do
+              recorte segue no KPI. */}
 
-            Com um simulado não há evolução: o card ficava 300px de altura
-            para mostrar um ponto solto no meio do vazio e a frase "primeira
-            medição; a evolução aparece a partir do segundo simulado" — meia
-            tela de scroll para dizer que não há o que dizer, entre dois
-            blocos que TÊM conteúdo. O número daquele ponto já está no KPI de
-            proficiência logo acima, então nada se perde ao remover o bloco.
-            A decisão sai da SELEÇÃO (`simuladosNoRecorte`), conhecida antes
-            da resposta, e não da contagem de pontos medidos: assim o bloco
-            nunca aparece como skeleton para sumir quando o dado chega.
-
-            Com um semestre específico o bloco não é evolução — é a
-            distribuição daquele semestre (`ehSemestreEspecifico`, §4.5), que
-            faz sentido com um simulado só e por isso continua aparecendo.
-          */}
-          {ehSemestreEspecifico(filtros.semestre) || simuladosNoRecorte.length > 1 ? (
-            <div data-testid="bloco-evolucao" className={classeRevelacao(2)}>
-              <BlocoGestor
-                estado={estado}
-                parcial={parcial}
-                alturaSkeleton={300}
-                bloco="evolucao"
-                testIdLoading="bloco-evolucao-loading"
-                aoTentarNovamente={aoTentarNovamente}
-              >
-                {dados ? (
-                  <EvolucaoRecorte metricas={dados.metricas} semestre={filtros.semestre} dispersao={dados.dispersao} />
-                ) : null}
-              </BlocoGestor>
-            </div>
-          ) : null}
 
           {/* Área × semestre e proficiência por semestre são o MESMO movimento
               de exploração — a referência os põe lado a lado (1.15fr/1fr).
@@ -582,7 +552,7 @@ export default function Detalhamento() {
               semestre") e um card com uma lista só ficava visualmente
               descasada. */}
           <div
-            className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(3)}`}
+            className={`grid gap-4 lg:grid-cols-[1.15fr_1fr] ${classeRevelacao(2)}`}
           >
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
@@ -696,7 +666,7 @@ export default function Detalhamento() {
           </div>
 
 
-          <div data-testid="bloco-alunos" className={classeRevelacao(4)}>
+          <div data-testid="bloco-alunos" className={classeRevelacao(3)}>
             <BlocoGestor
               estado={estado}
               parcial={parcial}
@@ -735,7 +705,7 @@ export default function Detalhamento() {
 
           {/* §4.7.3-4: último componente da página e ausente com 2+ simulados. */}
           {mostrarQuestoes && (
-            <div data-testid="bloco-questoes" className={classeRevelacao(5)}>
+            <div data-testid="bloco-questoes" className={classeRevelacao(4)}>
               <BlocoGestor
                 estado={estadoQuestoes}
                 alturaSkeleton={360}

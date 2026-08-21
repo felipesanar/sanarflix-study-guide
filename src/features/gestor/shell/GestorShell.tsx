@@ -246,7 +246,7 @@ export const GestorShell: React.FC = () => {
               loading="eager"
               decoding="sync"
               fetchPriority="high"
-              className="h-7 w-auto dark:hidden"
+              className="h-9 w-auto dark:hidden"
             />
             <img
               src="/sanarflix-academy-lockup-white.svg"
@@ -257,7 +257,7 @@ export const GestorShell: React.FC = () => {
               loading="eager"
               decoding="sync"
               fetchPriority="high"
-              className="hidden h-7 w-auto dark:block"
+              className="hidden h-9 w-auto dark:block"
             />
             <span className="ml-auto truncate" aria-hidden="true" style={OVERLINE_SIDEBAR}>
               Portal do Gestor

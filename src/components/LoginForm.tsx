@@ -94,18 +94,19 @@ export const LoginForm: React.FC = () => {
         <div className="w-full max-w-md animate-slide-in-left">
           <div className="flex items-center mb-8">
             <img
-              src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
-              alt="Logo SanarFlix Academy"
-              className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
+              src="/sanarflix-academy-lockup.svg"
+              alt="SanarFlix Academy"
+              className="h-12 w-auto object-contain dark:hidden"
               loading="eager"
-              width="48"
-              height="48"
             />
-            <div>
-              <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">SanarFlix Academy</h1>
-              <p className="text-sm text-neutral-600 dark:text-muted-foreground">Para Universidades Parceiras</p>
-            </div>
+            <img
+              src="/sanarflix-academy-lockup-white.svg"
+              alt="SanarFlix Academy"
+              className="h-12 w-auto object-contain hidden dark:block"
+              loading="eager"
+            />
           </div>
+
 
           <Card className="border border-border shadow-2xl bg-card/95 backdrop-blur-sm">
             <CardHeader className="space-y-1 pb-6">
@@ -204,20 +205,19 @@ export const LoginForm: React.FC = () => {
         <div className="absolute inset-0 flex flex-col items-center justify-center p-12 lg:p-16 text-white">
           <div className="max-w-xl space-y-10 text-center">
             {/* Logo */}
-            <div className="flex items-center justify-center mb-2">
-              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/95 rounded-2xl shadow-2xl flex items-center justify-center p-3">
-                <img
-                  src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
-                  alt="SanarFlix Academy"
-                  className="w-full h-full object-contain"
-                />
-              </div>
+            <div className="flex items-center justify-center">
+              <img
+                src="/sanarflix-academy-lockup.svg"
+                alt="SanarFlix Academy"
+                className="h-16 w-auto object-contain dark:hidden"
+              />
+              <img
+                src="/sanarflix-academy-lockup-white.svg"
+                alt="SanarFlix Academy"
+                className="h-16 w-auto object-contain hidden dark:block"
+              />
             </div>
 
-            {/* Title */}
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight text-neutral-900 dark:text-white">
-              SanarFlix Academy
-            </h2>
 
             {/* Description */}
             <p className="text-base lg:text-lg text-neutral-700 dark:text-white/95 leading-relaxed font-light">

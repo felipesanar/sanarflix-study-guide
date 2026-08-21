@@ -124,7 +124,7 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                 Comparativo entre simulados
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                O que mudou de um simulado para o outro em acerto, conceito e proficiência.
+                O que mudou de um simulado para o outro em acerto, conceito, proficiência e alunos proficientes.
               </p>
             </div>
           </div>
@@ -151,6 +151,12 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
               const deltaProficiencia = anterior
                 ? calcularVariacao(anterior.proficienciaMedia, m.proficienciaMedia)
                 : null;
+              /* `proficientesPct` é opcional no envelope: ausente ou `null` = TRI
+                 não processado, então nem valor nem delta (§4.10). */
+              const deltaProficientes = anterior
+                ? calcularVariacao(anterior.proficientesPct ?? null, m.proficientesPct ?? null)
+                : null;
+
 
               return (
                 <Card
@@ -218,7 +224,16 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                         deltaTestId="card-delta-proficiencia"
                         separada
                       />
+                      <LinhaIndicador
+                        rotulo="Alunos proficientes"
+                        valor={formatPct(m.proficientesPct ?? null)}
+                        valorTestId="card-proficientes"
+                        delta={deltaProficientes}
+                        deltaTestId="card-delta-proficientes"
+                        separada
+                      />
                     </dl>
+
                   </CardContent>
                 </Card>
               );
@@ -300,8 +315,15 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                         metricas={metricas}
                         valor={(m) => formatNumero(m.proficienciaMedia)}
                         bruto={(m) => m.proficienciaMedia}
+                      />
+                      <LinhaMetrica
+                        rotulo="Alunos proficientes"
+                        metricas={metricas}
+                        valor={(m) => formatPct(m.proficientesPct ?? null)}
+                        bruto={(m) => m.proficientesPct ?? null}
                         ultima
                       />
+
                     </CorpoTabela>
                   </TabelaGestor>
                 </div>

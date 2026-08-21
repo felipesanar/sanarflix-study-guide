@@ -395,6 +395,79 @@ export function useAlunos(
 }
 
 /**
+ * Carrega a lista nominal completa para exportação. A RPC limita cada página
+ * a 100 registros; o arquivo só fica disponível depois de todas as páginas
+ * chegarem e a soma conferir com o total informado pelo servidor.
+ */
+export function useAlunosExportacao(
+  filtros: FiltrosGestor,
+  habilitado: boolean,
+): ResultadoGestor<Paginado<LinhaAluno>> {
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ['gestor', user?.id, 'alunos-exportacao', filtros.iesId, filtros.semestre],
+    enabled: habilitado && filtros.iesId !== null,
+    staleTime: GESTOR_STALE_TIME,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    queryFn: async (): Promise<Envelope<Paginado<LinhaAluno>>> => {
+      const argsBase = {
+        p_ies_id: filtros.iesId,
+        p_semestre: filtros.semestre,
+        p_page_size: 100,
+        p_sort: 'nome',
+        p_order: 'asc',
+        p_q: null,
+        p_grupo: null,
+      };
+      const primeira = await chamarRpcGestor<Paginado<LinhaAlunoRpc>>('get_gestor_alunos', {
+        ...argsBase,
+        p_page: 1,
+      });
+      const totalPaginas = Math.max(1, primeira.data.totalPages);
+      const restantes = totalPaginas > 1
+        ? await Promise.all(
+            Array.from({ length: totalPaginas - 1 }, (_, indice) =>
+              chamarRpcGestor<Paginado<LinhaAlunoRpc>>('get_gestor_alunos', {
+                ...argsBase,
+                p_page: indice + 2,
+              }),
+            ),
+          )
+        : [];
+      const linhas = [primeira, ...restantes].flatMap((pagina) => pagina.data.data);
+
+      if (linhas.length !== primeira.data.total) {
+        throw new Error(
+          `get_gestor_alunos: exportação incompleta (${linhas.length} de ${primeira.data.total})`,
+        );
+      }
+
+      return {
+        data: {
+          data: linhas.map(normalizarLinhaAluno),
+          page: 1,
+          pageSize: linhas.length,
+          total: primeira.data.total,
+          totalPages: 1,
+        },
+        meta: primeira.meta,
+      };
+    },
+  });
+
+  return {
+    data: query.data?.data,
+    meta: query.data?.meta,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isPlaceholderData: query.isPlaceholderData,
+    isFetching: query.isFetching,
+    refetch: () => void query.refetch(),
+  };
+}
+
+/**
  * Drawer do aluno. A IES em foco vem do recorte global (URL) — assinatura
  * canônica do handoff é `(alunoId, simulados)`, então não a recebe por
  * parâmetro. Lembrar: `iesId` é hint de UI; a RPC escopa pelo token.

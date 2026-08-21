@@ -324,12 +324,12 @@ function tabelaAlunos(alunos: LinhaAluno[] | undefined): Tabela {
   });
   return {
     colunas: [
-      { titulo: 'Aluno', fracao: 0.32 },
-      { titulo: 'Semestre', fracao: 0.11, alinhar: 'centro' },
+      { titulo: 'Aluno', fracao: 0.34 },
+      { titulo: 'Sem.', fracao: 0.08, alinhar: 'centro' },
       { titulo: 'Grupo', fracao: 0.24 },
-      { titulo: 'Tendência', fracao: 0.13 },
-      { titulo: 'Simulados com nota', fracao: 0.1, alinhar: 'direita' },
-      { titulo: 'Última proficiência', fracao: 0.1, alinhar: 'direita' },
+      { titulo: 'Tendência', fracao: 0.12 },
+      { titulo: 'Notas', fracao: 0.09, alinhar: 'direita' },
+      { titulo: 'Proficiência', fracao: 0.13, alinhar: 'direita' },
     ],
     linhas,
   };
@@ -436,6 +436,7 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
       case 'alunos': {
         relatorio.secao(bloco.titulo, bloco.descricao);
         relatorio.nota(AVISO_LGPD, true);
+        relatorio.subtitulo(`${dados.alunos?.length ?? 0} alunos incluídos`);
         const t = tabelaAlunos(dados.alunos);
         relatorio.tabela(t.colunas, t.linhas, 'Nenhum aluno com resultado neste recorte.');
         break;
@@ -451,10 +452,15 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
 /* ----------------------------------- XLSX ---------------------------------- */
 
 /** Formato numérico por coluna (SheetJS: `z` na célula) — percentual com 1 casa. */
-function aplicarFormato(aba: XLSX.WorkSheet, colunasPct: number[], totalLinhas: number) {
+function aplicarFormato(
+  aba: XLSX.WorkSheet,
+  colunasPct: number[],
+  totalLinhas: number,
+  primeiraLinha = 1,
+) {
   colunasPct.forEach((col) => {
-    for (let linha = 1; linha <= totalLinhas; linha += 1) {
-      const ref = XLSX.utils.encode_cell({ r: linha, c: col });
+    for (let i = 0; i < totalLinhas; i += 1) {
+      const ref = XLSX.utils.encode_cell({ r: primeiraLinha + i, c: col });
       const celulaAba = aba[ref] as XLSX.CellObject | undefined;
       if (celulaAba && typeof celulaAba.v === 'number') celulaAba.z = '0.0"%"';
     }
@@ -602,6 +608,7 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     const alunos = dados.alunos ?? [];
     const aba = XLSX.utils.aoa_to_sheet([
       [AVISO_LGPD],
+      [`${alunos.length} alunos incluídos`],
       [],
       ['Aluno', 'Semestre', 'Grupo', 'Tendência', 'Simulados com nota', 'Última proficiência (%)'],
       ...alunos.map((aluno) => {
@@ -617,7 +624,8 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
       }),
     ]);
     aba['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 32 }, { wch: 14 }, { wch: 18 }, { wch: 22 }];
-    aba['!freeze'] = 'A4';
+    aba['!freeze'] = 'A5';
+    aplicarFormato(aba, [5], alunos.length, 4);
     XLSX.utils.book_append_sheet(livro, aba, 'Alunos');
   }
 

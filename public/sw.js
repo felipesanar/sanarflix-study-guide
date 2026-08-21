@@ -215,8 +215,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'Sanarflix - Lembrete de Estudo',
     body: 'Você tem matérias agendadas para hoje!',
-    icon: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
-    badge: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
+    icon: '/sanarflix-academy-appicon-192.png',
+    badge: '/sanarflix-academy-appicon-192.png',
     tag: 'study-reminder',
     requireInteraction: false,
   };

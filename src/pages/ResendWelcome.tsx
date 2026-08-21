@@ -51,9 +51,9 @@ const ResendWelcome = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full text-center space-y-4">
         <img
-          src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+          src="/sanarflix-academy-symbol.svg"
           alt="SanarFlix Academy"
-          className="w-20 h-20 mx-auto rounded-2xl"
+          className="w-12 h-12 mx-auto rounded-xl object-contain"
         />
 
         {status === 'loading' && (
