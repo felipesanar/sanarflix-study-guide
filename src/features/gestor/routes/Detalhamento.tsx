@@ -188,16 +188,24 @@ export default function Detalhamento() {
   const parcial = meta.partial;
 
   /**
-   * Semestres que o recorte consegue responder — alimentam o dropdown do
-   * filtro para ele não oferecer opção que leva a tela vazia. A própria RPC
-   * já devolve só os semestres que produziram acerto. `undefined` enquanto o
-   * dado não chega: mantém a lista completa em vez de piscar um dropdown
-   * vazio.
+   * Semestres oferecidos no dropdown do filtro.
+   *
+   * `acertoPorAreaESemestre.semestres` é calculado JÁ COM o recorte vigente —
+   * em "6º ano" só volta 11º/12º, num semestre único só volta aquele. Usá-lo
+   * sempre virava beco sem saída: o gestor da UNIATENAS não conseguia
+   * selecionar o 4º/5º ano porque o próprio recorte atual escondia esses
+   * períodos da lista. Por isso a lista só restringe quando o recorte é
+   * "Geral" (aí ela é a população inteira do recorte); em qualquer outro caso
+   * devolvemos `undefined` = "não sei", e o filtro oferece 1º…12º.
    */
   const semestresComResultado = React.useMemo(
-    () => dados?.acertoPorAreaESemestre?.semestres.map((s) => s.semestre),
-    [dados],
+    () =>
+      filtrosGestor.semestre === 'geral'
+        ? dados?.acertoPorAreaESemestre?.semestres.map((s) => s.semestre)
+        : undefined,
+    [dados, filtrosGestor.semestre],
   );
+
 
   const mostrarQuestoes = deveMostrarQuestoes(simuladosNoRecorte);
   const [ordenacaoQuestoes, setOrdenacaoQuestoes] = React.useState<OrdenacaoQuestoes>('ordem_da_prova');
