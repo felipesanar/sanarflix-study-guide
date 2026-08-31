@@ -1553,6 +1553,7 @@ export type Database = {
           nome: string
           simulado_pai_id: string | null
           status: string
+          type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1572,6 +1573,7 @@ export type Database = {
           nome: string
           simulado_pai_id?: string | null
           status?: string
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1591,6 +1593,7 @@ export type Database = {
           nome?: string
           simulado_pai_id?: string | null
           status?: string
+          type?: string | null
           updated_at?: string | null
         }
         Relationships: [
