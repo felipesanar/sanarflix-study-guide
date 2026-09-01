@@ -93,7 +93,7 @@ const COLUNAS_AREA: ReadonlyArray<ColunaCsv<LinhaAreaCsv>> = [
   { cabecalho: 'Questões respondidas', valor: (l) => l.questoesRespondidas },
   { cabecalho: 'Questões totais', valor: (l) => l.questoesTotal },
   { cabecalho: 'Acerto (%)', valor: (l) => decimalCsv(l.acertoPct) },
-  { cabecalho: 'Tema crítico', valor: (l) => (l.critica ? 'sim' : 'não') },
+  
 ];
 
 /** Ordem estável do detalhamento: grande área → especialidade → tema. */
