@@ -1359,11 +1359,29 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const linkWhatsApp = linkWhatsAppAluno(contato.data?.telefone, resumoTexto);
 
   /**
-   * Export do recorte DESTE aluno: uma linha por simulado, o mesmo agregado
-   * cronológico que a tela mostra (nunca resposta a resposta, nunca outro
-   * aluno). Quem monta é este drawer, que é onde o dado está; `AcoesRecorte`
-   * segue sem receber lista (§7.7) e o gate de `podeExportar` continua sendo
-   * dele.
+   * Linhas do detalhamento por área do arquivo: um bloco por simulado
+   * classificado (nada fundido) e, quando há 2+ simulados classificados,
+   * também o consolidado ponderado — o MESMO número que a tela mostra em
+   * "Todos os simulados", sem cálculo novo aqui.
+   */
+  const linhasArea: LinhaAreaCsv[] = [
+    ...entradasComTemas.flatMap((entrada) =>
+      ordenarLinhasArea(entrada.areas.map((area) => ({ ...area, simulado: entrada.nome }))),
+    ),
+    ...(podeConsolidar
+      ? ordenarLinhasArea(
+          consolidarAreas(entradasComTemas).map((area) => ({ ...area, simulado: 'Todos os simulados' })),
+        )
+      : []),
+  ];
+
+  /**
+   * Export do recorte DESTE aluno: duas seções — resumo por simulado (o mesmo
+   * agregado cronológico que a tela mostra) e detalhamento por grande área,
+   * especialidade e tema (pedido dos gestores, 01/09: o macro sozinho não diz
+   * onde o aluno perde ponto). Nunca resposta a resposta, nunca outro aluno.
+   * `AcoesRecorte` segue sem receber lista (§7.7) e o gate de `podeExportar`
+   * continua sendo dele.
    *
    * `onExportar` continua tendo prioridade quando quem compõe a tela quer
    * tratar o clique (telemetria própria, escopo diferente) — o arquivo local é
@@ -1374,10 +1392,28 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
       onExportar(`aluno:${alunoId}`);
       return;
     }
-    const gerou = baixarCsv(nomeArquivoCsv(['aluno', nomeExibido]), COLUNAS_ALUNO, cronologicas);
+    const secoes: SecaoCsv<unknown>[] = [
+      secaoCsv({ titulo: `Resumo por simulado — ${nomeExibido}`, colunas: COLUNAS_ALUNO, linhas: cronologicas }),
+    ];
+    if (linhasArea.length > 0) {
+      secoes.push(
+        secaoCsv({
+          titulo: 'Detalhamento por grande área, especialidade e tema',
+          colunas: COLUNAS_AREA,
+          linhas: linhasArea,
+        }),
+      );
+    }
+
+    const gerou = baixarCsvSecoes(nomeArquivoCsv(['aluno', nomeExibido]), secoes);
     toast(
       gerou
-        ? { description: 'Arquivo CSV gerado com o recorte deste aluno.' }
+        ? {
+            description:
+              linhasArea.length > 0
+                ? 'Arquivo CSV gerado com o resumo por simulado e o detalhamento por área, especialidade e tema.'
+                : 'Arquivo CSV gerado com o resumo por simulado. O detalhamento por área não estava disponível para este recorte.',
+          }
         : { description: 'Não foi possível gerar o arquivo neste navegador.' },
     );
   };
