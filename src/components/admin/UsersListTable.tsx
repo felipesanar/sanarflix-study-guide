@@ -635,6 +635,20 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           </SelectContent>
         </Select>
       )}
+      <Select value={filterRole} onValueChange={setFilterRole}>
+        <SelectTrigger className="w-full sm:w-[170px]">
+          <SelectValue placeholder="Papel" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos os papéis</SelectItem>
+          <SelectItem value="aluno">Aluno</SelectItem>
+          {EDITABLE_ROLES.map((r) => (
+            <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      )}
       <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
       </Button>
