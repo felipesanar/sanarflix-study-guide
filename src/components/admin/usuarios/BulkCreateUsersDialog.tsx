@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { usersService } from '@/services/usersService';
 import type { Ies } from '@/services/iesService';
 import { BatchProcessingReport, type BatchReport, type BatchResult } from '../BatchProcessingReport';
+import { normalizeRoleInput, roleLabel, ROLE_VALUES_HINT, type AppUserRole } from './roles';
 
 const MAX_BATCH_ROWS = 1000;
 const CHUNK_SIZE = 3;
@@ -59,15 +60,32 @@ function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+const MATRICULA_MAX = 50;
+
 interface Row {
   nome: string;
   email: string;
   semestre: number | null;
+  /** `null` = coluna em branco: não altera nada em quem já existe. */
+  matricula_ra: string | null;
+  role: AppUserRole;
   linha: number;
   erro?: string;
 }
 
-async function parseUsersFile(file: File): Promise<Row[]> {
+/** Primeiro alias presente na linha normalizada (headers já em minúsculas). */
+function coluna(r: Record<string, string>, aliases: string[]): string {
+  for (const a of aliases) {
+    if (a in r) return (r[a] ?? '').trim();
+  }
+  return '';
+}
+
+/**
+ * `canManageRoles = false` (Atendimento/CX) só pode importar alunos — qualquer
+ * outro papel na planilha vira erro de linha em vez de escalar privilégio.
+ */
+export async function parseUsersFile(file: File, canManageRoles: boolean): Promise<Row[]> {
   const arrayBuffer = await file.arrayBuffer();
   const isCsv = file.name.toLowerCase().endsWith('.csv');
   let workbook: XLSX.WorkBook;
@@ -106,9 +124,12 @@ async function parseUsersFile(file: File): Promise<Row[]> {
       const email = (r.email ?? '').toLowerCase().trim();
       const nome = (r.nome ?? '').trim();
       const semestreStr = (r.semestre ?? '').trim();
+      const matriculaStr = coluna(r, ['matricula_ra', 'matricula', 'ra']);
+      const papelStr = coluna(r, ['papel', 'role', 'perfil']);
 
       let erro: string | undefined;
       let semestre: number | null = null;
+      const papel = normalizeRoleInput(papelStr);
 
       if (!nome || !email) {
         erro = 'Dados incompletos (nome e email obrigatórios)';
@@ -116,6 +137,12 @@ async function parseUsersFile(file: File): Promise<Row[]> {
         erro = `Email inválido: ${email}`;
       } else if (seen.has(email)) {
         erro = 'Email duplicado neste lote';
+      } else if (matriculaStr.length > MATRICULA_MAX) {
+        erro = `Matrícula/RA muito longa (máx. ${MATRICULA_MAX} caracteres)`;
+      } else if (papel === null) {
+        erro = `Papel inválido: "${papelStr}". Use um destes: ${ROLE_VALUES_HINT}`;
+      } else if (!canManageRoles && papel !== 'aluno') {
+        erro = `Papel "${papelStr}" não permitido nesta operação — só é possível cadastrar alunos`;
       } else if (semestreStr) {
         const parsed = parseInt(semestreStr, 10);
         if (Number.isNaN(parsed) || parsed < 1 || parsed > 12) erro = `Semestre inválido: ${semestreStr}`;
@@ -123,19 +150,28 @@ async function parseUsersFile(file: File): Promise<Row[]> {
       }
 
       if (!erro) seen.add(email);
-      return { nome, email, semestre, linha, erro };
+      return {
+        nome,
+        email,
+        semestre,
+        matricula_ra: matriculaStr || null,
+        role: papel ?? 'aluno',
+        linha,
+        erro,
+      };
     })
     .filter((r) => r.nome || r.email); // ignora linhas totalmente vazias
 }
 
 function downloadExampleXlsx() {
   const wsData = [
-    ['nome', 'email', 'semestre'],
-    ['João Silva', 'joao@exemplo.com', 5],
-    ['Maria Souza', 'maria@exemplo.com', 3],
+    ['nome', 'email', 'semestre', 'matricula_ra', 'papel'],
+    ['João Silva', 'joao@exemplo.com', 5, '2023001234', 'aluno'],
+    ['Maria Souza', 'maria@exemplo.com', 3, '', ''],
+    ['Carlos Prof', 'carlos@exemplo.com', '', '', 'professor'],
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 10 }];
+  ws['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 10 }, { wch: 16 }, { wch: 16 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
   XLSX.writeFile(wb, 'exemplo_cadastro_usuarios.xlsx');
@@ -159,6 +195,8 @@ function downloadFailuresReport(report: BatchReport) {
         Linha: r.linha,
         Email: r.email,
         Nome: r.nome,
+        'Matrícula/RA': r.matricula_ra ?? '-',
+        Papel: r.papel ?? '-',
         Status: r.success ? 'Sucesso' : 'Erro',
         Ação: r.action === 'created' ? 'Criado' : r.action === 'updated' ? 'Atualizado' : '-',
         'Código erro': r.error?.code ?? '-',
@@ -176,10 +214,12 @@ export interface BulkCreateUsersDialogProps {
   onOpenChange: (open: boolean) => void;
   iesList: Ies[];
   onDone: () => void;
+  /** `false` (Atendimento) restringe a planilha a papel `aluno`. */
+  canManageRoles?: boolean;
 }
 
 /** Diálogo de cadastro/atualização em lote (XLSX/CSV) via `useBulkRunner`. */
-export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: BulkCreateUsersDialogProps) {
+export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, canManageRoles = false }: BulkCreateUsersDialogProps) {
   const [batchIesId, setBatchIesId] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,7 +234,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
   const [report, setReport] = useState<BatchReport | null>(null);
 
   const runner = useBulkRunner<Row>({
-    parse: parseUsersFile,
+    parse: (file: File) => parseUsersFile(file, canManageRoles),
     dryRun: async (rows) => {
       const candidatas = rows.filter((r) => !r.erro);
       const emails = candidatas.map((r) => r.email);
@@ -254,12 +294,21 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
               nome: row.nome,
               linha: row.linha,
               success: false,
+              matricula_ra: row.matricula_ra ?? undefined,
+              papel: roleLabel(row.role),
               error: { code: 'IES_CONFLICT', message: 'Conflito de IES — linha ignorada; ajuste a planilha ou mova o aluno manualmente.' },
             };
           }
 
           let attempt = 0;
-          let data = await usersService.createUser({ nome: row.nome, email: row.email, id_ies: batchIesId, semestre: row.semestre });
+          let data = await usersService.createUser({
+            nome: row.nome,
+            email: row.email,
+            id_ies: batchIesId,
+            semestre: row.semestre,
+            ...(row.matricula_ra ? { matricula_ra: row.matricula_ra } : {}),
+            ...(row.role !== 'aluno' ? { role: row.role } : {}),
+          });
           while (!data.success && (data.code === 'RATE_LIMITED' || data.code === 'rate_limited') && attempt < RATE_LIMIT_RETRY_MAX) {
             attempt++;
             try {
@@ -269,17 +318,26 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
             } catch {
               break; // cancelado — mantém `data` (RATE_LIMITED) como resultado desta linha
             }
-            data = await usersService.createUser({ nome: row.nome, email: row.email, id_ies: batchIesId, semestre: row.semestre });
+            data = await usersService.createUser({
+            nome: row.nome,
+            email: row.email,
+            id_ies: batchIesId,
+            semestre: row.semestre,
+            ...(row.matricula_ra ? { matricula_ra: row.matricula_ra } : {}),
+            ...(row.role !== 'aluno' ? { role: row.role } : {}),
+          });
           }
 
           if (!data.success) {
             const message = data.message ? `${data.error}: ${data.message}` : (data.error ?? 'Erro desconhecido');
-            return { email: row.email, nome: row.nome, linha: row.linha, success: false, error: { code: data.code ?? 'INTERNAL_ERROR', message } };
+            return { email: row.email, nome: row.nome, linha: row.linha, matricula_ra: row.matricula_ra ?? undefined, papel: roleLabel(row.role), success: false, error: { code: data.code ?? 'INTERNAL_ERROR', message } };
           }
           return {
             email: row.email,
             nome: row.nome,
             linha: row.linha,
+            matricula_ra: row.matricula_ra ?? undefined,
+            papel: roleLabel(row.role),
             success: true,
             action: data.action,
             fieldsUpdated: data.details?.fieldsUpdated,
@@ -294,7 +352,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
         const row = chunk[idx];
         const result: BatchResult = outcome.status === 'fulfilled'
           ? outcome.value
-          : { email: row.email, nome: row.nome, linha: row.linha, success: false, error: { code: 'INTERNAL_ERROR', message: outcome.reason?.message || 'Erro inesperado' } };
+          : { email: row.email, nome: row.nome, linha: row.linha, matricula_ra: row.matricula_ra ?? undefined, papel: roleLabel(row.role), success: false, error: { code: 'INTERNAL_ERROR', message: outcome.reason?.message || 'Erro inesperado' } };
         richResultsRef.current.push(result);
         if (result.success) ok++;
         else falhas.push({ linha: result.linha, mensagem: result.error?.message ?? 'Erro desconhecido' });
@@ -416,8 +474,13 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Colunas: <span className="font-mono">nome</span>, <span className="font-mono">email</span> (obrigatórias) e{' '}
-                <span className="font-mono">semestre</span> (opcional).
+                Colunas: <span className="font-mono">nome</span>, <span className="font-mono">email</span> (obrigatórias),{' '}
+                <span className="font-mono">semestre</span> e <span className="font-mono">matricula_ra</span> (opcionais) e{' '}
+                <span className="font-mono">papel</span> (em branco = aluno).
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Papéis aceitos: <span className="font-mono">{canManageRoles ? ROLE_VALUES_HINT : 'aluno'}</span>. Qualquer outro
+                valor gera erro na linha.
               </p>
               {fileName && rows.length > 0 && (
                 <p className="text-xs text-muted-foreground">

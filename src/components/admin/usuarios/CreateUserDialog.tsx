@@ -18,15 +18,7 @@ import type { Ies } from '@/services/iesService';
 import { useAuth } from '@/contexts/AuthContext';
 import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
-
-const ROLE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'aluno', label: 'Aluno (padrão)' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'professor', label: 'Professor' },
-  { value: 'gestor', label: 'Gestor' },
-  { value: 'gestor_grupo', label: 'Gestor de Grupo' },
-  { value: 'atendimento', label: 'Atendimento' },
-];
+import { ROLE_OPTIONS, type AppUserRole } from './roles';
 
 const EMPTY_FORM = { nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' };
 
@@ -72,7 +64,7 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
         email: form.email.toLowerCase().trim(),
         id_ies: form.id_ies,
         semestre: form.semestre ? parseInt(form.semestre, 10) : null,
-        ...(form.role && form.role !== 'aluno' ? { role: form.role as 'aluno' | 'professor' | 'admin' | 'gestor' | 'gestor_grupo' | 'atendimento' } : {}),
+        ...(form.role && form.role !== 'aluno' ? { role: form.role as AppUserRole } : {}),
       });
 
       if (!data.success) {

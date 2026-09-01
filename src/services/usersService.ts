@@ -16,6 +16,7 @@ export interface CreateUserPayload {
   nome: string;
   id_ies: string;
   semestre?: number | null;
+  matricula_ra?: string | null;
   role?: 'aluno' | 'professor' | 'admin' | 'gestor' | 'gestor_grupo' | 'atendimento';
 }
 
