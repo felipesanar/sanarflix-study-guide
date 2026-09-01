@@ -172,6 +172,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const [filterRole, setFilterRole] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const fetchIdRef = useRef(0);
 
   // Debounce search input → searchTerm (400ms)
