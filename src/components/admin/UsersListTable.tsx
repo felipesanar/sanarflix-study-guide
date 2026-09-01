@@ -174,6 +174,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
   const fetchIdRef = useRef(0);
 
   // Debounce search input → searchTerm (400ms)
@@ -360,12 +361,30 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   }, [page, applyListFilters, resolveRoleFilterIds]);
 
   /** Export XLSX do recorte atual (todos os filtros ativos, não só a página).
-   * Pagina em blocos de 1000 para não estourar o limite do PostgREST. */
+   * Pagina em blocos de 500; os papéis são lidos UMA vez (tabela pequena) para
+   * evitar URLs gigantes com centenas de UUIDs por bloco. */
   const handleExportXlsx = useCallback(async () => {
     setExporting(true);
+    setExportProgress(0);
     try {
       const roleFilter = await resolveRoleFilterIds();
-      const PAGE = 1000;
+
+      // Mapa completo de papéis, em blocos defensivos caso a tabela cresça.
+      const rolesMap = new Map<string, string[]>();
+      const ROLE_PAGE = 1000;
+      for (let offset = 0; ; offset += ROLE_PAGE) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .order('user_id')
+          .range(offset, offset + ROLE_PAGE - 1);
+        if (error) throw error;
+        const chunk = data || [];
+        chunk.forEach(r => rolesMap.set(r.user_id, [...(rolesMap.get(r.user_id) || []), r.role]));
+        if (chunk.length < ROLE_PAGE) break;
+      }
+
+      const PAGE = 500;
       const rows: UserRow[] = [];
 
       for (let offset = 0; ; offset += PAGE) {
@@ -375,19 +394,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
             .select('id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)'),
           roleFilter,
         );
-        const { data, error } = await query.order('nome').range(offset, offset + PAGE - 1);
+        const { data, error } = await query.order('nome').order('id').range(offset, offset + PAGE - 1);
         if (error) throw error;
         const batch = data || [];
         if (batch.length === 0) break;
-
-        const ids = batch.map(u => u.id);
-        const { data: rolesData, error: rolesErr } = await supabase
-          .from('user_roles')
-          .select('user_id, role')
-          .in('user_id', ids);
-        if (rolesErr) throw rolesErr;
-        const rolesMap = new Map<string, string[]>();
-        rolesData?.forEach(r => rolesMap.set(r.user_id, [...(rolesMap.get(r.user_id) || []), r.role]));
 
         batch.forEach(u => rows.push({
           id: u.id,
@@ -399,6 +409,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           semestre: u.semestre,
           roles: rolesMap.get(u.id) || [],
         }));
+        setExportProgress(rows.length);
 
         if (batch.length < PAGE) break;
       }
@@ -434,11 +445,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       toast.success(`${rows.length} usuário${rows.length === 1 ? '' : 's'} exportado${rows.length === 1 ? '' : 's'}.`);
     } catch (err) {
       Logger.error('[UsersListTable] falha ao exportar XLSX:', err);
-      toast.error('Não foi possível exportar os usuários.');
+      const motivo = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+      toast.error(motivo ? `Não foi possível exportar os usuários: ${motivo}` : 'Não foi possível exportar os usuários.');
     } finally {
       setExporting(false);
+      setExportProgress(0);
     }
   }, [applyListFilters, resolveRoleFilterIds]);
+
 
 
   useEffect(() => {
@@ -760,7 +774,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       </Select>
       <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={exporting || loading}>
         {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-        Exportar XLSX
+        {exporting
+          ? `Exportando… ${exportProgress.toLocaleString('pt-BR')}${totalCount ? ` de ${totalCount.toLocaleString('pt-BR')}` : ''}`
+          : 'Exportar XLSX'}
       </Button>
       <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
