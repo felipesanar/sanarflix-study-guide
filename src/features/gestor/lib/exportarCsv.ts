@@ -130,3 +130,22 @@ function baixarConteudo(nomeArquivo: string, conteudo: string): boolean {
   setTimeout(() => URL.revokeObjectURL(url), 0);
   return true;
 }
+
+/**
+ * Dispara o download. Retorna `false` quando o ambiente não tem as APIs de
+ * Blob/URL (jsdom sem polyfill, navegador antigo) — assim quem chama pode
+ * avisar em vez de deixar o clique morrer em silêncio, que é exatamente o
+ * problema que este módulo existe para resolver.
+ */
+export function baixarCsv<T>(
+  nomeArquivo: string,
+  colunas: ReadonlyArray<ColunaCsv<T>>,
+  linhas: ReadonlyArray<T>,
+): boolean {
+  return baixarConteudo(nomeArquivo, montarCsv(colunas, linhas));
+}
+
+/** Mesma coisa de `baixarCsv`, para um arquivo com múltiplas seções. */
+export function baixarCsvSecoes(nomeArquivo: string, secoes: ReadonlyArray<SecaoCsv<unknown>>): boolean {
+  return baixarConteudo(nomeArquivo, montarCsvSecoes(secoes));
+}
