@@ -757,9 +757,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           ))}
         </SelectContent>
       </Select>
+      <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={exporting || loading}>
+        {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+        Exportar XLSX
+      </Button>
       <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
       </Button>
+
     </>
   );
 
