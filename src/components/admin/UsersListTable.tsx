@@ -328,7 +328,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, filterSemestre]);
+  }, [page, searchTerm, filterIes, filterSemestre, filterRole]);
 
   useEffect(() => {
     fetchUsers();
@@ -336,7 +336,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, filterIes, filterSemestre]);
+  }, [searchTerm, filterIes, filterSemestre, filterRole]);
 
   // Se o total encolher (ex.: exclusão em massa zera a última página), a
   // página atual não pode ficar além do total — sem isso a lista mostraria
