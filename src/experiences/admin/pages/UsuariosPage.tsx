@@ -153,6 +153,7 @@ const UsuariosPage: React.FC = () => {
         open={bulkCreateOpen}
         onOpenChange={setBulkCreateOpen}
         iesList={iesList}
+        canManageRoles={canManage}
         onDone={bumpRefresh}
       />
 
