@@ -395,26 +395,67 @@ export function TabelaAlunosSimulado({
         </span>
       </div>
 
+      {/* Busca por nome: filtro client-side sobre a lista já carregada — nenhuma
+          requisição nova e nenhum número recalculado (os contadores acima
+          continuam falando da população do recorte). Mesmo desenho do campo da
+          tabela da Visão Geral. */}
+      <div
+        className="flex min-w-[220px] max-w-full items-center gap-2 px-3 sm:max-w-[320px]"
+        style={{
+          border: '1px solid var(--gp-border-input)',
+          borderRadius: 9,
+          color: 'var(--gp-text-3)',
+        }}
+      >
+        <Icon name="search" size={15} />
+        <input
+          type="search"
+          aria-label="Buscar aluno"
+          placeholder="Buscar aluno por nome…"
+          value={busca}
+          onChange={(evento) => buscarPor(evento.target.value)}
+          className="h-8 w-full bg-transparent outline-none"
+          style={{ fontSize: 12, color: 'var(--gp-text-1)' }}
+        />
+      </div>
+
       <FiltroProficienciaAlunos alunos={alunos} ativo={filtroProficiencia} onSelecionar={selecionarProficiencia} />
 
       {visiveis.length === 0 ? (
         <div className="flex flex-col items-center gap-3">
           <EstadoVazio
             titulo={
-              ocultarNaoParticipantes || filtroProficiencia !== null
-                ? 'Nenhum aluno com esse filtro'
-                : 'Nenhum aluno neste recorte'
+              termo.length > 0
+                ? 'Nenhum aluno com essa busca'
+                : ocultarNaoParticipantes || filtroProficiencia !== null
+                  ? 'Nenhum aluno com esse filtro'
+                  : 'Nenhum aluno neste recorte'
             }
             descricao={
-              ocultarNaoParticipantes && filtroProficiencia !== null
-                ? 'O filtro de participação e o de proficiência juntos escondem todas as linhas.'
-                : filtroProficiencia !== null
-                  ? 'O filtro de proficiência escondeu todas as linhas.'
-                  : ocultarNaoParticipantes
-                    ? 'O filtro de participação escondeu todas as linhas.'
-                    : 'Ajuste o recorte de simulados ou de semestre.'
+              termo.length > 0
+                ? ocultarNaoParticipantes || filtroProficiencia !== null
+                  ? 'A busca por nome, junto com os filtros ativos, escondeu todas as linhas.'
+                  : 'Nenhum nome do recorte corresponde ao texto buscado.'
+                : ocultarNaoParticipantes && filtroProficiencia !== null
+                  ? 'O filtro de participação e o de proficiência juntos escondem todas as linhas.'
+                  : filtroProficiencia !== null
+                    ? 'O filtro de proficiência escondeu todas as linhas.'
+                    : ocultarNaoParticipantes
+                      ? 'O filtro de participação escondeu todas as linhas.'
+                      : 'Ajuste o recorte de simulados ou de semestre.'
             }
           />
+          {termo.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => buscarPor('')}
+              className="inline-flex items-center gap-1.5"
+              style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-text-2)' }}
+            >
+              <Icon name="close" size={15} />
+              Limpar busca
+            </button>
+          ) : null}
           {ocultarNaoParticipantes ? (
             <button
               type="button"
