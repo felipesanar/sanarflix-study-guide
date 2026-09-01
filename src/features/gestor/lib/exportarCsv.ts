@@ -84,19 +84,39 @@ export function nomeArquivoCsv(partes: ReadonlyArray<string>, agora: Date = new 
 }
 
 /**
- * Dispara o download. Retorna `false` quando o ambiente não tem as APIs de
- * Blob/URL (jsdom sem polyfill, navegador antigo) — assim quem chama pode
- * avisar em vez de deixar o clique morrer em silêncio, que é exatamente o
- * problema que este módulo existe para resolver.
+ * Uma seção do arquivo: um título de bloco, seu próprio cabeçalho e suas
+ * linhas. Existe porque o recorte do aluno passou a ter DUAS granularidades no
+ * mesmo arquivo (resumo por simulado + detalhamento por área/especialidade/tema)
+ * — e um CSV com colunas diferentes por bloco só se lê se cada bloco se
+ * apresentar.
  */
-export function baixarCsv<T>(
-  nomeArquivo: string,
-  colunas: ReadonlyArray<ColunaCsv<T>>,
-  linhas: ReadonlyArray<T>,
-): boolean {
+export interface SecaoCsv<T> {
+  titulo: string;
+  colunas: ReadonlyArray<ColunaCsv<T>>;
+  linhas: ReadonlyArray<T>;
+}
+
+/** Apaga a tipagem de uma seção para poder guardar seções heterogêneas numa lista. */
+export function secaoCsv<T>(secao: SecaoCsv<T>): SecaoCsv<unknown> {
+  return secao as unknown as SecaoCsv<unknown>;
+}
+
+/**
+ * Concatena seções num único CSV: título, cabeçalho, linhas, linha em branco.
+ * Só o primeiro bloco leva o BOM (montado uma vez, no começo do arquivo).
+ */
+export function montarCsvSecoes(secoes: ReadonlyArray<SecaoCsv<unknown>>): string {
+  const blocos = secoes
+    .filter((secao) => secao.colunas.length > 0)
+    .map((secao) => [celula(secao.titulo), montarCsv(secao.colunas, secao.linhas).slice(BOM.length)].join('\r\n'));
+  return BOM + blocos.join('\r\n\r\n');
+}
+
+/** Dispara o download de um conteúdo já montado. Ver `baixarCsv` para o retorno. */
+function baixarConteudo(nomeArquivo: string, conteudo: string): boolean {
   if (typeof document === 'undefined' || typeof URL?.createObjectURL !== 'function') return false;
 
-  const blob = new Blob([montarCsv(colunas, linhas)], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const ancora = document.createElement('a');
   ancora.href = url;
