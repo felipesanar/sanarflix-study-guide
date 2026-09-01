@@ -235,10 +235,28 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     });
   };
 
-  /** Aplica os filtros ativos (IES, semestre, papel, busca) numa query de `users`.
-   * Compartilhado entre a lista paginada e o export XLSX para que os dois
-   * recortes nunca divirjam. */
-  const applyListFilters = useCallback(async <T,>(initialQuery: T): Promise<T> => {
+  /** Resolve os ids envolvidos no filtro de papel (uma ida ao banco, feita
+   * antes de montar a query de `users`). `null` = filtro inativo. */
+  const resolveRoleFilterIds = useCallback(async (): Promise<{ mode: 'aluno' | 'role'; ids: string[] } | null> => {
+    if (filterRole === 'all') return null;
+    // `aluno` = usuário sem nenhum papel privilegiado (não existe linha
+    // 'aluno' em user_roles); os demais papéis vêm de user_roles.
+    const { data: roleRows, error: roleErr } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
+    if (roleErr) throw roleErr;
+    return {
+      mode: filterRole === 'aluno' ? 'aluno' : 'role',
+      ids: Array.from(new Set((roleRows || []).map(r => r.user_id))),
+    };
+  }, [filterRole]);
+
+  /** Aplica os filtros ativos (IES, semestre, papel, busca) numa query de
+   * `users`. Compartilhado entre a lista paginada e o export XLSX para que os
+   * dois recortes nunca divirjam. Síncrono de propósito: `await` num builder
+   * do supabase-js já dispara a requisição. */
+  const applyListFilters = useCallback(<T,>(initialQuery: T, roleFilter: { mode: 'aluno' | 'role'; ids: string[] } | null): T => {
     let query = initialQuery as never;
 
     if (filterIes !== 'all') {
@@ -247,21 +265,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     if (filterSemestre !== 'all') {
       query = (query as { eq: (c: string, v: unknown) => never }).eq('semestre', parseInt(filterSemestre, 10));
     }
-    if (filterRole !== 'all') {
-      // Filtro por papel: `aluno` = usuário sem nenhum papel privilegiado
-      // (não existe linha 'aluno' em user_roles), os demais vêm de user_roles.
-      const { data: roleRows, error: roleErr } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
-      if (roleErr) throw roleErr;
-      const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
-      if (filterRole === 'aluno') {
-        if (ids.length > 0) {
-          query = (query as { not: (c: string, op: string, v: string) => never }).not('id', 'in', `(${ids.join(',')})`);
+    if (roleFilter) {
+      if (roleFilter.mode === 'aluno') {
+        if (roleFilter.ids.length > 0) {
+          query = (query as { not: (c: string, op: string, v: string) => never }).not('id', 'in', `(${roleFilter.ids.join(',')})`);
         }
       } else {
-        query = (query as { in: (c: string, v: string[]) => never }).in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000']);
+        query = (query as { in: (c: string, v: string[]) => never }).in('id', roleFilter.ids.length > 0 ? roleFilter.ids : ['00000000-0000-0000-0000-000000000000']);
       }
     }
 
@@ -276,14 +286,15 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     }
 
     return query as T;
-  }, [filterIes, filterSemestre, filterRole, searchTerm]);
+  }, [filterIes, filterSemestre, searchTerm]);
 
   const fetchUsers = useCallback(async () => {
     const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
     setFetchError(null);
     try {
-      const query = await applyListFilters(
+      const roleFilter = await resolveRoleFilterIds();
+      const query = applyListFilters(
         supabase
           .from('users')
           .select(`
@@ -295,7 +306,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
             semestre,
             ies:ies!fk_ies(nome)
           `, { count: 'exact' }),
+        roleFilter,
       );
+
 
 
       const from = page * ITEMS_PER_PAGE;
