@@ -48,6 +48,7 @@ import {
   ShieldOff,
   RefreshCw,
   Mail,
+  Download,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -172,6 +173,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const [filterRole, setFilterRole] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const fetchIdRef = useRef(0);
 
   // Debounce search input → searchTerm (400ms)
@@ -235,54 +237,81 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     });
   };
 
+  /** Resolve os ids envolvidos no filtro de papel (uma ida ao banco, feita
+   * antes de montar a query de `users`). `null` = filtro inativo. */
+  const resolveRoleFilterIds = useCallback(async (): Promise<{ mode: 'aluno' | 'role'; ids: string[] } | null> => {
+    if (filterRole === 'all') return null;
+    // `aluno` = usuário sem nenhum papel privilegiado (não existe linha
+    // 'aluno' em user_roles); os demais papéis vêm de user_roles.
+    const { data: roleRows, error: roleErr } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
+    if (roleErr) throw roleErr;
+    return {
+      mode: filterRole === 'aluno' ? 'aluno' : 'role',
+      ids: Array.from(new Set((roleRows || []).map(r => r.user_id))),
+    };
+  }, [filterRole]);
+
+  /** Aplica os filtros ativos (IES, semestre, papel, busca) numa query de
+   * `users`. Compartilhado entre a lista paginada e o export XLSX para que os
+   * dois recortes nunca divirjam. Síncrono de propósito: `await` num builder
+   * do supabase-js já dispara a requisição. */
+  const applyListFilters = useCallback(<T,>(initialQuery: T, roleFilter: { mode: 'aluno' | 'role'; ids: string[] } | null): T => {
+    let query = initialQuery as never;
+
+    if (filterIes !== 'all') {
+      query = (query as { eq: (c: string, v: unknown) => never }).eq('id_ies', filterIes);
+    }
+    if (filterSemestre !== 'all') {
+      query = (query as { eq: (c: string, v: unknown) => never }).eq('semestre', parseInt(filterSemestre, 10));
+    }
+    if (roleFilter) {
+      if (roleFilter.mode === 'aluno') {
+        if (roleFilter.ids.length > 0) {
+          query = (query as { not: (c: string, op: string, v: string) => never }).not('id', 'in', `(${roleFilter.ids.join(',')})`);
+        }
+      } else {
+        query = (query as { in: (c: string, v: string[]) => never }).in('id', roleFilter.ids.length > 0 ? roleFilter.ids : ['00000000-0000-0000-0000-000000000000']);
+      }
+    }
+
+    if (searchTerm.trim()) {
+      // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
+      // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
+      // de LIKE). Pontos, @, hífens etc. são válidos em nomes/emails.
+      const sanitized = searchTerm.replace(/[%_,()]/g, '').trim();
+      if (sanitized) {
+        query = (query as { or: (v: string) => never }).or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
+      }
+    }
+
+    return query as T;
+  }, [filterIes, filterSemestre, searchTerm]);
+
   const fetchUsers = useCallback(async () => {
     const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
     setFetchError(null);
     try {
-      let query = supabase
-        .from('users')
-        .select(`
-          id,
-          nome,
-          email,
-          id_ies,
-          matricula_ra,
-          semestre,
-          ies:ies!fk_ies(nome)
-        `, { count: 'exact' });
+      const roleFilter = await resolveRoleFilterIds();
+      const query = applyListFilters(
+        supabase
+          .from('users')
+          .select(`
+            id,
+            nome,
+            email,
+            id_ies,
+            matricula_ra,
+            semestre,
+            ies:ies!fk_ies(nome)
+          `, { count: 'exact' }),
+        roleFilter,
+      );
 
-      if (filterIes !== 'all') {
-        query = query.eq('id_ies', filterIes);
-      }
-      if (filterSemestre !== 'all') {
-        query = query.eq('semestre', parseInt(filterSemestre, 10));
-      }
-      if (filterRole !== 'all') {
-        // Filtro por papel: `aluno` = usuário sem nenhum papel privilegiado
-        // (não existe linha 'aluno' em user_roles), os demais vêm de user_roles.
-        const { data: roleRows, error: roleErr } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
-        if (roleErr) throw roleErr;
-        const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
-        if (filterRole === 'aluno') {
-          if (ids.length > 0) query = query.not('id', 'in', `(${ids.join(',')})`);
-        } else {
-          query = query.in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000']);
-        }
-      }
 
-      if (searchTerm.trim()) {
-        // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
-        // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
-        // de LIKE). Pontos, @, hífens etc. são válidos em nomes/emails.
-        const sanitized = searchTerm.replace(/[%_,()]/g, '').trim();
-        if (sanitized) {
-          query = query.or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
-        }
-      }
 
       const from = page * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
@@ -328,7 +357,89 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, filterSemestre, filterRole]);
+  }, [page, applyListFilters, resolveRoleFilterIds]);
+
+  /** Export XLSX do recorte atual (todos os filtros ativos, não só a página).
+   * Pagina em blocos de 1000 para não estourar o limite do PostgREST. */
+  const handleExportXlsx = useCallback(async () => {
+    setExporting(true);
+    try {
+      const roleFilter = await resolveRoleFilterIds();
+      const PAGE = 1000;
+      const rows: UserRow[] = [];
+
+      for (let offset = 0; ; offset += PAGE) {
+        const query = applyListFilters(
+          supabase
+            .from('users')
+            .select('id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)'),
+          roleFilter,
+        );
+        const { data, error } = await query.order('nome').range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        const batch = data || [];
+        if (batch.length === 0) break;
+
+        const ids = batch.map(u => u.id);
+        const { data: rolesData, error: rolesErr } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', ids);
+        if (rolesErr) throw rolesErr;
+        const rolesMap = new Map<string, string[]>();
+        rolesData?.forEach(r => rolesMap.set(r.user_id, [...(rolesMap.get(r.user_id) || []), r.role]));
+
+        batch.forEach(u => rows.push({
+          id: u.id,
+          nome: u.nome,
+          email: u.email,
+          id_ies: u.id_ies,
+          ies_nome: (u.ies as { nome: string } | null)?.nome || null,
+          matricula_ra: u.matricula_ra ?? null,
+          semestre: u.semestre,
+          roles: rolesMap.get(u.id) || [],
+        }));
+
+        if (batch.length < PAGE) break;
+      }
+
+      if (rows.length === 0) {
+        toast.info('Nenhum usuário no recorte atual para exportar.');
+        return;
+      }
+
+      const XLSX = await import('xlsx');
+      const sheetRows = rows.map(u => {
+        const privileged = deriveEditableRoles(u.roles);
+        return {
+          user_id: u.id,
+          nome_ies: u.ies_nome ?? '',
+          nome_usuario: u.nome,
+          email: u.email,
+          semestre: u.semestre ?? '',
+          matricula_ra: u.matricula_ra ?? '',
+          role: privileged.length > 0 ? privileged.join(', ') : 'aluno',
+        };
+      });
+
+      const sheet = XLSX.utils.json_to_sheet(sheetRows, {
+        header: ['user_id', 'nome_ies', 'nome_usuario', 'email', 'semestre', 'matricula_ra', 'role'],
+      });
+      sheet['!cols'] = [{ wch: 38 }, { wch: 30 }, { wch: 30 }, { wch: 32 }, { wch: 10 }, { wch: 18 }, { wch: 24 }];
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, 'Usuários');
+
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(book, `usuarios-${today}.xlsx`);
+      toast.success(`${rows.length} usuário${rows.length === 1 ? '' : 's'} exportado${rows.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      Logger.error('[UsersListTable] falha ao exportar XLSX:', err);
+      toast.error('Não foi possível exportar os usuários.');
+    } finally {
+      setExporting(false);
+    }
+  }, [applyListFilters, resolveRoleFilterIds]);
+
 
   useEffect(() => {
     fetchUsers();
@@ -647,9 +758,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           ))}
         </SelectContent>
       </Select>
+      <Button variant="outline" size="sm" onClick={handleExportXlsx} disabled={exporting || loading}>
+        {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+        Exportar XLSX
+      </Button>
       <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
       </Button>
+
     </>
   );
 
