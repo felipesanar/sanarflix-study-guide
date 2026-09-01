@@ -647,8 +647,6 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           ))}
         </SelectContent>
       </Select>
-
-      )}
       <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
       </Button>
