@@ -258,6 +258,22 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       if (filterSemestre !== 'all') {
         query = query.eq('semestre', parseInt(filterSemestre, 10));
       }
+      if (filterRole !== 'all') {
+        // Filtro por papel: `aluno` = usuário sem nenhum papel privilegiado
+        // (não existe linha 'aluno' em user_roles), os demais vêm de user_roles.
+        const { data: roleRows, error: roleErr } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole]);
+        if (roleErr) throw roleErr;
+        const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
+        if (filterRole === 'aluno') {
+          if (ids.length > 0) query = query.not('id', 'in', `(${ids.join(',')})`);
+        } else {
+          query = query.in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000']);
+        }
+      }
+
       if (searchTerm.trim()) {
         // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
         // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
