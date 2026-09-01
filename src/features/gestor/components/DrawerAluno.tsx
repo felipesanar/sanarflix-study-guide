@@ -1423,7 +1423,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
       return;
     }
     const secoes: SecaoCsv<unknown>[] = [
-      secaoCsv({ titulo: `Resumo por simulado — ${nomeExibido}`, colunas: COLUNAS_ALUNO, linhas: cronologicas }),
+      secaoCsv({ titulo: `Resumo por simulado — ${nomeExibido}`, colunas: COLUNAS_ALUNO, linhas: linhasResumo }),
     ];
     if (linhasArea.length > 0) {
       secoes.push(
