@@ -12,7 +12,13 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { FONTE_MONO, TagSituacao } from '@/features/gestor/components/tabela';
 import { useAluno, useAlunoContato, useAlunoDesempenhoPorArea } from '@/features/gestor/api/queries';
-import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
+import {
+  baixarCsvSecoes,
+  nomeArquivoCsv,
+  secaoCsv,
+  type ColunaCsv,
+  type SecaoCsv,
+} from '@/features/gestor/lib/exportarCsv';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 
 import {
@@ -49,6 +55,45 @@ const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
   { cabecalho: 'Acertos', valor: (entrada) => (entrada.acertos === null ? '' : entrada.acertos) },
   { cabecalho: 'Situação', valor: (entrada) => rotuloSituacao(entrada.situacao) },
 ];
+
+/** Decimal em pt-BR, sem sufixo de unidade — com "%" o Excel importa como texto. */
+function decimalCsv(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return '';
+  return (Math.round(valor * 10) / 10).toFixed(1).replace('.', ',');
+}
+
+/** Uma linha de tema do detalhamento, já carimbada com o simulado de origem. */
+interface LinhaAreaCsv extends AreaDesempenhoAluno {
+  simulado: string;
+}
+
+/**
+ * Detalhamento por área: uma linha por TEMA, com a grande área e a
+ * especialidade como chaves de agrupamento (é a granularidade que os gestores
+ * pediram — o resumo por simulado sozinho não diz onde o aluno perde ponto).
+ * A coluna `Simulado` é o que mantém a agregação honesta: nada aqui é fundido
+ * entre simulados, exceto a linha explicitamente marcada como consolidada.
+ */
+const COLUNAS_AREA: ReadonlyArray<ColunaCsv<LinhaAreaCsv>> = [
+  { cabecalho: 'Simulado', valor: (l) => l.simulado },
+  { cabecalho: 'Grande área', valor: (l) => l.grandeArea },
+  { cabecalho: 'Especialidade', valor: (l) => l.especialidade },
+  { cabecalho: 'Tema', valor: (l) => l.tema },
+  { cabecalho: 'Questões respondidas', valor: (l) => l.questoesRespondidas },
+  { cabecalho: 'Questões totais', valor: (l) => l.questoesTotal },
+  { cabecalho: 'Acerto (%)', valor: (l) => decimalCsv(l.acertoPct) },
+  { cabecalho: 'Tema crítico', valor: (l) => (l.critica ? 'sim' : 'não') },
+];
+
+/** Ordem estável do detalhamento: grande área → especialidade → tema. */
+function ordenarLinhasArea(linhas: LinhaAreaCsv[]): LinhaAreaCsv[] {
+  return [...linhas].sort(
+    (a, b) =>
+      a.grandeArea.localeCompare(b.grandeArea, 'pt-BR') ||
+      a.especialidade.localeCompare(b.especialidade, 'pt-BR') ||
+      a.tema.localeCompare(b.tema, 'pt-BR'),
+  );
+}
 
 
 export interface DrawerAlunoProps {
@@ -1314,11 +1359,29 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const linkWhatsApp = linkWhatsAppAluno(contato.data?.telefone, resumoTexto);
 
   /**
-   * Export do recorte DESTE aluno: uma linha por simulado, o mesmo agregado
-   * cronológico que a tela mostra (nunca resposta a resposta, nunca outro
-   * aluno). Quem monta é este drawer, que é onde o dado está; `AcoesRecorte`
-   * segue sem receber lista (§7.7) e o gate de `podeExportar` continua sendo
-   * dele.
+   * Linhas do detalhamento por área do arquivo: um bloco por simulado
+   * classificado (nada fundido) e, quando há 2+ simulados classificados,
+   * também o consolidado ponderado — o MESMO número que a tela mostra em
+   * "Todos os simulados", sem cálculo novo aqui.
+   */
+  const linhasArea: LinhaAreaCsv[] = [
+    ...entradasComTemas.flatMap((entrada) =>
+      ordenarLinhasArea(entrada.areas.map((area) => ({ ...area, simulado: entrada.nome }))),
+    ),
+    ...(podeConsolidar
+      ? ordenarLinhasArea(
+          consolidarAreas(entradasComTemas).map((area) => ({ ...area, simulado: 'Todos os simulados' })),
+        )
+      : []),
+  ];
+
+  /**
+   * Export do recorte DESTE aluno: duas seções — resumo por simulado (o mesmo
+   * agregado cronológico que a tela mostra) e detalhamento por grande área,
+   * especialidade e tema (pedido dos gestores, 01/09: o macro sozinho não diz
+   * onde o aluno perde ponto). Nunca resposta a resposta, nunca outro aluno.
+   * `AcoesRecorte` segue sem receber lista (§7.7) e o gate de `podeExportar`
+   * continua sendo dele.
    *
    * `onExportar` continua tendo prioridade quando quem compõe a tela quer
    * tratar o clique (telemetria própria, escopo diferente) — o arquivo local é
@@ -1329,10 +1392,28 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
       onExportar(`aluno:${alunoId}`);
       return;
     }
-    const gerou = baixarCsv(nomeArquivoCsv(['aluno', nomeExibido]), COLUNAS_ALUNO, cronologicas);
+    const secoes: SecaoCsv<unknown>[] = [
+      secaoCsv({ titulo: `Resumo por simulado — ${nomeExibido}`, colunas: COLUNAS_ALUNO, linhas: cronologicas }),
+    ];
+    if (linhasArea.length > 0) {
+      secoes.push(
+        secaoCsv({
+          titulo: 'Detalhamento por grande área, especialidade e tema',
+          colunas: COLUNAS_AREA,
+          linhas: linhasArea,
+        }),
+      );
+    }
+
+    const gerou = baixarCsvSecoes(nomeArquivoCsv(['aluno', nomeExibido]), secoes);
     toast(
       gerou
-        ? { description: 'Arquivo CSV gerado com o recorte deste aluno.' }
+        ? {
+            description:
+              linhasArea.length > 0
+                ? 'Arquivo CSV gerado com o resumo por simulado e o detalhamento por área, especialidade e tema.'
+                : 'Arquivo CSV gerado com o resumo por simulado. O detalhamento por área não estava disponível para este recorte.',
+          }
         : { description: 'Não foi possível gerar o arquivo neste navegador.' },
     );
   };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { montarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
+import { montarCsv, montarCsvSecoes, nomeArquivoCsv, secaoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
 
 interface Linha {
   nome: string;
@@ -45,5 +45,20 @@ describe('exportarCsv — o arquivo que fecha o ciclo operacional (auditoria 09/
 
   it('nome de arquivo não fica pendurado quando as partes vêm vazias', () => {
     expect(nomeArquivoCsv(['', '   '], new Date(2026, 0, 3))).toBe('gestor-recorte-2026-01-03.csv');
+  });
+});
+
+describe('montarCsvSecoes — resumo do aluno + detalhamento por área no mesmo arquivo (01/09)', () => {
+  it('um BOM só, título por seção e linha em branco entre blocos', () => {
+    const csv = montarCsvSecoes([
+      secaoCsv({ titulo: 'Resumo por simulado', colunas: COLUNAS, linhas: [{ nome: 'Cardiologia', acerto: 24.5 }] }),
+      secaoCsv({ titulo: 'Detalhamento por tema', colunas: COLUNAS, linhas: [{ nome: 'Nefrologia', acerto: null }] }),
+    ]);
+
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv.match(/\uFEFF/g)).toHaveLength(1);
+    expect(csv).toContain('Resumo por simulado\r\nTema;Acerto (%)\r\nCardiologia;24,5');
+    expect(csv).toContain('\r\n\r\nDetalhamento por tema\r\n');
+    expect(csv.trim().endsWith('Nefrologia;')).toBe(true);
   });
 });
