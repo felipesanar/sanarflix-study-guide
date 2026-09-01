@@ -12,7 +12,13 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { FONTE_MONO, TagSituacao } from '@/features/gestor/components/tabela';
 import { useAluno, useAlunoContato, useAlunoDesempenhoPorArea } from '@/features/gestor/api/queries';
-import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
+import {
+  baixarCsvSecoes,
+  nomeArquivoCsv,
+  secaoCsv,
+  type ColunaCsv,
+  type SecaoCsv,
+} from '@/features/gestor/lib/exportarCsv';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 
 import {
