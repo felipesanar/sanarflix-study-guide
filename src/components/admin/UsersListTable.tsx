@@ -207,7 +207,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   // Limpa seleção ao trocar página/filtro
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, searchTerm, filterIes, filterSemestre]);
+  }, [page, searchTerm, filterIes, filterSemestre, filterRole]);
+
 
   const selectableUsers = useMemo(
     () => users.filter(u => !u.roles.includes('admin')),
