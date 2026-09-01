@@ -168,6 +168,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
   const [filterSemestre, setFilterSemestre] = useState<string>('all');
+  /** 'all' | 'aluno' (sem papel privilegiado) | uma das PRIVILEGED_ROLES */
+  const [filterRole, setFilterRole] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const fetchIdRef = useRef(0);
