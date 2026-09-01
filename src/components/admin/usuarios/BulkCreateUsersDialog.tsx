@@ -85,7 +85,7 @@ function coluna(r: Record<string, string>, aliases: string[]): string {
  * `canManageRoles = false` (Atendimento/CX) só pode importar alunos — qualquer
  * outro papel na planilha vira erro de linha em vez de escalar privilégio.
  */
-async function parseUsersFile(file: File, canManageRoles: boolean): Promise<Row[]> {
+export async function parseUsersFile(file: File, canManageRoles: boolean): Promise<Row[]> {
   const arrayBuffer = await file.arrayBuffer();
   const isCsv = file.name.toLowerCase().endsWith('.csv');
   let workbook: XLSX.WorkBook;
