@@ -264,7 +264,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         const { data: roleRows, error: roleErr } = await supabase
           .from('user_roles')
           .select('user_id')
-          .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole]);
+          .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
         if (roleErr) throw roleErr;
         const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
         if (filterRole === 'aluno') {
