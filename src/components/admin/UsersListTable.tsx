@@ -48,6 +48,7 @@ import {
   ShieldOff,
   RefreshCw,
   Mail,
+  Download,
   ChevronLeft,
   ChevronRight,
   Loader2,
