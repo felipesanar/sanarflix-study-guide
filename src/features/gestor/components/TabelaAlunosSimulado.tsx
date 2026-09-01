@@ -283,19 +283,30 @@ export function TabelaAlunosSimulado({
   });
   const [ocultarNaoParticipantes, setOcultarNaoParticipantes] = React.useState(false);
   const [filtroProficiencia, setFiltroProficiencia] = React.useState<FiltroProficiencia | null>(null);
+  const [busca, setBusca] = React.useState('');
   const [page, setPage] = React.useState(1);
+
+  const termo = normalizarBusca(busca);
 
   const visiveis = React.useMemo(() => {
     let filtrados = ocultarNaoParticipantes ? alunos.filter((a) => a.participou) : alunos;
     if (filtroProficiencia !== null) {
       filtrados = filtrados.filter((a) => classificarProficiencia(a.proficiencia) === filtroProficiencia);
     }
+    if (termo.length > 0) {
+      filtrados = filtrados.filter((a) => normalizarBusca(a.nome).includes(termo));
+    }
     return ordenarAlunosNoSimulado(filtrados, ordenacao.coluna, ordenacao.ordem);
-  }, [alunos, ocultarNaoParticipantes, filtroProficiencia, ordenacao]);
+  }, [alunos, ocultarNaoParticipantes, filtroProficiencia, termo, ordenacao]);
 
   /** Trocar de faixa de proficiência também volta para a página 1 — mesmo motivo de `ocultarNaoParticipantes`. */
   const selecionarProficiencia = (faixa: FiltroProficiencia | null) => {
     setFiltroProficiencia(faixa);
+    setPage(1);
+  };
+
+  const buscarPor = (texto: string) => {
+    setBusca(texto);
     setPage(1);
   };
 
