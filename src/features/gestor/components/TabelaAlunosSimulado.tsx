@@ -269,6 +269,19 @@ export interface TabelaAlunosSimuladoProps {
  * ordem nenhuma — é a ordem que a RPC devolveu, que o gestor não tem como
  * inferir.
  */
+/**
+ * Chave de busca: sem acento e em minúsculas, para "jose" achar "JOSÉ". A
+ * comparação é por trecho em qualquer posição do nome — gestor digita sobrenome
+ * tanto quanto primeiro nome.
+ */
+function normalizarBusca(texto: string): string {
+  return (texto ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 export function TabelaAlunosSimulado({
   alunos,
   multiSimulado,
