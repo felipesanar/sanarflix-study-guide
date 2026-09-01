@@ -235,54 +235,68 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     });
   };
 
+  /** Aplica os filtros ativos (IES, semestre, papel, busca) numa query de `users`.
+   * Compartilhado entre a lista paginada e o export XLSX para que os dois
+   * recortes nunca divirjam. */
+  const applyListFilters = useCallback(async <T,>(initialQuery: T): Promise<T> => {
+    let query = initialQuery as never;
+
+    if (filterIes !== 'all') {
+      query = (query as { eq: (c: string, v: unknown) => never }).eq('id_ies', filterIes);
+    }
+    if (filterSemestre !== 'all') {
+      query = (query as { eq: (c: string, v: unknown) => never }).eq('semestre', parseInt(filterSemestre, 10));
+    }
+    if (filterRole !== 'all') {
+      // Filtro por papel: `aluno` = usuário sem nenhum papel privilegiado
+      // (não existe linha 'aluno' em user_roles), os demais vêm de user_roles.
+      const { data: roleRows, error: roleErr } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
+      if (roleErr) throw roleErr;
+      const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
+      if (filterRole === 'aluno') {
+        if (ids.length > 0) {
+          query = (query as { not: (c: string, op: string, v: string) => never }).not('id', 'in', `(${ids.join(',')})`);
+        }
+      } else {
+        query = (query as { in: (c: string, v: string[]) => never }).in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000']);
+      }
+    }
+
+    if (searchTerm.trim()) {
+      // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
+      // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
+      // de LIKE). Pontos, @, hífens etc. são válidos em nomes/emails.
+      const sanitized = searchTerm.replace(/[%_,()]/g, '').trim();
+      if (sanitized) {
+        query = (query as { or: (v: string) => never }).or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
+      }
+    }
+
+    return query as T;
+  }, [filterIes, filterSemestre, filterRole, searchTerm]);
+
   const fetchUsers = useCallback(async () => {
     const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
     setFetchError(null);
     try {
-      let query = supabase
-        .from('users')
-        .select(`
-          id,
-          nome,
-          email,
-          id_ies,
-          matricula_ra,
-          semestre,
-          ies:ies!fk_ies(nome)
-        `, { count: 'exact' });
+      const query = await applyListFilters(
+        supabase
+          .from('users')
+          .select(`
+            id,
+            nome,
+            email,
+            id_ies,
+            matricula_ra,
+            semestre,
+            ies:ies!fk_ies(nome)
+          `, { count: 'exact' }),
+      );
 
-      if (filterIes !== 'all') {
-        query = query.eq('id_ies', filterIes);
-      }
-      if (filterSemestre !== 'all') {
-        query = query.eq('semestre', parseInt(filterSemestre, 10));
-      }
-      if (filterRole !== 'all') {
-        // Filtro por papel: `aluno` = usuário sem nenhum papel privilegiado
-        // (não existe linha 'aluno' em user_roles), os demais vêm de user_roles.
-        const { data: roleRows, error: roleErr } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
-        if (roleErr) throw roleErr;
-        const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
-        if (filterRole === 'aluno') {
-          if (ids.length > 0) query = query.not('id', 'in', `(${ids.join(',')})`);
-        } else {
-          query = query.in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000']);
-        }
-      }
-
-      if (searchTerm.trim()) {
-        // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
-        // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
-        // de LIKE). Pontos, @, hífens etc. são válidos em nomes/emails.
-        const sanitized = searchTerm.replace(/[%_,()]/g, '').trim();
-        if (sanitized) {
-          query = query.or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
-        }
-      }
 
       const from = page * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
