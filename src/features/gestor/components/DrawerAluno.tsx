@@ -56,6 +56,45 @@ const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
   { cabecalho: 'Situação', valor: (entrada) => rotuloSituacao(entrada.situacao) },
 ];
 
+/** Decimal em pt-BR, sem sufixo de unidade — com "%" o Excel importa como texto. */
+function decimalCsv(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return '';
+  return (Math.round(valor * 10) / 10).toFixed(1).replace('.', ',');
+}
+
+/** Uma linha de tema do detalhamento, já carimbada com o simulado de origem. */
+interface LinhaAreaCsv extends AreaDesempenhoAluno {
+  simulado: string;
+}
+
+/**
+ * Detalhamento por área: uma linha por TEMA, com a grande área e a
+ * especialidade como chaves de agrupamento (é a granularidade que os gestores
+ * pediram — o resumo por simulado sozinho não diz onde o aluno perde ponto).
+ * A coluna `Simulado` é o que mantém a agregação honesta: nada aqui é fundido
+ * entre simulados, exceto a linha explicitamente marcada como consolidada.
+ */
+const COLUNAS_AREA: ReadonlyArray<ColunaCsv<LinhaAreaCsv>> = [
+  { cabecalho: 'Simulado', valor: (l) => l.simulado },
+  { cabecalho: 'Grande área', valor: (l) => l.grandeArea },
+  { cabecalho: 'Especialidade', valor: (l) => l.especialidade },
+  { cabecalho: 'Tema', valor: (l) => l.tema },
+  { cabecalho: 'Questões respondidas', valor: (l) => l.questoesRespondidas },
+  { cabecalho: 'Questões totais', valor: (l) => l.questoesTotal },
+  { cabecalho: 'Acerto (%)', valor: (l) => decimalCsv(l.acertoPct) },
+  { cabecalho: 'Tema crítico', valor: (l) => (l.critica ? 'sim' : 'não') },
+];
+
+/** Ordem estável do detalhamento: grande área → especialidade → tema. */
+function ordenarLinhasArea(linhas: LinhaAreaCsv[]): LinhaAreaCsv[] {
+  return [...linhas].sort(
+    (a, b) =>
+      a.grandeArea.localeCompare(b.grandeArea, 'pt-BR') ||
+      a.especialidade.localeCompare(b.especialidade, 'pt-BR') ||
+      a.tema.localeCompare(b.tema, 'pt-BR'),
+  );
+}
+
 
 export interface DrawerAlunoProps {
   alunoId: string | null;
