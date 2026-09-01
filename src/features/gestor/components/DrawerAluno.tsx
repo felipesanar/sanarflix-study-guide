@@ -1387,6 +1387,25 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   ];
 
   /**
+   * Quantas questões o aluno respondeu em cada simulado — soma das questões
+   * respondidas do detalhamento por tema daquele simulado. Sem detalhamento a
+   * contagem fica vazia no arquivo.
+   */
+  const respondidasPorSimulado = new Map(
+    entradasComTemas.map((entrada) => [
+      entrada.simuladoId,
+      entrada.areas.reduce((total, area) => total + (area.questoesRespondidas ?? 0), 0),
+    ]),
+  );
+
+  const linhasResumo: LinhaResumoCsv[] = cronologicas.map((entrada) => ({
+    ...entrada,
+    questoesRespondidas: respondidasPorSimulado.get(entrada.simuladoId) ?? null,
+  }));
+
+
+
+  /**
    * Export do recorte DESTE aluno: duas seções — resumo por simulado (o mesmo
    * agregado cronológico que a tela mostra) e detalhamento por grande área,
    * especialidade e tema (pedido dos gestores, 01/09: o macro sozinho não diz
