@@ -44,7 +44,17 @@ import type { AreaDesempenhoAluno, DesempenhoPorAreaSimulado } from '@/features/
  * Decimal com vírgula e sem sufixo de unidade: com "%" ou ponto decimal o
  * Excel em pt-BR importa a coluna como texto e nenhuma média funciona depois.
  */
-const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
+/**
+ * Linha do resumo: o agregado do simulado mais quantas questões o aluno
+ * respondeu — número somado do detalhamento por tema daquele simulado (é a
+ * única fonte que tem essa contagem). `null` quando o detalhamento não existe
+ * para o simulado: célula vazia, nunca zero.
+ */
+interface LinhaResumoCsv extends AlunoSimuladoEntry {
+  questoesRespondidas: number | null;
+}
+
+const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<LinhaResumoCsv>> = [
   { cabecalho: 'Simulado', valor: (entrada) => entrada.simuladoNome },
   { cabecalho: 'Data', valor: (entrada) => formatData(entrada.simuladoData) },
   { cabecalho: 'Participou', valor: (entrada) => (entrada.participou ? 'sim' : 'não') },
@@ -52,6 +62,7 @@ const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
     cabecalho: 'Proficiência',
     valor: (entrada) => (entrada.proficiencia === null ? '' : String(entrada.proficiencia).replace('.', ',')),
   },
+  { cabecalho: 'Questões respondidas', valor: (entrada) => entrada.questoesRespondidas },
   { cabecalho: 'Acertos', valor: (entrada) => (entrada.acertos === null ? '' : entrada.acertos) },
   { cabecalho: 'Situação', valor: (entrada) => rotuloSituacao(entrada.situacao) },
 ];
@@ -82,7 +93,7 @@ const COLUNAS_AREA: ReadonlyArray<ColunaCsv<LinhaAreaCsv>> = [
   { cabecalho: 'Questões respondidas', valor: (l) => l.questoesRespondidas },
   { cabecalho: 'Questões totais', valor: (l) => l.questoesTotal },
   { cabecalho: 'Acerto (%)', valor: (l) => decimalCsv(l.acertoPct) },
-  { cabecalho: 'Tema crítico', valor: (l) => (l.critica ? 'sim' : 'não') },
+  
 ];
 
 /** Ordem estável do detalhamento: grande área → especialidade → tema. */
@@ -1376,6 +1387,25 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   ];
 
   /**
+   * Quantas questões o aluno respondeu em cada simulado — soma das questões
+   * respondidas do detalhamento por tema daquele simulado. Sem detalhamento a
+   * contagem fica vazia no arquivo.
+   */
+  const respondidasPorSimulado = new Map(
+    entradasComTemas.map((entrada) => [
+      entrada.simuladoId,
+      entrada.areas.reduce((total, area) => total + (area.questoesRespondidas ?? 0), 0),
+    ]),
+  );
+
+  const linhasResumo: LinhaResumoCsv[] = cronologicas.map((entrada) => ({
+    ...entrada,
+    questoesRespondidas: respondidasPorSimulado.get(entrada.simuladoId) ?? null,
+  }));
+
+
+
+  /**
    * Export do recorte DESTE aluno: duas seções — resumo por simulado (o mesmo
    * agregado cronológico que a tela mostra) e detalhamento por grande área,
    * especialidade e tema (pedido dos gestores, 01/09: o macro sozinho não diz
@@ -1393,7 +1423,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
       return;
     }
     const secoes: SecaoCsv<unknown>[] = [
-      secaoCsv({ titulo: `Resumo por simulado — ${nomeExibido}`, colunas: COLUNAS_ALUNO, linhas: cronologicas }),
+      secaoCsv({ titulo: `Resumo por simulado — ${nomeExibido}`, colunas: COLUNAS_ALUNO, linhas: linhasResumo }),
     ];
     if (linhasArea.length > 0) {
       secoes.push(
