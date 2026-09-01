@@ -392,7 +392,7 @@ export function TabelaAlunos({ recorte, colunasSimulados, distribuicaoGrupos }: 
               placeholder="Buscar aluno por nome…"
               value={busca}
               onChange={(evento) => setBusca(evento.target.value)}
-              className="h-8 w-full bg-transparent outline-none"
+              className="h-8 w-full bg-transparent outline-none focus:outline-none focus-visible:outline-none focus-visible:!shadow-none"
               style={{ fontSize: 12, color: 'var(--gp-text-1)' }}
             />
           </div>
