@@ -355,7 +355,89 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, filterSemestre, filterRole]);
+  }, [page, applyListFilters, resolveRoleFilterIds]);
+
+  /** Export XLSX do recorte atual (todos os filtros ativos, não só a página).
+   * Pagina em blocos de 1000 para não estourar o limite do PostgREST. */
+  const handleExportXlsx = useCallback(async () => {
+    setExporting(true);
+    try {
+      const roleFilter = await resolveRoleFilterIds();
+      const PAGE = 1000;
+      const rows: UserRow[] = [];
+
+      for (let offset = 0; ; offset += PAGE) {
+        const query = applyListFilters(
+          supabase
+            .from('users')
+            .select('id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)'),
+          roleFilter,
+        );
+        const { data, error } = await query.order('nome').range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        const batch = data || [];
+        if (batch.length === 0) break;
+
+        const ids = batch.map(u => u.id);
+        const { data: rolesData, error: rolesErr } = await supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', ids);
+        if (rolesErr) throw rolesErr;
+        const rolesMap = new Map<string, string[]>();
+        rolesData?.forEach(r => rolesMap.set(r.user_id, [...(rolesMap.get(r.user_id) || []), r.role]));
+
+        batch.forEach(u => rows.push({
+          id: u.id,
+          nome: u.nome,
+          email: u.email,
+          id_ies: u.id_ies,
+          ies_nome: (u.ies as { nome: string } | null)?.nome || null,
+          matricula_ra: u.matricula_ra ?? null,
+          semestre: u.semestre,
+          roles: rolesMap.get(u.id) || [],
+        }));
+
+        if (batch.length < PAGE) break;
+      }
+
+      if (rows.length === 0) {
+        toast.info('Nenhum usuário no recorte atual para exportar.');
+        return;
+      }
+
+      const XLSX = await import('xlsx');
+      const sheetRows = rows.map(u => {
+        const privileged = deriveEditableRoles(u.roles);
+        return {
+          user_id: u.id,
+          nome_ies: u.ies_nome ?? '',
+          nome_usuario: u.nome,
+          email: u.email,
+          semestre: u.semestre ?? '',
+          matricula_ra: u.matricula_ra ?? '',
+          role: privileged.length > 0 ? privileged.join(', ') : 'aluno',
+        };
+      });
+
+      const sheet = XLSX.utils.json_to_sheet(sheetRows, {
+        header: ['user_id', 'nome_ies', 'nome_usuario', 'email', 'semestre', 'matricula_ra', 'role'],
+      });
+      sheet['!cols'] = [{ wch: 38 }, { wch: 30 }, { wch: 30 }, { wch: 32 }, { wch: 10 }, { wch: 18 }, { wch: 24 }];
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, 'Usuários');
+
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(book, `usuarios-${today}.xlsx`);
+      toast.success(`${rows.length} usuário${rows.length === 1 ? '' : 's'} exportado${rows.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      Logger.error('[UsersListTable] falha ao exportar XLSX:', err);
+      toast.error('Não foi possível exportar os usuários.');
+    } finally {
+      setExporting(false);
+    }
+  }, [applyListFilters, resolveRoleFilterIds]);
+
 
   useEffect(() => {
     fetchUsers();
