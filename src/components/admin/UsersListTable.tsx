@@ -168,6 +168,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
   const [filterSemestre, setFilterSemestre] = useState<string>('all');
+  /** 'all' | 'aluno' (sem papel privilegiado) | uma das PRIVILEGED_ROLES */
+  const [filterRole, setFilterRole] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const fetchIdRef = useRef(0);
@@ -205,7 +207,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   // Limpa seleção ao trocar página/filtro
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, searchTerm, filterIes, filterSemestre]);
+  }, [page, searchTerm, filterIes, filterSemestre, filterRole]);
+
 
   const selectableUsers = useMemo(
     () => users.filter(u => !u.roles.includes('admin')),
@@ -255,6 +258,22 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       if (filterSemestre !== 'all') {
         query = query.eq('semestre', parseInt(filterSemestre, 10));
       }
+      if (filterRole !== 'all') {
+        // Filtro por papel: `aluno` = usuário sem nenhum papel privilegiado
+        // (não existe linha 'aluno' em user_roles), os demais vêm de user_roles.
+        const { data: roleRows, error: roleErr } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
+        if (roleErr) throw roleErr;
+        const ids = Array.from(new Set((roleRows || []).map(r => r.user_id)));
+        if (filterRole === 'aluno') {
+          if (ids.length > 0) query = query.not('id', 'in', `(${ids.join(',')})`);
+        } else {
+          query = query.in('id', ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000000']);
+        }
+      }
+
       if (searchTerm.trim()) {
         // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
         // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
@@ -309,7 +328,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, filterSemestre]);
+  }, [page, searchTerm, filterIes, filterSemestre, filterRole]);
 
   useEffect(() => {
     fetchUsers();
@@ -317,7 +336,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, filterIes, filterSemestre]);
+  }, [searchTerm, filterIes, filterSemestre, filterRole]);
 
   // Se o total encolher (ex.: exclusão em massa zera a última página), a
   // página atual não pode ficar além do total — sem isso a lista mostraria
@@ -616,6 +635,18 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           </SelectContent>
         </Select>
       )}
+      <Select value={filterRole} onValueChange={setFilterRole}>
+        <SelectTrigger className="w-full sm:w-[170px]">
+          <SelectValue placeholder="Papel" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos os papéis</SelectItem>
+          <SelectItem value="aluno">Aluno</SelectItem>
+          {EDITABLE_ROLES.map((r) => (
+            <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
       </Button>
