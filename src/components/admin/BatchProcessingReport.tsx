@@ -21,6 +21,10 @@ export interface BatchResult {
   email: string;
   nome: string;
   linha: number;
+  /** Matrícula/RA enviada na importação (ausente = coluna em branco). */
+  matricula_ra?: string;
+  /** Rótulo do papel atribuído na importação. */
+  papel?: string;
   success: boolean;
   action?: 'created' | 'updated' | 'skipped';
   message?: string;
