@@ -44,7 +44,17 @@ import type { AreaDesempenhoAluno, DesempenhoPorAreaSimulado } from '@/features/
  * Decimal com vírgula e sem sufixo de unidade: com "%" ou ponto decimal o
  * Excel em pt-BR importa a coluna como texto e nenhuma média funciona depois.
  */
-const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
+/**
+ * Linha do resumo: o agregado do simulado mais quantas questões o aluno
+ * respondeu — número somado do detalhamento por tema daquele simulado (é a
+ * única fonte que tem essa contagem). `null` quando o detalhamento não existe
+ * para o simulado: célula vazia, nunca zero.
+ */
+interface LinhaResumoCsv extends AlunoSimuladoEntry {
+  questoesRespondidas: number | null;
+}
+
+const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<LinhaResumoCsv>> = [
   { cabecalho: 'Simulado', valor: (entrada) => entrada.simuladoNome },
   { cabecalho: 'Data', valor: (entrada) => formatData(entrada.simuladoData) },
   { cabecalho: 'Participou', valor: (entrada) => (entrada.participou ? 'sim' : 'não') },
@@ -52,6 +62,7 @@ const COLUNAS_ALUNO: ReadonlyArray<ColunaCsv<AlunoSimuladoEntry>> = [
     cabecalho: 'Proficiência',
     valor: (entrada) => (entrada.proficiencia === null ? '' : String(entrada.proficiencia).replace('.', ',')),
   },
+  { cabecalho: 'Questões respondidas', valor: (entrada) => entrada.questoesRespondidas },
   { cabecalho: 'Acertos', valor: (entrada) => (entrada.acertos === null ? '' : entrada.acertos) },
   { cabecalho: 'Situação', valor: (entrada) => rotuloSituacao(entrada.situacao) },
 ];
