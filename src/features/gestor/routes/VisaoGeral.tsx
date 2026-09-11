@@ -433,6 +433,21 @@ export default function VisaoGeral() {
               consegue responder. Enquanto a query não volta, `undefined`
               mantém a lista completa em vez de piscar um dropdown vazio. */}
           <FiltroSemestre semestresDisponiveis={semestresComResultado} />
+          {/* Ausente (nunca desabilitado) quando o papel não pode exportar —
+              mesma regra do direcionador do Início e do `AcoesRecorte`. */}
+          {contexto.data?.podeExportar && iesAtivaId ? (
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="visao-geral-exportar"
+              onClick={() => setExportarAberto(true)}
+              className="h-9 gap-1.5 border-[color:var(--gp-border-input)] bg-[var(--gp-surface-1)] text-[color:var(--gp-text-2)] hover:border-[color:var(--gp-text-2)] hover:bg-[var(--gp-surface-1)] hover:text-[color:var(--gp-text-1)]"
+              style={{ borderRadius: 'var(--gp-radius-sm)', fontSize: 12, fontWeight: 600 }}
+            >
+              <Icon name="download" size={15} />
+              Exportar PDF
+            </Button>
+          ) : null}
           </>}
         />
         <ContextoDoRecorte
@@ -442,6 +457,15 @@ export default function VisaoGeral() {
           simuladoAtual={simuladoAtual}
         />
       </div>
+
+      {exportarAberto && iesAtivaId ? (
+        <DialogExportarDados
+          aberto={exportarAberto}
+          onAbertoChange={setExportarAberto}
+          iesId={iesAtivaId}
+        />
+      ) : null}
+
 
 
 
