@@ -113,8 +113,16 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
     refetch,
   } = useVisaoGeral(filtros);
 
+  /**
+   * Com simulado escolhido, "Indicadores do recorte" passa a sair POR SIMULADO
+   * (11/09) — e essa métrica só existe em `get_gestor_detalhamento`, que é a
+   * única RPC que aceita a lista de simulados.
+   */
   const querDetalhamento =
-    aberto && (selecionados.has('metricasSimulados') || selecionados.has('acertoSemestre'));
+    aberto &&
+    (selecionados.has('metricasSimulados') ||
+      selecionados.has('acertoSemestre') ||
+      (selecionados.has('indicadores') && simuladosValidos.length > 0));
   const detalhamentoQuery = useDetalhamento(
     filtros,
     querDetalhamento,
