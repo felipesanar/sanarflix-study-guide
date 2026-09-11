@@ -427,42 +427,51 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
     switch (bloco.id) {
       case 'indicadores': {
         relatorio.secao(bloco.titulo, bloco.descricao);
-        relatorio.kpis([
-          {
-            rotulo: 'Conceito ENAMED projetado (1–5)',
-            valor: num(vg.kpis.enamedProjetado.valor),
-            observacao: vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
-          },
-          { rotulo: 'Alunos proficientes', valor: pct(vg.kpis.proficientesPct.valor) },
-          { rotulo: 'Acerto médio', valor: pct(vg.kpis.acertoPct.valor) },
-          {
-            rotulo: 'Simulados com nota',
-            valor: String(vg.kpis.simulados.realizados),
-            observacao:
-              vg.kpis.simulados.contratados === null
-                ? 'Sem contrato cadastrado'
-                : `de ${vg.kpis.simulados.contratados} contratados`,
-          },
-          {
-            rotulo: 'Alunos matriculados no recorte',
-            valor: num(vg.alunosMatriculadosNoRecorte),
-          },
-        ]);
-        relatorio.nota(
-          'Onde não há dado medido o relatório mostra “—”. Nenhum valor é estimado além do conceito ENAMED marcado como tal.',
-        );
+        if (porSimulado) {
+          const t = tabelaIndicadoresPorSimulado(dados.detalhamento);
+          relatorio.tabela(t.colunas, t.linhas, 'Sem resultado para os simulados escolhidos.');
+        } else {
+          relatorio.kpis([
+            {
+              rotulo: 'Conceito ENAMED projetado (1–5)',
+              valor: num(vg.kpis.enamedProjetado.valor),
+              observacao: vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
+            },
+            { rotulo: 'Alunos proficientes', valor: pct(vg.kpis.proficientesPct.valor) },
+            { rotulo: 'Acerto médio', valor: pct(vg.kpis.acertoPct.valor) },
+            {
+              rotulo: 'Simulados com nota',
+              valor: String(vg.kpis.simulados.realizados),
+              observacao:
+                vg.kpis.simulados.contratados === null
+                  ? 'Sem contrato cadastrado'
+                  : `de ${vg.kpis.simulados.contratados} contratados`,
+            },
+            {
+              rotulo: 'Alunos matriculados no recorte',
+              valor: num(vg.alunosMatriculadosNoRecorte),
+            },
+          ]);
+        }
+        relatorio.nota(notasDoRecorte(dados, porSimulado));
         break;
       }
       case 'evolucao': {
-        relatorio.secao(bloco.titulo, bloco.descricao);
-        const t = tabelaEvolucao(vg);
+        relatorio.secao(bloco.titulo, 'Alunos proficientes e participantes simulado a simulado.');
+        const t = tabelaEvolucao(pontosEvolucao);
         relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado com nota neste recorte.');
+        relatorio.nota(
+          porSimulado
+            ? 'Somente os simulados escolhidos no recorte. “Alunos proficientes” é o percentual de alunos com nota igual ou maior que 60 naquele simulado.'
+            : '“Alunos proficientes” é o percentual de alunos com nota igual ou maior que 60 em cada simulado.',
+        );
         break;
       }
       case 'areas': {
         relatorio.secao(bloco.titulo, bloco.descricao);
         const t = tabelaAreas(vg);
         relatorio.tabela(t.colunas, t.linhas);
+        relatorio.nota(NOTA_AREAS_HISTORICO);
         relatorio.nota(
           `Classificação por percentual de acerto: excelente a partir de ${NIVEL_EXCELENTE_MIN}%, crítico até ${NIVEL_CRITICO_MAX}%, mediano no intervalo entre os dois.`,
         );
