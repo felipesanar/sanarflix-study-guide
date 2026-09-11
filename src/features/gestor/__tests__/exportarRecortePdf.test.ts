@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import {
   BLOCOS_EXPORT,
   blocosDisponiveis,
+  evolucaoDoRecorte,
   exportarRecortePdf,
   nomeArquivoExport,
   type BlocoExport,
@@ -19,8 +20,8 @@ const VISAO_GERAL: VisaoGeral = {
   },
   alunosMatriculadosNoRecorte: 312,
   evolucao: [
-    { simuladoId: 's1', nome: 'Simulado ENAMED 1 · 12/03/2026', data: '2026-03-12', valor: 38.2, participantes: 210 },
-    { simuladoId: 's2', nome: 'Simulado ENAMED 2 · 21/05/2026', data: '2026-05-21', valor: null, participantes: 198 },
+    { simuladoId: 's1', nome: 'Simulado ENAMED 1 · 12/03/2026', data: '2026-03-12', valor: 38.2, proficientesPct: 41.5, participantes: 210 },
+    { simuladoId: 's2', nome: 'Simulado ENAMED 2 · 21/05/2026', data: '2026-05-21', valor: null, proficientesPct: null, participantes: 198 },
   ],
   evolucaoPorArea: [],
   diagnosticoResumo: [
@@ -74,6 +75,13 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
 
   it('a lista nominal de alunos é o único bloco marcado como dado pessoal', () => {
     expect(BLOCOS_EXPORT.filter((b) => b.nominal).map((b) => b.id)).toEqual(['alunos']);
+  });
+
+  it('a evolução do arquivo respeita os simulados escolhidos (11/09)', () => {
+    expect(evolucaoDoRecorte(DADOS).map((p) => p.simuladoId)).toEqual(['s1', 's2']);
+    expect(evolucaoDoRecorte({ ...DADOS, simuladosIds: ['s2'] }).map((p) => p.simuladoId)).toEqual([
+      's2',
+    ]);
   });
 
   it('gera o PDF com todos os blocos escolhidos e salva com o nome esperado', () => {

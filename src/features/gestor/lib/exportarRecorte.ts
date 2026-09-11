@@ -119,12 +119,23 @@ export interface DadosExportRecorte {
   semestreRotulo: string;
   /** Nomes dos simulados escolhidos no recorte (vazio = nenhum escolhido). */
   simuladosRotulos?: string[];
+  /**
+   * Ids dos simulados escolhidos no painel (11/09). `get_gestor_visao_geral` não
+   * aceita recorte por simulado: o envelope sempre vem com a série histórica
+   * inteira. Sem esta lista o arquivo saía com TODOS os simulados mesmo quando
+   * o gestor escolheu dois — a filtragem da evolução acontece aqui.
+   */
+  simuladosIds?: string[];
   visaoGeral: VisaoGeral;
   detalhamento?: Detalhamento;
   questoes?: Questao[];
   alunos?: LinhaAluno[];
   meta?: Meta;
 }
+
+/** Acerto por área vem sempre do acumulado do recorte — o arquivo precisa dizer isso. */
+const NOTA_AREAS_HISTORICO =
+  'Os valores desta seção são a média histórica de acerto da instituição em cada grande área, somando todos os simulados com resultado do recorte — não o desempenho de um simulado específico.';
 
 const AVISO_LGPD =
   'Este arquivo contém dados nominais de alunos. Trate como informação pessoal: compartilhe apenas com quem tem finalidade pedagógica legítima e não publique em canais abertos (LGPD, art. 6º).';
@@ -203,23 +214,75 @@ interface Tabela {
   linhas: Celula[][];
 }
 
-function tabelaEvolucao(vg: VisaoGeral): Tabela {
+/**
+ * Evolução restrita aos simulados escolhidos. Lista vazia = nenhum escolhido,
+ * e aí o arquivo continua levando a série histórica inteira.
+ */
+export function evolucaoDoRecorte(dados: DadosExportRecorte): VisaoGeral['evolucao'] {
+  const ids = dados.simuladosIds ?? [];
+  if (ids.length === 0) return dados.visaoGeral.evolucao;
+  return dados.visaoGeral.evolucao.filter((ponto) => ids.includes(ponto.simuladoId));
+}
+
+function tabelaEvolucao(pontos: VisaoGeral['evolucao']): Tabela {
   return {
     colunas: [
       { titulo: 'Ordem', fracao: 0.12 },
-      { titulo: 'Simulado', fracao: 0.42 },
+      { titulo: 'Simulado', fracao: 0.4 },
       { titulo: 'Data', fracao: 0.14, alinhar: 'centro' },
-      { titulo: 'Proficiência', fracao: 0.16, alinhar: 'direita' },
+      { titulo: 'Alunos proficientes', fracao: 0.18, alinhar: 'direita' },
       { titulo: 'Participantes', fracao: 0.16, alinhar: 'direita' },
     ],
-    linhas: vg.evolucao.map((ponto, i) => [
+    linhas: pontos.map((ponto, i) => [
       { texto: `${i + 1}º`, tom: 'suave' as const },
       { texto: ponto.nome },
       { texto: dataBr(ponto.data), tom: 'suave' as const },
-      { texto: pct(ponto.valor), negrito: true },
+      { texto: pct(ponto.proficientesPct ?? null), negrito: true },
       { texto: num(ponto.participantes) },
     ]),
   };
+}
+
+/**
+ * Indicadores POR SIMULADO (11/09). Com simulado escolhido, o bloco de abertura
+ * deixa de ser o painel histórico e passa a ter uma linha por simulado — nunca
+ * uma média única entre simulados diferentes (CLAUDE.md §2.3).
+ */
+function tabelaIndicadoresPorSimulado(det: Detalhamento | undefined): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Simulado', fracao: 0.35 },
+      { titulo: 'Data', fracao: 0.13, alinhar: 'centro' },
+      { titulo: 'Participantes', fracao: 0.14, alinhar: 'direita' },
+      { titulo: 'Alunos proficientes', fracao: 0.16, alinhar: 'direita' },
+      { titulo: 'Acerto médio', fracao: 0.13, alinhar: 'direita' },
+      { titulo: 'ENAMED', fracao: 0.09, alinhar: 'direita' },
+    ],
+    linhas: (det?.metricas ?? []).map((m) => [
+      { texto: m.nome },
+      { texto: dataBr(m.data), tom: 'suave' as const },
+      { texto: num(m.participantes) },
+      { texto: pct(m.proficientesPct ?? null), negrito: true },
+      { texto: pct(m.acertoMedioPct) },
+      { texto: num(m.enamedProjetado) },
+    ]),
+  };
+}
+
+/** Rodapé que declara o recorte do arquivo — quem lê o PDF não vê os filtros da tela. */
+function notasDoRecorte(dados: DadosExportRecorte, porSimulado: boolean): string {
+  const simulados =
+    dados.simuladosRotulos && dados.simuladosRotulos.length > 0
+      ? dados.simuladosRotulos.join(' · ')
+      : 'todos os simulados com nota do recorte';
+  return [
+    `Filtros aplicados: instituição ${dados.iesNome || TRACO}; recorte de semestre ${dados.semestreRotulo}.`,
+    `Simulados considerados: ${simulados}.`,
+    porSimulado
+      ? 'Cada linha é o resultado do próprio simulado — não há média única entre simulados diferentes.'
+      : 'Nenhum simulado foi escolhido: os números são o acumulado histórico de todos os simulados com nota do recorte.',
+    'Onde não há dado medido o relatório mostra “—”. Nenhum valor é estimado além do conceito ENAMED marcado como tal.',
+  ].join(' ');
 }
 
 function tabelaAreas(vg: VisaoGeral): Tabela {
@@ -340,6 +403,8 @@ function tabelaAlunos(alunos: LinhaAluno[] | undefined): Tabela {
 export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
   const escolhidos = BLOCOS_EXPORT.filter((b) => blocos.includes(b.id));
+  const pontosEvolucao = evolucaoDoRecorte(dados);
+  const porSimulado = (dados.simuladosIds ?? []).length > 0;
   const relatorio = new Relatorio();
   const geradoEm = new Date().toLocaleString('pt-BR');
 
@@ -368,42 +433,51 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
     switch (bloco.id) {
       case 'indicadores': {
         relatorio.secao(bloco.titulo, bloco.descricao);
-        relatorio.kpis([
-          {
-            rotulo: 'Conceito ENAMED projetado (1–5)',
-            valor: num(vg.kpis.enamedProjetado.valor),
-            observacao: vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
-          },
-          { rotulo: 'Alunos proficientes', valor: pct(vg.kpis.proficientesPct.valor) },
-          { rotulo: 'Acerto médio', valor: pct(vg.kpis.acertoPct.valor) },
-          {
-            rotulo: 'Simulados com nota',
-            valor: String(vg.kpis.simulados.realizados),
-            observacao:
-              vg.kpis.simulados.contratados === null
-                ? 'Sem contrato cadastrado'
-                : `de ${vg.kpis.simulados.contratados} contratados`,
-          },
-          {
-            rotulo: 'Alunos matriculados no recorte',
-            valor: num(vg.alunosMatriculadosNoRecorte),
-          },
-        ]);
-        relatorio.nota(
-          'Onde não há dado medido o relatório mostra “—”. Nenhum valor é estimado além do conceito ENAMED marcado como tal.',
-        );
+        if (porSimulado) {
+          const t = tabelaIndicadoresPorSimulado(dados.detalhamento);
+          relatorio.tabela(t.colunas, t.linhas, 'Sem resultado para os simulados escolhidos.');
+        } else {
+          relatorio.kpis([
+            {
+              rotulo: 'Conceito ENAMED projetado (1–5)',
+              valor: num(vg.kpis.enamedProjetado.valor),
+              observacao: vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
+            },
+            { rotulo: 'Alunos proficientes', valor: pct(vg.kpis.proficientesPct.valor) },
+            { rotulo: 'Acerto médio', valor: pct(vg.kpis.acertoPct.valor) },
+            {
+              rotulo: 'Simulados com nota',
+              valor: String(vg.kpis.simulados.realizados),
+              observacao:
+                vg.kpis.simulados.contratados === null
+                  ? 'Sem contrato cadastrado'
+                  : `de ${vg.kpis.simulados.contratados} contratados`,
+            },
+            {
+              rotulo: 'Alunos matriculados no recorte',
+              valor: num(vg.alunosMatriculadosNoRecorte),
+            },
+          ]);
+        }
+        relatorio.nota(notasDoRecorte(dados, porSimulado));
         break;
       }
       case 'evolucao': {
-        relatorio.secao(bloco.titulo, bloco.descricao);
-        const t = tabelaEvolucao(vg);
+        relatorio.secao(bloco.titulo, 'Alunos proficientes e participantes simulado a simulado.');
+        const t = tabelaEvolucao(pontosEvolucao);
         relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado com nota neste recorte.');
+        relatorio.nota(
+          porSimulado
+            ? 'Somente os simulados escolhidos no recorte. “Alunos proficientes” é o percentual de alunos com nota igual ou maior que 60 naquele simulado.'
+            : '“Alunos proficientes” é o percentual de alunos com nota igual ou maior que 60 em cada simulado.',
+        );
         break;
       }
       case 'areas': {
         relatorio.secao(bloco.titulo, bloco.descricao);
         const t = tabelaAreas(vg);
         relatorio.tabela(t.colunas, t.linhas);
+        relatorio.nota(NOTA_AREAS_HISTORICO);
         relatorio.nota(
           `Classificação por percentual de acerto: excelente a partir de ${NIVEL_EXCELENTE_MIN}%, crítico até ${NIVEL_CRITICO_MAX}%, mediano no intervalo entre os dois.`,
         );
@@ -469,6 +543,8 @@ function aplicarFormato(
 
 export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
+  const pontosEvolucao = evolucaoDoRecorte(dados);
+  const porSimulado = (dados.simuladosIds ?? []).length > 0;
   const livro = XLSX.utils.book_new();
 
   const capa = XLSX.utils.aoa_to_sheet([
@@ -493,56 +569,76 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
   XLSX.utils.book_append_sheet(livro, capa, 'Capa');
 
   if (blocos.includes('indicadores')) {
-    const resumo = XLSX.utils.aoa_to_sheet([
-      ['Indicador', 'Valor', 'Observação'],
-      [
-        'Conceito ENAMED projetado (1–5)',
-        celula(vg.kpis.enamedProjetado.valor),
-        vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
-      ],
-      ['Alunos proficientes (%)', celula(vg.kpis.proficientesPct.valor), ''],
-      ['Acerto médio (%)', celula(vg.kpis.acertoPct.valor), ''],
-      [
-        'Simulados com nota',
-        vg.kpis.simulados.realizados,
-        vg.kpis.simulados.contratados === null
-          ? 'Sem contrato cadastrado'
-          : `de ${vg.kpis.simulados.contratados} contratados`,
-      ],
-      ['Alunos matriculados no recorte', vg.alunosMatriculadosNoRecorte, ''],
-    ]);
-    resumo['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 30 }];
+    const metricas = dados.detalhamento?.metricas ?? [];
+    const corpo: (string | number | null)[][] = porSimulado
+      ? [
+          ['Simulado', 'Data', 'Participantes', 'Alunos proficientes (%)', 'Acerto médio (%)', 'ENAMED projetado'],
+          ...metricas.map((m) => [
+            m.nome,
+            dataBr(m.data),
+            m.participantes,
+            celula(m.proficientesPct ?? null),
+            celula(m.acertoMedioPct),
+            celula(m.enamedProjetado),
+          ]),
+        ]
+      : [
+          ['Indicador', 'Valor', 'Observação'],
+          [
+            'Conceito ENAMED projetado (1–5)',
+            celula(vg.kpis.enamedProjetado.valor),
+            vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
+          ],
+          ['Alunos proficientes (%)', celula(vg.kpis.proficientesPct.valor), ''],
+          ['Acerto médio (%)', celula(vg.kpis.acertoPct.valor), ''],
+          [
+            'Simulados com nota',
+            vg.kpis.simulados.realizados,
+            vg.kpis.simulados.contratados === null
+              ? 'Sem contrato cadastrado'
+              : `de ${vg.kpis.simulados.contratados} contratados`,
+          ],
+          ['Alunos matriculados no recorte', vg.alunosMatriculadosNoRecorte, ''],
+        ];
+    const resumo = XLSX.utils.aoa_to_sheet([...corpo, [], [notasDoRecorte(dados, porSimulado)]]);
+    resumo['!cols'] = porSimulado
+      ? [{ wch: 46 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }]
+      : [{ wch: 34 }, { wch: 16 }, { wch: 30 }];
     resumo['!freeze'] = 'A2';
+    if (porSimulado) aplicarFormato(resumo, [3, 4], metricas.length);
     XLSX.utils.book_append_sheet(livro, resumo, 'Indicadores');
   }
 
   if (blocos.includes('evolucao')) {
     const evolucao = XLSX.utils.aoa_to_sheet([
-      ['Ordem', 'Simulado', 'Data', 'Proficiência (%)', 'Participantes'],
-      ...vg.evolucao.map((ponto, i) => [
+      ['Ordem', 'Simulado', 'Data', 'Alunos proficientes (%)', 'Participantes'],
+      ...pontosEvolucao.map((ponto, i) => [
         `${i + 1}º simulado`,
         ponto.nome,
         dataBr(ponto.data),
-        celula(ponto.valor),
+        celula(ponto.proficientesPct ?? null),
         ponto.participantes,
       ]),
     ]);
-    evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
+    evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 22 }, { wch: 14 }];
     evolucao['!freeze'] = 'A2';
-    aplicarFormato(evolucao, [3], vg.evolucao.length);
+    aplicarFormato(evolucao, [3], pontosEvolucao.length);
     XLSX.utils.book_append_sheet(livro, evolucao, 'Evolução');
   }
 
   if (blocos.includes('areas')) {
+    const totalAreas = vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0);
     const areas = XLSX.utils.aoa_to_sheet([
       ['Grande área', 'Acerto (%)', 'Classificação'],
       ...vg.diagnosticoResumo.flatMap((bloco) =>
         bloco.areas.map((area) => [area.nome, celula(area.acertoPct), ROTULO_NIVEL[bloco.nivel]]),
       ),
+      [],
+      [NOTA_AREAS_HISTORICO],
     ]);
     areas['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 24 }];
     areas['!freeze'] = 'A2';
-    aplicarFormato(areas, [1], vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0));
+    aplicarFormato(areas, [1], totalAreas);
     XLSX.utils.book_append_sheet(livro, areas, 'Acerto por área');
   }
 
