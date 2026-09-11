@@ -235,6 +235,37 @@ describe('rota VisaoGeral', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Percentual de acerto');
   });
 
+  /**
+   * Exportar o documento da Visão Geral (11/09): o botão vive no cabeçalho da
+   * tela e é gated pelo `podeExportar` que vem do SERVIDOR — ausente, nunca
+   * desabilitado, quando o papel não pode exportar.
+   */
+  it('o cabeçalho traz o botão de exportar PDF quando o papel pode exportar', () => {
+    render(<VisaoGeralRoute />);
+    const botao = screen.getByTestId('visao-geral-exportar');
+    expect(botao).toHaveTextContent('Exportar PDF');
+    expect(screen.getByTestId('barra-filtros')).toContainElement(botao);
+  });
+
+  it('sem permissão de exportar, o botão simplesmente não existe', () => {
+    vi.mocked(useGestorContexto).mockReturnValue({
+      data: {
+        iesAtual: { id: 'ies-1', nome: 'IES Teste' },
+        iesDisponiveis: [{ id: 'ies-1', nome: 'IES Teste' }],
+        podeExportar: false,
+        podeVerNominal: true,
+      },
+      isLoading: false,
+      isError: false,
+      refetch: () => {},
+    } as unknown as ReturnType<typeof useGestorContexto>);
+
+    render(<VisaoGeralRoute />);
+    expect(screen.queryByTestId('visao-geral-exportar')).toBeNull();
+  });
+
+
+
   it('o overline "Panorama da instituição" nomeia o bloco dos 4 indicadores', () => {
     render(<VisaoGeralRoute />);
     const overline = screen.getByTestId('overline-panorama');
