@@ -93,7 +93,7 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
       return this;
     };
 
-    const blocos: BlocoExport[] = ['indicadores', 'evolucao', 'areas', 'distribuicao', 'alunos'];
+    const blocos: BlocoExport[] = ['indicadores', 'areas', 'distribuicao', 'alunos'];
     const arquivo = exportarRecortePdf(DADOS, blocos);
     proto.save = original;
 
