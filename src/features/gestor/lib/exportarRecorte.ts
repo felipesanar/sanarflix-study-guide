@@ -567,12 +567,17 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
   if (blocos.includes('acertoSemestre')) {
     const semestres = dados.detalhamento?.acertoPorAreaESemestre.semestres ?? [];
     const aba = XLSX.utils.aoa_to_sheet([
-      ['Semestre', 'Acerto (%)', 'Em evidência'],
-      ...semestres.map((s) => [`${s.semestre}º período`, celula(s.acertoPct), s.emEvidencia ? 'Sim' : '']),
+      ['Semestre', 'Alunos', 'Acerto (%)', 'Em evidência'],
+      ...semestres.map((s) => [
+        `${s.semestre}º período`,
+        celula(s.alunos ?? null),
+        celula(s.acertoPct),
+        s.emEvidencia ? 'Sim' : '',
+      ]),
     ]);
-    aba['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 14 }];
+    aba['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
     aba['!freeze'] = 'A2';
-    aplicarFormato(aba, [1], semestres.length);
+    aplicarFormato(aba, [2], semestres.length);
     XLSX.utils.book_append_sheet(livro, aba, 'Acerto por semestre');
   }
 
