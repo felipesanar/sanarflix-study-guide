@@ -1,5 +1,8 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/features/gestor/components/Icon';
+import { DialogExportarDados } from '@/features/gestor/components/DialogExportarDados';
 import { useToast } from '@/hooks/use-toast';
 import { useGestorContexto, useVisaoGeral } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
@@ -180,6 +183,13 @@ export default function VisaoGeral() {
   const contexto = useGestorContexto();
   const { toast } = useToast();
   const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight, exportSolicitado } = useTelemetriaGestor();
+  /**
+   * Painel de exportação desta tela (11/09). Mesmo componente do Início: o
+   * gestor que já está lendo os indicadores baixa o documento aqui, sem voltar
+   * uma tela. Montado só depois do clique — o painel consulta a Visão Geral e
+   * o cronograma, e não faz sentido pagar isso em quem nunca exporta.
+   */
+  const [exportarAberto, setExportarAberto] = React.useState(false);
 
   /**
    * A URL é hint de UI; a IES autoritativa vem do servidor — mesmo padrão de
@@ -426,6 +436,21 @@ export default function VisaoGeral() {
               consegue responder. Enquanto a query não volta, `undefined`
               mantém a lista completa em vez de piscar um dropdown vazio. */}
           <FiltroSemestre semestresDisponiveis={semestresComResultado} />
+          {/* Ausente (nunca desabilitado) quando o papel não pode exportar —
+              mesma regra do direcionador do Início e do `AcoesRecorte`. */}
+          {contexto.data?.podeExportar && iesAtivaId ? (
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="visao-geral-exportar"
+              onClick={() => setExportarAberto(true)}
+              className="h-9 gap-1.5 border-[color:var(--gp-border-input)] bg-[var(--gp-surface-1)] text-[color:var(--gp-text-2)] hover:border-[color:var(--gp-text-2)] hover:bg-[var(--gp-surface-1)] hover:text-[color:var(--gp-text-1)]"
+              style={{ borderRadius: 'var(--gp-radius-sm)', fontSize: 12, fontWeight: 600 }}
+            >
+              <Icon name="download" size={15} />
+              Exportar PDF
+            </Button>
+          ) : null}
           </>}
         />
         <ContextoDoRecorte
@@ -435,6 +460,15 @@ export default function VisaoGeral() {
           simuladoAtual={simuladoAtual}
         />
       </div>
+
+      {exportarAberto && iesAtivaId ? (
+        <DialogExportarDados
+          aberto={exportarAberto}
+          onAbertoChange={setExportarAberto}
+          iesId={iesAtivaId}
+        />
+      ) : null}
+
 
 
 
