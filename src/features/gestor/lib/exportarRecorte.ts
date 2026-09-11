@@ -543,6 +543,8 @@ function aplicarFormato(
 
 export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
+  const pontosEvolucao = evolucaoDoRecorte(dados);
+  const porSimulado = (dados.simuladosIds ?? []).length > 0;
   const livro = XLSX.utils.book_new();
 
   const capa = XLSX.utils.aoa_to_sheet([
