@@ -1,5 +1,8 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/features/gestor/components/Icon';
+import { DialogExportarDados } from '@/features/gestor/components/DialogExportarDados';
 import { useToast } from '@/hooks/use-toast';
 import { useGestorContexto, useVisaoGeral } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
