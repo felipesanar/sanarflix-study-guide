@@ -120,8 +120,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
    */
   const querDetalhamento =
     aberto &&
-    (selecionados.has('metricasSimulados') ||
-      selecionados.has('acertoSemestre') ||
+    (selecionados.has('acertoSemestre') ||
       (selecionados.has('indicadores') && simuladosValidos.length > 0));
   const detalhamentoQuery = useDetalhamento(
     filtros,

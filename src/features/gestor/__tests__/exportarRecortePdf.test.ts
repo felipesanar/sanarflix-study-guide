@@ -60,15 +60,15 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
   it('blocos que dependem de simulado só ficam disponíveis com simulado no recorte', () => {
     const sem = blocosDisponiveis(0);
     expect(sem.has('indicadores')).toBe(true);
-    expect(sem.has('metricasSimulados')).toBe(false);
+    expect(sem.has('acertoSemestre')).toBe(false);
     expect(sem.has('questoes')).toBe(false);
 
     const um = blocosDisponiveis(1);
-    expect(um.has('metricasSimulados')).toBe(true);
+    expect(um.has('acertoSemestre')).toBe(true);
     expect(um.has('questoes')).toBe(true);
 
     const dois = blocosDisponiveis(2);
-    expect(dois.has('metricasSimulados')).toBe(true);
+    expect(dois.has('acertoSemestre')).toBe(true);
     // "Questão por questão" exige UM simulado — comparativo não tem questão única.
     expect(dois.has('questoes')).toBe(false);
   });

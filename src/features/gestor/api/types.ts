@@ -486,7 +486,13 @@ export interface QuestaoRespondente {
 
 export interface AcertoPorAreaESemestre {
   areas: { id: string; nome: string; acertoPct: number; critica: boolean }[];
-  semestres: { semestre: number; acertoPct: number; emEvidencia: boolean }[];
+  semestres: {
+    semestre: number;
+    acertoPct: number;
+    emEvidencia: boolean;
+    /** Alunos do semestre que responderam os simulados escolhidos (11/09). */
+    alunos?: number | null;
+  }[];
   recorte?: { tipo: 'area' | 'semestre'; id: string };
 }
 

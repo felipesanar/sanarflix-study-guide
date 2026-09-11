@@ -40,7 +40,7 @@ export type BlocoExport =
   | 'indicadores'
   | 'areas'
   | 'distribuicao'
-  | 'metricasSimulados'
+  
   | 'acertoSemestre'
   | 'questoes'
   | 'alunos';
@@ -75,15 +75,10 @@ export const BLOCOS_EXPORT: readonly DefinicaoBloco[] = [
     descricao: 'Quantos alunos estão em cada grupo de evolução.',
   },
   {
-    id: 'metricasSimulados',
-    titulo: 'Resultado por simulado',
-    descricao: 'Participantes, acerto médio e proficiência de cada simulado escolhido.',
-    exigeSimulado: true,
-  },
-  {
     id: 'acertoSemestre',
     titulo: 'Acerto por semestre',
-    descricao: 'Percentual de acerto de cada semestre nos simulados escolhidos.',
+    descricao:
+      'Alunos que responderam e percentual de acerto de cada semestre nos simulados escolhidos.',
     exigeSimulado: true,
   },
   {
@@ -282,36 +277,17 @@ function tabelaDistribuicao(vg: VisaoGeral): Tabela {
   };
 }
 
-function tabelaMetricas(det: Detalhamento | undefined): Tabela {
-  return {
-    colunas: [
-      { titulo: 'Simulado', fracao: 0.36 },
-      { titulo: 'Data', fracao: 0.13, alinhar: 'centro' },
-      { titulo: 'Participantes', fracao: 0.15, alinhar: 'direita' },
-      { titulo: 'Acerto médio', fracao: 0.14, alinhar: 'direita' },
-      { titulo: 'Proficiência', fracao: 0.13, alinhar: 'direita' },
-      { titulo: 'ENAMED', fracao: 0.09, alinhar: 'direita' },
-    ],
-    linhas: (det?.metricas ?? []).map((m) => [
-      { texto: m.nome },
-      { texto: dataBr(m.data), tom: 'suave' as const },
-      { texto: num(m.participantes) },
-      { texto: pct(m.acertoMedioPct) },
-      { texto: pct(m.proficienciaMedia), negrito: true },
-      { texto: num(m.enamedProjetado) },
-    ]),
-  };
-}
-
 function tabelaAcertoSemestre(det: Detalhamento | undefined): Tabela {
   return {
     colunas: [
-      { titulo: 'Semestre', fracao: 0.5 },
-      { titulo: 'Acerto', fracao: 0.25, alinhar: 'direita' },
-      { titulo: 'Em evidência', fracao: 0.25, alinhar: 'centro' },
+      { titulo: 'Semestre', fracao: 0.4 },
+      { titulo: 'Alunos', fracao: 0.2, alinhar: 'direita' },
+      { titulo: 'Acerto', fracao: 0.2, alinhar: 'direita' },
+      { titulo: 'Em evidência', fracao: 0.2, alinhar: 'centro' },
     ],
     linhas: (det?.acertoPorAreaESemestre.semestres ?? []).map((s) => [
       { texto: `${s.semestre}º período` },
+      { texto: num(s.alunos ?? null) },
       { texto: pct(s.acertoPct), negrito: true, tom: nivelDoAcerto(s.acertoPct) },
       { texto: s.emEvidencia ? 'Sim' : TRACO, tom: 'suave' as const },
     ]),
@@ -440,12 +416,6 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
         relatorio.secao(bloco.titulo, bloco.descricao);
         const t = tabelaDistribuicao(vg);
         relatorio.tabela(t.colunas, t.linhas);
-        break;
-      }
-      case 'metricasSimulados': {
-        relatorio.secao(bloco.titulo, bloco.descricao);
-        const t = tabelaMetricas(dados.detalhamento);
-        relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado escolhido no recorte.');
         break;
       }
       case 'acertoSemestre': {
@@ -593,34 +563,21 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     XLSX.utils.book_append_sheet(livro, distribuicao, 'Distribuição');
   }
 
-  if (blocos.includes('metricasSimulados')) {
-    const metricas = dados.detalhamento?.metricas ?? [];
-    const aba = XLSX.utils.aoa_to_sheet([
-      ['Simulado', 'Data', 'Participantes', 'Acerto médio (%)', 'Proficiência média (%)', 'ENAMED projetado'],
-      ...metricas.map((m) => [
-        m.nome,
-        dataBr(m.data),
-        m.participantes,
-        celula(m.acertoMedioPct),
-        celula(m.proficienciaMedia),
-        celula(m.enamedProjetado),
-      ]),
-    ]);
-    aba['!cols'] = [{ wch: 46 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 16 }];
-    aba['!freeze'] = 'A2';
-    aplicarFormato(aba, [3, 4], metricas.length);
-    XLSX.utils.book_append_sheet(livro, aba, 'Simulados');
-  }
 
   if (blocos.includes('acertoSemestre')) {
     const semestres = dados.detalhamento?.acertoPorAreaESemestre.semestres ?? [];
     const aba = XLSX.utils.aoa_to_sheet([
-      ['Semestre', 'Acerto (%)', 'Em evidência'],
-      ...semestres.map((s) => [`${s.semestre}º período`, celula(s.acertoPct), s.emEvidencia ? 'Sim' : '']),
+      ['Semestre', 'Alunos', 'Acerto (%)', 'Em evidência'],
+      ...semestres.map((s) => [
+        `${s.semestre}º período`,
+        celula(s.alunos ?? null),
+        celula(s.acertoPct),
+        s.emEvidencia ? 'Sim' : '',
+      ]),
     ]);
-    aba['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 14 }];
+    aba['!cols'] = [{ wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 14 }];
     aba['!freeze'] = 'A2';
-    aplicarFormato(aba, [1], semestres.length);
+    aplicarFormato(aba, [2], semestres.length);
     XLSX.utils.book_append_sheet(livro, aba, 'Acerto por semestre');
   }
 
