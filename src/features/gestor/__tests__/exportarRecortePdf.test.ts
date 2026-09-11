@@ -20,8 +20,8 @@ const VISAO_GERAL: VisaoGeral = {
   },
   alunosMatriculadosNoRecorte: 312,
   evolucao: [
-    { simuladoId: 's1', nome: 'Simulado ENAMED 1 · 12/03/2026', data: '2026-03-12', valor: 38.2, participantes: 210 },
-    { simuladoId: 's2', nome: 'Simulado ENAMED 2 · 21/05/2026', data: '2026-05-21', valor: null, participantes: 198 },
+    { simuladoId: 's1', nome: 'Simulado ENAMED 1 · 12/03/2026', data: '2026-03-12', valor: 38.2, proficientesPct: 41.5, participantes: 210 },
+    { simuladoId: 's2', nome: 'Simulado ENAMED 2 · 21/05/2026', data: '2026-05-21', valor: null, proficientesPct: null, participantes: 198 },
   ],
   evolucaoPorArea: [],
   diagnosticoResumo: [
