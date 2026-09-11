@@ -183,6 +183,7 @@ export function DialogExportarDados({ aberto, onAbertoChange, iesId }: DialogExp
           iesNome,
           semestreRotulo,
           simuladosRotulos,
+          simuladosIds: simuladosValidos,
           visaoGeral,
           detalhamento,
           questoes: questoes?.data,
