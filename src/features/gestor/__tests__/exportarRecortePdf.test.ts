@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import {
   BLOCOS_EXPORT,
   blocosDisponiveis,
-  evolucaoDoRecorte,
+  
   exportarRecortePdf,
   nomeArquivoExport,
   type BlocoExport,
@@ -77,11 +77,8 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
     expect(BLOCOS_EXPORT.filter((b) => b.nominal).map((b) => b.id)).toEqual(['alunos']);
   });
 
-  it('a evolução do arquivo respeita os simulados escolhidos (11/09)', () => {
-    expect(evolucaoDoRecorte(DADOS).map((p) => p.simuladoId)).toEqual(['s1', 's2']);
-    expect(evolucaoDoRecorte({ ...DADOS, simuladosIds: ['s2'] }).map((p) => p.simuladoId)).toEqual([
-      's2',
-    ]);
+  it('o bloco de evolução institucional não existe mais no catálogo (11/09)', () => {
+    expect(BLOCOS_EXPORT.map((b) => b.id)).not.toContain('evolucao');
   });
 
   it('gera o PDF com todos os blocos escolhidos e salva com o nome esperado', () => {

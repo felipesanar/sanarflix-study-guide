@@ -368,7 +368,6 @@ function tabelaAlunos(alunos: LinhaAluno[] | undefined): Tabela {
 export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
   const escolhidos = BLOCOS_EXPORT.filter((b) => blocos.includes(b.id));
-  const pontosEvolucao = evolucaoDoRecorte(dados);
   const porSimulado = (dados.simuladosIds ?? []).length > 0;
   const relatorio = new Relatorio();
   const geradoEm = new Date().toLocaleString('pt-BR');
@@ -425,17 +424,6 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
           ]);
         }
         relatorio.nota(notasDoRecorte(dados, porSimulado));
-        break;
-      }
-      case 'evolucao': {
-        relatorio.secao(bloco.titulo, 'Alunos proficientes e participantes simulado a simulado.');
-        const t = tabelaEvolucao(pontosEvolucao);
-        relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado com nota neste recorte.');
-        relatorio.nota(
-          porSimulado
-            ? 'Somente os simulados escolhidos no recorte. “Alunos proficientes” é o percentual de alunos com nota igual ou maior que 60 naquele simulado.'
-            : '“Alunos proficientes” é o percentual de alunos com nota igual ou maior que 60 em cada simulado.',
-        );
         break;
       }
       case 'areas': {
@@ -508,7 +496,6 @@ function aplicarFormato(
 
 export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
-  const pontosEvolucao = evolucaoDoRecorte(dados);
   const porSimulado = (dados.simuladosIds ?? []).length > 0;
   const livro = XLSX.utils.book_new();
 
@@ -574,22 +561,6 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     XLSX.utils.book_append_sheet(livro, resumo, 'Indicadores');
   }
 
-  if (blocos.includes('evolucao')) {
-    const evolucao = XLSX.utils.aoa_to_sheet([
-      ['Ordem', 'Simulado', 'Data', 'Alunos proficientes (%)', 'Participantes'],
-      ...pontosEvolucao.map((ponto, i) => [
-        `${i + 1}º simulado`,
-        ponto.nome,
-        dataBr(ponto.data),
-        celula(ponto.proficientesPct ?? null),
-        ponto.participantes,
-      ]),
-    ]);
-    evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 22 }, { wch: 14 }];
-    evolucao['!freeze'] = 'A2';
-    aplicarFormato(evolucao, [3], pontosEvolucao.length);
-    XLSX.utils.book_append_sheet(livro, evolucao, 'Evolução');
-  }
 
   if (blocos.includes('areas')) {
     const totalAreas = vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0);
