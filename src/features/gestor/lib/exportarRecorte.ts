@@ -569,56 +569,76 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
   XLSX.utils.book_append_sheet(livro, capa, 'Capa');
 
   if (blocos.includes('indicadores')) {
-    const resumo = XLSX.utils.aoa_to_sheet([
-      ['Indicador', 'Valor', 'Observação'],
-      [
-        'Conceito ENAMED projetado (1–5)',
-        celula(vg.kpis.enamedProjetado.valor),
-        vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
-      ],
-      ['Alunos proficientes (%)', celula(vg.kpis.proficientesPct.valor), ''],
-      ['Acerto médio (%)', celula(vg.kpis.acertoPct.valor), ''],
-      [
-        'Simulados com nota',
-        vg.kpis.simulados.realizados,
-        vg.kpis.simulados.contratados === null
-          ? 'Sem contrato cadastrado'
-          : `de ${vg.kpis.simulados.contratados} contratados`,
-      ],
-      ['Alunos matriculados no recorte', vg.alunosMatriculadosNoRecorte, ''],
-    ]);
-    resumo['!cols'] = [{ wch: 34 }, { wch: 16 }, { wch: 30 }];
+    const metricas = dados.detalhamento?.metricas ?? [];
+    const corpo: (string | number | null)[][] = porSimulado
+      ? [
+          ['Simulado', 'Data', 'Participantes', 'Alunos proficientes (%)', 'Acerto médio (%)', 'ENAMED projetado'],
+          ...metricas.map((m) => [
+            m.nome,
+            dataBr(m.data),
+            m.participantes,
+            celula(m.proficientesPct ?? null),
+            celula(m.acertoMedioPct),
+            celula(m.enamedProjetado),
+          ]),
+        ]
+      : [
+          ['Indicador', 'Valor', 'Observação'],
+          [
+            'Conceito ENAMED projetado (1–5)',
+            celula(vg.kpis.enamedProjetado.valor),
+            vg.kpis.enamedProjetado.origem === 'oficial' ? 'Nota oficial' : 'Estimado',
+          ],
+          ['Alunos proficientes (%)', celula(vg.kpis.proficientesPct.valor), ''],
+          ['Acerto médio (%)', celula(vg.kpis.acertoPct.valor), ''],
+          [
+            'Simulados com nota',
+            vg.kpis.simulados.realizados,
+            vg.kpis.simulados.contratados === null
+              ? 'Sem contrato cadastrado'
+              : `de ${vg.kpis.simulados.contratados} contratados`,
+          ],
+          ['Alunos matriculados no recorte', vg.alunosMatriculadosNoRecorte, ''],
+        ];
+    const resumo = XLSX.utils.aoa_to_sheet([...corpo, [], [notasDoRecorte(dados, porSimulado)]]);
+    resumo['!cols'] = porSimulado
+      ? [{ wch: 46 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 16 }]
+      : [{ wch: 34 }, { wch: 16 }, { wch: 30 }];
     resumo['!freeze'] = 'A2';
+    if (porSimulado) aplicarFormato(resumo, [3, 4], metricas.length);
     XLSX.utils.book_append_sheet(livro, resumo, 'Indicadores');
   }
 
   if (blocos.includes('evolucao')) {
     const evolucao = XLSX.utils.aoa_to_sheet([
-      ['Ordem', 'Simulado', 'Data', 'Proficiência (%)', 'Participantes'],
-      ...vg.evolucao.map((ponto, i) => [
+      ['Ordem', 'Simulado', 'Data', 'Alunos proficientes (%)', 'Participantes'],
+      ...pontosEvolucao.map((ponto, i) => [
         `${i + 1}º simulado`,
         ponto.nome,
         dataBr(ponto.data),
-        celula(ponto.valor),
+        celula(ponto.proficientesPct ?? null),
         ponto.participantes,
       ]),
     ]);
-    evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 16 }, { wch: 14 }];
+    evolucao['!cols'] = [{ wch: 12 }, { wch: 46 }, { wch: 12 }, { wch: 22 }, { wch: 14 }];
     evolucao['!freeze'] = 'A2';
-    aplicarFormato(evolucao, [3], vg.evolucao.length);
+    aplicarFormato(evolucao, [3], pontosEvolucao.length);
     XLSX.utils.book_append_sheet(livro, evolucao, 'Evolução');
   }
 
   if (blocos.includes('areas')) {
+    const totalAreas = vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0);
     const areas = XLSX.utils.aoa_to_sheet([
       ['Grande área', 'Acerto (%)', 'Classificação'],
       ...vg.diagnosticoResumo.flatMap((bloco) =>
         bloco.areas.map((area) => [area.nome, celula(area.acertoPct), ROTULO_NIVEL[bloco.nivel]]),
       ),
+      [],
+      [NOTA_AREAS_HISTORICO],
     ]);
     areas['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 24 }];
     areas['!freeze'] = 'A2';
-    aplicarFormato(areas, [1], vg.diagnosticoResumo.reduce((total, b) => total + b.areas.length, 0));
+    aplicarFormato(areas, [1], totalAreas);
     XLSX.utils.book_append_sheet(livro, areas, 'Acerto por área');
   }
 
