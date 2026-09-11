@@ -399,6 +399,8 @@ function tabelaAlunos(alunos: LinhaAluno[] | undefined): Tabela {
 export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExport[]): string {
   const vg = dados.visaoGeral;
   const escolhidos = BLOCOS_EXPORT.filter((b) => blocos.includes(b.id));
+  const pontosEvolucao = evolucaoDoRecorte(dados);
+  const porSimulado = (dados.simuladosIds ?? []).length > 0;
   const relatorio = new Relatorio();
   const geradoEm = new Date().toLocaleString('pt-BR');
 
