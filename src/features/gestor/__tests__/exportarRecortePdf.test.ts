@@ -77,6 +77,13 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
     expect(BLOCOS_EXPORT.filter((b) => b.nominal).map((b) => b.id)).toEqual(['alunos']);
   });
 
+  it('a evolução do arquivo respeita os simulados escolhidos (11/09)', () => {
+    expect(evolucaoDoRecorte(DADOS).map((p) => p.simuladoId)).toEqual(['s1', 's2']);
+    expect(evolucaoDoRecorte({ ...DADOS, simuladosIds: ['s2'] }).map((p) => p.simuladoId)).toEqual([
+      's2',
+    ]);
+  });
+
   it('gera o PDF com todos os blocos escolhidos e salva com o nome esperado', () => {
     const salvos: string[] = [];
     const proto = (jsPDF as unknown as { API: Record<string, unknown> }).API;
