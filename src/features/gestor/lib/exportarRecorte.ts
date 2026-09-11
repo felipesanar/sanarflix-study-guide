@@ -210,23 +210,75 @@ interface Tabela {
   linhas: Celula[][];
 }
 
-function tabelaEvolucao(vg: VisaoGeral): Tabela {
+/**
+ * Evolução restrita aos simulados escolhidos. Lista vazia = nenhum escolhido,
+ * e aí o arquivo continua levando a série histórica inteira.
+ */
+export function evolucaoDoRecorte(dados: DadosExportRecorte): VisaoGeral['evolucao'] {
+  const ids = dados.simuladosIds ?? [];
+  if (ids.length === 0) return dados.visaoGeral.evolucao;
+  return dados.visaoGeral.evolucao.filter((ponto) => ids.includes(ponto.simuladoId));
+}
+
+function tabelaEvolucao(pontos: VisaoGeral['evolucao']): Tabela {
   return {
     colunas: [
       { titulo: 'Ordem', fracao: 0.12 },
-      { titulo: 'Simulado', fracao: 0.42 },
+      { titulo: 'Simulado', fracao: 0.4 },
       { titulo: 'Data', fracao: 0.14, alinhar: 'centro' },
-      { titulo: 'Proficiência', fracao: 0.16, alinhar: 'direita' },
+      { titulo: 'Alunos proficientes', fracao: 0.18, alinhar: 'direita' },
       { titulo: 'Participantes', fracao: 0.16, alinhar: 'direita' },
     ],
-    linhas: vg.evolucao.map((ponto, i) => [
+    linhas: pontos.map((ponto, i) => [
       { texto: `${i + 1}º`, tom: 'suave' as const },
       { texto: ponto.nome },
       { texto: dataBr(ponto.data), tom: 'suave' as const },
-      { texto: pct(ponto.valor), negrito: true },
+      { texto: pct(ponto.proficientesPct ?? null), negrito: true },
       { texto: num(ponto.participantes) },
     ]),
   };
+}
+
+/**
+ * Indicadores POR SIMULADO (11/09). Com simulado escolhido, o bloco de abertura
+ * deixa de ser o painel histórico e passa a ter uma linha por simulado — nunca
+ * uma média única entre simulados diferentes (CLAUDE.md §2.3).
+ */
+function tabelaIndicadoresPorSimulado(det: Detalhamento | undefined): Tabela {
+  return {
+    colunas: [
+      { titulo: 'Simulado', fracao: 0.35 },
+      { titulo: 'Data', fracao: 0.13, alinhar: 'centro' },
+      { titulo: 'Participantes', fracao: 0.14, alinhar: 'direita' },
+      { titulo: 'Alunos proficientes', fracao: 0.16, alinhar: 'direita' },
+      { titulo: 'Acerto médio', fracao: 0.13, alinhar: 'direita' },
+      { titulo: 'ENAMED', fracao: 0.09, alinhar: 'direita' },
+    ],
+    linhas: (det?.metricas ?? []).map((m) => [
+      { texto: m.nome },
+      { texto: dataBr(m.data), tom: 'suave' as const },
+      { texto: num(m.participantes) },
+      { texto: pct(m.proficientesPct ?? null), negrito: true },
+      { texto: pct(m.acertoMedioPct) },
+      { texto: num(m.enamedProjetado) },
+    ]),
+  };
+}
+
+/** Rodapé que declara o recorte do arquivo — quem lê o PDF não vê os filtros da tela. */
+function notasDoRecorte(dados: DadosExportRecorte, porSimulado: boolean): string {
+  const simulados =
+    dados.simuladosRotulos && dados.simuladosRotulos.length > 0
+      ? dados.simuladosRotulos.join(' · ')
+      : 'todos os simulados com nota do recorte';
+  return [
+    `Filtros aplicados: instituição ${dados.iesNome || TRACO}; recorte de semestre ${dados.semestreRotulo}.`,
+    `Simulados considerados: ${simulados}.`,
+    porSimulado
+      ? 'Cada linha é o resultado do próprio simulado — não há média única entre simulados diferentes.'
+      : 'Nenhum simulado foi escolhido: os números são o acumulado histórico de todos os simulados com nota do recorte.',
+    'Onde não há dado medido o relatório mostra “—”. Nenhum valor é estimado além do conceito ENAMED marcado como tal.',
+  ].join(' ');
 }
 
 function tabelaAreas(vg: VisaoGeral): Tabela {
