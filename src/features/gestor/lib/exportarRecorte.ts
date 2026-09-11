@@ -282,36 +282,17 @@ function tabelaDistribuicao(vg: VisaoGeral): Tabela {
   };
 }
 
-function tabelaMetricas(det: Detalhamento | undefined): Tabela {
-  return {
-    colunas: [
-      { titulo: 'Simulado', fracao: 0.36 },
-      { titulo: 'Data', fracao: 0.13, alinhar: 'centro' },
-      { titulo: 'Participantes', fracao: 0.15, alinhar: 'direita' },
-      { titulo: 'Acerto médio', fracao: 0.14, alinhar: 'direita' },
-      { titulo: 'Proficiência', fracao: 0.13, alinhar: 'direita' },
-      { titulo: 'ENAMED', fracao: 0.09, alinhar: 'direita' },
-    ],
-    linhas: (det?.metricas ?? []).map((m) => [
-      { texto: m.nome },
-      { texto: dataBr(m.data), tom: 'suave' as const },
-      { texto: num(m.participantes) },
-      { texto: pct(m.acertoMedioPct) },
-      { texto: pct(m.proficienciaMedia), negrito: true },
-      { texto: num(m.enamedProjetado) },
-    ]),
-  };
-}
-
 function tabelaAcertoSemestre(det: Detalhamento | undefined): Tabela {
   return {
     colunas: [
-      { titulo: 'Semestre', fracao: 0.5 },
-      { titulo: 'Acerto', fracao: 0.25, alinhar: 'direita' },
-      { titulo: 'Em evidência', fracao: 0.25, alinhar: 'centro' },
+      { titulo: 'Semestre', fracao: 0.4 },
+      { titulo: 'Alunos', fracao: 0.2, alinhar: 'direita' },
+      { titulo: 'Acerto', fracao: 0.2, alinhar: 'direita' },
+      { titulo: 'Em evidência', fracao: 0.2, alinhar: 'centro' },
     ],
     linhas: (det?.acertoPorAreaESemestre.semestres ?? []).map((s) => [
       { texto: `${s.semestre}º período` },
+      { texto: num(s.alunos ?? null) },
       { texto: pct(s.acertoPct), negrito: true, tom: nivelDoAcerto(s.acertoPct) },
       { texto: s.emEvidencia ? 'Sim' : TRACO, tom: 'suave' as const },
     ]),
