@@ -133,6 +133,10 @@ export interface DadosExportRecorte {
   meta?: Meta;
 }
 
+/** Acerto por área vem sempre do acumulado do recorte — o arquivo precisa dizer isso. */
+const NOTA_AREAS_HISTORICO =
+  'Os valores desta seção são a média histórica de acerto da instituição em cada grande área, somando todos os simulados com resultado do recorte — não o desempenho de um simulado específico.';
+
 const AVISO_LGPD =
   'Este arquivo contém dados nominais de alunos. Trate como informação pessoal: compartilhe apenas com quem tem finalidade pedagógica legítima e não publique em canais abertos (LGPD, art. 6º).';
 
