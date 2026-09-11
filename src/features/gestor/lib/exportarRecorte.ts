@@ -40,7 +40,7 @@ export type BlocoExport =
   | 'indicadores'
   | 'areas'
   | 'distribuicao'
-  | 'metricasSimulados'
+  
   | 'acertoSemestre'
   | 'questoes'
   | 'alunos';
@@ -75,15 +75,10 @@ export const BLOCOS_EXPORT: readonly DefinicaoBloco[] = [
     descricao: 'Quantos alunos estão em cada grupo de evolução.',
   },
   {
-    id: 'metricasSimulados',
-    titulo: 'Resultado por simulado',
-    descricao: 'Participantes, acerto médio e proficiência de cada simulado escolhido.',
-    exigeSimulado: true,
-  },
-  {
     id: 'acertoSemestre',
     titulo: 'Acerto por semestre',
-    descricao: 'Percentual de acerto de cada semestre nos simulados escolhidos.',
+    descricao:
+      'Alunos que responderam e percentual de acerto de cada semestre nos simulados escolhidos.',
     exigeSimulado: true,
   },
   {
@@ -423,12 +418,6 @@ export function exportarRecortePdf(dados: DadosExportRecorte, blocos: BlocoExpor
         relatorio.tabela(t.colunas, t.linhas);
         break;
       }
-      case 'metricasSimulados': {
-        relatorio.secao(bloco.titulo, bloco.descricao);
-        const t = tabelaMetricas(dados.detalhamento);
-        relatorio.tabela(t.colunas, t.linhas, 'Nenhum simulado escolhido no recorte.');
-        break;
-      }
       case 'acertoSemestre': {
         relatorio.secao(bloco.titulo, bloco.descricao);
         const t = tabelaAcertoSemestre(dados.detalhamento);
@@ -574,24 +563,6 @@ export function exportarRecorteXlsx(dados: DadosExportRecorte, blocos: BlocoExpo
     XLSX.utils.book_append_sheet(livro, distribuicao, 'Distribuição');
   }
 
-  if (blocos.includes('metricasSimulados')) {
-    const metricas = dados.detalhamento?.metricas ?? [];
-    const aba = XLSX.utils.aoa_to_sheet([
-      ['Simulado', 'Data', 'Participantes', 'Acerto médio (%)', 'Proficiência média (%)', 'ENAMED projetado'],
-      ...metricas.map((m) => [
-        m.nome,
-        dataBr(m.data),
-        m.participantes,
-        celula(m.acertoMedioPct),
-        celula(m.proficienciaMedia),
-        celula(m.enamedProjetado),
-      ]),
-    ]);
-    aba['!cols'] = [{ wch: 46 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 16 }];
-    aba['!freeze'] = 'A2';
-    aplicarFormato(aba, [3, 4], metricas.length);
-    XLSX.utils.book_append_sheet(livro, aba, 'Simulados');
-  }
 
   if (blocos.includes('acertoSemestre')) {
     const semestres = dados.detalhamento?.acertoPorAreaESemestre.semestres ?? [];
