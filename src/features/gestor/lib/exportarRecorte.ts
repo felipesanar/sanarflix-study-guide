@@ -119,6 +119,13 @@ export interface DadosExportRecorte {
   semestreRotulo: string;
   /** Nomes dos simulados escolhidos no recorte (vazio = nenhum escolhido). */
   simuladosRotulos?: string[];
+  /**
+   * Ids dos simulados escolhidos no painel (11/09). `get_gestor_visao_geral` não
+   * aceita recorte por simulado: o envelope sempre vem com a série histórica
+   * inteira. Sem esta lista o arquivo saía com TODOS os simulados mesmo quando
+   * o gestor escolheu dois — a filtragem da evolução acontece aqui.
+   */
+  simuladosIds?: string[];
   visaoGeral: VisaoGeral;
   detalhamento?: Detalhamento;
   questoes?: Questao[];
