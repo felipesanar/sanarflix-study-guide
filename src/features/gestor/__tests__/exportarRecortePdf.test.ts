@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import {
   BLOCOS_EXPORT,
   blocosDisponiveis,
+  evolucaoDoRecorte,
   exportarRecortePdf,
   nomeArquivoExport,
   type BlocoExport,
