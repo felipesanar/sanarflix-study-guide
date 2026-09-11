@@ -180,6 +180,13 @@ export default function VisaoGeral() {
   const contexto = useGestorContexto();
   const { toast } = useToast();
   const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight, exportSolicitado } = useTelemetriaGestor();
+  /**
+   * Painel de exportação desta tela (11/09). Mesmo componente do Início: o
+   * gestor que já está lendo os indicadores baixa o documento aqui, sem voltar
+   * uma tela. Montado só depois do clique — o painel consulta a Visão Geral e
+   * o cronograma, e não faz sentido pagar isso em quem nunca exporta.
+   */
+  const [exportarAberto, setExportarAberto] = React.useState(false);
 
   /**
    * A URL é hint de UI; a IES autoritativa vem do servidor — mesmo padrão de
