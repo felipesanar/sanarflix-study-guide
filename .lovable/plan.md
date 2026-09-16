@@ -1,37 +1,38 @@
-# Contagem de participantes no Cronograma de Simulados
+# Liberar a nova experiência do gestor para a UVA
 
-## Como funciona hoje
+## Como a liberação funciona hoje
 
-O número ao lado de cada simulado na tela de Início vem da função `get_gestor_cronograma` no banco. Ela:
+A nova experiência do gestor é ligada **por instituição**, através de uma chave de liberação chamada `gestao.portal_v2` na tabela de features por IES.
 
-1. lista os simulados "pais" da instituição (só os que não são reaplicação);
-2. monta o grupo pai + reaplicações;
-3. conta alunos distintos que têm registro de resposta ou de finalização em qualquer simulado do grupo.
+- Existe linha com a chave ligada → os gestores daquela faculdade entram no painel novo.
+- Não existe linha (ou está desligada) → continuam no painel antigo.
 
-Ou seja, a soma pai + filhos **já está prevista** na função. O problema é outro.
+Quem tem perfil de administrador sempre vê o painel novo, independente da instituição — por isso o time interno não percebe que uma faculdade ficou para trás.
 
-## Causa confirmada do número errado
+## Situação verificada agora
 
-No exemplo do "1º Simulado UVA - 08/09/26 e 11/09/26":
+| Instituição | Painel novo |
+|---|---|
+| PARACATU | ligado |
+| USCS (e Bela Vista, São Caetano, Itapetininga) | ligado |
+| UVA | **sem liberação** (por isso o painel antigo) |
 
-- pai (`5d395a8b`): 16 alunos com respostas
-- reaplicação (`6de79f4b`): 6 alunos com respostas
+UVA: `5f720bd4-9ad9-4cc4-a41a-3be321033db4`.
 
-A função só considera simulados marcados como tipo "simulado_enamed". O pai está marcado assim, mas a **reaplicação está com esse campo em branco**. Por isso ela é descartada na hora de montar o grupo e os 6 alunos não entram na conta — resultado: 16 em vez de 22.
+## O que será feito
 
-## Mudança proposta
+Uma alteração de banco, aditiva: criar a liberação `gestao.portal_v2` ligada para a UVA (se a linha já existir, apenas ligar). Nada de código muda.
 
-Ajustar `get_gestor_cronograma` para que a reaplicação seja sempre tratada como parte do grupo do seu pai, independentemente de como o campo de tipo dela esteja preenchido. O filtro de tipo continua valendo para decidir **quais simulados aparecem** na lista (só os pais ENAMED), mas não para descartar reaplicações desses pais.
-
-Efeito: o cronograma passa a mostrar 22 participantes nesse simulado, e o mesmo vale para qualquer outro caso de reaplicação.
-
-Sem mudança de código do app e sem mexer em outras telas: a correção é só nessa função.
+Depois de aplicado, os gestores da UVA passam a ver o painel novo no próximo carregamento da página (a decisão fica em cache por cerca de 1 minuto).
 
 ## Detalhes técnicos
 
-- Migration aditiva com `CREATE OR REPLACE FUNCTION public.get_gestor_cronograma(uuid)`, preservando assinatura, `STABLE SECURITY DEFINER`, `SET search_path = public`, guards (`has_role` + `gestor_pode_acessar_ies`) e ACLs atuais.
-- CTE `sims` (lista exibida): inalterada — mantém `type = 'simulado_enamed'` e `simulado_pai_id IS NULL`.
-- CTE `grupo`: passa a ler `public.simulados_admin` sem o filtro de `type`, mantendo `COALESCE(simulado_pai_id, id) IN (SELECT id FROM sims)`. Assim o pai continua entrando por ser ENAMED e os filhos entram por vínculo, com `type` nulo ou não.
-- CTE `com_tri`: mesmo ajuste, para que a existência de TRI de uma reaplicação também conte para o grupo.
-- CTE `participacao`: sem alteração — o `UNION` de `simulados_finalizados` e `answer_progress` já deduplica por `(pai_id, user_id)`, então um aluno que respondeu pai e filho conta uma vez.
-- Validação após aplicar: conferir que o grupo de `5d395a8b` retorna 22 participantes e que a contagem de outros simulados ENAMED sem reaplicação não muda.
+```sql
+insert into public.ies_features (ies_id, feature_key, enabled)
+values ('5f720bd4-9ad9-4cc4-a41a-3be321033db4', 'gestao.portal_v2', true)
+on conflict (ies_id, feature_key) do update set enabled = true, updated_at = now();
+```
+
+- Nenhum `DELETE`/`TRUNCATE`; nenhuma outra IES é afetada.
+- A decisão em runtime vem de `get_gestor_portal_versao()`, consumida por `useGestorPortalVersao` (cache de 60s).
+- Verificação após aplicar: reconsultar a linha da UVA e confirmar `enabled = true`.
