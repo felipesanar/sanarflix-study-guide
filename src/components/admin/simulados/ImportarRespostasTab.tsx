@@ -147,7 +147,7 @@ export default function ImportarRespostasTab() {
         const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: false, blankrows: false });
         const result = parseMatrizRespostas(matrix, total);
         if (!result.ok) {
-          toast.error('Planilha fora do padrão', { description: result.error });
+          toast.error('Planilha fora do padrão', { description: (result as { error: string }).error });
           return;
         }
 
