@@ -14,7 +14,7 @@ const corsHeaders = {
 type Resposta = 'A' | 'B' | 'C' | 'D' | 'E' | null;
 
 interface InputRow {
-  email: string;
+  matricula_ra: string;
   answers: Record<string, Resposta>; // chave: numero_questao (string)
   tempo_segundos?: number;
   saidas_aba?: number;
@@ -40,7 +40,9 @@ interface RequestPayload {
 }
 
 interface RowResult {
-  email: string;
+  matricula_ra: string;
+  email?: string;
+  nome?: string;
   status: 'imported' | 'skipped' | 'replaced' | 'failed' | 'preview_ok' | 'preview_warning' | 'preview_error';
   reason?: string;
   details?: Record<string, unknown>;
@@ -146,34 +148,47 @@ Deno.serve(async (req) => {
     }
     const expectedNumeros = Array.from(byNumero.keys()).sort((a, b) => a - b);
 
-    // --- Resolver e-mails -> user_id ---
-    const emails = payload.rows.map((r) => (r.email || '').trim().toLowerCase()).filter(Boolean);
-    const uniqueEmails = Array.from(new Set(emails));
+    // --- Resolver Matrícula/RA -> user_id (escopo: IES do simulado) ---
+    const raKeys = payload.rows.map((r) => normRa(r.matricula_ra)).filter(Boolean);
+    const uniqueRas = Array.from(new Set(raKeys));
 
-    const { data: users, error: usersErr } = await supabaseAdmin.rpc(
-      'admin_lookup_users_by_email_in_ies',
-      { p_ies_ids: simulado.ies_ids, p_emails: uniqueEmails },
-    );
-    if (usersErr) return jsonResponse({ error: 'lookup_users_failed', details: usersErr.message }, 500);
-
-    type UserRow = { email: string; user_id: string; semestre: number | null; in_ies: boolean };
-    const userByEmail = new Map<string, UserRow>();
-    for (const u of (users ?? []) as UserRow[]) {
-      userByEmail.set(u.email.toLowerCase(), u);
+    type UserRow = { ra: string; user_id: string; nome: string; email: string; semestre: number | null; match_count: number };
+    const userByRa = new Map<string, UserRow>();
+    if (uniqueRas.length > 0) {
+      const { data: users, error: usersErr } = await supabaseAdmin.rpc(
+        'admin_lookup_users_by_ra_in_ies',
+        { p_ies_ids: simulado.ies_ids, p_ras: uniqueRas },
+      );
+      if (usersErr) return jsonResponse({ error: 'lookup_users_failed', details: usersErr.message }, 500);
+      for (const u of (users ?? []) as UserRow[]) {
+        if (!userByRa.has(u.ra)) userByRa.set(u.ra, u);
+      }
     }
 
-    // Detectar e-mails duplicados na planilha
-    const emailCount = new Map<string, number>();
-    for (const e of emails) emailCount.set(e, (emailCount.get(e) ?? 0) + 1);
+    const raCount = new Map<string, number>();
+    for (const e of raKeys) raCount.set(e, (raCount.get(e) ?? 0) + 1);
+
+    // Conta células com marcação múltipla por linha (para o aviso do dry-run)
+    const countMulti = (row: InputRow) => {
+      let c = 0;
+      for (const v of Object.values(row.answers ?? {})) if (extractLetters(v).length > 1) c++;
+      return c;
+    };
 
     // --- Modo DRY RUN: só validar, não escreve nada ---
     if (payload.dry_run) {
       const results: RowResult[] = [];
       let okCount = 0, warnCount = 0, errCount = 0;
 
+      let multiCells = 0, multiRows = 0;
       for (const row of payload.rows) {
-        const email = (row.email ?? '').trim().toLowerCase();
-        const validation = validateRow(row, email, byNumero, expectedNumeros, userByEmail, emailCount);
+        const key = normRa(row.matricula_ra);
+        const validation = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount);
+        const mc = countMulti(row);
+        if (mc > 0 && validation.status !== 'preview_error') {
+          multiCells += mc; multiRows++;
+          validation.details = { ...(validation.details ?? {}), multi_marked_cells: mc };
+        }
         results.push(validation);
         if (validation.status === 'preview_ok') okCount++;
         else if (validation.status === 'preview_warning') warnCount++;
@@ -184,7 +199,7 @@ Deno.serve(async (req) => {
       const userIds = Array.from(new Set(
         results
           .filter((r) => r.status !== 'preview_error')
-          .map((r) => userByEmail.get(r.email)?.user_id)
+          .map((r) => userByRa.get(normRa(r.matricula_ra))?.user_id)
           .filter(Boolean) as string[],
       ));
       let alreadyFinalizedSet = new Set<string>();
@@ -199,7 +214,7 @@ Deno.serve(async (req) => {
 
       // Anotar warnings de "já finalizado"
       for (const r of results) {
-        const u = userByEmail.get(r.email);
+        const u = userByRa.get(normRa(r.matricula_ra));
         if (r.status === 'preview_ok' && u && alreadyFinalizedSet.has(u.user_id)) {
           r.status = 'preview_warning';
           r.reason = 'already_finalized';
@@ -216,6 +231,8 @@ Deno.serve(async (req) => {
           warning: warnCount,
           error: errCount,
           already_finalized: alreadyFinalizedSet.size,
+          multi_marked_cells: multiCells,
+          multi_marked_rows: multiRows,
         },
         results,
       });
@@ -257,7 +274,9 @@ Deno.serve(async (req) => {
 
     // ---- 1) Particiona linhas em "válidas" (vão pro batch RPC) e "inválidas"
     type ValidRow = {
+      matricula_ra: string;
       email: string;
+      nome: string;
       user_id: string;
       answers: { question_id: string; resposta: Resposta; correct: boolean }[];
       tempo_segundos: number;
@@ -265,24 +284,24 @@ Deno.serve(async (req) => {
       finalizado_em: string;
     };
     const validRows: ValidRow[] = [];
-    const invalidFailures: { user_id: string; email: string; reason: string }[] = [];
+    const invalidFailures: { user_id: string; reason: string }[] = [];
 
     for (const row of payload.rows) {
-      const email = (row.email ?? '').trim().toLowerCase();
-      const v = validateRow(row, email, byNumero, expectedNumeros, userByEmail, emailCount);
+      const key = normRa(row.matricula_ra);
+      const v = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount);
       if (v.status === 'preview_error') {
-        const userId = userByEmail.get(email)?.user_id ?? '00000000-0000-0000-0000-000000000000';
-        invalidFailures.push({ user_id: userId, email, reason: v.reason ?? 'validation_failed' });
-        results.push({ email, status: 'failed', reason: v.reason, details: v.details });
+        const userId = userByRa.get(key)?.user_id ?? '00000000-0000-0000-0000-000000000000';
+        invalidFailures.push({ user_id: userId, reason: v.reason ?? 'validation_failed' });
+        results.push({ ...v, status: 'failed' });
         failed++;
         continue;
       }
 
-      const user = userByEmail.get(email)!;
+      const user = userByRa.get(key)!;
       const answersPayload = expectedNumeros.map((n) => {
         const q = byNumero.get(n)!;
         const raw = row.answers[String(n)] ?? row.answers[String(n).padStart(2, '0')] ?? null;
-        const resposta: Resposta = normalizeResposta(raw);
+        const resposta: Resposta = normalizeResposta(raw, q.correta);
         const correct = q.anulada ? true : (resposta !== null && resposta === q.correta);
         return { question_id: q.question_id, resposta, correct };
       });
@@ -292,7 +311,9 @@ Deno.serve(async (req) => {
       const saidasAba = row.saidas_aba ?? 0;
 
       validRows.push({
-        email,
+        matricula_ra: String(row.matricula_ra ?? '').trim(),
+        email: user.email,
+        nome: user.nome,
         user_id: user.user_id,
         answers: answersPayload,
         tempo_segundos: tempoSeg,
@@ -321,7 +342,7 @@ Deno.serve(async (req) => {
 
     // ---- 3) Chama o batch RPC (uma única round-trip pra todas as linhas válidas)
     if (validRows.length > 0) {
-      const userIdToEmail = new Map(validRows.map((r) => [r.user_id, r.email]));
+      const userIdToInfo = new Map(validRows.map((r) => [r.user_id, { matricula_ra: r.matricula_ra, email: r.email, nome: r.nome }]));
       const { data: batchResult, error: batchRpcErr } = await supabaseAdmin.rpc(
         'admin_import_responses_batch',
         {
@@ -343,7 +364,7 @@ Deno.serve(async (req) => {
         // Toda a chamada falhou — marcar todos os válidos como failed
         for (const r of validRows) {
           failed++;
-          results.push({ email: r.email, status: 'failed', reason: batchRpcErr.message ?? 'batch_rpc_failed' });
+          results.push({ matricula_ra: r.matricula_ra, email: r.email, nome: r.nome, status: 'failed', reason: batchRpcErr.message ?? 'batch_rpc_failed' });
         }
       } else {
         const br = batchResult as {
@@ -351,20 +372,20 @@ Deno.serve(async (req) => {
           summary: { imported: number; skipped: number; replaced: number; failed: number; already_in_batch: number };
         };
         for (const rr of br.results ?? []) {
-          const email = userIdToEmail.get(rr.user_id) ?? '?';
+          const info = userIdToInfo.get(rr.user_id) ?? { matricula_ra: '?' };
           const status = rr.status as RowResult['status'] | 'already_in_batch';
           if (status === 'imported') {
             imported++;
-            results.push({ email, status: 'imported' });
+            results.push({ ...info, status: 'imported' });
           } else if (status === 'replaced') {
             replaced++;
-            results.push({ email, status: 'replaced' });
+            results.push({ ...info, status: 'replaced' });
           } else if (status === 'skipped') {
             skipped++;
-            results.push({ email, status: 'skipped', reason: rr.reason ?? 'already_finalized' });
+            results.push({ ...info, status: 'skipped', reason: rr.reason ?? 'already_finalized' });
           } else if (status === 'failed') {
             failed++;
-            results.push({ email, status: 'failed', reason: rr.reason });
+            results.push({ ...info, status: 'failed', reason: rr.reason });
           } else if (status === 'already_in_batch') {
             // idempotência: olhar o status anterior gravado
             const { data: prev } = await supabaseAdmin
@@ -375,7 +396,7 @@ Deno.serve(async (req) => {
               .eq('simulado_id', payload.simulado_id)
               .maybeSingle();
             const prevStatus = (prev as { status: string; reason: string } | null)?.status ?? 'imported';
-            results.push({ email, status: prevStatus as RowResult['status'], reason: 'already_processed' });
+            results.push({ ...info, status: prevStatus as RowResult['status'], reason: 'already_processed' });
           }
         }
       }
@@ -516,42 +537,67 @@ function validatePayload(p: RequestPayload): string[] {
   return errs;
 }
 
-function normalizeResposta(raw: unknown): Resposta {
-  if (raw == null) return null;
+function normRa(raw: unknown): string {
+  return String(raw ?? '').trim().toLowerCase();
+}
+
+const LETRAS = ['A', 'B', 'C', 'D', 'E'] as const;
+
+/** Extrai as alternativas A–E marcadas numa célula (ex.: "(A/D)", "A,D", "AD"), sem repetição, na ordem. */
+export function extractLetters(raw: unknown): string[] {
+  if (raw == null) return [];
   const s = String(raw).trim().toUpperCase();
-  if (s === '' || s === '-' || s === '?' || s === 'BRANCO' || s === 'NULL' || s === '0') return null;
-  // Aceita "A", "A)", "ALTERNATIVA A"
-  const m = s.match(/[A-E]/);
-  if (m && ['A', 'B', 'C', 'D', 'E'].includes(m[0])) return m[0] as Resposta;
-  return null;
+  if (s === '' || s === '-' || s === '?' || s === 'BRANCO' || s === 'NULL' || s === '0') return [];
+  // "ALTERNATIVA A" / "LETRA B": considera só a última palavra
+  const cleaned = s.replace(/^(ALTERNATIVA|LETRA)\s+/, '');
+  const out: string[] = [];
+  for (const ch of cleaned) {
+    if ((LETRAS as readonly string[]).includes(ch) && !out.includes(ch)) out.push(ch);
+    else if (/[A-Z]/.test(ch)) return out.length ? out : []; // palavra desconhecida: para
+  }
+  return out;
+}
+
+/**
+ * Regra de marcação múltipla: se uma das marcadas é o gabarito, grava a primeira
+ * que NÃO é gabarito (conta como erro); se nenhuma é gabarito, grava a primeira.
+ */
+export function normalizeResposta(raw: unknown, correta?: string | null): Resposta {
+  const letters = extractLetters(raw);
+  if (letters.length === 0) return null;
+  if (letters.length === 1) return letters[0] as Resposta;
+  const gab = (correta ?? '').trim().toUpperCase();
+  const outra = letters.find((l) => l !== gab);
+  return (outra ?? letters[0]) as Resposta;
 }
 
 function validateRow(
   row: InputRow,
-  email: string,
+  key: string,
   byNumero: Map<number, { question_id: string; correta: string; anulada: boolean }>,
   expectedNumeros: number[],
-  userByEmail: Map<string, { user_id: string; in_ies: boolean }>,
-  emailCount: Map<string, number>,
+  userByRa: Map<string, { user_id: string; nome: string; email: string; match_count: number }>,
+  raCount: Map<string, number>,
 ): RowResult {
-  if (!email || !email.includes('@')) {
-    return { email, status: 'preview_error', reason: 'invalid_email' };
+  const matricula_ra = String(row.matricula_ra ?? '').trim();
+  if (!key) {
+    return { matricula_ra, status: 'preview_error', reason: 'ra_missing' };
   }
-  if ((emailCount.get(email) ?? 0) > 1) {
-    return { email, status: 'preview_error', reason: 'duplicate_email_in_file' };
+  if ((raCount.get(key) ?? 0) > 1) {
+    return { matricula_ra, status: 'preview_error', reason: 'duplicate_ra_in_file' };
   }
-  const user = userByEmail.get(email);
+  const user = userByRa.get(key);
   if (!user) {
-    return { email, status: 'preview_error', reason: 'user_not_found' };
+    return { matricula_ra, status: 'preview_error', reason: 'ra_not_found' };
   }
-  if (!user.in_ies) {
-    return { email, status: 'preview_error', reason: 'user_not_in_ies' };
+  const base = { matricula_ra, email: user.email, nome: user.nome };
+  if (user.match_count > 1) {
+    return { ...base, status: 'preview_error', reason: 'ra_ambiguous' };
   }
   if (!row.answers || typeof row.answers !== 'object') {
-    return { email, status: 'preview_error', reason: 'answers_missing' };
+    return { ...base, status: 'preview_error', reason: 'answers_missing' };
   }
 
-  // Normaliza chaves do answers para números
   const providedNumeros = new Set<number>();
   for (const k of Object.keys(row.answers)) {
     const n = Number(String(k).trim());
@@ -562,24 +608,13 @@ function validateRow(
   const extra = Array.from(providedNumeros).filter((n) => !byNumero.has(n));
 
   if (extra.length > 0) {
-    return {
-      email,
-      status: 'preview_error',
-      reason: 'invalid_question_numbers',
-      details: { extra: extra.slice(0, 10) },
-    };
+    return { ...base, status: 'preview_error', reason: 'invalid_question_numbers', details: { extra: extra.slice(0, 10) } };
   }
   if (missing.length > 0) {
-    // Permite missing como warning (questões em branco serão null), mas se faltar tudo, é erro
     if (missing.length === expectedNumeros.length) {
-      return { email, status: 'preview_error', reason: 'no_answers' };
+      return { ...base, status: 'preview_error', reason: 'no_answers' };
     }
-    return {
-      email,
-      status: 'preview_warning',
-      reason: 'partial_answers',
-      details: { missing_count: missing.length },
-    };
+    return { ...base, status: 'preview_warning', reason: 'partial_answers', details: { missing_count: missing.length } };
   }
-  return { email, status: 'preview_ok' };
+  return { ...base, status: 'preview_ok' };
 }
