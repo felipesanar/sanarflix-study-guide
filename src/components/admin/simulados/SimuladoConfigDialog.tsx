@@ -537,7 +537,7 @@ export default function SimuladoConfigDialog({
       // agendamento nesta sessão — do contrário mantemos o valor original tal como
       // veio do banco (achado P2: antes, editar um simulado já liberado reescrevia
       // `data_liberacao` para "agora" a cada save, mesmo sem o admin tocar na data).
-      const dataRealizacaoISO = form.dataRealizacao ? datetimeLocalToBrazilISO(form.dataRealizacao) : null;
+      let dataRealizacaoISO = form.dataRealizacao ? datetimeLocalToBrazilISO(form.dataRealizacao) : null;
       const isPresencial = form.modalidade === 'presencial';
       let dataLiberacaoISO: string | null;
       if (isPresencial) {
@@ -553,6 +553,8 @@ export default function SimuladoConfigDialog({
       } else {
         dataLiberacaoISO = null;
       }
+      // Online: data de realização = Início.
+      if (!isPresencial) dataRealizacaoISO = dataLiberacaoISO;
       const dataEncerramentoISO = isPresencial
         ? dataRealizacaoISO
         : form.dataEncerramento ? datetimeLocalToBrazilISO(form.dataEncerramento) : null;
@@ -886,38 +888,32 @@ export default function SimuladoConfigDialog({
               onValueChange={(v) => setForm((prev) => ({ ...prev, modalidade: v as Modalidade }))}
             >
               <SelectTrigger id="simulado-modalidade" className="max-w-xs">
-                <SelectValue placeholder="Selecione" />
+                <SelectValue placeholder="Selecione a modalidade" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="online">Online</SelectItem>
                 <SelectItem value="presencial">Presencial</SelectItem>
               </SelectContent>
             </Select>
-            {/* Quem marca modalidade e datas é o admin (equipe B2B) nesta tela — não
-                o CX (decisão do Felipe, 03/08). O texto abaixo só explica qual data é
-                a principal; nenhum campo é escondido por modalidade (44 provas em
-                produção têm combinações inconsistentes e o admin precisa poder
-                ver/corrigir qualquer uma delas). */}
             {form.modalidade === 'online' && (
               <p className="text-xs text-muted-foreground">
-                Online: a data principal é o <strong>Início</strong> — quando o aluno pode começar a fazer a
-                prova na plataforma.
+                Online: a data de realização é a mesma do <strong>Início</strong> — quando o aluno pode começar a
+                fazer a prova na plataforma.
               </p>
             )}
             {form.modalidade === 'presencial' && (
               <p className="text-xs text-muted-foreground">
-                Presencial: a data principal é a <strong>Data de realização</strong> — o dia em que a prova
-                acontece.
+                Presencial: o simulado é salvo como encerrado e não fica disponível para o aluno no site.
               </p>
-            )}
-            {form.modalidade === null && (
-              <p className="text-xs text-muted-foreground">Defina a modalidade para saber qual data é a principal.</p>
             )}
           </div>
 
+          {form.modalidade !== null && (
+          <>
+          {form.modalidade === 'presencial' && (
           <div className="space-y-2">
             <Label htmlFor="simulado-data-realizacao">
-              Data de realização{form.modalidade === 'presencial' ? ' (principal)' : ''}
+              Data de realização<span aria-hidden="true"> *</span>
             </Label>
             <Input
               id="simulado-data-realizacao"
@@ -926,20 +922,16 @@ export default function SimuladoConfigDialog({
               value={form.dataRealizacao}
               onChange={(e) => setForm((prev) => ({ ...prev, dataRealizacao: e.target.value }))}
             />
-            <p className="text-xs text-muted-foreground">
-              {form.modalidade === 'presencial'
-                ? 'Dia em que a prova presencial acontece.'
-                : 'Usada apenas quando a modalidade é presencial.'}
-            </p>
+            <p className="text-xs text-muted-foreground">Dia em que a prova presencial acontece.</p>
             {avisoPresencialSemDataRealizacao && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
                 Simulado presencial precisa de data de realização para ser salvo.
               </p>
             )}
           </div>
+          )}
 
-          {/* Presencial: Início/Término ficam ocultos; valores já gravados são preservados no save. */}
-          {form.modalidade !== 'presencial' && (
+          {form.modalidade === 'online' && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Início</Label>
@@ -1041,6 +1033,8 @@ export default function SimuladoConfigDialog({
               />
             )}
           </div>
+          </>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t px-6 py-4">
