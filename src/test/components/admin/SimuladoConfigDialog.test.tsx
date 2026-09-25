@@ -170,7 +170,7 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
     expect(payload).toHaveProperty('modalidade');
     expect(payload).toHaveProperty('dataRealizacao');
     expect(payload.modalidade).toBe('online');
-    expect(payload.dataRealizacao).toBeNull();
+    expect(payload.dataRealizacao).toBe(payload.dataLiberacao);
   });
 
   it('identifica a linha pelo id do simulado', async () => {
