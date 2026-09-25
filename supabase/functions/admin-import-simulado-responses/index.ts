@@ -121,10 +121,13 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'simulado_not_found' }, 404);
     }
 
-    const { data: qmap, error: qErr } = await supabaseAdmin.rpc(
-      'admin_simulado_question_map',
-      { p_simulado_id: payload.simulado_id },
-    );
+    // Consulta direta com service role (o admin já foi validado acima). A RPC
+    // `admin_simulado_question_map` exige auth.uid() admin e falha com service role.
+    const { data: qRows, error: qErr } = await supabaseAdmin
+      .from('questoes_simulado')
+      .select('id, numero_questao, ordem, correta, anulada')
+      .eq('simulado_id', payload.simulado_id)
+      .order('ordem', { ascending: true });
     if (qErr) return jsonResponse({ error: 'question_map_failed', details: qErr.message }, 500);
 
     type QuestionRow = {
@@ -134,7 +137,13 @@ Deno.serve(async (req) => {
       correta: string;
       anulada: boolean;
     };
-    const questions: QuestionRow[] = (qmap ?? []) as QuestionRow[];
+    const questions: QuestionRow[] = (qRows ?? []).map((q) => ({
+      numero_questao: (q.numero_questao ?? q.ordem) as number,
+      ordem: q.ordem as number,
+      question_id: q.id as string,
+      correta: q.correta as string,
+      anulada: Boolean(q.anulada),
+    }));
 
     if (questions.length === 0) {
       return jsonResponse({ error: 'simulado_without_questions' }, 400);
