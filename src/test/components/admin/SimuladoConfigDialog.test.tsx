@@ -91,7 +91,7 @@ function makeSimulado(overrides: Partial<Simulado> = {}): Simulado {
     questoes_count: 40,
     liberacao_desempenho: 'imediato',
     data_liberacao_desempenho: null,
-    modalidade: null,
+    modalidade: 'online',
     data_realizacao: null,
     ...overrides,
   };
