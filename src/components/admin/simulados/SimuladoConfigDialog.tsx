@@ -537,8 +537,14 @@ export default function SimuladoConfigDialog({
       // agendamento nesta sessão — do contrário mantemos o valor original tal como
       // veio do banco (achado P2: antes, editar um simulado já liberado reescrevia
       // `data_liberacao` para "agora" a cada save, mesmo sem o admin tocar na data).
+      const dataRealizacaoISO = form.dataRealizacao ? datetimeLocalToBrazilISO(form.dataRealizacao) : null;
+      const isPresencial = form.modalidade === 'presencial';
       let dataLiberacaoISO: string | null;
-      if (mode === 'edit' && !scheduleChanged) {
+      if (isPresencial) {
+        // Presencial: aluno nunca acessa pela plataforma — Início = Término =
+        // data de realização e o simulado é gravado como encerrado.
+        dataLiberacaoISO = dataRealizacaoISO;
+      } else if (mode === 'edit' && !scheduleChanged) {
         dataLiberacaoISO = dataLiberacaoOriginalISO;
       } else if (form.liberarImediatamente) {
         dataLiberacaoISO = agora.toISOString();
@@ -547,24 +553,22 @@ export default function SimuladoConfigDialog({
       } else {
         dataLiberacaoISO = null;
       }
-      const dataEncerramentoISO = form.dataEncerramento ? datetimeLocalToBrazilISO(form.dataEncerramento) : null;
+      const dataEncerramentoISO = isPresencial
+        ? dataRealizacaoISO
+        : form.dataEncerramento ? datetimeLocalToBrazilISO(form.dataEncerramento) : null;
       // Preserva 'encerrado' ao editar (achado P1) SOMENTE quando o encerramento foi
-      // manual/persistido no banco (`simulado.statusDb`) — nunca reabrimos uma prova
-      // encerrada dessa forma silenciosamente. Quando o encerramento é apenas
-      // computado (banco 'ativo', `data_encerramento` passada), passamos o status do
-      // banco ('ativo') e deixamos `calcularStatusSalvar` recalcular pelas datas: se o
-      // admin estendeu `data_encerramento` para o futuro, a prova reabre — que é a
-      // intenção explícita ao editar a data.
-      const statusCalculado = calcularStatusSalvar(
-        dataLiberacaoISO,
-        dataEncerramentoISO,
-        mode === 'edit' ? simulado?.statusDb ?? null : null,
-      );
+      // manual/persistido no banco (`simulado.statusDb`).
+      const statusCalculado = isPresencial
+        ? 'encerrado'
+        : calcularStatusSalvar(
+            dataLiberacaoISO,
+            dataEncerramentoISO,
+            mode === 'edit' ? simulado?.statusDb ?? null : null,
+          );
       const dataLiberacaoDesempenhoISO =
         form.liberacaoDesempenho === 'agendado' && form.dataLiberacaoDesempenho
           ? datetimeLocalToBrazilISO(form.dataLiberacaoDesempenho)
           : null;
-      const dataRealizacaoISO = form.dataRealizacao ? datetimeLocalToBrazilISO(form.dataRealizacao) : null;
 
       if (mode === 'edit' && simulado) {
         // Escrita via RPC `admin_update_simulado`, não mais `.from().update()`
