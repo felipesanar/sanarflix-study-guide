@@ -547,13 +547,12 @@ const LETRAS = ['A', 'B', 'C', 'D', 'E'] as const;
 export function extractLetters(raw: unknown): string[] {
   if (raw == null) return [];
   const s = String(raw).trim().toUpperCase();
-  if (s === '' || s === '-' || s === '?' || s === 'BRANCO' || s === 'NULL' || s === '0') return [];
-  // "ALTERNATIVA A" / "LETRA B": considera só a última palavra
-  const cleaned = s.replace(/^(ALTERNATIVA|LETRA)\s+/, '');
+  // Só vale como resposta se tiver apenas letras A–E e separadores; qualquer texto
+  // ("BLANK", "EM BRANCO", "X", "*"...) é tratado como em branco.
+  if (!/^[A-E()\/,;\s]+$/.test(s)) return [];
   const out: string[] = [];
-  for (const ch of cleaned) {
+  for (const ch of s) {
     if ((LETRAS as readonly string[]).includes(ch) && !out.includes(ch)) out.push(ch);
-    else if (/[A-Z]/.test(ch)) return out.length ? out : []; // palavra desconhecida: para
   }
   return out;
 }

@@ -59,6 +59,16 @@ export function ImportarDryRunStep({
         <StatCard label="Não encontrados" value={naoEncontrados} accent="red" />
       </div>
 
+      {(previewSummary.text_as_blank_cells ?? 0) > 0 && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{previewSummary.text_as_blank_cells} célula(s) com texto tratadas como em branco</AlertTitle>
+          <AlertDescription>
+            Células com conteúdo diferente de letras A–E (ex.: "BLANK", "EM BRANCO", "X") serão gravadas como não respondidas.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {(previewSummary.multi_marked_cells ?? 0) > 0 && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
