@@ -71,8 +71,8 @@ export function ImportarHistoricoLotes({ refreshKey }: ImportarHistoricoLotesPro
       const { data, error: rpcErr } = await supabase.rpc('admin_list_import_batches', { p_limit: 50 });
       if (rpcErr) throw rpcErr;
       setBatches((data ?? []) as BatchRow[]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar histórico.');
+    } catch {
+      setError('Não foi possível carregar o histórico de importações. Tente novamente em instantes.');
     } finally {
       setLoading(false);
     }
@@ -121,7 +121,7 @@ export function ImportarHistoricoLotes({ refreshKey }: ImportarHistoricoLotesPro
       ) : error ? (
         <AdminError message={error} onRetry={load} />
       ) : batches.length === 0 ? (
-        <AdminEmpty title="Nenhuma importação registrada" description="Os lotes processados aparecerão aqui." />
+        <AdminEmpty title="Nenhuma importação feita ainda" description="Os lotes aparecem aqui depois da primeira importação." />
       ) : (
         <AdminTable>
           <TableHeader>
