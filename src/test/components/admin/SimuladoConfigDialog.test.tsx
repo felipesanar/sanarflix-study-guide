@@ -55,6 +55,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/services/admin/simulados', () => ({
   updateSimulado: (...args: unknown[]) => mockUpdateSimulado(...args),
+  setSimuladoType: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('sonner', () => ({
@@ -77,6 +78,7 @@ const IES_LIST: IES[] = [
 function makeSimulado(overrides: Partial<Simulado> = {}): Simulado {
   return {
     id: 'sim-1',
+    tipo: 'simulado_enamed',
     nome: 'Simulado Diagnóstico',
     descricao: 'Descrição original',
     data_liberacao: '2026-01-10T13:00:00.000Z',
