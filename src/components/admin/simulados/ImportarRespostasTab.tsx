@@ -13,7 +13,8 @@ import { ImportarHistoricoLotes } from './ImportarHistoricoLotes';
 import {
   CHUNK_SIZE,
   DRY_RUN_CHUNK_SIZE,
-  detectEmailHeader,
+  detectRaHeader,
+  normRa,
   parseDataPtBrOuIso,
   REASON_LABEL,
   type FinalReport,
@@ -146,10 +147,10 @@ export default function ImportarRespostasTab() {
         }
 
         const headers = Object.keys(json[0] ?? {});
-        const emailKey = detectEmailHeader(headers, json[0]);
-        if (!emailKey) {
-          toast.error('Coluna de e-mail não encontrada', {
-            description: 'A planilha precisa ter uma coluna chamada "email" (ou similar) ou conter e-mails na primeira linha.',
+        const raKey = detectRaHeader(headers);
+        if (!raKey) {
+          toast.error('Coluna de Matrícula/RA não encontrada', {
+            description: 'A planilha precisa ter uma coluna chamada "matricula_ra" (ou "RA", "Matrícula").',
           });
           return;
         }
@@ -158,7 +159,7 @@ export default function ImportarRespostasTab() {
         const saidasKey = headers.find((h) => /saida|saída|aba/i.test(h));
         const dataKey = headers.find((h) => /data|finalizad/i.test(h));
 
-        const reservedKeys = new Set([emailKey, tempoKey, saidasKey, dataKey].filter(Boolean) as string[]);
+        const reservedKeys = new Set([raKey, tempoKey, saidasKey, dataKey].filter(Boolean) as string[]);
         const questionKeys = headers.filter((h) => !reservedKeys.has(h));
 
         const hasNumericCols = questionKeys.some((k) => /^\d+$/.test(String(k).trim()));
@@ -185,7 +186,7 @@ export default function ImportarRespostasTab() {
           const dataParsed = dataRaw ? parseDataPtBrOuIso(dataRaw) : null;
           return {
             rowIndex: idx + 2,
-            email: String(row[emailKey] ?? '').trim().toLowerCase(),
+            matricula_ra: String(row[raKey] ?? '').trim(),
             answers,
             tempo_segundos: Number.isFinite(tempoMin) ? Math.round(tempoMin * 60) : undefined,
             saidas_aba: saidasKey ? Number(row[saidasKey]) || 0 : undefined,
@@ -195,7 +196,7 @@ export default function ImportarRespostasTab() {
 
         setParsedRows(rows);
         setQuestionColumnsCount(questionKeys.filter((k) => /^\d+$/.test(String(k).trim())).length);
-        toast.success('Planilha carregada', { description: `${rows.length} linha(s) detectada(s) — coluna "${emailKey}" usada como e-mail` });
+        toast.success('Planilha carregada', { description: `${rows.length} linha(s) detectada(s) — coluna "${raKey}" usada como Matrícula/RA` });
       } catch (err) {
         toast.error('Erro ao ler planilha', { description: err instanceof Error ? err.message : String(err) });
       }
@@ -210,8 +211,8 @@ export default function ImportarRespostasTab() {
       toast.error('Simulado sem questões', { description: 'Cadastre as questões antes de gerar o template.' });
       return;
     }
-    const headers = ['email', ...Array.from({ length: total }, (_, i) => String(i + 1)), 'tempo_minutos', 'saidas_aba', 'finalizado_em'];
-    const sample: Record<string, string | number> = { email: 'aluno@exemplo.com' };
+    const headers = ['matricula_ra', ...Array.from({ length: total }, (_, i) => String(i + 1)), 'tempo_minutos', 'saidas_aba', 'finalizado_em'];
+    const sample: Record<string, string | number> = { matricula_ra: '2023001234' };
     for (let i = 1; i <= total; i++) sample[String(i)] = ['A', 'B', 'C', 'D'][i % 4];
     sample['tempo_minutos'] = 180;
     sample['saidas_aba'] = 0;
@@ -224,15 +225,16 @@ export default function ImportarRespostasTab() {
     const instrucoesData = [
       ['INSTRUÇÕES'],
       [''],
-      ['1. Coluna "email": e-mail do aluno cadastrado na plataforma'],
-      [`2. Colunas "1" a "${total}": resposta de cada questão (A, B, C, D ou em branco)`],
+      ['1. Coluna "matricula_ra": Matrícula/RA do aluno, exatamente como cadastrada no Academy'],
+      [`2. Colunas "1" a "${total}": resposta de cada questão (A, B, C, D, E ou em branco)`],
       ['3. Coluna "tempo_minutos" (opcional): tempo gasto em minutos'],
       ['4. Coluna "saidas_aba" (opcional): número de saídas de aba durante a prova'],
       ['5. Coluna "finalizado_em" (opcional): data ISO de finalização (ex: 2026-04-28T18:00:00Z)'],
       [''],
       ['REGRAS:'],
-      ['- E-mail deve estar cadastrado e pertencer à IES vinculada ao simulado'],
-      ['- E-mails duplicados na mesma planilha geram erro'],
+      ['- O RA deve estar cadastrado em um aluno de uma IES vinculada ao simulado'],
+      ['- RAs duplicados na mesma planilha geram erro'],
+      ['- Marcação múltipla (ex.: "(A/D)"): se uma delas é o gabarito, grava a outra; senão, grava a primeira (conta como erro)'],
       ['- Respostas em branco são gravadas como "não respondida"'],
       ['- Use o modo "Pular" para não sobrescrever alunos que já fizeram'],
       ['- Use o modo "Substituir" para refazer (versão anterior vai para histórico)'],
@@ -256,7 +258,7 @@ export default function ImportarRespostasTab() {
       // planilhas grandes). Os summaries/resultados de cada lote são agregados no
       // client antes de exibir o passo 3.
       const aggregatedResults: PreviewResult[] = [];
-      const aggregatedSummary: PreviewSummary = { total: 0, ok: 0, warning: 0, error: 0, already_finalized: 0 };
+      const aggregatedSummary: PreviewSummary = { total: 0, ok: 0, warning: 0, error: 0, already_finalized: 0, multi_marked_cells: 0, multi_marked_rows: 0 };
 
       for (let i = 0; i < parsedRows.length; i += DRY_RUN_CHUNK_SIZE) {
         const chunk = parsedRows.slice(i, i + DRY_RUN_CHUNK_SIZE);
@@ -267,7 +269,7 @@ export default function ImportarRespostasTab() {
             source_label: resolvedSourceLabel,
             dry_run: true,
             rows: chunk.map((r) => ({
-              email: r.email,
+              matricula_ra: r.matricula_ra,
               answers: r.answers,
               tempo_segundos: r.tempo_segundos,
               saidas_aba: r.saidas_aba,
@@ -295,6 +297,8 @@ export default function ImportarRespostasTab() {
         aggregatedSummary.ok += d.summary.ok;
         aggregatedSummary.warning += d.summary.warning;
         aggregatedSummary.error += d.summary.error;
+        aggregatedSummary.multi_marked_cells = (aggregatedSummary.multi_marked_cells ?? 0) + (d.summary.multi_marked_cells ?? 0);
+        aggregatedSummary.multi_marked_rows = (aggregatedSummary.multi_marked_rows ?? 0) + (d.summary.multi_marked_rows ?? 0);
         aggregatedSummary.already_finalized += d.summary.already_finalized;
       }
 
@@ -324,10 +328,10 @@ export default function ImportarRespostasTab() {
     setCancelledLast(false);
     cancelRequestedRef.current = false;
 
-    const validEmails = new Set(
-      previewResults.filter((r) => r.status === 'preview_ok' || r.status === 'preview_warning').map((r) => r.email.trim().toLowerCase()),
+    const validRas = new Set(
+      previewResults.filter((r) => r.status === 'preview_ok' || r.status === 'preview_warning').map((r) => normRa(r.matricula_ra)),
     );
-    const rowsToSend = parsedRows.filter((r) => validEmails.has(r.email.trim().toLowerCase()));
+    const rowsToSend = parsedRows.filter((r) => validRas.has(normRa(r.matricula_ra)));
 
     const batchId = crypto.randomUUID();
     const allResults: PreviewResult[] = [];
@@ -363,7 +367,7 @@ export default function ImportarRespostasTab() {
             // e o audit log só é gravado no chunk com is_last=true.
             chunk_meta: { total_rows: rowsToSend.length, is_last: chunkIndex === totalChunks },
             rows: chunk.map((r) => ({
-              email: r.email,
+              matricula_ra: r.matricula_ra,
               answers: r.answers,
               tempo_segundos: r.tempo_segundos,
               saidas_aba: r.saidas_aba,
@@ -404,7 +408,10 @@ export default function ImportarRespostasTab() {
   const downloadReport = () => {
     if (!finalReport) return;
     const rows = finalReport.results.map((r) => ({
-      email: r.email,
+      matricula_ra: r.matricula_ra,
+      nome: r.nome ?? '',
+      email: r.email ?? '',
+      marcacoes_multiplas: Number((r.details as { multi_marked_cells?: number } | undefined)?.multi_marked_cells ?? 0) || '',
       status: r.status,
       motivo: r.reason ? REASON_LABEL[r.reason] || r.reason : '',
     }));
