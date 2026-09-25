@@ -13,9 +13,8 @@ import { ImportarHistoricoLotes } from './ImportarHistoricoLotes';
 import {
   CHUNK_SIZE,
   DRY_RUN_CHUNK_SIZE,
-  detectRaHeader,
   normRa,
-  parseDataPtBrOuIso,
+  parseMatrizRespostas,
   REASON_LABEL,
   type FinalReport,
   type ParsedRow,
@@ -46,6 +45,7 @@ export default function ImportarRespostasTab() {
   const [defaultDate, setDefaultDate] = useState('');
 
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [textAsBlankCount, setTextAsBlankCount] = useState(0);
   const [questionColumnsCount, setQuestionColumnsCount] = useState(0);
   const [fileName, setFileName] = useState('');
   const [fileSize, setFileSize] = useState(0);
@@ -139,69 +139,29 @@ export default function ImportarRespostasTab() {
           toast.error('Planilha vazia', { description: 'Nenhuma aba detectada' });
           return;
         }
-        const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false });
-
-        if (json.length === 0) {
-          toast.error('Planilha vazia', { description: 'Nenhuma linha de dados' });
+        const total = selectedSimuladoData?.total_questoes ?? 0;
+        if (total === 0) {
+          toast.error('Simulado sem questões', { description: 'Selecione um simulado com questões cadastradas.' });
+          return;
+        }
+        const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: false, blankrows: false });
+        const result = parseMatrizRespostas(matrix, total);
+        if (!result.ok) {
+          toast.error('Planilha fora do padrão', { description: (result as { error: string }).error });
           return;
         }
 
-        const headers = Object.keys(json[0] ?? {});
-        const raKey = detectRaHeader(headers);
-        if (!raKey) {
-          toast.error('Coluna de Matrícula/RA não encontrada', {
-            description: 'A planilha precisa ter uma coluna chamada "matricula_ra" (ou "RA", "Matrícula").',
-          });
-          return;
-        }
-
-        const tempoKey = headers.find((h) => /tempo/i.test(h));
-        const saidasKey = headers.find((h) => /saida|saída|aba/i.test(h));
-        const dataKey = headers.find((h) => /data|finalizad/i.test(h));
-
-        const reservedKeys = new Set([raKey, tempoKey, saidasKey, dataKey].filter(Boolean) as string[]);
-        const questionKeys = headers.filter((h) => !reservedKeys.has(h));
-
-        const hasNumericCols = questionKeys.some((k) => /^\d+$/.test(String(k).trim()));
-        if (!hasNumericCols) {
-          toast.error('Sem colunas de questões', {
-            description: 'Esperava colunas com números (1, 2, 3, ...) representando questões.',
-          });
-          return;
-        }
-
-        const rows: ParsedRow[] = json.map((row, idx) => {
-          const answers: Record<string, string | null> = {};
-          for (const k of questionKeys) {
-            const num = String(k).replace(/[^\d]/g, '');
-            if (!num) continue;
-            const v = row[k];
-            answers[num] = v == null || v === '' ? null : String(v).trim();
-          }
-          const tempoMin = tempoKey ? Number(row[tempoKey]) : NaN;
-          const dataRaw = dataKey && row[dataKey] ? String(row[dataKey]).trim() : undefined;
-          // Formato brasileiro dd/mm/yyyy explícito antes de cair no `new Date()` —
-          // que interpretaria "05/04" como mês/dia (formato US), trocando dia e mês
-          // silenciosamente, ou geraria "Invalid Date" sem avisar (achado P2).
-          const dataParsed = dataRaw ? parseDataPtBrOuIso(dataRaw) : null;
-          return {
-            rowIndex: idx + 2,
-            matricula_ra: String(row[raKey] ?? '').trim(),
-            answers,
-            tempo_segundos: Number.isFinite(tempoMin) ? Math.round(tempoMin * 60) : undefined,
-            saidas_aba: saidasKey ? Number(row[saidasKey]) || 0 : undefined,
-            finalizado_em: dataParsed ? dataParsed.toISOString() : undefined,
-          };
+        setParsedRows(result.rows);
+        setTextAsBlankCount(result.textAsBlank);
+        setQuestionColumnsCount(total);
+        toast.success('Planilha carregada', {
+          description: `${result.rows.length} linha(s) · 1ª coluna usada como Matrícula/RA, demais como questões 1 a ${total}`,
         });
-
-        setParsedRows(rows);
-        setQuestionColumnsCount(questionKeys.filter((k) => /^\d+$/.test(String(k).trim())).length);
-        toast.success('Planilha carregada', { description: `${rows.length} linha(s) detectada(s) — coluna "${raKey}" usada como Matrícula/RA` });
       } catch (err) {
         toast.error('Erro ao ler planilha', { description: err instanceof Error ? err.message : String(err) });
       }
     },
-    [],
+    [selectedSimuladoData],
   );
 
   const downloadTemplate = () => {
@@ -211,12 +171,9 @@ export default function ImportarRespostasTab() {
       toast.error('Simulado sem questões', { description: 'Cadastre as questões antes de gerar o template.' });
       return;
     }
-    const headers = ['matricula_ra', ...Array.from({ length: total }, (_, i) => String(i + 1)), 'tempo_minutos', 'saidas_aba', 'finalizado_em'];
+    const headers = ['matricula_ra', ...Array.from({ length: total }, (_, i) => `Questão ${i + 1}`)];
     const sample: Record<string, string | number> = { matricula_ra: '2023001234' };
-    for (let i = 1; i <= total; i++) sample[String(i)] = ['A', 'B', 'C', 'D'][i % 4];
-    sample['tempo_minutos'] = 180;
-    sample['saidas_aba'] = 0;
-    sample['finalizado_em'] = new Date().toISOString();
+    for (let i = 1; i <= total; i++) sample[`Questão ${i}`] = ['A', 'B', 'C', 'D'][i % 4];
 
     const ws = XLSX.utils.json_to_sheet([sample], { header: headers });
     const wb = XLSX.utils.book_new();
@@ -225,11 +182,11 @@ export default function ImportarRespostasTab() {
     const instrucoesData = [
       ['INSTRUÇÕES'],
       [''],
-      ['1. Coluna "matricula_ra": Matrícula/RA do aluno, exatamente como cadastrada no Academy'],
-      [`2. Colunas "1" a "${total}": resposta de cada questão (A, B, C, D, E ou em branco)`],
-      ['3. Coluna "tempo_minutos" (opcional): tempo gasto em minutos'],
-      ['4. Coluna "saidas_aba" (opcional): número de saídas de aba durante a prova'],
-      ['5. Coluna "finalizado_em" (opcional): data ISO de finalização (ex: 2026-04-28T18:00:00Z)'],
+      [`A planilha deve ter exatamente ${total + 1} colunas, nesta ordem:`],
+      ['1. 1ª coluna: Matrícula/RA do aluno, exatamente como cadastrada no Academy'],
+      [`2. Colunas seguintes: questões 1 a ${total}, na ordem (o nome do cabeçalho não importa)`],
+      ['3. Textos como "BLANK", "EM BRANCO", "X" são gravados como em branco'],
+      ['4. A data de finalização é a "Data de finalização padrão" do Passo 1 (ou o momento da importação)'],
       [''],
       ['REGRAS:'],
       ['- O RA deve estar cadastrado em um aluno de uma IES vinculada ao simulado'],
@@ -258,7 +215,7 @@ export default function ImportarRespostasTab() {
       // planilhas grandes). Os summaries/resultados de cada lote são agregados no
       // client antes de exibir o passo 3.
       const aggregatedResults: PreviewResult[] = [];
-      const aggregatedSummary: PreviewSummary = { total: 0, ok: 0, warning: 0, error: 0, already_finalized: 0, multi_marked_cells: 0, multi_marked_rows: 0 };
+      const aggregatedSummary: PreviewSummary = { total: 0, ok: 0, warning: 0, error: 0, already_finalized: 0, multi_marked_cells: 0, multi_marked_rows: 0, text_as_blank_cells: textAsBlankCount };
 
       for (let i = 0; i < parsedRows.length; i += DRY_RUN_CHUNK_SIZE) {
         const chunk = parsedRows.slice(i, i + DRY_RUN_CHUNK_SIZE);
@@ -268,13 +225,7 @@ export default function ImportarRespostasTab() {
             conflict_mode: conflictMode,
             source_label: resolvedSourceLabel,
             dry_run: true,
-            rows: chunk.map((r) => ({
-              matricula_ra: r.matricula_ra,
-              answers: r.answers,
-              tempo_segundos: r.tempo_segundos,
-              saidas_aba: r.saidas_aba,
-              finalizado_em: r.finalizado_em,
-            })),
+            rows: chunk.map((r) => ({ matricula_ra: r.matricula_ra, answers: r.answers })),
           },
         });
         if (error) {
@@ -366,13 +317,7 @@ export default function ImportarRespostasTab() {
             // os contadores do batch são acumulados entre chunks (total_rows vem daqui)
             // e o audit log só é gravado no chunk com is_last=true.
             chunk_meta: { total_rows: rowsToSend.length, is_last: chunkIndex === totalChunks },
-            rows: chunk.map((r) => ({
-              matricula_ra: r.matricula_ra,
-              answers: r.answers,
-              tempo_segundos: r.tempo_segundos,
-              saidas_aba: r.saidas_aba,
-              finalizado_em: r.finalizado_em,
-            })),
+            rows: chunk.map((r) => ({ matricula_ra: r.matricula_ra, answers: r.answers })),
           },
         });
         if (error) throw error;

@@ -15,9 +15,6 @@ export interface ParsedRow {
   rowIndex: number;
   matricula_ra: string;
   answers: Record<string, string | null>;
-  tempo_segundos?: number;
-  saidas_aba?: number;
-  finalizado_em?: string;
 }
 
 export type PreviewStatus = 'preview_ok' | 'preview_warning' | 'preview_error' | 'imported' | 'replaced' | 'skipped' | 'failed';
@@ -39,6 +36,58 @@ export interface PreviewSummary {
   already_finalized: number;
   multi_marked_cells?: number;
   multi_marked_rows?: number;
+  text_as_blank_cells?: number;
+}
+
+const RESPOSTA_VALIDA_REGEX = /^[A-Ea-e()/,;\s]+$/;
+
+/** Célula conta como resposta só se tiver apenas letras A–E e separadores ( ) / , ; e espaço. */
+export function isRespostaValida(raw: unknown): boolean {
+  if (raw == null) return false;
+  const s = String(raw).trim();
+  return s !== '' && RESPOSTA_VALIDA_REGEX.test(s) && /[A-Ea-e]/.test(s);
+}
+
+export type ParseResult =
+  | { ok: true; rows: ParsedRow[]; textAsBlank: number }
+  | { ok: false; error: string };
+
+/**
+ * Lê a matriz da planilha por posição: coluna 0 = Matrícula/RA, colunas 1..N = questões 1..N.
+ * Exige exatamente 1 + totalQuestoes colunas (ignorando colunas vazias à direita).
+ */
+export function parseMatrizRespostas(matrix: unknown[][], totalQuestoes: number): ParseResult {
+  const isEmpty = (v: unknown) => v == null || String(v).trim() === '';
+  const rowsRaw = matrix.filter((r) => Array.isArray(r) && r.some((v) => !isEmpty(v)));
+  if (rowsRaw.length < 2) return { ok: false, error: 'A planilha não tem linhas de dados.' };
+  let width = 0;
+  for (const r of rowsRaw) {
+    let w = r.length;
+    while (w > 0 && isEmpty(r[w - 1])) w--;
+    width = Math.max(width, w);
+  }
+  const esperado = 1 + totalQuestoes;
+  if (width !== esperado) {
+    return {
+      ok: false,
+      error: `A planilha tem ${width} colunas; este simulado exige ${esperado} (1 de Matrícula/RA + ${totalQuestoes} questões).`,
+    };
+  }
+  let textAsBlank = 0;
+  const rows: ParsedRow[] = rowsRaw.slice(1).map((r, idx) => {
+    const answers: Record<string, string | null> = {};
+    for (let q = 1; q <= totalQuestoes; q++) {
+      const v = r[q];
+      if (isEmpty(v)) answers[String(q)] = null;
+      else if (isRespostaValida(v)) answers[String(q)] = String(v).trim();
+      else {
+        answers[String(q)] = null;
+        textAsBlank++;
+      }
+    }
+    return { rowIndex: idx + 2, matricula_ra: String(r[0] ?? '').trim(), answers };
+  });
+  return { ok: true, rows, textAsBlank };
 }
 
 export interface FinalReport {
