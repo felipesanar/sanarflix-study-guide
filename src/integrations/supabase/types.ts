@@ -2284,6 +2284,10 @@ export type Database = {
         Args: { p_contrato_id: string; p_slots: Json }
         Returns: Json
       }
+      admin_set_simulado_type: {
+        Args: { p_simulado_id: string; p_type: string }
+        Returns: undefined
+      }
       admin_simulado_question_map: {
         Args: { p_simulado_id: string }
         Returns: {
