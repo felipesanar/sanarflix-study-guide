@@ -13,7 +13,7 @@ export interface SimuladoOpt {
 
 export interface ParsedRow {
   rowIndex: number;
-  email: string;
+  matricula_ra: string;
   answers: Record<string, string | null>;
   tempo_segundos?: number;
   saidas_aba?: number;
@@ -23,7 +23,9 @@ export interface ParsedRow {
 export type PreviewStatus = 'preview_ok' | 'preview_warning' | 'preview_error' | 'imported' | 'replaced' | 'skipped' | 'failed';
 
 export interface PreviewResult {
-  email: string;
+  matricula_ra: string;
+  email?: string;
+  nome?: string;
   status: PreviewStatus;
   reason?: string;
   details?: Record<string, unknown>;
@@ -35,6 +37,8 @@ export interface PreviewSummary {
   warning: number;
   error: number;
   already_finalized: number;
+  multi_marked_cells?: number;
+  multi_marked_rows?: number;
 }
 
 export interface FinalReport {
@@ -55,12 +59,28 @@ export const REASON_LABEL: Record<string, string> = {
   already_finalized: 'Aluno já finalizou esse simulado',
   validation_failed: 'Falhou na validação',
   already_processed: 'Já processado neste lote',
+  ra_missing: 'Matrícula/RA em branco',
+  duplicate_ra_in_file: 'Matrícula/RA duplicada na planilha',
+  ra_not_found: 'Matrícula/RA não encontrada nas IES do simulado',
+  ra_ambiguous: 'Matrícula/RA encontrada em mais de uma IES do simulado',
 };
 
 export const CHUNK_SIZE = 50;
 /** Limite de linhas por chamada da edge `admin-import-simulado-responses` — vale
  * inclusive para o dry-run, então tanto o preview quanto o commit precisam chunkar. */
 export const DRY_RUN_CHUNK_SIZE = 200;
+const RA_HEADER_REGEX = /^(matr[ií]cula[\s_\-/]*(ra)?|ra|r\.a\.?|registro[\s_]+acad[eê]mico|matricula_ra)$/i;
+
+/** Detecta a coluna de Matrícula/RA pelo cabeçalho. */
+export function detectRaHeader(headers: string[]): string | null {
+  return headers.find((h) => RA_HEADER_REGEX.test(h.trim())) ?? null;
+}
+
+/** Chave de comparação de RA: sem espaços nas pontas, case-insensitive (zeros à esquerda preservados). */
+export function normRa(raw: unknown): string {
+  return String(raw ?? '').trim().toLowerCase();
+}
+
 const EMAIL_HEADER_REGEX = /^(e[\s\-_.]?-?\s?mail|email|e-mail)$/i;
 
 // dd/mm/yyyy, com "hh:mm" ou "hh:mm:ss" opcional, separado por espaço ou "T".
