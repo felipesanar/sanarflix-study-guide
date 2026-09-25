@@ -903,7 +903,7 @@ export default function SimuladoConfigDialog({
             {form.modalidade === 'presencial' && (
               <p className="text-xs text-muted-foreground">
                 Presencial: a data principal é a <strong>Data de realização</strong> — o dia em que a prova
-                acontece. Início/Término abaixo passam a valer para o lançamento das respostas na plataforma.
+                acontece.
               </p>
             )}
             {form.modalidade === null && (
@@ -934,9 +934,11 @@ export default function SimuladoConfigDialog({
             )}
           </div>
 
+          {/* Presencial: Início/Término ficam ocultos; valores já gravados são preservados no save. */}
+          {form.modalidade !== 'presencial' && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>{form.modalidade === 'presencial' ? 'Início do lançamento de respostas' : 'Início'}</Label>
+              <Label>Início</Label>
               <Input
                 type="datetime-local"
                 value={form.dataLiberacao}
@@ -966,18 +968,13 @@ export default function SimuladoConfigDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label>{form.modalidade === 'presencial' ? 'Término do lançamento de respostas' : 'Término'}</Label>
+              <Label>Término</Label>
               <Input
                 type="datetime-local"
                 value={form.dataEncerramento}
                 onChange={(e) => setForm((prev) => ({ ...prev, dataEncerramento: e.target.value }))}
               />
               <p className="text-xs text-muted-foreground">Horário de Brasília (UTC−3).</p>
-              {form.modalidade === 'presencial' && (
-                <p className="text-xs text-muted-foreground">
-                  Janela de lançamento das respostas na plataforma — não é a data da prova.
-                </p>
-              )}
               {avisoEncerramentoAntesDoInicio && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Término é anterior ao início — confira as datas.
@@ -985,6 +982,7 @@ export default function SimuladoConfigDialog({
               )}
             </div>
           </div>
+          )}
 
           {/* §6.4 — só em edição: a criação insere direto em `simulados_admin`,
               onde `data_agendada_original` nasce junto com a data e "Reagendado"
