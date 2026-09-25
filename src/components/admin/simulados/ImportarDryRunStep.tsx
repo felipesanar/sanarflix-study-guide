@@ -59,6 +59,18 @@ export function ImportarDryRunStep({
         <StatCard label="Não encontrados" value={naoEncontrados} accent="red" />
       </div>
 
+      {(previewSummary.multi_marked_cells ?? 0) > 0 && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>
+            {previewSummary.multi_marked_cells} resposta(s) com mais de uma alternativa em {previewSummary.multi_marked_rows} aluno(s)
+          </AlertTitle>
+          <AlertDescription>
+            Serão contadas como respondidas e erradas: se uma das marcadas for o gabarito, fica registrada a outra; se nenhuma for, fica a primeira.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {previewSummary.already_finalized > 0 && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
