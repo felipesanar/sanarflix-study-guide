@@ -64,6 +64,8 @@ export interface Simulado {
    * via `admin_update_simulado` (SimuladoConfigDialog), nunca pelo CX.
    */
   modalidade: 'online' | 'presencial' | null;
+  /** `simulados_admin.type` — só `simulado_enamed` aparece para o gestor. */
+  tipo: 'simulado_enamed' | 'trilha' | null;
   /**
    * Data em que a prova PRESENCIAL acontece — é a data principal quando
    * `modalidade === 'presencial'` (o banco já deriva `data_agendada_original`
@@ -175,6 +177,7 @@ export default function ProvasTab() {
         liberacao_desempenho: (s.liberacao_desempenho as Simulado['liberacao_desempenho']) || 'imediato',
         data_liberacao_desempenho: s.data_liberacao_desempenho,
         modalidade: (s.modalidade as Simulado['modalidade']) ?? null,
+        tipo: s.type === 'simulado_enamed' || s.type === 'trilha' ? s.type : null,
         data_realizacao: s.data_realizacao,
       }));
 

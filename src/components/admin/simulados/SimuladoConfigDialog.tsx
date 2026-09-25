@@ -30,13 +30,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MonoValue } from '@/experiences/admin/ui';
 import { logAdminAction } from '@/services/admin/logAction';
-import { updateSimulado } from '@/services/admin/simulados';
+import { updateSimulado, setSimuladoType } from '@/services/admin/simulados';
 import type { Modalidade } from '@/services/admin/contratoSimulados';
 import { cn } from '@/lib/utils';
 import type { IES, Simulado } from './ProvasTab';
 
-/** Sentinela do item "Não definida" do Select de modalidade — Radix não aceita value="". */
-const MODALIDADE_NAO_DEFINIDA = '__nao_definida__';
+type TipoSimulado = 'simulado_enamed' | 'trilha';
 
 const DURACAO_OPCOES = [
   { value: 120, label: '2h' },
@@ -168,6 +167,7 @@ const FORM_INITIAL = {
   // em produção (boa parte das provas ainda não tem modalidade definida).
   modalidade: null as Modalidade | null,
   dataRealizacao: '',
+  tipo: null as TipoSimulado | null,
   // §6.4: sem esta intenção explícita a RPC nunca sincroniza
   // `data_agendada_original`, e uma data nova OFICIAL acordada com a IES fica
   // marcada como "Reagendado" no cronograma do gestor para sempre. Não é
@@ -234,6 +234,7 @@ export default function SimuladoConfigDialog({
         // era exatamente esse o risco levantado na Task 10.
         modalidade: simulado.modalidade,
         dataRealizacao: simulado.data_realizacao ? brazilISOToDatetimeLocal(simulado.data_realizacao) : '',
+        tipo: simulado.tipo,
         // Sempre desmarcado ao abrir: "definitiva" é uma afirmação sobre ESTA
         // edição, não um atributo do simulado. Herdar do save anterior faria o
         // admin oficializar uma remarcação sem perceber.
@@ -521,6 +522,9 @@ export default function SimuladoConfigDialog({
     !saving &&
     form.nome.trim() !== '' &&
     selectedIES.length > 0 &&
+    form.modalidade !== null &&
+    form.tipo !== null &&
+    !avisoPresencialSemDataRealizacao &&
     (mode === 'edit' || parsedFile !== null) &&
     (!allImagesFailed || ignoreImageWarning);
 
@@ -593,6 +597,11 @@ export default function SimuladoConfigDialog({
           dataRealizacao: dataRealizacaoISO,
           definitiva: form.dataDefinitiva,
         });
+        if (form.tipo && form.tipo !== simulado.tipo) {
+          await setSimuladoType(simulado.id, form.tipo);
+        }
+
+
 
         // Sem `logAdminAction` aqui: a RPC já grava `editar_simulado` em
         // `admin_audit_log` no mesmo commit. Chamar os dois daria duas linhas
@@ -613,6 +622,10 @@ export default function SimuladoConfigDialog({
             ies_ids: selectedIES,
             liberacao_desempenho: form.liberacaoDesempenho,
             data_liberacao_desempenho: dataLiberacaoDesempenhoISO,
+            modalidade: form.modalidade,
+            data_realizacao: dataRealizacaoISO,
+            data_agendada_original: dataRealizacaoISO,
+            type: form.tipo,
           })
           .select()
           .single();
@@ -846,21 +859,32 @@ export default function SimuladoConfigDialog({
           )}
 
           <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="simulado-modalidade">Modalidade</Label>
+            <Label htmlFor="simulado-tipo">Tipo do simulado *</Label>
             <Select
-              value={form.modalidade ?? MODALIDADE_NAO_DEFINIDA}
-              onValueChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  modalidade: v === MODALIDADE_NAO_DEFINIDA ? null : (v as Modalidade),
-                }))
-              }
+              value={form.tipo ?? undefined}
+              onValueChange={(v) => setForm((prev) => ({ ...prev, tipo: v as TipoSimulado }))}
             >
-              <SelectTrigger id="simulado-modalidade" className="max-w-xs">
-                <SelectValue />
+              <SelectTrigger id="simulado-tipo" className="max-w-xs">
+                <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={MODALIDADE_NAO_DEFINIDA}>Não definida</SelectItem>
+                <SelectItem value="simulado_enamed">Simulado ENAMED</SelectItem>
+                <SelectItem value="trilha">Trilha</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Só simulados ENAMED aparecem para o gestor.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="simulado-modalidade">Modalidade *</Label>
+            <Select
+              value={form.modalidade ?? undefined}
+              onValueChange={(v) => setForm((prev) => ({ ...prev, modalidade: v as Modalidade }))}
+            >
+              <SelectTrigger id="simulado-modalidade" className="max-w-xs">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
                 <SelectItem value="online">Online</SelectItem>
                 <SelectItem value="presencial">Presencial</SelectItem>
               </SelectContent>
