@@ -2259,6 +2259,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_lookup_users_by_ra_in_ies: {
+        Args: { p_ies_ids: string[]; p_ras: string[] }
+        Returns: {
+          email: string
+          id_ies: string
+          match_count: number
+          nome: string
+          ra: string
+          semestre: number
+          user_id: string
+        }[]
+      }
       admin_monitor_summary: { Args: never; Returns: Json }
       admin_question_error_rates: {
         Args: { p_simulado_id: string }
