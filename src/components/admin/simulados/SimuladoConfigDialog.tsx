@@ -859,7 +859,7 @@ export default function SimuladoConfigDialog({
           )}
 
           <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="simulado-tipo">Tipo do simulado *</Label>
+            <Label htmlFor="simulado-tipo">Tipo do simulado<span aria-hidden="true"> *</span></Label>
             <Select
               value={form.tipo ?? undefined}
               onValueChange={(v) => setForm((prev) => ({ ...prev, tipo: v as TipoSimulado }))}
@@ -876,7 +876,7 @@ export default function SimuladoConfigDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="simulado-modalidade">Modalidade *</Label>
+            <Label htmlFor="simulado-modalidade">Modalidade<span aria-hidden="true"> *</span></Label>
             <Select
               value={form.modalidade ?? undefined}
               onValueChange={(v) => setForm((prev) => ({ ...prev, modalidade: v as Modalidade }))}
@@ -929,9 +929,7 @@ export default function SimuladoConfigDialog({
             </p>
             {avisoPresencialSemDataRealizacao && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Simulado presencial sem data de realização definida — modalidade e data de realização{' '}
-                <strong>não serão gravadas</strong> neste save (o servidor recusa prova presencial sem
-                data). Os demais campos são salvos normalmente. Preencha a data para gravar a agenda.
+                Simulado presencial precisa de data de realização para ser salvo.
               </p>
             )}
           </div>

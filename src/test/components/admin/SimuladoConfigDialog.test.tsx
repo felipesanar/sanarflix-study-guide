@@ -159,7 +159,7 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
   });
 
   it('manda atualizarAgenda: true — esta tela é a dona da escrita de modalidade/data de realização (exceção do achado A à parte)', async () => {
-    renderDialog(makeSimulado({ modalidade: null, data_realizacao: null }));
+    renderDialog(makeSimulado({ modalidade: 'online', data_realizacao: null }));
     await clicarAtualizar();
     await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
 
@@ -169,7 +169,7 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
     // permite o admin LIMPAR uma modalidade definida incorretamente.
     expect(payload).toHaveProperty('modalidade');
     expect(payload).toHaveProperty('dataRealizacao');
-    expect(payload.modalidade).toBeNull();
+    expect(payload.modalidade).toBe('online');
     expect(payload.dataRealizacao).toBeNull();
   });
 
@@ -283,6 +283,7 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
       Element.prototype.scrollIntoView = vi.fn();
 
       renderDialog(makeSimulado({ modalidade: null }));
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).toBeDisabled();
 
       fireEvent.click(screen.getByRole('combobox', { name: 'Modalidade' }));
       const option = await screen.findByText('Online', { selector: '[role="option"], [role="option"] *' });
@@ -314,11 +315,11 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
       expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
     });
 
-    it('avisa (sem bloquear) quando é presencial e não tem data de realização', () => {
+    it('bloqueia o save quando é presencial e não tem data de realização', () => {
       renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
 
-      expect(screen.getByText(/sem data de realização/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
+      expect(screen.getByText(/precisa de data de realização/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).toBeDisabled();
     });
 
     it('avisa (sem bloquear) quando o término é anterior ao início', () => {
@@ -346,15 +347,6 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
    * NOME, IES ou datas de uma prova que já está nesse estado hoje.
    */
   describe('achado A — presencial sem data de realização não pode estourar a RPC', () => {
-    it('manda atualizarAgenda: false quando é presencial e a data de realização está vazia', async () => {
-      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
-      await clicarAtualizar();
-      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
-
-      // Com `true` a RPC responderia RAISE 'simulado presencial exige data_realizacao'.
-      expect(payloadDoUpdate().atualizarAgenda).toBe(false);
-    });
-
     it('volta a mandar atualizarAgenda: true assim que o admin preenche a data de realização', async () => {
       renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
 
@@ -378,13 +370,10 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
       expect(payloadDoUpdate().atualizarAgenda).toBe(true);
     });
 
-    it('o aviso diz que modalidade e data de realização NÃO serão gravadas', () => {
-      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
-
-      // Sem isto o admin acha que salvou a modalidade e ela não foi gravada.
-      expect(screen.getByText(/não serão gravadas/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
-    });
+    it('bloqueia o save sem tipo do simulado', () => {
+      renderDialog(makeSimulado({ tipo: null }));
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).toBeDisabled();
+  });
   });
 
   /**
