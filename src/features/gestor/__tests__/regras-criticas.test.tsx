@@ -138,6 +138,9 @@ vi.mock('@/features/gestor/api/queries', () => ({
     isError: false,
     refetch: () => {},
   })),
+  // Task 5 — selo "★ Prova oficial", chamado por KpisDetalhamento (real
+  // neste arquivo). Default "nenhum simulado é prova oficial".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 vi.mock('@/features/gestor/hooks/useFiltrosGestor', () => ({

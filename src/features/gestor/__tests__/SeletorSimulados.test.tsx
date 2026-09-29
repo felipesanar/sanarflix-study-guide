@@ -1,7 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, userEvent } from '@/test/utils';
 import { SeletorSimulados } from '@/features/gestor/components/SeletorSimulados';
+import { useEhProvaOficial } from '@/features/gestor/api/queries';
 import type { ItemCronograma } from '@/features/gestor/api/types';
+
+// Task 5 — selo "★ Prova oficial". Default "nenhum simulado é prova oficial"
+// para não quebrar os testes existentes, que não conhecem este hook.
+vi.mock('@/features/gestor/api/queries', () => ({
+  useEhProvaOficial: vi.fn(() => () => false),
+}));
+
+const mockUseEhProvaOficial = vi.mocked(useEhProvaOficial);
 
 const item = (over: Partial<ItemCronograma>): ItemCronograma => ({
   id: 's1',
@@ -28,6 +37,10 @@ const abrirPainel = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe('SeletorSimulados', () => {
+  beforeEach(() => {
+    mockUseEhProvaOficial.mockReturnValue(() => false);
+  });
+
   it('não oferece nenhuma opção "todos" — a seleção é sempre explícita (§4.7.1)', async () => {
     const user = userEvent.setup();
     render(<SeletorSimulados itens={REALIZADOS.slice(0, 2)} selecionados={['s1']} onChange={vi.fn()} />);
@@ -181,5 +194,35 @@ describe('SeletorSimulados', () => {
     expect(
       screen.getByText(/Não existe "todos" — o agregado do período é a Visão Geral/),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * Task 5 — selo "★ Prova oficial" (`useEhProvaOficial`), na linha do painel
+   * E no chip do campo, exatamente uma vez por item marcado.
+   */
+  describe('selo "★ Prova oficial" (Task 5)', () => {
+    it('renderiza o selo só ao lado do item que useEhProvaOficial reconhece, na linha e no chip', async () => {
+      const user = userEvent.setup();
+      mockUseEhProvaOficial.mockReturnValue((id: string) => id === 's1');
+      render(
+        <SeletorSimulados itens={REALIZADOS.slice(0, 2)} selecionados={['s1']} onChange={vi.fn()} />,
+      );
+
+      // Chip do campo (fechado): 1 selo.
+      expect(screen.getAllByText('★ Prova oficial')).toHaveLength(1);
+
+      await abrirPainel(user);
+      // Painel aberto: chip do campo + linha da lista = 2 selos, os dois de s1.
+      expect(screen.getAllByText('★ Prova oficial')).toHaveLength(2);
+      expect(screen.getByRole('checkbox', { name: /Simulado 1 · 10\/03 · online, prova oficial/ })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Simulado 2 · 10/03 · online' })).toBeInTheDocument();
+    });
+
+    it('sem prova oficial no recorte, nenhum selo aparece', async () => {
+      const user = userEvent.setup();
+      render(<SeletorSimulados itens={REALIZADOS.slice(0, 2)} selecionados={['s1']} onChange={vi.fn()} />);
+      await abrirPainel(user);
+      expect(screen.queryByText('★ Prova oficial')).not.toBeInTheDocument();
+    });
   });
 });

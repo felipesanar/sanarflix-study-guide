@@ -45,6 +45,20 @@ vi.mock('@/features/gestor/api/queries', () => ({
     isError: false,
     refetch: () => {},
   })),
+  // Task 5 — numeração do Caderno 2 nas Questões, chamado incondicionalmente
+  // pela rota (regra dos hooks). Default "sem prova oficial no recorte", para
+  // não quebrar os testes existentes.
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
+  // Task 5 — selo "★ Prova oficial", chamado por SeletorSimulados/
+  // CronogramaSimulados/ComparativoSimulados/KpisDetalhamento/DrawerAluno,
+  // todos REAIS nesta rota. Default "nenhum simulado é prova oficial".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 vi.mock('@/features/gestor/components/FiltroSemestre', () => ({

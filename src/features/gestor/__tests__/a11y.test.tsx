@@ -84,6 +84,10 @@ vi.mock('@/features/gestor/api/queries', () => ({
     isError: false,
     refetch: () => {},
   })),
+  // Task 5 — selo "★ Prova oficial", chamado por SeletorSimulados/
+  // ComparativoSimulados/KpisDetalhamento/DrawerAluno/CronogramaSimulados,
+  // todos reais nas rotas deste arquivo. Default "sem prova oficial".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 /**

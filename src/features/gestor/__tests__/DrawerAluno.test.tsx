@@ -10,6 +10,7 @@ import {
   useAluno,
   useAlunoContato,
   useAlunoDesempenhoPorArea,
+  useEhProvaOficial,
   useGestorContexto,
 } from '@/features/gestor/api/queries';
 import { TRACO } from '@/features/gestor/lib/formatters';
@@ -38,12 +39,16 @@ vi.mock('@/features/gestor/api/queries', () => ({
   // O rodapé de ações é o `AcoesRecorte`, que lê `podeExportar` do contexto
   // resolvido no SERVIDOR — o mock do módulo precisa expor este hook também.
   useGestorContexto: vi.fn(),
+  // Task 5 — selo "★ Prova oficial". Default "nenhum simulado é prova
+  // oficial", para não quebrar os testes existentes.
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 const mockUseAluno = vi.mocked(useAluno);
 const mockUseAlunoContato = vi.mocked(useAlunoContato);
 const mockUseAlunoDesempenhoPorArea = vi.mocked(useAlunoDesempenhoPorArea);
 const mockUseContexto = vi.mocked(useGestorContexto);
+const mockUseEhProvaOficial = vi.mocked(useEhProvaOficial);
 
 const META: Meta = {
   periodo: '2026',
@@ -195,6 +200,7 @@ beforeEach(() => {
   // (`InsightArea`) — é ele que os testes de área afirmam.
   mockFunctionsInvoke.mockReset();
   mockFunctionsInvoke.mockResolvedValue({ data: null, error: new Error('sem IA no teste') });
+  mockUseEhProvaOficial.mockReturnValue(() => false);
 });
 
 
@@ -392,6 +398,21 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     expect(linha).toHaveTextContent('12º de 118 · percentil 90');
     expect(linha).toHaveTextContent('+3 vs anterior');
     expect(screen.getByTestId('drawer-proficiencia-s1')).toHaveTextContent('71');
+  });
+
+  /**
+   * Task 5 — selo "★ Prova oficial" (`useEhProvaOficial`) na linha da lista
+   * de simulados do drawer.
+   */
+  it('marca com o selo só a linha do simulado que useEhProvaOficial reconhece', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    mockUseEhProvaOficial.mockReturnValue((id: string) => id === 's2');
+    montar();
+
+    expect(within(screen.getByTestId('drawer-simulado-s2')).getByText('★ Prova oficial')).toBeInTheDocument();
+    expect(within(screen.getByTestId('drawer-simulado-s1')).queryByText('★ Prova oficial')).not.toBeInTheDocument();
   });
 
   /**

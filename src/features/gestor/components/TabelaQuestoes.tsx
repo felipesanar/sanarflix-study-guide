@@ -108,6 +108,18 @@ export interface TabelaQuestoesProps {
   onAreaChange: (area: string | null) => void;
   processando?: boolean;
   /**
+   * `true` quando o simulado selecionado é a prova oficial ENAMED (Task 4/5,
+   * `useEhProvaOficial`). Só então a coluna Nº ganha o número do Caderno 2
+   * ao lado do Caderno 1 — o resto do portal nunca fala em cadernos.
+   */
+  ehProvaOficial?: boolean;
+  /**
+   * Chave = número da questão no Caderno 1 (o `q.numero` que a coluna Nº já
+   * mostra), valor = posição no Caderno 2 (`ProvaOficialGestor.
+   * numeracaoCaderno2`, Task 4). Só consultado quando `ehProvaOficial`.
+   */
+  numeracaoCaderno2?: Record<string, number>;
+  /**
    * Rastreabilidade do bloco (§4.1): fonte + data de atualização no rodapé.
    * Opcional porque o `meta` de `useQuestoes` ainda não é repassado pela rota —
    * sem ele o rodapé mostra só a contagem, nunca uma proveniência inventada.
@@ -136,6 +148,8 @@ export function TabelaQuestoes({
   areaSelecionada,
   onAreaChange,
   processando = false,
+  ehProvaOficial = false,
+  numeracaoCaderno2,
   meta,
   carregando = false,
 }: TabelaQuestoesProps) {
@@ -462,6 +476,14 @@ export function TabelaQuestoes({
                               />
                             </span>
                             {formatNumeroQuestao(q.numero)}
+                            {ehProvaOficial && numeracaoCaderno2?.[String(q.numero)] !== undefined && (
+                              <span
+                                className="font-normal"
+                                style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
+                              >
+                                {`· C2 ${numeracaoCaderno2[String(q.numero)]}`}
+                              </span>
+                            )}
                           </button>
                         </Celula>
                         <Celula>

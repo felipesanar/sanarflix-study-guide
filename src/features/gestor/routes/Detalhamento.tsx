@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Icon } from '../components/Icon';
-import { useCronograma, useDetalhamento, useGestorContexto, useQuestoes } from '../api/queries';
+import { useCronograma, useDetalhamento, useGestorContexto, useProvaOficial, useQuestoes } from '../api/queries';
 import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
 import { BlocoGestor, type EstadoBloco } from '../components/BlocoGestor';
@@ -216,6 +216,18 @@ export default function Detalhamento() {
     { page: pageQuestoes, pageSize: 20, sort: ordenacaoQuestoes, area: areaQuestoes },
   );
   const paginaQuestoes = questoes.data;
+
+  /**
+   * Numeração do Caderno 2 (Task 5) — só quando o simulado único de Questões
+   * é a prova oficial ENAMED. `p_semestre: 'geral'` de propósito (mesma chave
+   * de cache de `useEhProvaOficial`, Task 4): a numeração de caderno de uma
+   * prova não depende do recorte de semestre vigente na tela.
+   */
+  const provaOficialGeral = useProvaOficial({ iesId: iesAtivaId, semestre: 'geral', simulados: [] });
+  const simuladoQuestoesId = simuladosNoRecorte.length === 1 ? simuladosNoRecorte[0] : null;
+  const provaOficialQuestoes = provaOficialGeral.data?.provas.find(
+    (prova) => prova.simuladoId === simuladoQuestoesId,
+  );
 
   const [recorte, setRecorte] = React.useState<RecorteCruzado | null>(null);
   const [alunoSelecionadoId, setAlunoSelecionadoId] = React.useState<string | null>(null);
@@ -740,6 +752,8 @@ export default function Detalhamento() {
                     setPageQuestoes(1);
                   }}
                   processando={processandoQuestoes}
+                  ehProvaOficial={provaOficialQuestoes !== undefined}
+                  numeracaoCaderno2={provaOficialQuestoes?.numeracaoCaderno2}
                 />
               </BlocoGestor>
             </div>

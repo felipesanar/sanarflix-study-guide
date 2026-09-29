@@ -37,6 +37,9 @@ vi.mock('@/features/gestor/api/queries', () => ({
     isError: false,
     refetch: () => {},
   })),
+  // Task 5 — selo "★ Prova oficial", chamado por `DrawerAluno` (real, montado
+  // pela tabela de alunos desta rota). Default "sem prova".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 // Controlável por teste (achados 2 e 4 da revisão de 04/08): precisamos

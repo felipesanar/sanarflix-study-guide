@@ -60,6 +60,9 @@ vi.mock('@/features/gestor/api/queries', () => ({
     isError: false,
     refetch: () => {},
   })),
+  // Task 5 — selo "★ Prova oficial", chamado por `DrawerAluno` (real,
+  // montado ao clicar num aluno da tabela). Default "sem prova".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 vi.mock('@/features/gestor/hooks/useFiltrosGestor', () => ({
