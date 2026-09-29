@@ -4,7 +4,6 @@ import { BlocoErrorBoundary } from '@/features/gestor/components/BlocoErrorBound
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
-import { Icon } from '@/features/gestor/components/Icon';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
 
 /** Acima disto o bloco é alto o bastante para valer a silhueta, não a mancha. */
@@ -24,8 +23,6 @@ export interface BlocoGestorProps {
    * simplesmente não produziu leitura.
    */
   glifoVazio?: DendeIconName;
-  /** Faixa de aviso quando `meta.partial` é `true` — recorte não cobre todos os simulados do período. */
-  parcial?: boolean;
   alturaSkeleton?: number;
   /** `data-testid` do wrapper de loading, para blocos que precisam ser localizados no teste de integração da rota. */
   testIdLoading?: string;
@@ -74,7 +71,6 @@ export function BlocoGestor({
   aoTentarNovamente,
   mensagemVazio = 'Sem dados neste recorte.',
   glifoVazio,
-  parcial = false,
   alturaSkeleton = 300,
   testIdLoading,
   bloco,
