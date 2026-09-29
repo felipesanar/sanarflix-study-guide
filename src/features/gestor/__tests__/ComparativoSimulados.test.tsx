@@ -1,7 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within, userEvent } from '@/test/utils';
 import { ComparativoSimulados } from '@/features/gestor/components/ComparativoSimulados';
+import { useEhProvaOficial } from '@/features/gestor/api/queries';
 import type { MetricasSimulado } from '@/features/gestor/api/types';
+
+// Task 5 — selo "★ Prova oficial". Default "nenhum simulado é prova oficial"
+// para não quebrar os testes existentes, que não conhecem este hook.
+vi.mock('@/features/gestor/api/queries', () => ({
+  useEhProvaOficial: vi.fn(() => () => false),
+}));
+
+const mockUseEhProvaOficial = vi.mocked(useEhProvaOficial);
 
 const metrica = (over: Partial<MetricasSimulado>): MetricasSimulado => ({
   simuladoId: 's1',
@@ -212,5 +221,31 @@ describe('ComparativoSimulados', () => {
 
     await user.click(screen.getByRole('button', { name: /ver comparativo completo/i }));
     expect(screen.getByTestId('comparativo-temas-vazio')).toHaveTextContent('Sem tema comparável entre estes simulados');
+  });
+
+  /**
+   * Task 5 — selo "★ Prova oficial" (`useEhProvaOficial`) no cartão, no
+   * cabeçalho da tabela de métricas e no cabeçalho da tabela de temas —
+   * as 3 anatomias que repetem `m.nome` neste componente.
+   */
+  describe('selo "★ Prova oficial" (Task 5)', () => {
+    it('marca só o simulado que useEhProvaOficial reconhece, nas 3 anatomias', async () => {
+      const user = userEvent.setup();
+      mockUseEhProvaOficial.mockReturnValue((id: string) => id === 's2');
+      render(<ComparativoSimulados metricas={DUAS} comparativoTemas={TEMAS} />);
+
+      const cartaoS2 = screen.getByTestId('card-simulado-s2');
+      expect(within(cartaoS2).getByText('★ Prova oficial')).toBeInTheDocument();
+      const cartaoS1 = screen.getByTestId('card-simulado-s1');
+      expect(within(cartaoS1).queryByText('★ Prova oficial')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /ver comparativo completo/i }));
+
+      const tabelaMetricas = screen.getByTestId('comparativo-metricas');
+      expect(within(tabelaMetricas).getAllByText('★ Prova oficial')).toHaveLength(1);
+
+      const tabelaTemas = screen.getByTestId('comparativo-temas');
+      expect(within(tabelaTemas).getAllByText('★ Prova oficial')).toHaveLength(1);
+    });
   });
 });

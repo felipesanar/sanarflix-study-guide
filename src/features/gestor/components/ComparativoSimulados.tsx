@@ -15,6 +15,8 @@ import {
 } from './tabela';
 import { calcularVariacao } from '../lib/regras';
 import { formatConceito, formatData, formatNumero, formatPct, TRACO } from '../lib/formatters';
+import { useEhProvaOficial } from '../api/queries';
+import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import type { Detalhamento, MetricasSimulado } from '../api/types';
 
 export interface ComparativoSimuladosProps {
@@ -75,6 +77,9 @@ function ChipProjetado() {
 
 export function ComparativoSimulados({ metricas, comparativoTemas }: ComparativoSimuladosProps) {
   const [aberto, setAberto] = React.useState(false);
+  /** ★ Prova oficial (Task 5) — mesma IES do recorte global. */
+  const { iesId } = useFiltrosGestor();
+  const ehProvaOficial = useEhProvaOficial(iesId);
 
   // §4.7.4: comparativo existe só a partir de 2 simulados.
   if (metricas.length < 2) return null;
@@ -193,6 +198,7 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                     <div className="flex items-baseline gap-2">
                       <p className="truncate text-[13px] font-bold text-foreground">{m.nome}</p>
                       {ehAtual && <Tag variant="selo">atual</Tag>}
+                      {ehProvaOficial(m.simuladoId) && <Tag variant="selo">★ Prova oficial</Tag>}
                       <p className="ml-auto whitespace-nowrap text-[11px] tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
                         {dataCurta(m.data)} · {m.participantes} part.
                       </p>
@@ -285,7 +291,10 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                         </th>
                         {metricas.map((m) => (
                           <th key={m.simuladoId} scope="col" style={ESTILO_CABECALHO_SIMULADO}>
-                            {m.nome}
+                            <span className="flex items-center gap-1.5">
+                              {m.nome}
+                              {ehProvaOficial(m.simuladoId) && <Tag variant="selo">★ Prova oficial</Tag>}
+                            </span>
                             <span
                               className="block text-[11px] font-normal tabular-nums"
                               style={{ color: 'var(--gp-text-3)' }}
@@ -343,7 +352,12 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
                         <tr>
                           <CelulaCabecalho>Tema</CelulaCabecalho>
                           {metricas.map((m) => (
-                            <CelulaCabecalho key={m.simuladoId}>{m.nome}</CelulaCabecalho>
+                            <CelulaCabecalho key={m.simuladoId}>
+                              <span className="flex items-center gap-1.5">
+                                {m.nome}
+                                {ehProvaOficial(m.simuladoId) && <Tag variant="selo">★ Prova oficial</Tag>}
+                              </span>
+                            </CelulaCabecalho>
                           ))}
                         </tr>
                       </CabecalhoTabela>

@@ -3,11 +3,19 @@ import { useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AreasChart } from '@/features/gestor/charts/AreasChart';
-import { EvolucaoChart } from '@/features/gestor/charts/EvolucaoChart';
+import { EvolucaoChart, type MarcoProvaOficial } from '@/features/gestor/charts/EvolucaoChart';
 import type { ModoGrafico, VisaoGeral } from '@/features/gestor/api/types';
 
 export interface GraficoProtagonistaProps {
   visao: VisaoGeral;
+  /**
+   * Provas oficiais do recorte (Task 4) — repassadas ao `EvolucaoChart` só no
+   * modo 'geral' (§ o mesmo modo que lê `visao.evolucao`): cada uma vira um
+   * ponto ★ à direita da série institucional. Ausente/vazio: o modo 'geral'
+   * renderiza IDÊNTICO ao que renderizava antes deste campo existir — o
+   * `EvolucaoChart` só desenha o marcador quando recebe `marcos` não-vazio.
+   */
+  marcosProvaOficial?: MarcoProvaOficial[];
 }
 
 /**
@@ -127,7 +135,7 @@ function FadeConteudoGrafico({ modo, children }: { modo: ModoGrafico; children: 
  * (Fase 2): só o segmento ativo é alcançável por Tab; as setas movem seleção
  * e foco juntos.
  */
-export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
+export function GraficoProtagonista({ visao, marcosProvaOficial }: GraficoProtagonistaProps) {
   const [modo, setModo] = React.useState<ModoGrafico>('geral');
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const indiceAtivo = MODOS.findIndex((opcao) => opcao.valor === modo);
@@ -244,7 +252,7 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
       </CardHeader>
       <CardContent>
         <FadeConteudoGrafico modo={modo}>
-          {modo === 'geral' ? <EvolucaoChart pontos={visao.evolucao} /> : null}
+          {modo === 'geral' ? <EvolucaoChart pontos={visao.evolucao} marcos={marcosProvaOficial} /> : null}
           {modo === 'area' ? <AreasChart areas={visao.evolucaoPorArea} /> : null}
         </FadeConteudoGrafico>
       </CardContent>

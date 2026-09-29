@@ -1,7 +1,10 @@
 import { KpiCard } from '@/features/gestor/components/KpiCard';
+import { Tag } from '@/features/gestor/components/Tag';
 import { mediaPonderadaPorParticipantes } from '../lib/agregarDetalhamento';
 import { formatConceito, formatNumero, formatPct } from '../lib/formatters';
 import { PROFICIENCIA_MINIMA } from '../lib/regras';
+import { useEhProvaOficial } from '../api/queries';
+import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import type { Meta, MetricasSimulado } from '../api/types';
 
 export interface KpisDetalhamentoProps {
@@ -31,6 +34,9 @@ const CRITERIO_PROFICIENCIA =
  * contrato.
  */
 export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
+  /** ★ Prova oficial (Task 5) — mesma IES do recorte global. */
+  const { iesId } = useFiltrosGestor();
+  const ehProvaOficial = useEhProvaOficial(iesId);
   const multiSimulado = metricas.length > 1;
   const base = `${metricas.length} ${metricas.length === 1 ? 'simulado' : 'simulados'}`;
 
@@ -152,6 +158,7 @@ export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
                     <span style={{ fontWeight: 700, color: 'var(--gp-text-1)' }}>
                       {formatConceito(m.enamedProjetado)}
                     </span>
+                    {ehProvaOficial(m.simuladoId) && <Tag variant="selo">★ Prova oficial</Tag>}
                   </li>
                 ))}
               </ul>

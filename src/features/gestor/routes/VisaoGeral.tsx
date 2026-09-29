@@ -1,14 +1,16 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/features/gestor/components/Icon';
 import { DialogExportarDados } from '@/features/gestor/components/DialogExportarDados';
 import { useToast } from '@/hooks/use-toast';
-import { useGestorContexto, useVisaoGeral } from '@/features/gestor/api/queries';
+import { useGestorContexto, useProvaOficial, useVisaoGeral } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
+import { BlocoProvaOficial } from '@/features/gestor/components/BlocoProvaOficial';
 import { LeituraEstrategica } from '@/features/gestor/components/LeituraEstrategica';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { CabecalhoTela, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
@@ -244,6 +246,43 @@ export default function VisaoGeral() {
   }, [filtros.semestre, filtroAlterado]);
 
   const consulta = useVisaoGeral(filtrosGestor);
+  /**
+   * Bloco dedicado da prova oficial ENAMED (Task 4, spec D5) — consulta
+   * PRÓPRIA, nunca embutida em `useVisaoGeral`: a prova é excluída da RPC da
+   * Visão Geral de propósito (série, "atual", KPIs), então o bloco e o marco
+   * ★ do gráfico dependem só desta query.
+   */
+  const provaOficial = useProvaOficial(filtrosGestor);
+  const navegar = useNavigate();
+  /**
+   * "Ver detalhamento" de uma prova oficial navega para o Detalhamento com
+   * SÓ aquele simulado selecionado — mesmo padrão de navegação entre rotas do
+   * gestor que `Detalhamento.tsx` já usa (`navegar({ pathname, search })`,
+   * preservando o resto da query string), porque `useFiltrosGestor().
+   * setSimulados` está preso à URL desta rota (Visão Geral não lê
+   * `?simulados`) e não navegaria para o Detalhamento sozinho.
+   */
+  const irParaDetalhamento = React.useCallback(
+    (simuladoId: string) => {
+      const proximosParams = new URLSearchParams(window.location.search);
+      proximosParams.set('simulados', simuladoId);
+      navegar({ pathname: '/gestor/detalhamento', search: proximosParams.toString() });
+    },
+    [navegar],
+  );
+  /** `★ ENAMED` no gráfico protagonista (modo 'geral') — um marco por prova oficial do recorte.
+   *  Só entra quando já há TRI (proficientesPct não nulo): sem nota, o ★ seria uma categoria vazia. */
+  const marcosProvaOficial = React.useMemo(
+    () =>
+      (provaOficial.data?.provas ?? [])
+        .filter((prova) => prova.proficientesPct !== null)
+        .map((prova) => ({
+          rotulo: '★ ENAMED',
+          nome: prova.nome,
+          proficientesPct: prova.proficientesPct,
+        })),
+    [provaOficial.data],
+  );
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<EspecialidadeSelecionada | null>(null);
 
   /**
@@ -482,6 +521,39 @@ export default function VisaoGeral() {
         </p>
       ) : null}
 
+      {/* 0. Prova(s) oficial(is) do recorte (Task 4, spec D5) — bloco dedicado,
+          ACIMA do Panorama: a prova é excluída dos 4 indicadores e da série
+          institucional, então precisa da própria âncora visual antes deles.
+
+          `provaOficial` é query PRÓPRIA (fora de `useVisaoGeral`) — precisa do
+          próprio tratamento de erro, como qualquer outro bloco da tela
+          (`BlocoGestor`/`aoTentarNovamente`). Enquanto a primeira carga está em
+          voo (`isLoading`, sem dado ainda) o bloco não renderiza NADA — não um
+          skeleton: a maioria das IES não tem prova oficial no recorte, e um
+          skeleton reservaria espaço para o caso raro em toda visita comum
+          (achado do fix round 1, revisão de código). Um erro, ao contrário,
+          precisa ser ANUNCIADO — sem isto a falha da RPC ficava indistinguível
+          de "nenhuma prova oficial liberada". */}
+      {provaOficial.isError ? (
+        <div className={classeRevelacao(0)}>
+          <BlocoGestor
+            estado="error"
+            bloco="prova-oficial"
+            testIdLoading="bloco-prova-oficial-loading"
+            alturaSkeleton={160}
+            aoTentarNovamente={provaOficial.refetch}
+          >
+            {null}
+          </BlocoGestor>
+        </div>
+      ) : (
+        provaOficial.data?.provas.map((prova) => (
+          <div key={prova.simuladoId} className={classeRevelacao(0)}>
+            <BlocoProvaOficial prova={prova} onVerDetalhamento={irParaDetalhamento} />
+          </div>
+        ))
+      )}
+
       {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
       <div className={`flex flex-col gap-3 ${classeRevelacao(0)}`}>
         {/*
@@ -536,7 +608,7 @@ export default function VisaoGeral() {
           aoTentarNovamente={aoTentarNovamente}
           mensagemVazio="Sem simulados realizados neste recorte."
         >
-          {visao ? <GraficoProtagonista visao={visao} /> : null}
+          {visao ? <GraficoProtagonista visao={visao} marcosProvaOficial={marcosProvaOficial} /> : null}
         </BlocoGestor>
       </div>
 

@@ -10,8 +10,9 @@ import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
+import { Tag } from '@/features/gestor/components/Tag';
 import { FONTE_MONO, TagSituacao } from '@/features/gestor/components/tabela';
-import { useAluno, useAlunoContato, useAlunoDesempenhoPorArea } from '@/features/gestor/api/queries';
+import { useAluno, useAlunoContato, useAlunoDesempenhoPorArea, useEhProvaOficial } from '@/features/gestor/api/queries';
 import {
   baixarCsvSecoes,
   nomeArquivoCsv,
@@ -368,7 +369,13 @@ function TituloSecao({ children }: { children: React.ReactNode }) {
  * viviam nas caixas, seguem na linha de apoio. Nenhum número é somado ou
  * mediado entre simulados (regra de agregação honesta do handoff).
  */
-function LinhaSimulado({ entrada }: { entrada: AlunoSimuladoEntry }) {
+function LinhaSimulado({
+  entrada,
+  ehProvaOficial = false,
+}: {
+  entrada: AlunoSimuladoEntry;
+  ehProvaOficial?: boolean;
+}) {
   const apoio = [
     formatData(entrada.simuladoData),
     entrada.acertos === null ? null : `${formatNumero(entrada.acertos)} acertos`,
@@ -388,8 +395,9 @@ function LinhaSimulado({ entrada }: { entrada: AlunoSimuladoEntry }) {
       className="flex items-start justify-between gap-3 py-2.5"
     >
       <div className="min-w-0 flex-1">
-        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)' }}>
-          {entrada.simuladoNome}
+        <p className="flex min-w-0 items-center gap-1.5" style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)' }}>
+          <span className="min-w-0 truncate">{entrada.simuladoNome}</span>
+          {ehProvaOficial && <Tag variant="selo">★ Prova oficial</Tag>}
         </p>
         <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>{apoio}</p>
       </div>
@@ -1186,6 +1194,8 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const contato = useAlunoContato(alunoId);
   const desempenhoArea = useAlunoDesempenhoPorArea(alunoId, simulados);
   const { iesId } = useFiltrosGestor();
+  /** ★ Prova oficial (Task 5) — mesma IES do recorte global. */
+  const ehProvaOficial = useEhProvaOficial(iesId);
   /**
    * Regra dos 400ms (spec de motion §7): abaixo disso, nada de skeleton — o
    * corpo fica em branco por uma fração de segundo em vez de piscar um
@@ -1606,7 +1616,11 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
               </div>
               <ul className="divide-y" style={{ borderColor: 'var(--gp-border-subtle)' }}>
                 {cronologicas.map((entrada) => (
-                  <LinhaSimulado key={entrada.simuladoId} entrada={entrada} />
+                  <LinhaSimulado
+                    key={entrada.simuladoId}
+                    entrada={entrada}
+                    ehProvaOficial={ehProvaOficial(entrada.simuladoId)}
+                  />
                 ))}
               </ul>
             </div>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, userEvent } from '@/test/utils';
+import { act, fireEvent, render, screen, userEvent, within } from '@/test/utils';
 import VisaoGeralRoute from '@/features/gestor/routes/VisaoGeral';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import {
@@ -9,6 +9,7 @@ import {
   useDiagnostico,
   useDiagnosticoTemas,
   useGestorContexto,
+  useProvaOficial,
   useVisaoGeral,
 } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
@@ -25,6 +26,20 @@ vi.mock('@/features/gestor/api/queries', () => ({
   // Consumido por `AcoesRecorte` (rodapé de ações do `DrawerTemas`): é o
   // servidor que decide `podeExportar`, nunca uma role lida no cliente.
   useGestorContexto: vi.fn(),
+  // Task 4 — bloco dedicado da prova oficial ENAMED. Default "sem prova
+  // nenhuma no recorte", para não quebrar todo teste existente que não
+  // conhece este hook: seu default renderiza zero `BlocoProvaOficial` e não
+  // acrescenta nenhum marco ★ ao gráfico.
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
+  // Task 5 — selo "★ Prova oficial", chamado por `DrawerAluno` (real, montado
+  // pela tabela de alunos desta rota). Default "sem prova".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 // Controlável por teste (achados 2 e 4 da revisão de 04/08): precisamos
@@ -66,6 +81,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }))
 const mockUseVisaoGeral = vi.mocked(useVisaoGeral);
 const mockUseAlunos = vi.mocked(useAlunos);
 const mockUseFiltrosGestor = vi.mocked(useFiltrosGestor);
+const mockUseProvaOficial = vi.mocked(useProvaOficial);
 
 const filtrosFake = (overrides: Partial<ReturnType<typeof useFiltrosGestor>> = {}): ReturnType<typeof useFiltrosGestor> => ({
   semestre: '6ano',
@@ -109,6 +125,17 @@ describe('rota VisaoGeral', () => {
       isError: false,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useAlunos>);
+
+    // Reset explícito a cada teste: sem isto, um teste que passa
+    // `isError: true` (fix round 1) vazaria para os testes seguintes do
+    // arquivo, que não tocam `mockUseProvaOficial` de novo.
+    mockUseProvaOficial.mockReturnValue({
+      data: { provas: [], idsProvasOficiais: [] },
+      meta: null,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useProvaOficial>);
 
     vi.mocked(useGestorContexto).mockReturnValue({
       // `iesDisponiveis` é obrigatório no contrato real (migration
@@ -321,6 +348,80 @@ describe('rota VisaoGeral', () => {
   it('não existe nenhuma coluna nem rótulo "Nota TRI" na tela (caso crítico nº2)', () => {
     render(<VisaoGeralRoute />);
     expect(screen.queryByText(/Nota TRI/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Task 4, Step 2 — `useProvaOficial` alimenta um bloco PRÓPRIO, acima do
+   * Panorama, sem tocar em nenhum dos 4 KPIs (que continuam vindo só de
+   * `useVisaoGeral`/`visaoGeralFake`, nunca da prova oficial — spec D5: a
+   * prova é excluída de `get_gestor_visao_geral`).
+   */
+  it('com uma prova oficial no recorte, mostra o bloco dedicado sem alterar os KPIs contratados', () => {
+    mockUseProvaOficial.mockReturnValue({
+      data: {
+        provas: [
+          {
+            simuladoId: 'sim-enamed-1',
+            nome: 'ENAMED 2026',
+            data: '2026-11-08T00:00:00.000Z',
+            participantes: 124,
+            comTri: 124,
+            conceito: 4,
+            proficientesPct: 72,
+            mediaAcertos: 66.9,
+            totalQuestoes: 100,
+            amostraPequena: false,
+            numeracaoCaderno2: {},
+          },
+        ],
+        idsProvasOficiais: ['sim-enamed-1'],
+      },
+      meta: metaFake,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useProvaOficial>);
+
+    render(<VisaoGeralRoute />);
+
+    expect(screen.getByText(/ENAMED 2026/)).toBeInTheDocument();
+    // Contrato KPI inalterado versus o caso sem prova: o mesmo "realizados"
+    // de `visaoGeralFake` (3) continua saindo dos 4 indicadores.
+    expect(screen.getByTestId('kpis-visao-geral')).toHaveTextContent('3');
+  });
+
+  /**
+   * Fix round 1 (achado de revisão de código, Task 4): antes desta correção
+   * o bloco da prova oficial só tratava o caminho feliz
+   * (`provaOficial.data?.provas.map(...)`) — um erro da RPC
+   * `get_gestor_prova_oficial` ficava indistinguível de "nenhuma prova
+   * oficial liberada neste recorte", ao contrário dos outros blocos da tela
+   * (Panorama/Gráfico), que passam pelo mesmo tratamento de
+   * estado/erro/retry de `BlocoGestor`.
+   */
+  it('erro em useProvaOficial mostra o estado de erro do bloco, com retry que chama refetch', async () => {
+    const user = userEvent.setup();
+    const refetchProvaOficial = vi.fn();
+    mockUseProvaOficial.mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: refetchProvaOficial,
+    } as unknown as ReturnType<typeof useProvaOficial>);
+
+    render(<VisaoGeralRoute />);
+
+    // O resto da tela segue de pé — mesmo contrato dos outros blocos.
+    expect(screen.getByTestId('kpis-visao-geral')).toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-prova-oficial')).not.toBeInTheDocument();
+
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('Algo deu errado');
+    const botaoRetry = within(alerta).getByRole('button', { name: 'Tentar novamente' });
+
+    await user.click(botaoRetry);
+    expect(refetchProvaOficial).toHaveBeenCalledTimes(1);
   });
 
   /**
