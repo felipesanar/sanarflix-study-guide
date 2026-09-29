@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +22,7 @@ import type {
   Paginado,
   PaginacaoGestor,
   ProficienciaSimulado,
+  ProvaOficialGestorPayload,
   Questao,
   QuestaoRespondente,
   TemaCritico,
@@ -231,6 +233,52 @@ export function useVisaoGeral(filtros: FiltrosGestor): ResultadoGestor<VisaoGera
           }
         : visao,
   };
+}
+
+/**
+ * Bloco dedicado da prova oficial ENAMED (UniAtenas) na Visão Geral (Task 4,
+ * spec D5) — `get_gestor_prova_oficial(p_ies_id, p_semestre)`. A prova é
+ * EXCLUÍDA de `get_gestor_visao_geral` e não é vinculada a
+ * `ies_simulado_previsto`; este hook é a única fonte do bloco.
+ */
+export function useProvaOficial(filtros: FiltrosGestor): ResultadoGestor<ProvaOficialGestorPayload> {
+  return useEnvelope<ProvaOficialGestorPayload>(
+    ['gestor', 'prova-oficial', filtros.iesId, filtros.semestre],
+    'get_gestor_prova_oficial',
+    { p_ies_id: filtros.iesId, p_semestre: filtros.semestre },
+    filtros.iesId !== null,
+  );
+}
+
+/**
+ * Predicado "este simulado é uma prova oficial?" para o selo "★ Prova
+ * oficial" nas listas do portal (Task 5) — `SeletorSimulados`,
+ * `CronogramaSimulados`, `ComparativoSimulados`, `KpisDetalhamento`,
+ * `DrawerAluno`. Chama a MESMA RPC de `useProvaOficial`, com
+ * `p_semestre: 'geral'`: o selo não pode depender do recorte de semestre
+ * vigente — uma prova oficial continua sendo prova oficial em qualquer
+ * semestre, e o recorte "geral" é o único que não corta a lista de provas
+ * pelo filtro de período.
+ *
+ * `iesId !== null` na chave — mesma chave-base de `useProvaOficial`, com
+ * `'geral'` fixo — para reaproveitar o cache de quem já chamou com
+ * `p_semestre: 'geral'` (ex.: a própria Visão Geral com o filtro "Geral"
+ * selecionado), em vez de abrir uma query redundante.
+ */
+export function useEhProvaOficial(iesId: string | null): (simuladoId: string) => boolean {
+  const resultado = useEnvelope<ProvaOficialGestorPayload>(
+    ['gestor', 'prova-oficial', iesId, 'geral'],
+    'get_gestor_prova_oficial',
+    { p_ies_id: iesId, p_semestre: 'geral' },
+    iesId !== null,
+  );
+
+  const ids = React.useMemo(
+    () => new Set(resultado.data?.idsProvasOficiais ?? []),
+    [resultado.data],
+  );
+
+  return React.useCallback((simuladoId: string) => ids.has(simuladoId), [ids]);
 }
 
 /** Um nível da cascata do Diagnóstico Curricular, lazy por nó (spec §4.8). */

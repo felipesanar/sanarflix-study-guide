@@ -243,4 +243,79 @@ describe('EvolucaoChart (modo Geral)', () => {
       expect(screen.getByTestId('evolucao-carregando')).toBeInTheDocument();
     });
   });
+
+  /**
+   * Task 4 — o marco ★ de prova oficial vira uma categoria própria à direita
+   * da série, nunca conectada pela linha institucional (spec do brief:
+   * "It is not connected to the line").
+   */
+  describe('marcos (★ prova oficial, Task 4)', () => {
+    it('sem marcos, o gráfico renderiza idêntico ao de antes (nenhum ponto ★ extra)', () => {
+      const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
+      expect(container.querySelector('[data-testid="evolucao-marco-ponto"]')).toBeNull();
+      expect(container.querySelectorAll('.recharts-line')).toHaveLength(1);
+    });
+
+    it('com um marco, desenha um ponto ★ numa categoria própria, à direita da série real', () => {
+      const { container } = render(
+        <EvolucaoChart
+          pontos={visaoGeralFake.evolucao}
+          marcos={[{ rotulo: '★ ENAMED', nome: 'ENAMED 2026', proficientesPct: 72 }]}
+          {...DIM}
+        />,
+      );
+
+      expect(container.querySelector('[data-testid="evolucao-marco-ponto"]')).not.toBeNull();
+      // Categoria nova no eixo X, à direita das 3 reais — 4 ticks no total.
+      const ticks = Array.from(
+        container.querySelectorAll('.recharts-xAxis .recharts-cartesian-axis-tick-value'),
+      ).map((no) => no.textContent);
+      expect(ticks[ticks.length - 1]).toBe('★ ENAMED');
+
+      // A linha institucional continua existindo, mas é uma linha A MAIS (a
+      // dedicada do marco) — nunca fundida na mesma <Line> da série real.
+      expect(container.querySelectorAll('.recharts-line')).toHaveLength(2);
+      // A <Line> do marco não desenha traço nenhum (stroke="none").
+      const marcoLine = Array.from(container.querySelectorAll('.recharts-line')).find(
+        (no) => no.querySelector('[data-testid="evolucao-marco-ponto"]') !== null,
+      );
+      expect(marcoLine?.querySelector('.recharts-line-curve')?.getAttribute('stroke')).toBe('none');
+    });
+
+    it('o tooltip do marco traz nome, "Prova oficial" e o percentual de proficientes', () => {
+      render(
+        <TooltipEvolucao
+          active
+          payload={[
+            {
+              payload: {
+                rotulo: '★ ENAMED',
+                valor: null,
+                participantes: 0,
+                data: '',
+                marcoNome: 'ENAMED 2026',
+                marcoValor: 72,
+              },
+            },
+          ]}
+        />,
+      );
+      expect(screen.getByText('ENAMED 2026 · Prova oficial · 72% proficientes')).toBeInTheDocument();
+    });
+
+    it('o ponto CORRENTE da série real continua sendo o último simulado real, não o marco', () => {
+      const { container } = render(
+        <EvolucaoChart
+          pontos={visaoGeralFake.evolucao}
+          marcos={[{ rotulo: '★ ENAMED', nome: 'ENAMED 2026', proficientesPct: 72 }]}
+          {...DIM}
+        />,
+      );
+      // Mesma assinatura de raios do teste "desenha o ponto atual com halo e
+      // anel" acima: [anterior, anterior, halo, anel, miolo] — inalterada
+      // mesmo com o marco anexado ao fim do dataset.
+      const raiosSerieReal = raios(container, '.recharts-line-dots circle');
+      expect(raiosSerieReal.slice(0, 5)).toEqual(['6', '6', '13', '7.5', '4']);
+    });
+  });
 });

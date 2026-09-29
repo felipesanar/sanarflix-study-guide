@@ -507,6 +507,45 @@ export interface Detalhamento {
   }[];
 }
 
+/**
+ * Uma prova oficial do ENAMED (UniAtenas), do bloco dedicado da Visão Geral —
+ * `get_gestor_prova_oficial(p_ies_id, p_semestre)` (D5 do spec: excluída de
+ * `get_gestor_visao_geral`, nunca vinculada a `ies_simulado_previsto`).
+ *
+ * `conceito`/`proficientesPct` são `null` quando `comTri === 0` — nenhum
+ * aluno do recorte ainda tem `resultados_alunos_tri.score_proprio` — nunca
+ * `0` (mesma regra de nulabilidade do resto do portal, spec §4.10).
+ */
+export interface ProvaOficialGestor {
+  simuladoId: string;
+  nome: string;
+  data: string | null;
+  /** Alunos do recorte com resposta na prova. */
+  participantes: number;
+  /** Dos `participantes`, quantos já têm `resultados_alunos_tri.score_proprio`. */
+  comTri: number;
+  /** Conceito 1–5 estimado pela TRI Sanar — nunca o conceito oficial do INEP. `null` quando `comTri === 0`. */
+  conceito: number | null;
+  /** 0–100 inteiro. `null` quando `comTri === 0`. */
+  proficientesPct: number | null;
+  /** Média de acertos, 1 casa decimal. */
+  mediaAcertos: number | null;
+  /** Total de questões não anuladas. */
+  totalQuestoes: number;
+  /** `true` quando `participantes < 10`. */
+  amostraPequena: boolean;
+  /** Chave = número da questão no caderno 1; valor = posição no caderno 2. */
+  numeracaoCaderno2: Record<string, number>;
+}
+
+/** Payload de `get_gestor_prova_oficial` — envelope `{ data, meta }` padrão. */
+export interface ProvaOficialGestorPayload {
+  /** Provas oficiais liberadas da IES no recorte, mais recente primeiro. */
+  provas: ProvaOficialGestor[];
+  /** Mesmos ids de `provas`, para badge "★ Prova oficial" em listas/seletores. */
+  idsProvasOficiais: string[];
+}
+
 /** Recorte global da tela — o que `useFiltrosGestor` devolve, na forma que as RPCs consomem. */
 export interface FiltrosGestor {
   iesId: string | null;

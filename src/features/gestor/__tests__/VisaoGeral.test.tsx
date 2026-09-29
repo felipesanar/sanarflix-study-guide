@@ -9,6 +9,7 @@ import {
   useDiagnostico,
   useDiagnosticoTemas,
   useGestorContexto,
+  useProvaOficial,
   useVisaoGeral,
 } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
@@ -25,6 +26,17 @@ vi.mock('@/features/gestor/api/queries', () => ({
   // Consumido por `AcoesRecorte` (rodapé de ações do `DrawerTemas`): é o
   // servidor que decide `podeExportar`, nunca uma role lida no cliente.
   useGestorContexto: vi.fn(),
+  // Task 4 — bloco dedicado da prova oficial ENAMED. Default "sem prova
+  // nenhuma no recorte", para não quebrar todo teste existente que não
+  // conhece este hook: seu default renderiza zero `BlocoProvaOficial` e não
+  // acrescenta nenhum marco ★ ao gráfico.
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
 }));
 
 // Controlável por teste (achados 2 e 4 da revisão de 04/08): precisamos
@@ -66,6 +78,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }))
 const mockUseVisaoGeral = vi.mocked(useVisaoGeral);
 const mockUseAlunos = vi.mocked(useAlunos);
 const mockUseFiltrosGestor = vi.mocked(useFiltrosGestor);
+const mockUseProvaOficial = vi.mocked(useProvaOficial);
 
 const filtrosFake = (overrides: Partial<ReturnType<typeof useFiltrosGestor>> = {}): ReturnType<typeof useFiltrosGestor> => ({
   semestre: '6ano',
@@ -321,6 +334,46 @@ describe('rota VisaoGeral', () => {
   it('não existe nenhuma coluna nem rótulo "Nota TRI" na tela (caso crítico nº2)', () => {
     render(<VisaoGeralRoute />);
     expect(screen.queryByText(/Nota TRI/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Task 4, Step 2 — `useProvaOficial` alimenta um bloco PRÓPRIO, acima do
+   * Panorama, sem tocar em nenhum dos 4 KPIs (que continuam vindo só de
+   * `useVisaoGeral`/`visaoGeralFake`, nunca da prova oficial — spec D5: a
+   * prova é excluída de `get_gestor_visao_geral`).
+   */
+  it('com uma prova oficial no recorte, mostra o bloco dedicado sem alterar os KPIs contratados', () => {
+    mockUseProvaOficial.mockReturnValue({
+      data: {
+        provas: [
+          {
+            simuladoId: 'sim-enamed-1',
+            nome: 'ENAMED 2026',
+            data: '2026-11-08T00:00:00.000Z',
+            participantes: 124,
+            comTri: 124,
+            conceito: 4,
+            proficientesPct: 72,
+            mediaAcertos: 66.9,
+            totalQuestoes: 100,
+            amostraPequena: false,
+            numeracaoCaderno2: {},
+          },
+        ],
+        idsProvasOficiais: ['sim-enamed-1'],
+      },
+      meta: metaFake,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useProvaOficial>);
+
+    render(<VisaoGeralRoute />);
+
+    expect(screen.getByText(/ENAMED 2026/)).toBeInTheDocument();
+    // Contrato KPI inalterado versus o caso sem prova: o mesmo "realizados"
+    // de `visaoGeralFake` (3) continua saindo dos 4 indicadores.
+    expect(screen.getByTestId('kpis-visao-geral')).toHaveTextContent('3');
   });
 
   /**

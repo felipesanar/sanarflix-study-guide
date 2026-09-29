@@ -51,6 +51,15 @@ vi.mock('@/features/gestor/api/queries', () => ({
   // decide `podeExportar`, nunca uma role lida no cliente (mesmo padrão de
   // VisaoGeral.test.tsx).
   useGestorContexto: vi.fn(),
+  // Task 4 — bloco dedicado da prova oficial ENAMED, consultado incondicionalmente
+  // pela rota VisaoGeral (mesmo default "sem prova" de VisaoGeral.test.tsx).
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
 }));
 
 vi.mock('@/features/gestor/hooks/useFiltrosGestor', () => ({
