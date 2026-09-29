@@ -511,7 +511,7 @@ describe('rota VisaoGeral', () => {
     vi.useRealTimers();
   });
 
-  it('faixa de recorte parcial aparece quando meta.partial é true', () => {
+  it('faixa de recorte parcial não aparece mesmo com meta.partial true', () => {
     mockUseVisaoGeral.mockReturnValue({
       data: visaoGeralFake,
       meta: { ...metaFake, partial: true },
@@ -521,7 +521,7 @@ describe('rota VisaoGeral', () => {
     } as unknown as ReturnType<typeof useVisaoGeral>);
 
     render(<VisaoGeralRoute />);
-    expect(screen.getAllByTestId('faixa-parcial').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('faixa-parcial')).not.toBeInTheDocument();
   });
 
   it('abrir o drawer de temas pela cascata não desmonta o resto da tela e repassa a grande área do nó pai', async () => {
