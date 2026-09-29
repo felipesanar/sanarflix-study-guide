@@ -350,7 +350,6 @@ export default function VisaoGeral() {
         : visao
           ? 'ok'
           : 'empty';
-  const parcial = meta.partial;
 
   /**
    * Troca de IES/semestre com dado do recorte ANTERIOR na mão: `useEnvelope`
@@ -601,7 +600,6 @@ export default function VisaoGeral() {
       <div className={classeRevelacao(1)}>
         <BlocoGestor
           estado={estado}
-          parcial={parcial}
           alturaSkeleton={360}
           bloco="grafico"
           testIdLoading="bloco-grafico-loading"
@@ -627,7 +625,6 @@ export default function VisaoGeral() {
         ) : (
           <BlocoGestor
             estado={estado}
-            parcial={parcial}
             alturaSkeleton={220}
             bloco="diagnostico"
             testIdLoading="bloco-diagnostico-loading"
@@ -656,7 +653,6 @@ export default function VisaoGeral() {
         ) : (
           <BlocoGestor
             estado={estado}
-            parcial={parcial}
             alturaSkeleton={320}
             bloco="visao-alunos"
             testIdLoading="bloco-visao-alunos-loading"

@@ -185,7 +185,6 @@ export default function Detalhamento() {
    * Geral já repassava; aqui os blocos apresentavam KPIs, comparativo e tabelas
    * sem nenhum aviso de que o recorte estava incompleto.
    */
-  const parcial = meta.partial;
 
   /**
    * Semestres oferecidos no dropdown do filtro.
@@ -529,7 +528,6 @@ export default function Detalhamento() {
 
             <BlocoGestor
               estado={estado}
-              parcial={parcial}
               alturaSkeleton={140}
               bloco="kpis"
               testIdLoading="bloco-kpis-loading"
@@ -543,7 +541,6 @@ export default function Detalhamento() {
             <div data-testid="bloco-comparativo" className={classeRevelacao(1)}>
               <BlocoGestor
                 estado={estado}
-                parcial={parcial}
                 alturaSkeleton={220}
                 bloco="comparativo"
                 testIdLoading="bloco-comparativo-loading"
@@ -577,7 +574,6 @@ export default function Detalhamento() {
             <div data-testid="bloco-area-semestre">
               <BlocoGestor
                 estado={estado}
-                parcial={parcial}
                 alturaSkeleton={280}
                 bloco="area-semestre"
                 testIdLoading="bloco-area-semestre-loading"
@@ -650,7 +646,6 @@ export default function Detalhamento() {
               >
               <BlocoGestor
                 estado={estado}
-                parcial={parcial}
                 alturaSkeleton={280}
                 bloco="proficiencia-semestre"
                 testIdLoading="bloco-proficiencia-semestre-loading"
@@ -689,7 +684,6 @@ export default function Detalhamento() {
           <div data-testid="bloco-alunos" className={classeRevelacao(3)}>
             <BlocoGestor
               estado={estado}
-              parcial={parcial}
               alturaSkeleton={320}
               bloco="alunos"
               testIdLoading="bloco-alunos-loading"

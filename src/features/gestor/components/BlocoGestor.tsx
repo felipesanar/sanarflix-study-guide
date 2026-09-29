@@ -85,33 +85,6 @@ export function BlocoGestor({
     <section className={cn('space-y-2', preencherAltura && 'flex flex-1 flex-col')}>
       {titulo ? <h2 className="text-sm font-semibold">{titulo}</h2> : null}
 
-      {parcial ? (
-        // Item B3 do passe de conformidade: a faixa era indistinguível de uma
-        // nota informativa (sem ícone, tokens neutros). Anatomia copiada de
-        // `SeletorSimulados.tsx` (`aviso-legibilidade`) — mesmos tokens de
-        // warning e mesmo ícone `error_outline`, para o aviso de recorte
-        // parcial ler como ALERTA, não como rodapé qualquer.
-        <div
-          data-testid="faixa-parcial"
-          role="status"
-          className="flex gap-2.5"
-          style={{
-            background: 'var(--gp-warning-surface)',
-            border: '1px solid var(--gp-warning)',
-            borderRadius: 'var(--gp-radius-sm)',
-            padding: '10px 13px',
-          }}
-        >
-          <Icon
-            name="error_outline"
-            size={16}
-            className="shrink-0 text-[color:var(--gp-warning-on)]"
-          />
-          <span style={{ fontSize: 11, lineHeight: '16px', color: 'var(--gp-warning-on)' }}>
-            Recorte parcial: parte dos simulados do período não entrou neste cálculo.
-          </span>
-        </div>
-      ) : null}
 
       {estado === 'loading' ? (
         <div data-testid={testIdLoading}>
