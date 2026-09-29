@@ -2889,6 +2889,10 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
+      is_simulado_prova_oficial: {
+        Args: { p_simulado_id: string }
+        Returns: boolean
+      }
       kv_cleanup: { Args: never; Returns: number }
       kv_incr: {
         Args: { p_key: string; p_limit: number; p_ttl_seconds: number }
