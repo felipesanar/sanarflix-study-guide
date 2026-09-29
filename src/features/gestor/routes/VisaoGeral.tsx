@@ -520,12 +520,36 @@ export default function VisaoGeral() {
 
       {/* 0. Prova(s) oficial(is) do recorte (Task 4, spec D5) — bloco dedicado,
           ACIMA do Panorama: a prova é excluída dos 4 indicadores e da série
-          institucional, então precisa da própria âncora visual antes deles. */}
-      {provaOficial.data?.provas.map((prova) => (
-        <div key={prova.simuladoId} className={classeRevelacao(0)}>
-          <BlocoProvaOficial prova={prova} onVerDetalhamento={irParaDetalhamento} />
+          institucional, então precisa da própria âncora visual antes deles.
+
+          `provaOficial` é query PRÓPRIA (fora de `useVisaoGeral`) — precisa do
+          próprio tratamento de erro, como qualquer outro bloco da tela
+          (`BlocoGestor`/`aoTentarNovamente`). Enquanto a primeira carga está em
+          voo (`isLoading`, sem dado ainda) o bloco não renderiza NADA — não um
+          skeleton: a maioria das IES não tem prova oficial no recorte, e um
+          skeleton reservaria espaço para o caso raro em toda visita comum
+          (achado do fix round 1, revisão de código). Um erro, ao contrário,
+          precisa ser ANUNCIADO — sem isto a falha da RPC ficava indistinguível
+          de "nenhuma prova oficial liberada". */}
+      {provaOficial.isError ? (
+        <div className={classeRevelacao(0)}>
+          <BlocoGestor
+            estado="error"
+            bloco="prova-oficial"
+            testIdLoading="bloco-prova-oficial-loading"
+            alturaSkeleton={160}
+            aoTentarNovamente={provaOficial.refetch}
+          >
+            {null}
+          </BlocoGestor>
         </div>
-      ))}
+      ) : (
+        provaOficial.data?.provas.map((prova) => (
+          <div key={prova.simuladoId} className={classeRevelacao(0)}>
+            <BlocoProvaOficial prova={prova} onVerDetalhamento={irParaDetalhamento} />
+          </div>
+        ))
+      )}
 
       {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
       <div className={`flex flex-col gap-3 ${classeRevelacao(0)}`}>

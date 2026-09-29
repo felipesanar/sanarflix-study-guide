@@ -70,6 +70,7 @@ export function BlocoProvaOficial({ prova, onVerDetalhamento }: BlocoProvaOficia
           type="button"
           variant="outline"
           className="w-fit gap-1.5"
+          aria-label={`Ver detalhamento de ${prova.nome}`}
           onClick={() => onVerDetalhamento(prova.simuladoId)}
         >
           Ver detalhamento

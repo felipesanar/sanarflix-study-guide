@@ -52,8 +52,16 @@ describe('BlocoProvaOficial', () => {
     const aoVerDetalhamento = vi.fn();
     render(<BlocoProvaOficial prova={provaFake()} onVerDetalhamento={aoVerDetalhamento} />);
 
-    await user.click(screen.getByRole('button', { name: 'Ver detalhamento' }));
+    await user.click(screen.getByRole('button', { name: /Ver detalhamento/ }));
     expect(aoVerDetalhamento).toHaveBeenCalledWith('sim-enamed-1');
+  });
+
+  /** Fix round 1 — o nome acessível do botão amarra à prova, não genérico:
+   *  duas provas oficiais no recorte (bug futuro, hipotético) teriam dois
+   *  botões indistinguíveis por leitor de tela sem isso. */
+  it('o botão "Ver detalhamento" tem nome acessível preso à prova', () => {
+    render(<BlocoProvaOficial prova={provaFake()} onVerDetalhamento={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Ver detalhamento de ENAMED 2026' })).toBeInTheDocument();
   });
 
   it('com participantes: 0, mostra "Sem participantes neste recorte"', () => {

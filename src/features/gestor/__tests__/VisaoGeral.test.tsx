@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, userEvent } from '@/test/utils';
+import { act, fireEvent, render, screen, userEvent, within } from '@/test/utils';
 import VisaoGeralRoute from '@/features/gestor/routes/VisaoGeral';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import {
@@ -125,6 +125,17 @@ describe('rota VisaoGeral', () => {
       isError: false,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useAlunos>);
+
+    // Reset explícito a cada teste: sem isto, um teste que passa
+    // `isError: true` (fix round 1) vazaria para os testes seguintes do
+    // arquivo, que não tocam `mockUseProvaOficial` de novo.
+    mockUseProvaOficial.mockReturnValue({
+      data: { provas: [], idsProvasOficiais: [] },
+      meta: null,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useProvaOficial>);
 
     vi.mocked(useGestorContexto).mockReturnValue({
       // `iesDisponiveis` é obrigatório no contrato real (migration
@@ -377,6 +388,40 @@ describe('rota VisaoGeral', () => {
     // Contrato KPI inalterado versus o caso sem prova: o mesmo "realizados"
     // de `visaoGeralFake` (3) continua saindo dos 4 indicadores.
     expect(screen.getByTestId('kpis-visao-geral')).toHaveTextContent('3');
+  });
+
+  /**
+   * Fix round 1 (achado de revisão de código, Task 4): antes desta correção
+   * o bloco da prova oficial só tratava o caminho feliz
+   * (`provaOficial.data?.provas.map(...)`) — um erro da RPC
+   * `get_gestor_prova_oficial` ficava indistinguível de "nenhuma prova
+   * oficial liberada neste recorte", ao contrário dos outros blocos da tela
+   * (Panorama/Gráfico), que passam pelo mesmo tratamento de
+   * estado/erro/retry de `BlocoGestor`.
+   */
+  it('erro em useProvaOficial mostra o estado de erro do bloco, com retry que chama refetch', async () => {
+    const user = userEvent.setup();
+    const refetchProvaOficial = vi.fn();
+    mockUseProvaOficial.mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: refetchProvaOficial,
+    } as unknown as ReturnType<typeof useProvaOficial>);
+
+    render(<VisaoGeralRoute />);
+
+    // O resto da tela segue de pé — mesmo contrato dos outros blocos.
+    expect(screen.getByTestId('kpis-visao-geral')).toBeInTheDocument();
+    expect(screen.queryByTestId('bloco-prova-oficial')).not.toBeInTheDocument();
+
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('Algo deu errado');
+    const botaoRetry = within(alerta).getByRole('button', { name: 'Tentar novamente' });
+
+    await user.click(botaoRetry);
+    expect(refetchProvaOficial).toHaveBeenCalledTimes(1);
   });
 
   /**
