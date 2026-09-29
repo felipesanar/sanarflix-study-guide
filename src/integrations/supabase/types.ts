@@ -609,6 +609,156 @@ export type Database = {
           },
         ]
       }
+      dim_aluno_b2b: {
+        Row: {
+          academy_user_id: string | null
+          email_normalizado: string
+          expiration_date: string | null
+          final_date: string | null
+          grupos_no_lake: number
+          id_ies: string
+          match_metodo: string | null
+          nome: string | null
+          nome_universidade_origem: string | null
+          perfil: string | null
+          sanarflix_user_id: string
+          semestre_atual: number | null
+          sincronizado_em: string
+          snapshot_date: string
+          status_atual: string
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          academy_user_id?: string | null
+          email_normalizado: string
+          expiration_date?: string | null
+          final_date?: string | null
+          grupos_no_lake: number
+          id_ies: string
+          match_metodo?: string | null
+          nome?: string | null
+          nome_universidade_origem?: string | null
+          perfil?: string | null
+          sanarflix_user_id: string
+          semestre_atual?: number | null
+          sincronizado_em?: string
+          snapshot_date: string
+          status_atual: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          academy_user_id?: string | null
+          email_normalizado?: string
+          expiration_date?: string | null
+          final_date?: string | null
+          grupos_no_lake?: number
+          id_ies?: string
+          match_metodo?: string | null
+          nome?: string | null
+          nome_universidade_origem?: string | null
+          perfil?: string | null
+          sanarflix_user_id?: string
+          semestre_atual?: number | null
+          sincronizado_em?: string
+          snapshot_date?: string
+          status_atual?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dim_aluno_b2b_academy_user_id_fkey"
+            columns: ["academy_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dim_aluno_b2b_id_ies_fkey"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dim_aluno_b2b_snapshot: {
+        Row: {
+          academy_user_id: string | null
+          carregado_em: string
+          email_normalizado: string
+          expiration_date: string | null
+          final_date: string | null
+          grupos_no_lake: number
+          id_ies: string
+          match_metodo: string | null
+          nome: string | null
+          nome_universidade_origem: string | null
+          perfil: string | null
+          sanarflix_user_id: string
+          semestre_atual: number | null
+          snapshot_date: string
+          status_atual: string
+          vigencia_fim: string | null
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          academy_user_id?: string | null
+          carregado_em?: string
+          email_normalizado: string
+          expiration_date?: string | null
+          final_date?: string | null
+          grupos_no_lake: number
+          id_ies: string
+          match_metodo?: string | null
+          nome?: string | null
+          nome_universidade_origem?: string | null
+          perfil?: string | null
+          sanarflix_user_id: string
+          semestre_atual?: number | null
+          snapshot_date: string
+          status_atual: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          academy_user_id?: string | null
+          carregado_em?: string
+          email_normalizado?: string
+          expiration_date?: string | null
+          final_date?: string | null
+          grupos_no_lake?: number
+          id_ies?: string
+          match_metodo?: string | null
+          nome?: string | null
+          nome_universidade_origem?: string | null
+          perfil?: string | null
+          sanarflix_user_id?: string
+          semestre_atual?: number | null
+          snapshot_date?: string
+          status_atual?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dim_aluno_b2b_snapshot_academy_user_id_fkey"
+            columns: ["academy_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dim_aluno_b2b_snapshot_id_ies_fkey"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       educational_groups: {
         Row: {
           created_at: string
@@ -800,6 +950,33 @@ export type Database = {
           srs_reps?: number
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      function_def_backups: {
+        Row: {
+          def: string
+          fn_oid: unknown
+          fn_signature: string
+          id: number
+          reason: string
+          saved_at: string
+        }
+        Insert: {
+          def: string
+          fn_oid?: unknown
+          fn_signature: string
+          id?: number
+          reason: string
+          saved_at?: string
+        }
+        Update: {
+          def?: string
+          fn_oid?: unknown
+          fn_signature?: string
+          id?: number
+          reason?: string
+          saved_at?: string
         }
         Relationships: []
       }
@@ -2426,7 +2603,10 @@ export type Database = {
           total: number
         }[]
       }
-      get_aluno_prova_oficial: { Args: { p_simulado_id: string }; Returns: Json }
+      get_aluno_prova_oficial: {
+        Args: { p_simulado_id: string }
+        Returns: Json
+      }
       get_aluno_provas_oficiais: { Args: never; Returns: Json }
       get_cohort_consumo_ranking: {
         Args: never
