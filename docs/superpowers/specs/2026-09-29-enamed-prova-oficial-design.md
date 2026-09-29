@@ -56,7 +56,7 @@ As questões ficam na numeração do **Caderno 1**: `numero_questao = ordem = po
 1. **RA:** preencher o RA da aluna sem matrícula (`00_arithana_ra.sql`, com guardas).
 2. **Simulado:** "ENAMED 2026 · Prova oficial (13/09/26)" nos 4 campi, com:
    - `type 'simulado_enamed'`, `prova_oficial true`, presencial, `status 'encerrado'`, realização em 13/09/2026;
-   - `liberacao_desempenho 'agendado'` em 31/12/2099 (resultado escondido);
+   - `liberacao_desempenho 'agendado'` em 31/12/2099 (resultado escondido; o gestor foi liberado em 29/09, ver §7);
    - **sem** vínculo em `ies_simulado_previsto`.
 3. **Questões:** 100, a partir do Ranking, com `correta` = gabarito preliminar do Caderno 1. As áreas seguem a D7; o gatilho `normalize_grande_area` mantém os 7 nomes.
 4. **Mapa de cadernos:** 200 linhas.
@@ -103,14 +103,11 @@ As questões ficam na numeração do **Caderno 1**: `numero_questao = ordem = po
 1. **Código:** branch `feat/enamed-prova-oficial` → PR → revisão. **A publicação é feita pelo Felipe.**
 2. **Migration em prod:** só com ok explícito, no momento da aplicação.
 3. **Carga:** a seção 4 roda com o resultado escondido e pode ir antes do front.
-4. **Liberação única**, para aluno e gestor ao mesmo tempo, quando tudo abaixo estiver verdadeiro:
-   - front publicado;
-   - conferência com 0 divergência;
-   - 16 imagens carregadas;
-   - TRI presente;
-   - duplicados resolvidos ou fora de propósito.
-
-   A liberação é feita trocando `liberacao_desempenho`.
+4. **Liberação em duas travas independentes** (substitui a liberação única; decisão de 29/09):
+   - **Gestor:** `liberacao_desempenho = 'imediato'`. **Feito em 29/09 às 11:54**, a pedido do Felipe, antes do TRI. Proficiência e conceito ficam "aguardando" até o lote do João.
+   - **Aluno:** `prova_oficial_liberada_aluno = true`, só com o ok do Leo, passado pelo Felipe. Exige também a trava do gestor aberta, porque as RPCs do aluno aplicam as duas condições.
+   - Antes da liberação do aluno: 16 imagens carregadas e duplicados resolvidos ou fora de propósito.
+   - O job `notify-performance-released` ignora `'imediato'` e só notifica quem tem `simulados_finalizados`; a prova não tem nenhum. Não há push automático para os alunos.
 5. **Gabarito definitivo:** atualizar `correta` / `anulada` das questões, recalcular `answer_progress.correct` do simulado e pedir ao João um novo lote TRI. Procedimento manual, executado uma vez.
 
 ## 8. Testes e verificação
@@ -122,9 +119,12 @@ As questões ficam na numeração do **Caderno 1**: `numero_questao = ordem = po
 
 ## 9. Rollback
 
-- **Esconder tudo na hora:** `prova_oficial = false` e/ou `liberacao_desempenho = 'agendado'`.
+- **Esconder do aluno:** `prova_oficial_liberada_aluno = false`.
+- **Esconder do gestor:** `liberacao_desempenho = 'agendado'` com `data_liberacao_desempenho` no futuro.
+- **NUNCA usar `prova_oficial = false` como rollback.** Todas as exclusões dependem dessa flag. Desligá-la faz a prova virar um simulado comum em todas as listas, agregados, rankings e na RLS do TRI do aluno, que é o contrário de esconder.
 - **Remover os dados:** DELETE por `simulado_id`. As tabelas novas têm `ON DELETE CASCADE`.
-- **Reverter `get_gestor_visao_geral`:** a definição anterior fica salva antes da troca.
+- **Reverter funções alteradas:** as definições anteriores estão em `public.function_def_backups` (coluna `def`; reexecutar com `EXECUTE`).
+- **Migrations de reescrita:** `…_exclusoes`, `…_trava_aluno`, `…_agregados_trava_aluno` e `…_drilldown_trava_aluno` dependem do corpo vivo em prod (âncoras exatas). Não são reexecutáveis num banco novo.
 
 ## 10. Pendências externas
 

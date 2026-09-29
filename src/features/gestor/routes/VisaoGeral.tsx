@@ -270,14 +270,17 @@ export default function VisaoGeral() {
     },
     [navegar],
   );
-  /** `★ ENAMED` no gráfico protagonista (modo 'geral') — um marco por prova oficial do recorte. */
+  /** `★ ENAMED` no gráfico protagonista (modo 'geral') — um marco por prova oficial do recorte.
+   *  Só entra quando já há TRI (proficientesPct não nulo): sem nota, o ★ seria uma categoria vazia. */
   const marcosProvaOficial = React.useMemo(
     () =>
-      (provaOficial.data?.provas ?? []).map((prova) => ({
-        rotulo: '★ ENAMED',
-        nome: prova.nome,
-        proficientesPct: prova.proficientesPct,
-      })),
+      (provaOficial.data?.provas ?? [])
+        .filter((prova) => prova.proficientesPct !== null)
+        .map((prova) => ({
+          rotulo: '★ ENAMED',
+          nome: prova.nome,
+          proficientesPct: prova.proficientesPct,
+        })),
     [provaOficial.data],
   );
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<EspecialidadeSelecionada | null>(null);

@@ -1,3 +1,5 @@
+-- ATENCAO: reescrita server-side sobre o corpo VIVO em prod (ancoras exatas). Nao e
+-- reexecutavel num banco novo; as definicoes anteriores ficam em public.function_def_backups.
 -- Exclui simulados com simulados_admin.prova_oficial = true (ENAMED oficial,
 -- 97d67578-4204-4009-8056-fd0df28aa30d) das series do gestor e dos agregados
 -- gerais do aluno. Nao altera o caminho por-simulado (p_simulado_id explicito).

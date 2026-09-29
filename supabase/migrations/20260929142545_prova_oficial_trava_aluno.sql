@@ -1,3 +1,5 @@
+-- ATENCAO: reescrita server-side sobre o corpo VIVO em prod (ancoras exatas). Nao e
+-- reexecutavel num banco novo; as definicoes anteriores ficam em public.function_def_backups.
 -- Fix round 1 (revisao do task 1a): trava o caminho EXPLICITO (p_simulado_id
 -- informado) para a prova oficial ENAMED (simulados_admin.prova_oficial = true,
 -- 97d67578-4204-4009-8056-fd0df28aa30d) ate a liberacao especifica do aluno
