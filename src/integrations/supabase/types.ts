@@ -1535,6 +1535,71 @@ export type Database = {
           },
         ]
       }
+      simulado_aluno_caderno: {
+        Row: {
+          caderno: number
+          created_at: string
+          simulado_id: string
+          user_id: string
+        }
+        Insert: {
+          caderno: number
+          created_at?: string
+          simulado_id: string
+          user_id: string
+        }
+        Update: {
+          caderno?: number
+          created_at?: string
+          simulado_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulado_aluno_caderno_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulado_cadernos: {
+        Row: {
+          caderno: number
+          posicao: number
+          question_id: string
+          simulado_id: string
+        }
+        Insert: {
+          caderno: number
+          posicao: number
+          question_id: string
+          simulado_id: string
+        }
+        Update: {
+          caderno?: number
+          posicao?: number
+          question_id?: string
+          simulado_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulado_cadernos_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questoes_simulado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "simulado_cadernos_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       simulados_admin: {
         Row: {
           created_at: string | null
@@ -1551,6 +1616,8 @@ export type Database = {
           liberacao_desempenho: string
           modalidade: string | null
           nome: string
+          prova_oficial: boolean
+          prova_oficial_liberada_aluno: boolean
           simulado_pai_id: string | null
           status: string
           type: string | null
@@ -1571,6 +1638,8 @@ export type Database = {
           liberacao_desempenho?: string
           modalidade?: string | null
           nome: string
+          prova_oficial?: boolean
+          prova_oficial_liberada_aluno?: boolean
           simulado_pai_id?: string | null
           status?: string
           type?: string | null
@@ -1591,6 +1660,8 @@ export type Database = {
           liberacao_desempenho?: string
           modalidade?: string | null
           nome?: string
+          prova_oficial?: boolean
+          prova_oficial_liberada_aluno?: boolean
           simulado_pai_id?: string | null
           status?: string
           type?: string | null
@@ -2355,6 +2426,8 @@ export type Database = {
           total: number
         }[]
       }
+      get_aluno_prova_oficial: { Args: { p_simulado_id: string }; Returns: Json }
+      get_aluno_provas_oficiais: { Args: never; Returns: Json }
       get_cohort_consumo_ranking: {
         Args: never
         Returns: {
@@ -2430,6 +2503,10 @@ export type Database = {
         Returns: Json
       }
       get_gestor_portal_versao: { Args: never; Returns: boolean }
+      get_gestor_prova_oficial: {
+        Args: { p_ies_id: string; p_semestre: string }
+        Returns: Json
+      }
       get_gestor_questao_respondentes: {
         Args: { p_alternativa: string; p_ies_id: string; p_question_id: string }
         Returns: Json
