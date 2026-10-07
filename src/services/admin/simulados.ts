@@ -136,6 +136,18 @@ export async function updateSimulado(input: UpdateSimuladoInput): Promise<Update
   return data as unknown as UpdateSimuladoResult;
 }
 
+/** Define `simulados_admin.type` via `admin_set_simulado_type` (audita no mesmo commit). */
+export async function setSimuladoType(simuladoId: string, tipo: 'simulado_enamed' | 'trilha'): Promise<void> {
+  const { error } = await (supabase.rpc as CallableFunction)('admin_set_simulado_type', {
+    p_simulado_id: simuladoId,
+    p_type: tipo,
+  });
+  if (error) {
+    Logger.error('[services/admin/simulados] admin_set_simulado_type falhou:', error);
+    throw new Error(error.message ?? 'Falha ao salvar o tipo do simulado.');
+  }
+}
+
 export interface EncerrarSimuladoResult {
   simulado_id: string;
   nome: string;

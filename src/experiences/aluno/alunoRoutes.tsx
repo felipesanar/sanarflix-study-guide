@@ -41,6 +41,7 @@ const CadernoRetaFinal = lazy(() =>
   })),
 );
 const MeusFeedbacks = lazy(() => import('@/pages/MeusFeedbacks'));
+const ProvaOficialPage = lazy(() => import('@/features/prova-oficial/pages/ProvaOficialPage'));
 
 /**
  * Envolve o conteúdo da experiência de aluno no seu shell exclusivo (sidebar
@@ -140,6 +141,17 @@ export const alunoRoutes = (
       '/simulados/:id/prova',
       <ExperiencePage waitForData={false}>
         <ModoProva />
+      </ExperiencePage>,
+      fallback,
+    ),
+
+    // Tela dedicada da prova oficial (ENAMED) do aluno — mesmo gate de
+    // simulados da IES; nunca exibe TRI/proficiência (spec D3).
+    gated(
+      accessRules.simulados,
+      '/simulados/:id/prova-oficial',
+      <ExperiencePage loadingMessage="Carregando sua prova...">
+        <ProvaOficialPage />
       </ExperiencePage>,
       fallback,
     ),

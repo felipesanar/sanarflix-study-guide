@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import {
   BLOCOS_EXPORT,
   blocosDisponiveis,
+  
   exportarRecortePdf,
   nomeArquivoExport,
   type BlocoExport,
@@ -19,8 +20,8 @@ const VISAO_GERAL: VisaoGeral = {
   },
   alunosMatriculadosNoRecorte: 312,
   evolucao: [
-    { simuladoId: 's1', nome: 'Simulado ENAMED 1 · 12/03/2026', data: '2026-03-12', valor: 38.2, participantes: 210 },
-    { simuladoId: 's2', nome: 'Simulado ENAMED 2 · 21/05/2026', data: '2026-05-21', valor: null, participantes: 198 },
+    { simuladoId: 's1', nome: 'Simulado ENAMED 1 · 12/03/2026', data: '2026-03-12', valor: 38.2, proficientesPct: 41.5, participantes: 210 },
+    { simuladoId: 's2', nome: 'Simulado ENAMED 2 · 21/05/2026', data: '2026-05-21', valor: null, proficientesPct: null, participantes: 198 },
   ],
   evolucaoPorArea: [],
   diagnosticoResumo: [
@@ -59,21 +60,25 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
   it('blocos que dependem de simulado só ficam disponíveis com simulado no recorte', () => {
     const sem = blocosDisponiveis(0);
     expect(sem.has('indicadores')).toBe(true);
-    expect(sem.has('metricasSimulados')).toBe(false);
+    expect(sem.has('acertoSemestre')).toBe(false);
     expect(sem.has('questoes')).toBe(false);
 
     const um = blocosDisponiveis(1);
-    expect(um.has('metricasSimulados')).toBe(true);
+    expect(um.has('acertoSemestre')).toBe(true);
     expect(um.has('questoes')).toBe(true);
 
     const dois = blocosDisponiveis(2);
-    expect(dois.has('metricasSimulados')).toBe(true);
+    expect(dois.has('acertoSemestre')).toBe(true);
     // "Questão por questão" exige UM simulado — comparativo não tem questão única.
     expect(dois.has('questoes')).toBe(false);
   });
 
   it('a lista nominal de alunos é o único bloco marcado como dado pessoal', () => {
     expect(BLOCOS_EXPORT.filter((b) => b.nominal).map((b) => b.id)).toEqual(['alunos']);
+  });
+
+  it('o bloco de evolução institucional não existe mais no catálogo (11/09)', () => {
+    expect(BLOCOS_EXPORT.map((b) => b.id)).not.toContain('evolucao');
   });
 
   it('gera o PDF com todos os blocos escolhidos e salva com o nome esperado', () => {
@@ -88,7 +93,7 @@ describe('exportarRecorte — relatório institucional por blocos (11/08)', () =
       return this;
     };
 
-    const blocos: BlocoExport[] = ['indicadores', 'evolucao', 'areas', 'distribuicao', 'alunos'];
+    const blocos: BlocoExport[] = ['indicadores', 'areas', 'distribuicao', 'alunos'];
     const arquivo = exportarRecortePdf(DADOS, blocos);
     proto.save = original;
 

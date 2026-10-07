@@ -2,6 +2,8 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/features/gestor/components/Icon';
 import { Tag } from '@/features/gestor/components/Tag';
+import { useEhProvaOficial } from '../api/queries';
+import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import type { ItemCronograma } from '../api/types';
 
 /**
@@ -41,8 +43,9 @@ function dataCurta(iso: string | null): string | null {
  * basta: dois simulados de nome parecido no mesmo período ficam
  * indistinguíveis, e `data`/`modalidade` já vêm no `ItemCronograma`.
  */
-export function rotuloItem(item: ItemCronograma): string {
-  return [item.nome, dataCurta(item.data), item.modalidade].filter(Boolean).join(' · ');
+export function rotuloItem(item: ItemCronograma, ehProvaOficial = false): string {
+  const base = [item.nome, dataCurta(item.data), item.modalidade].filter(Boolean).join(' · ');
+  return ehProvaOficial ? `${base}, prova oficial` : base;
 }
 
 /** Raio do quadrado de marcação (16×16) — a referência crava 4px aqui. */
@@ -102,6 +105,14 @@ export function SeletorSimulados({
   const idPainel = React.useId();
   const raiz = React.useRef<HTMLDivElement>(null);
   const painel = React.useRef<HTMLDivElement>(null);
+
+  /**
+   * ★ Prova oficial (Task 5) — mesma IES do recorte global. `useFiltrosGestor`
+   * é a única fonte de `iesId` deste componente: ele não recebe a IES por
+   * prop (nem o Detalhamento, único chamador hoje, repassa uma).
+   */
+  const { iesId } = useFiltrosGestor();
+  const ehProvaOficial = useEhProvaOficial(iesId);
 
 
   const semSelecao = selecionados.length === 0;
@@ -163,7 +174,8 @@ export function SeletorSimulados({
   const linhaItem = (item: ItemCronograma, indice: number) => {
     const motivo = motivoIndisponivel(item);
     const marcado = selecionados.includes(item.id);
-    const rotulo = rotuloItem(item);
+    const oficial = ehProvaOficial(item.id);
+    const rotulo = rotuloItem(item, oficial);
     return (
       <label
         key={item.id}
@@ -230,14 +242,17 @@ export function SeletorSimulados({
         </span>
 
         <span className="flex min-w-0 flex-1 flex-col">
-          <span
-            className="truncate"
-            style={{
-              color: marcado ? 'var(--gp-text-1)' : 'var(--gp-text-1)',
-              fontWeight: marcado ? 600 : 500,
-            }}
-          >
-            {item.nome}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span
+              className="min-w-0 truncate"
+              style={{
+                color: marcado ? 'var(--gp-text-1)' : 'var(--gp-text-1)',
+                fontWeight: marcado ? 600 : 500,
+              }}
+            >
+              {item.nome}
+            </span>
+            {oficial && <Tag variant="selo">★ Prova oficial</Tag>}
           </span>
           <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
             {[dataCurta(item.data), item.modalidade, typeof item.participantes === 'number' ? `${item.participantes} participantes` : null]
@@ -323,6 +338,7 @@ export function SeletorSimulados({
             }}
           >
             {item.nome}
+            {ehProvaOficial(item.id) && <Tag variant="selo">★ Prova oficial</Tag>}
             <button
               type="button"
               onClick={() => alternar(item.id)}

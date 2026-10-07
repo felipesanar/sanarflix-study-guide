@@ -59,6 +59,19 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useCronograma: (...args: unknown[]) => mockUseCronograma(...args),
   useDetalhamento: (...args: unknown[]) => mockUseDetalhamento(...args),
   useQuestoes: (...args: unknown[]) => mockUseQuestoes(...args),
+  // Task 5 — `DrawerAluno`/`CronogramaSimulados` (reais neste arquivo) chamam
+  // este hook incondicionalmente; sem o mock, a versão real bateria em
+  // `useQuery` fora de um `QueryClientProvider`.
+  useEhProvaOficial: () => () => false,
+  // Task 5 — `Detalhamento.tsx` (real neste arquivo) chama `useProvaOficial`
+  // incondicionalmente (Caderno 2 em Questões).
+  useProvaOficial: () => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  }),
 }));
 
 // Import após os vi.mock (hoisted) acima — mesmo padrão de GestorShell.test.tsx/tema.test.tsx.

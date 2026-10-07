@@ -14,12 +14,16 @@ const mocks = vi.hoisted(() => ({
   useFiltrosGestor: vi.fn(),
   useMarcarAvisoLido: vi.fn(),
   prefetchVisaoGeral: vi.fn(),
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 vi.mock('@/features/gestor/api/queries', () => ({
   useGestorContexto: mocks.useGestorContexto,
   useCronograma: mocks.useCronograma,
   useAvisos: mocks.useAvisos,
+  // Task 5 — selo "★ Prova oficial", chamado por `CronogramaSimulados` (real
+  // aqui, renderizado por `Inicio`). Default "nenhum simulado é prova oficial".
+  useEhProvaOficial: mocks.useEhProvaOficial,
 }));
 
 vi.mock('@/features/gestor/hooks/useFiltrosGestor', () => ({

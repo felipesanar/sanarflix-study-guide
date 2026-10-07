@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS answer_progress_user_simulado_question_uniq ON public.answer_progress (user_id, simulado, question_id) WHERE user_id IS NOT NULL;

@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.admin_lookup_users_by_ra_in_ies(uuid[], text[]) FROM authenticated;

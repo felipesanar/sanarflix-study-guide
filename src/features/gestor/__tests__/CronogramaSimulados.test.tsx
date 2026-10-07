@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -15,10 +15,13 @@ import {
 } from '@/features/gestor/components/CronogramaSimulados';
 import type { ItemCronograma, Meta } from '@/features/gestor/api/types';
 
-const mocks = vi.hoisted(() => ({ useCronograma: vi.fn() }));
+const mocks = vi.hoisted(() => ({ useCronograma: vi.fn(), useEhProvaOficial: vi.fn() }));
 
 vi.mock('@/features/gestor/api/queries', () => ({
   useCronograma: mocks.useCronograma,
+  // Task 5 — selo "★ Prova oficial" nas linhas do cronograma. Default "nenhum
+  // simulado é prova oficial", para não quebrar os testes existentes.
+  useEhProvaOficial: mocks.useEhProvaOficial,
 }));
 
 const META: Meta = {
@@ -88,6 +91,7 @@ const montar = (props?: Partial<React.ComponentProps<typeof CronogramaSimulados>
 
 beforeEach(() => {
   mocks.useCronograma.mockReturnValue(resultado({ data: ITENS }));
+  mocks.useEhProvaOficial.mockReturnValue(() => false);
 });
 
 describe('proximoSimulado', () => {
@@ -463,5 +467,30 @@ describe('CronogramaSimulados — estados (§8.4)', () => {
     expect(screen.getByText(/não foi possível carregar o cronograma/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /tentar novamente/i }));
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Task 5 — selo "★ Prova oficial" (`useEhProvaOficial`) nas 3 anatomias que o
+ * cronograma desenha: cartão de destaque (`CartaoProximo`, s4 é o "próximo"),
+ * linha comum (`ItemLinha`, s1) e linha sem data (`LinhaSemData`, s5).
+ */
+describe('CronogramaSimulados — selo "★ Prova oficial" (Task 5)', () => {
+  it('marca com o selo só os simulados que useEhProvaOficial reconhece, nas 3 anatomias', () => {
+    mocks.useEhProvaOficial.mockReturnValue((id: string) => id === 's4' || id === 's1' || id === 's5');
+    montar();
+
+    expect(within(screen.getByTestId('cronograma-item-s4')).getByText('★ Prova oficial')).toBeInTheDocument();
+    expect(within(screen.getByTestId('cronograma-item-s1')).getByText('★ Prova oficial')).toBeInTheDocument();
+    expect(within(screen.getByTestId('cronograma-item-s5')).getByText('★ Prova oficial')).toBeInTheDocument();
+
+    // s2 não está no predicado — sem selo.
+    expect(within(screen.getByTestId('cronograma-item-s2')).queryByText('★ Prova oficial')).not.toBeInTheDocument();
+  });
+
+  it('sem prova oficial no predicado, nenhuma linha mostra o selo', () => {
+    mocks.useEhProvaOficial.mockReturnValue(() => false);
+    montar();
+    expect(screen.queryByText('★ Prova oficial')).not.toBeInTheDocument();
   });
 });

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { useCronograma } from '@/features/gestor/api/queries';
+import { useCronograma, useEhProvaOficial } from '@/features/gestor/api/queries';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { formatData } from '@/features/gestor/lib/formatters';
 import { BadgeStatus } from '@/features/gestor/components/BadgeStatus';
@@ -342,7 +342,11 @@ function PilulaModalidade({ item }: { item: ItemCronograma }) {
  * — os outros status abririam o Detalhamento vazio, então a linha continua na
  * lista mas desabilitada (§4.7.1).
  */
-function ItemLinha({ item }: { item: ItemCronograma }) {
+function SeloProvaOficial() {
+  return <Tag variant="selo">★ Prova oficial</Tag>;
+}
+
+function ItemLinha({ item, ehProvaOficial }: { item: ItemCronograma; ehProvaOficial: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
   const navegavel = item.status === 'realizado';
@@ -392,7 +396,10 @@ function ItemLinha({ item }: { item: ItemCronograma }) {
       <ColunaData item={item} />
 
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-foreground">{item.nome}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate text-sm font-medium text-foreground">{item.nome}</span>
+          {ehProvaOficial && <SeloProvaOficial />}
+        </span>
         {/* Segunda linha SÓ quando há o que dizer. A data saiu daqui para a
             coluna da esquerda; sobraram participação e as duas ressalvas.
             Antes, uma linha realizada sem participantes e sem ressalva ainda
@@ -428,7 +435,7 @@ function ItemLinha({ item }: { item: ItemCronograma }) {
  * Não é um controle — agendado/reagendado não têm resultado para abrir, e um
  * botão desabilitado do tamanho de um cartão promete um clique que não existe.
  */
-function CartaoProximo({ item }: { item: ItemCronograma }) {
+function CartaoProximo({ item, ehProvaOficial }: { item: ItemCronograma; ehProvaOficial: boolean }) {
   const bloco = blocoData(item.data);
   const semana = diaDaSemana(item.data);
 
@@ -464,6 +471,7 @@ function CartaoProximo({ item }: { item: ItemCronograma }) {
             Próximo
           </Tag>
           <span className="truncate text-sm font-semibold text-foreground">{item.nome}</span>
+          {ehProvaOficial && <SeloProvaOficial />}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           {semana ? `${semana} · ` : ''}
@@ -486,7 +494,15 @@ function CartaoProximo({ item }: { item: ItemCronograma }) {
  * de agendar NA PRÓPRIA LINHA — com dois ou mais previstos, um "Agendar" no
  * rodapé do grupo não diz a qual simulado se refere.
  */
-function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: () => void }) {
+function LinhaSemData({
+  item,
+  onAgendar,
+  ehProvaOficial,
+}: {
+  item: ItemCronograma;
+  onAgendar: () => void;
+  ehProvaOficial: boolean;
+}) {
   return (
     <div
       data-testid={`cronograma-item-${item.id}`}
@@ -509,7 +525,10 @@ function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: ()
       </span>
 
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-foreground">{item.nome}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate text-sm font-medium text-foreground">{item.nome}</span>
+          {ehProvaOficial && <SeloProvaOficial />}
+        </span>
         <p className="text-xs text-muted-foreground">
           Sem data · defina para publicar no calendário dos alunos
         </p>
@@ -545,6 +564,8 @@ function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: ()
  */
 export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps) {
   const { data, meta, isLoading, isError, refetch } = useCronograma(iesId);
+  /** ★ Prova oficial (Task 5) — predicado único do recorte, avaliado por item. */
+  const ehProvaOficial = useEhProvaOficial(iesId);
   // Regra dos 400ms (spec §7, `useDelayedLoading`): numa carga fria (sem
   // dado anterior em cache), `isLoading` fica `true` desde o primeiro
   // render — sem o atraso, toda montagem piscaria o skeleton mesmo quando a
@@ -623,12 +644,12 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
         ) : undefined
       }
     >
-      {destaque && <CartaoProximo item={destaque} />}
+      {destaque && <CartaoProximo item={destaque} ehProvaOficial={ehProvaOficial(destaque.id)} />}
 
       <ul className="divide-y divide-border">
         {comData.map((item) => (
           <li key={item.id} className="py-1">
-            <ItemLinha item={item} />
+            <ItemLinha item={item} ehProvaOficial={ehProvaOficial(item.id)} />
           </li>
         ))}
       </ul>
@@ -652,6 +673,7 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
                 <LinhaSemData
                   item={item}
                   onAgendar={() => abrirWhatsApp(MSG_AGENDAR(iesNome, item.nome))}
+                  ehProvaOficial={ehProvaOficial(item.id)}
                 />
               </li>
             ))}

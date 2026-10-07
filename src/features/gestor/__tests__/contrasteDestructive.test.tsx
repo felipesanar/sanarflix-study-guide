@@ -69,7 +69,7 @@
 //    bg-card do container — mesmíssimos números do KpiCard: `text-destructive`
 //    3,7810:1 claro, 3,4829:1 escuro — reprova. TROCOU para `gp-text-danger`:
 //    11,0884:1 claro, 7,1471:1 escuro.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@/test/utils';
@@ -78,6 +78,13 @@ import { DistribuicaoAlternativas } from '@/features/gestor/charts/DistribuicaoA
 import { AcertoPorAreaESemestre } from '@/features/gestor/components/AcertoPorAreaESemestre';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { SeletorSimulados } from '@/features/gestor/components/SeletorSimulados';
+
+// Task 5 — `SeletorSimulados` (renderizado de verdade abaixo) agora chama
+// `useEhProvaOficial`. Sem este mock, o hook real bateria em `useAuth()` fora
+// de um `<AuthProvider>` (este arquivo não monta nenhum).
+vi.mock('@/features/gestor/api/queries', () => ({
+  useEhProvaOficial: vi.fn(() => () => false),
+}));
 import type {
   Alternativa,
   AcertoPorAreaESemestre as DadosAcertoPorAreaESemestre,

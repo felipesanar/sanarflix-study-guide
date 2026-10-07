@@ -128,6 +128,19 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useDetalhamento: vi.fn(),
   useDetalhamentoTemas: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: () => {} })),
   useQuestoes: vi.fn(),
+  // Task 4 — bloco dedicado da prova oficial ENAMED, consultado incondicionalmente
+  // pela rota VisaoGeral. Default "sem prova no recorte" para não quebrar os
+  // casos críticos que renderizam a rota real sem conhecer este hook.
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
+  // Task 5 — selo "★ Prova oficial", chamado por KpisDetalhamento (real
+  // neste arquivo). Default "nenhum simulado é prova oficial".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 vi.mock('@/features/gestor/hooks/useFiltrosGestor', () => ({

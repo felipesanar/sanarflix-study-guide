@@ -35,6 +35,26 @@ export interface EvolucaoChartProps {
    * genérico sem eixo.
    */
   carregando?: boolean;
+  /**
+   * Provas oficiais do recorte (Task 4) — cada uma vira um ponto ★ à DIREITA
+   * da série, numa categoria própria do eixo X. Nunca conectado pela linha da
+   * série institucional: um `<Line>` separado, com `stroke="none"`, desenha só
+   * o marcador (nunca um traço) — a prova oficial não é mais um simulado
+   * comparável na mesma régua de evolução, spec D5 ("excluída de
+   * `get_gestor_visao_geral`"). Ausente/vazio: o gráfico renderiza IDÊNTICO ao
+   * que renderizava antes deste campo existir.
+   */
+  marcos?: MarcoProvaOficial[];
+}
+
+/** Um ponto ★ do bloco de prova oficial (Task 4) — ver `EvolucaoChartProps.marcos`. */
+export interface MarcoProvaOficial {
+  /** Rótulo curto da categoria no eixo X (ex.: "★ ENAMED"). */
+  rotulo: string;
+  /** Nome completo da prova, para o tooltip (ex.: "ENAMED 2026"). */
+  nome: string;
+  /** 0–100 inteiro. `null` quando a prova ainda não tem TRI processada. */
+  proficientesPct: number | null;
 }
 
 /**
@@ -58,6 +78,14 @@ interface DadoEvolucao {
   valor: number | null;
   participantes: number;
   data: string;
+  /**
+   * Presentes só nas linhas sintéticas de `marcos` (Task 4), acrescentadas ao
+   * fim de `dados` — nunca nas linhas de simulado real, onde ambos ficam
+   * `undefined`. `marcoValor` é a série que o `<Line>` do marcador lê;
+   * `marcoNome` alimenta o tooltip próprio do marcador.
+   */
+  marcoNome?: string;
+  marcoValor?: number | null;
 }
 
 /**
@@ -117,6 +145,34 @@ function PontoAtual(props: {
 }
 
 /**
+ * Ponto ★ de uma prova oficial (Task 4) — anatomia própria, nunca a mesma de
+ * `PontoAtual`: um halo em `--gp-brand-surface` (o mesmo token do selo "★
+ * Prova oficial" do `Tag`, `variant="selo"") e o glifo ★ como `<text>` SVG, em
+ * vez de um círculo — o ponto tem que se distinguir de um simulado normal à
+ * primeira vista, não só ao passar o mouse.
+ */
+function PontoMarco(props: { cx?: number | null; cy?: number | null }) {
+  const { cx, cy } = props;
+  if (cx == null || cy == null) return null;
+
+  return (
+    <g data-testid="evolucao-marco-ponto">
+      <circle cx={cx} cy={cy} r={13} fill="var(--gp-brand-surface)" />
+      <text
+        x={cx}
+        y={cy}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={14}
+        fill="var(--gp-brand-on-dark, var(--gp-brand))"
+      >
+        ★
+      </text>
+    </g>
+  );
+}
+
+/**
  * Tooltip rico do handoff (docs/06, princípio 3): nome do simulado, valor
  * formatado e o CONTEXTO — quantos alunos sustentam aquele número. O total de
  * participantes só existia na tabela colapsável; sem ele, uma queda medida em
@@ -126,6 +182,20 @@ export function TooltipEvolucao(props: { active?: boolean; payload?: { payload: 
   const { active, payload } = props;
   if (!active || !payload || payload.length === 0) return null;
   const ponto = payload[0].payload;
+
+  if (ponto.marcoValor !== undefined) {
+    return (
+      <div
+        data-testid="tooltip-evolucao-marco"
+        className="px-3.5 py-2.5 text-xs"
+        style={{ ...SUPERFICIE_TOOLTIP, border: 'none', borderRadius: 'var(--gp-radius-md)' }}
+      >
+        <p className="font-semibold" style={{ color: 'var(--gp-tooltip-value)' }}>
+          {`${ponto.marcoNome} · Prova oficial · ${formatNumero(ponto.marcoValor)}% proficientes`}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -190,7 +260,7 @@ function LegendaEvolucao({ semTri }: { semTri: number }) {
   );
 }
 
-export function EvolucaoChart({ pontos, largura, altura = 300, carregando = false }: EvolucaoChartProps) {
+export function EvolucaoChart({ pontos, largura, altura = 300, carregando = false, marcos }: EvolucaoChartProps) {
   if (carregando) {
     const graficoEsqueleto = (
       <ComposedChart
@@ -365,11 +435,34 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
     participantes: ponto.participantes,
     data: ponto.data,
   }));
+  /*
+   * `ultimoIndice` fica preso ao ÍNDICE REAL do último simulado — calculado
+   * ANTES de acrescentar as linhas sintéticas dos marcos abaixo. Sem isso, um
+   * marco anexado ao fim de `dadosGrafico` "roubaria" a posição de último
+   * índice, e o simulado mais recente perderia o halo de ponto CORRENTE
+   * (`PontoAtual`) para uma linha que nem desenha ponto de série real.
+   */
   const ultimoIndice = dados.length - 1;
+
+  /*
+   * Cada marco (Task 4) vira uma CATEGORIA própria, à direita da série real —
+   * nunca um ponto dentro dela. `valor: null` garante que a linha/área da
+   * série institucional (que usa `connectNulls={false}`) não tenta emendar até
+   * ali; `marcoValor` é a única coluna que o `<Line>` do marcador lê.
+   */
+  const pontosMarco: DadoEvolucao[] = (marcos ?? []).map((marco) => ({
+    rotulo: marco.rotulo,
+    valor: null,
+    participantes: 0,
+    data: '',
+    marcoNome: marco.nome,
+    marcoValor: marco.proficientesPct,
+  }));
+  const dadosGrafico = pontosMarco.length > 0 ? [...dados, ...pontosMarco] : dados;
 
   const grafico = (
     <ComposedChart
-      data={dados}
+      data={dadosGrafico}
       width={largura}
       height={largura ? altura : undefined}
       /*
@@ -461,6 +554,26 @@ export function EvolucaoChart({ pontos, largura, altura = 300, carregando = fals
         dot={<PontoAtual ultimoIndice={ultimoIndice} />}
         activeDot={{ r: 6 }}
       />
+      {pontosMarco.length > 0 ? (
+        /*
+         * Linha DEDICADA dos marcos de prova oficial (Task 4) — `stroke="none"`
+         * garante que ela NUNCA desenha traço nenhum, em vez de depender só de
+         * `connectNulls={false}` (que ainda deixaria dois marcos ADJACENTES
+         * conectados entre si). O único efeito visível desta `<Line>` é o
+         * `dot` — cada marco vira um ponto ★ isolado, nunca ligado à série
+         * institucional nem a outro marco.
+         */
+        <Line
+          type="monotone"
+          dataKey="marcoValor"
+          stroke="none"
+          connectNulls={false}
+          isAnimationActive={false}
+          legendType="none"
+          dot={<PontoMarco />}
+          activeDot={{ r: 13 }}
+        />
+      ) : null}
     </ComposedChart>
   );
 

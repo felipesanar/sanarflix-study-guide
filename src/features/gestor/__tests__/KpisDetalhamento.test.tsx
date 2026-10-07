@@ -1,8 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, within } from '@/test/utils';
 import { KpisDetalhamento } from '@/features/gestor/components/KpisDetalhamento';
+import { useEhProvaOficial } from '@/features/gestor/api/queries';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import type { Meta, MetricasSimulado } from '@/features/gestor/api/types';
+
+// Task 5 — selo "★ Prova oficial". Default "nenhum simulado é prova oficial"
+// para não quebrar os testes existentes, que não conhecem este hook.
+vi.mock('@/features/gestor/api/queries', () => ({
+  useEhProvaOficial: vi.fn(() => () => false),
+}));
+
+const mockUseEhProvaOficial = vi.mocked(useEhProvaOficial);
 
 const META: Meta = {
   periodo: '2026.1',
@@ -316,5 +325,24 @@ describe('KpisDetalhamento', () => {
     const rastro = screen.getAllByTestId('rastreabilidade-texto')[0];
     expect(rastro).toHaveTextContent('05/08/2026');
     expect(rastro).not.toHaveTextContent('06/08/2026');
+  });
+
+  /**
+   * Task 5 — selo "★ Prova oficial" (`useEhProvaOficial`) no comparativo
+   * de Conceito ENAMED por simulado (só existe com 2+ simulados).
+   */
+  describe('selo "★ Prova oficial" (Task 5)', () => {
+    it('marca só o simulado que useEhProvaOficial reconhece, no comparativo de Conceito ENAMED', () => {
+      mockUseEhProvaOficial.mockReturnValue((id: string) => id === 's2');
+      render(
+        <KpisDetalhamento
+          metricas={[metrica({ simuladoId: 's1', nome: 'Simulado 1' }), metrica({ simuladoId: 's2', nome: 'Simulado 2' })]}
+          meta={META}
+        />,
+      );
+
+      expect(within(screen.getByTestId('enamed-s2')).getByText('★ Prova oficial')).toBeInTheDocument();
+      expect(within(screen.getByTestId('enamed-s1')).queryByText('★ Prova oficial')).not.toBeInTheDocument();
+    });
   });
 });

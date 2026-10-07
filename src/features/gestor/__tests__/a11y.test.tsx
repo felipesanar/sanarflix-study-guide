@@ -75,6 +75,19 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useDetalhamento: vi.fn(),
   useDetalhamentoTemas: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: () => {} })),
   useQuestoes: vi.fn(),
+  // Task 4 — bloco dedicado da prova oficial ENAMED, consultado incondicionalmente
+  // pela rota VisaoGeral (mesmo default "sem prova" de VisaoGeral.test.tsx).
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
+  // Task 5 — selo "★ Prova oficial", chamado por SeletorSimulados/
+  // ComparativoSimulados/KpisDetalhamento/DrawerAluno/CronogramaSimulados,
+  // todos reais nas rotas deste arquivo. Default "sem prova oficial".
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 /**

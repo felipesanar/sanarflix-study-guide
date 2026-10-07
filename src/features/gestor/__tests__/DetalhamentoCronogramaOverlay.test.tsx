@@ -26,6 +26,18 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useDetalhamento: vi.fn(),
   useQuestoes: vi.fn(),
   useGestorContexto: vi.fn(),
+  // Task 5 — a rota chama `useProvaOficial` incondicionalmente (Caderno 2 em
+  // Questões), e `SeletorSimulados`/`ComparativoSimulados`/`KpisDetalhamento`/
+  // `DrawerAluno` (reais neste arquivo) chamam `useEhProvaOficial`. Defaults
+  // "sem prova oficial no recorte", para não quebrar os testes existentes.
+  useProvaOficial: vi.fn(() => ({
+    data: { provas: [], idsProvasOficiais: [] },
+    meta: null,
+    isLoading: false,
+    isError: false,
+    refetch: () => {},
+  })),
+  useEhProvaOficial: vi.fn(() => () => false),
 }));
 
 vi.mock('@/features/gestor/components/FiltroSemestre', () => ({

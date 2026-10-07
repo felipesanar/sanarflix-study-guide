@@ -30,13 +30,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MonoValue } from '@/experiences/admin/ui';
 import { logAdminAction } from '@/services/admin/logAction';
-import { updateSimulado } from '@/services/admin/simulados';
+import { updateSimulado, setSimuladoType } from '@/services/admin/simulados';
 import type { Modalidade } from '@/services/admin/contratoSimulados';
 import { cn } from '@/lib/utils';
 import type { IES, Simulado } from './ProvasTab';
 
-/** Sentinela do item "Não definida" do Select de modalidade — Radix não aceita value="". */
-const MODALIDADE_NAO_DEFINIDA = '__nao_definida__';
+type TipoSimulado = 'simulado_enamed' | 'trilha';
 
 const DURACAO_OPCOES = [
   { value: 120, label: '2h' },
@@ -168,6 +167,7 @@ const FORM_INITIAL = {
   // em produção (boa parte das provas ainda não tem modalidade definida).
   modalidade: null as Modalidade | null,
   dataRealizacao: '',
+  tipo: null as TipoSimulado | null,
   // §6.4: sem esta intenção explícita a RPC nunca sincroniza
   // `data_agendada_original`, e uma data nova OFICIAL acordada com a IES fica
   // marcada como "Reagendado" no cronograma do gestor para sempre. Não é
@@ -234,6 +234,7 @@ export default function SimuladoConfigDialog({
         // era exatamente esse o risco levantado na Task 10.
         modalidade: simulado.modalidade,
         dataRealizacao: simulado.data_realizacao ? brazilISOToDatetimeLocal(simulado.data_realizacao) : '',
+        tipo: simulado.tipo,
         // Sempre desmarcado ao abrir: "definitiva" é uma afirmação sobre ESTA
         // edição, não um atributo do simulado. Herdar do save anterior faria o
         // admin oficializar uma remarcação sem perceber.
@@ -521,6 +522,9 @@ export default function SimuladoConfigDialog({
     !saving &&
     form.nome.trim() !== '' &&
     selectedIES.length > 0 &&
+    form.modalidade !== null &&
+    form.tipo !== null &&
+    !avisoPresencialSemDataRealizacao &&
     (mode === 'edit' || parsedFile !== null) &&
     (!allImagesFailed || ignoreImageWarning);
 
@@ -533,8 +537,14 @@ export default function SimuladoConfigDialog({
       // agendamento nesta sessão — do contrário mantemos o valor original tal como
       // veio do banco (achado P2: antes, editar um simulado já liberado reescrevia
       // `data_liberacao` para "agora" a cada save, mesmo sem o admin tocar na data).
+      let dataRealizacaoISO = form.dataRealizacao ? datetimeLocalToBrazilISO(form.dataRealizacao) : null;
+      const isPresencial = form.modalidade === 'presencial';
       let dataLiberacaoISO: string | null;
-      if (mode === 'edit' && !scheduleChanged) {
+      if (isPresencial) {
+        // Presencial: aluno nunca acessa pela plataforma — Início = Término =
+        // data de realização e o simulado é gravado como encerrado.
+        dataLiberacaoISO = dataRealizacaoISO;
+      } else if (mode === 'edit' && !scheduleChanged) {
         dataLiberacaoISO = dataLiberacaoOriginalISO;
       } else if (form.liberarImediatamente) {
         dataLiberacaoISO = agora.toISOString();
@@ -543,24 +553,24 @@ export default function SimuladoConfigDialog({
       } else {
         dataLiberacaoISO = null;
       }
-      const dataEncerramentoISO = form.dataEncerramento ? datetimeLocalToBrazilISO(form.dataEncerramento) : null;
+      // Online: data de realização = Início.
+      if (!isPresencial) dataRealizacaoISO = dataLiberacaoISO;
+      const dataEncerramentoISO = isPresencial
+        ? dataRealizacaoISO
+        : form.dataEncerramento ? datetimeLocalToBrazilISO(form.dataEncerramento) : null;
       // Preserva 'encerrado' ao editar (achado P1) SOMENTE quando o encerramento foi
-      // manual/persistido no banco (`simulado.statusDb`) — nunca reabrimos uma prova
-      // encerrada dessa forma silenciosamente. Quando o encerramento é apenas
-      // computado (banco 'ativo', `data_encerramento` passada), passamos o status do
-      // banco ('ativo') e deixamos `calcularStatusSalvar` recalcular pelas datas: se o
-      // admin estendeu `data_encerramento` para o futuro, a prova reabre — que é a
-      // intenção explícita ao editar a data.
-      const statusCalculado = calcularStatusSalvar(
-        dataLiberacaoISO,
-        dataEncerramentoISO,
-        mode === 'edit' ? simulado?.statusDb ?? null : null,
-      );
+      // manual/persistido no banco (`simulado.statusDb`).
+      const statusCalculado = isPresencial
+        ? 'encerrado'
+        : calcularStatusSalvar(
+            dataLiberacaoISO,
+            dataEncerramentoISO,
+            mode === 'edit' ? simulado?.statusDb ?? null : null,
+          );
       const dataLiberacaoDesempenhoISO =
         form.liberacaoDesempenho === 'agendado' && form.dataLiberacaoDesempenho
           ? datetimeLocalToBrazilISO(form.dataLiberacaoDesempenho)
           : null;
-      const dataRealizacaoISO = form.dataRealizacao ? datetimeLocalToBrazilISO(form.dataRealizacao) : null;
 
       if (mode === 'edit' && simulado) {
         // Escrita via RPC `admin_update_simulado`, não mais `.from().update()`
@@ -593,6 +603,11 @@ export default function SimuladoConfigDialog({
           dataRealizacao: dataRealizacaoISO,
           definitiva: form.dataDefinitiva,
         });
+        if (form.tipo && form.tipo !== simulado.tipo) {
+          await setSimuladoType(simulado.id, form.tipo);
+        }
+
+
 
         // Sem `logAdminAction` aqui: a RPC já grava `editar_simulado` em
         // `admin_audit_log` no mesmo commit. Chamar os dois daria duas linhas
@@ -613,6 +628,10 @@ export default function SimuladoConfigDialog({
             ies_ids: selectedIES,
             liberacao_desempenho: form.liberacaoDesempenho,
             data_liberacao_desempenho: dataLiberacaoDesempenhoISO,
+            modalidade: form.modalidade,
+            data_realizacao: dataRealizacaoISO,
+            data_agendada_original: dataRealizacaoISO,
+            type: form.tipo,
           })
           .select()
           .single();
@@ -846,50 +865,55 @@ export default function SimuladoConfigDialog({
           )}
 
           <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="simulado-modalidade">Modalidade</Label>
+            <Label htmlFor="simulado-tipo">Tipo do simulado<span aria-hidden="true"> *</span></Label>
             <Select
-              value={form.modalidade ?? MODALIDADE_NAO_DEFINIDA}
-              onValueChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  modalidade: v === MODALIDADE_NAO_DEFINIDA ? null : (v as Modalidade),
-                }))
-              }
+              value={form.tipo ?? undefined}
+              onValueChange={(v) => setForm((prev) => ({ ...prev, tipo: v as TipoSimulado }))}
             >
-              <SelectTrigger id="simulado-modalidade" className="max-w-xs">
-                <SelectValue />
+              <SelectTrigger id="simulado-tipo" className="max-w-xs">
+                <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={MODALIDADE_NAO_DEFINIDA}>Não definida</SelectItem>
+                <SelectItem value="simulado_enamed">Simulado ENAMED</SelectItem>
+                <SelectItem value="trilha">Trilha</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Só simulados ENAMED aparecem para o gestor.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="simulado-modalidade">Modalidade<span aria-hidden="true"> *</span></Label>
+            <Select
+              value={form.modalidade ?? undefined}
+              onValueChange={(v) => setForm((prev) => ({ ...prev, modalidade: v as Modalidade }))}
+            >
+              <SelectTrigger id="simulado-modalidade" className="max-w-xs">
+                <SelectValue placeholder="Selecione a modalidade" />
+              </SelectTrigger>
+              <SelectContent>
                 <SelectItem value="online">Online</SelectItem>
                 <SelectItem value="presencial">Presencial</SelectItem>
               </SelectContent>
             </Select>
-            {/* Quem marca modalidade e datas é o admin (equipe B2B) nesta tela — não
-                o CX (decisão do Felipe, 03/08). O texto abaixo só explica qual data é
-                a principal; nenhum campo é escondido por modalidade (44 provas em
-                produção têm combinações inconsistentes e o admin precisa poder
-                ver/corrigir qualquer uma delas). */}
             {form.modalidade === 'online' && (
               <p className="text-xs text-muted-foreground">
-                Online: a data principal é o <strong>Início</strong> — quando o aluno pode começar a fazer a
-                prova na plataforma.
+                Online: a data de realização é a mesma do <strong>Início</strong> — quando o aluno pode começar a
+                fazer a prova na plataforma.
               </p>
             )}
             {form.modalidade === 'presencial' && (
               <p className="text-xs text-muted-foreground">
-                Presencial: a data principal é a <strong>Data de realização</strong> — o dia em que a prova
-                acontece. Início/Término abaixo passam a valer para o lançamento das respostas na plataforma.
+                Presencial: o simulado é salvo como encerrado e não fica disponível para o aluno no site.
               </p>
-            )}
-            {form.modalidade === null && (
-              <p className="text-xs text-muted-foreground">Defina a modalidade para saber qual data é a principal.</p>
             )}
           </div>
 
+          {form.modalidade !== null && (
+          <>
+          {form.modalidade === 'presencial' && (
           <div className="space-y-2">
             <Label htmlFor="simulado-data-realizacao">
-              Data de realização{form.modalidade === 'presencial' ? ' (principal)' : ''}
+              Data de realização<span aria-hidden="true"> *</span>
             </Label>
             <Input
               id="simulado-data-realizacao"
@@ -898,23 +922,19 @@ export default function SimuladoConfigDialog({
               value={form.dataRealizacao}
               onChange={(e) => setForm((prev) => ({ ...prev, dataRealizacao: e.target.value }))}
             />
-            <p className="text-xs text-muted-foreground">
-              {form.modalidade === 'presencial'
-                ? 'Dia em que a prova presencial acontece.'
-                : 'Usada apenas quando a modalidade é presencial.'}
-            </p>
+            <p className="text-xs text-muted-foreground">Dia em que a prova presencial acontece.</p>
             {avisoPresencialSemDataRealizacao && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Simulado presencial sem data de realização definida — modalidade e data de realização{' '}
-                <strong>não serão gravadas</strong> neste save (o servidor recusa prova presencial sem
-                data). Os demais campos são salvos normalmente. Preencha a data para gravar a agenda.
+                Simulado presencial precisa de data de realização para ser salvo.
               </p>
             )}
           </div>
+          )}
 
+          {form.modalidade === 'online' && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>{form.modalidade === 'presencial' ? 'Início do lançamento de respostas' : 'Início'}</Label>
+              <Label>Início</Label>
               <Input
                 type="datetime-local"
                 value={form.dataLiberacao}
@@ -944,18 +964,13 @@ export default function SimuladoConfigDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label>{form.modalidade === 'presencial' ? 'Término do lançamento de respostas' : 'Término'}</Label>
+              <Label>Término</Label>
               <Input
                 type="datetime-local"
                 value={form.dataEncerramento}
                 onChange={(e) => setForm((prev) => ({ ...prev, dataEncerramento: e.target.value }))}
               />
               <p className="text-xs text-muted-foreground">Horário de Brasília (UTC−3).</p>
-              {form.modalidade === 'presencial' && (
-                <p className="text-xs text-muted-foreground">
-                  Janela de lançamento das respostas na plataforma — não é a data da prova.
-                </p>
-              )}
               {avisoEncerramentoAntesDoInicio && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
                   Término é anterior ao início — confira as datas.
@@ -963,6 +978,7 @@ export default function SimuladoConfigDialog({
               )}
             </div>
           </div>
+          )}
 
           {/* §6.4 — só em edição: a criação insere direto em `simulados_admin`,
               onde `data_agendada_original` nasce junto com a data e "Reagendado"
@@ -1017,6 +1033,8 @@ export default function SimuladoConfigDialog({
               />
             )}
           </div>
+          </>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t px-6 py-4">

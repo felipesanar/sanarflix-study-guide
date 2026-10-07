@@ -427,4 +427,41 @@ describe('TabelaQuestoes', () => {
     expect(screen.queryByTestId(/^linha-questao-/)).toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
   });
+
+  /**
+   * Task 5 — numeração do Caderno 2. Só aparece quando o simulado
+   * selecionado é a prova oficial (`ehProvaOficial`); o resto do portal
+   * nunca fala em "caderno".
+   */
+  describe('numeração do Caderno 2 (Task 5)', () => {
+    it('com a prova selecionada, a linha 1 mostra "C2 30" ao lado de Q01', () => {
+      render(
+        <TabelaQuestoes
+          {...props({ ehProvaOficial: true, numeracaoCaderno2: { '1': 30 } })}
+        />,
+      );
+
+      const linha = screen.getByTestId('linha-questao-1');
+      expect(linha).toHaveTextContent('Q01');
+      expect(linha).toHaveTextContent('C2 30');
+    });
+
+    it('sem ehProvaOficial, nenhuma numeração de caderno aparece mesmo com o mapa presente', () => {
+      render(
+        <TabelaQuestoes
+          {...props({ ehProvaOficial: false, numeracaoCaderno2: { '1': 30 } })}
+        />,
+      );
+
+      expect(screen.getByTestId('linha-questao-1')).not.toHaveTextContent('C2');
+    });
+
+    it('com a prova selecionada mas sem entrada no mapa para a questão, não mostra "C2"', () => {
+      render(
+        <TabelaQuestoes {...props({ ehProvaOficial: true, numeracaoCaderno2: {} })} />,
+      );
+
+      expect(screen.getByTestId('linha-questao-1')).not.toHaveTextContent('C2');
+    });
+  });
 });

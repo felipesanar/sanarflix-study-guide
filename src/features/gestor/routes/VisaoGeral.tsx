@@ -1,11 +1,16 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/features/gestor/components/Icon';
+import { DialogExportarDados } from '@/features/gestor/components/DialogExportarDados';
 import { useToast } from '@/hooks/use-toast';
-import { useGestorContexto, useVisaoGeral } from '@/features/gestor/api/queries';
+import { useGestorContexto, useProvaOficial, useVisaoGeral } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { useDelayedLoading } from '@/features/gestor/hooks/useDelayedLoading';
 import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
+import { BlocoProvaOficial } from '@/features/gestor/components/BlocoProvaOficial';
 import { LeituraEstrategica } from '@/features/gestor/components/LeituraEstrategica';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { CabecalhoTela, ContainerRota } from '@/features/gestor/components/CabecalhoTela';
@@ -180,6 +185,13 @@ export default function VisaoGeral() {
   const contexto = useGestorContexto();
   const { toast } = useToast();
   const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight, exportSolicitado } = useTelemetriaGestor();
+  /**
+   * Painel de exportação desta tela (11/09). Mesmo componente do Início: o
+   * gestor que já está lendo os indicadores baixa o documento aqui, sem voltar
+   * uma tela. Montado só depois do clique — o painel consulta a Visão Geral e
+   * o cronograma, e não faz sentido pagar isso em quem nunca exporta.
+   */
+  const [exportarAberto, setExportarAberto] = React.useState(false);
 
   /**
    * A URL é hint de UI; a IES autoritativa vem do servidor — mesmo padrão de
@@ -234,6 +246,43 @@ export default function VisaoGeral() {
   }, [filtros.semestre, filtroAlterado]);
 
   const consulta = useVisaoGeral(filtrosGestor);
+  /**
+   * Bloco dedicado da prova oficial ENAMED (Task 4, spec D5) — consulta
+   * PRÓPRIA, nunca embutida em `useVisaoGeral`: a prova é excluída da RPC da
+   * Visão Geral de propósito (série, "atual", KPIs), então o bloco e o marco
+   * ★ do gráfico dependem só desta query.
+   */
+  const provaOficial = useProvaOficial(filtrosGestor);
+  const navegar = useNavigate();
+  /**
+   * "Ver detalhamento" de uma prova oficial navega para o Detalhamento com
+   * SÓ aquele simulado selecionado — mesmo padrão de navegação entre rotas do
+   * gestor que `Detalhamento.tsx` já usa (`navegar({ pathname, search })`,
+   * preservando o resto da query string), porque `useFiltrosGestor().
+   * setSimulados` está preso à URL desta rota (Visão Geral não lê
+   * `?simulados`) e não navegaria para o Detalhamento sozinho.
+   */
+  const irParaDetalhamento = React.useCallback(
+    (simuladoId: string) => {
+      const proximosParams = new URLSearchParams(window.location.search);
+      proximosParams.set('simulados', simuladoId);
+      navegar({ pathname: '/gestor/detalhamento', search: proximosParams.toString() });
+    },
+    [navegar],
+  );
+  /** `★ ENAMED` no gráfico protagonista (modo 'geral') — um marco por prova oficial do recorte.
+   *  Só entra quando já há TRI (proficientesPct não nulo): sem nota, o ★ seria uma categoria vazia. */
+  const marcosProvaOficial = React.useMemo(
+    () =>
+      (provaOficial.data?.provas ?? [])
+        .filter((prova) => prova.proficientesPct !== null)
+        .map((prova) => ({
+          rotulo: '★ ENAMED',
+          nome: prova.nome,
+          proficientesPct: prova.proficientesPct,
+        })),
+    [provaOficial.data],
+  );
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<EspecialidadeSelecionada | null>(null);
 
   /**
@@ -301,7 +350,6 @@ export default function VisaoGeral() {
         : visao
           ? 'ok'
           : 'empty';
-  const parcial = meta.partial;
 
   /**
    * Troca de IES/semestre com dado do recorte ANTERIOR na mão: `useEnvelope`
@@ -426,6 +474,21 @@ export default function VisaoGeral() {
               consegue responder. Enquanto a query não volta, `undefined`
               mantém a lista completa em vez de piscar um dropdown vazio. */}
           <FiltroSemestre semestresDisponiveis={semestresComResultado} />
+          {/* Ausente (nunca desabilitado) quando o papel não pode exportar —
+              mesma regra do direcionador do Início e do `AcoesRecorte`. */}
+          {contexto.data?.podeExportar && iesAtivaId ? (
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="visao-geral-exportar"
+              onClick={() => setExportarAberto(true)}
+              className="h-9 gap-1.5 border-[color:var(--gp-border-input)] bg-[var(--gp-surface-1)] text-[color:var(--gp-text-2)] hover:border-[color:var(--gp-text-2)] hover:bg-[var(--gp-surface-1)] hover:text-[color:var(--gp-text-1)]"
+              style={{ borderRadius: 'var(--gp-radius-sm)', fontSize: 12, fontWeight: 600 }}
+            >
+              <Icon name="download" size={15} />
+              Exportar PDF
+            </Button>
+          ) : null}
           </>}
         />
         <ContextoDoRecorte
@@ -435,6 +498,15 @@ export default function VisaoGeral() {
           simuladoAtual={simuladoAtual}
         />
       </div>
+
+      {exportarAberto && iesAtivaId ? (
+        <DialogExportarDados
+          aberto={exportarAberto}
+          onAbertoChange={setExportarAberto}
+          iesId={iesAtivaId}
+        />
+      ) : null}
+
 
 
 
@@ -447,6 +519,39 @@ export default function VisaoGeral() {
           Atualizando para o recorte selecionado. Os números abaixo ainda são do recorte anterior.
         </p>
       ) : null}
+
+      {/* 0. Prova(s) oficial(is) do recorte (Task 4, spec D5) — bloco dedicado,
+          ACIMA do Panorama: a prova é excluída dos 4 indicadores e da série
+          institucional, então precisa da própria âncora visual antes deles.
+
+          `provaOficial` é query PRÓPRIA (fora de `useVisaoGeral`) — precisa do
+          próprio tratamento de erro, como qualquer outro bloco da tela
+          (`BlocoGestor`/`aoTentarNovamente`). Enquanto a primeira carga está em
+          voo (`isLoading`, sem dado ainda) o bloco não renderiza NADA — não um
+          skeleton: a maioria das IES não tem prova oficial no recorte, e um
+          skeleton reservaria espaço para o caso raro em toda visita comum
+          (achado do fix round 1, revisão de código). Um erro, ao contrário,
+          precisa ser ANUNCIADO — sem isto a falha da RPC ficava indistinguível
+          de "nenhuma prova oficial liberada". */}
+      {provaOficial.isError ? (
+        <div className={classeRevelacao(0)}>
+          <BlocoGestor
+            estado="error"
+            bloco="prova-oficial"
+            testIdLoading="bloco-prova-oficial-loading"
+            alturaSkeleton={160}
+            aoTentarNovamente={provaOficial.refetch}
+          >
+            {null}
+          </BlocoGestor>
+        </div>
+      ) : (
+        provaOficial.data?.provas.map((prova) => (
+          <div key={prova.simuladoId} className={classeRevelacao(0)}>
+            <BlocoProvaOficial prova={prova} onVerDetalhamento={irParaDetalhamento} />
+          </div>
+        ))
+      )}
 
       {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
       <div className={`flex flex-col gap-3 ${classeRevelacao(0)}`}>
@@ -495,14 +600,13 @@ export default function VisaoGeral() {
       <div className={classeRevelacao(1)}>
         <BlocoGestor
           estado={estado}
-          parcial={parcial}
           alturaSkeleton={360}
           bloco="grafico"
           testIdLoading="bloco-grafico-loading"
           aoTentarNovamente={aoTentarNovamente}
           mensagemVazio="Sem simulados realizados neste recorte."
         >
-          {visao ? <GraficoProtagonista visao={visao} /> : null}
+          {visao ? <GraficoProtagonista visao={visao} marcosProvaOficial={marcosProvaOficial} /> : null}
         </BlocoGestor>
       </div>
 
@@ -521,7 +625,6 @@ export default function VisaoGeral() {
         ) : (
           <BlocoGestor
             estado={estado}
-            parcial={parcial}
             alturaSkeleton={220}
             bloco="diagnostico"
             testIdLoading="bloco-diagnostico-loading"
@@ -550,7 +653,6 @@ export default function VisaoGeral() {
         ) : (
           <BlocoGestor
             estado={estado}
-            parcial={parcial}
             alturaSkeleton={320}
             bloco="visao-alunos"
             testIdLoading="bloco-visao-alunos-loading"

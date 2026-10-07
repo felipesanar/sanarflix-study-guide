@@ -6,10 +6,13 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { CronogramaSimulados } from '@/features/gestor/components/CronogramaSimulados';
 import type { ItemCronograma } from '@/features/gestor/api/types';
 
-const mocks = vi.hoisted(() => ({ useCronograma: vi.fn() }));
+const mocks = vi.hoisted(() => ({ useCronograma: vi.fn(), useEhProvaOficial: vi.fn(() => () => false) }));
 
 vi.mock('@/features/gestor/api/queries', () => ({
   useCronograma: mocks.useCronograma,
+  // Task 5 — selo "★ Prova oficial". Default "nenhum simulado é prova
+  // oficial", para não quebrar os testes existentes.
+  useEhProvaOficial: mocks.useEhProvaOficial,
 }));
 
 /**

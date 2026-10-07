@@ -10,6 +10,7 @@ import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoMo
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
 import { can } from '@/experiences/access';
+import { CardsProvaOficial } from '@/features/prova-oficial/components/CardProvaOficial';
 
 export const Simulados = () => {
   const navigate = useNavigate();
@@ -64,6 +65,8 @@ export const Simulados = () => {
           </Button>
         </div>
       </div>
+
+      <CardsProvaOficial />
 
       <Tabs value={abaAtiva} onValueChange={handleTabChange} className="w-full">
         <TabsList className={`grid w-full max-w-lg ${showDesempenho ? 'grid-cols-3' : 'grid-cols-2'} mb-8`}>
