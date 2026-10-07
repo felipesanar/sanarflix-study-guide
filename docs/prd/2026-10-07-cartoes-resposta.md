@@ -36,6 +36,7 @@ A maioria das IES aplica os cartões, escaneia e já manda a planilha. Algumas m
 1. **Branch:**
    - Todo trabalho acontece na branch de feature criada pelo João. **Nunca commitar, mergear ou dar push na `main`.** O Lovable publica a `main` em produção automaticamente.
    - Antes de começar: `git branch --show-current`. Se for `main`, parar e perguntar.
+   - Logo depois, no início de toda sessão: `git fetch origin && git merge origin/main` (a `main` recebe commits do Lovable várias vezes por dia). Se o merge trouxer migrations novas, regenerar `src/integrations/supabase/types.ts` com `generate_typescript_types` — nunca resolver esse arquivo à mão. Se houver conflito fora de `types.ts`, parar e perguntar.
    - Antes de dar push: `git fetch` e, se o remoto andou, `git pull --rebase`. **Nunca `push --force`.**
 2. **Uma fase por sessão.** Não adiantar trabalho de outra fase. Se descobrir algo que pertence a outra fase, registrar na seção "Notas para a próxima fase" do relatório de handoff.
 3. **Ações em produção são portões explícitos.** Só existe um projeto Supabase, o de produção: ref `gvqvrmkizemwsasmupmo`. Confirmar o ref antes de qualquer chamada. Exigem **pedido explícito de aprovação ao João, na hora**:
@@ -479,7 +480,7 @@ Supabase de produção: gvqvrmkizemwsasmupmo (nesta fase, só consultas de leitu
 Leia antes de qualquer ação: docs/prd/2026-10-07-cartoes-resposta.md — seções 4, 5, 6, 7.1, 7.6 e a Fase 0 na seção 8.
 O cartão modelo está em "C:\Users\joao.nader\OneDrive - Editora Sanar S.A\Documentos\cartao_de_respostas_simulado_E_ENAMED_2026.pdf" — copie para services/cartao-omr/templates/source/enamed_v1.pdf.
 
-Estado atual: nada implementado; só o PRD existe na branch.
+Estado atual: nada implementado; só o PRD existe na branch. Comece com `git fetch origin && git merge origin/main` (regra 1 da seção 4).
 Atenção: esta fase é go/no-go. Se o acerto por bolha não atingir 99,5% nas fixtures após calibração, pare e reporte com números e exemplos.
 Cartões reais preenchidos: {o João informa se já tem; senão, registre como pendência da Fase 5}.
 
