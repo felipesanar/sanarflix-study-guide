@@ -339,7 +339,7 @@ describe('experiences/buildAppRoutes — gestão', () => {
 describe('experiences/buildAppRoutes — admin', () => {
   const adminRules = adminRulesFixture;
 
-  it('expõe a rota-layout /admin com as 12 seções como filhas (index = Command Center)', () => {
+  it('expõe a rota-layout /admin com as 13 seções como filhas (index = Command Center)', () => {
     const routes = routesForRoles(['admin'], adminRules);
     const adminRoute = routes.get('/admin');
     expect(adminRoute).toBeDefined();
@@ -352,6 +352,7 @@ describe('experiences/buildAppRoutes — admin', () => {
       'simulados',
       'monitoramento',
       'usuarios',
+      'mentores',
       'ies',
       'contratos',
       'guia',

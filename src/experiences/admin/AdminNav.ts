@@ -11,6 +11,7 @@ import {
   BarChart3,
   History,
   FileSignature,
+  GraduationCap,
 } from 'lucide-react';
 import type { NavItem } from '@/experiences/types';
 import { can, type Access } from '@/experiences/access';
@@ -38,10 +39,10 @@ export interface AdminNavGroup {
 }
 
 /**
- * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 12 itens.
+ * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 13 itens.
  *
  * - Operação: Command Center, Simulados, Monitoramento.
- * - Contas & acesso: Usuários, IES, Contratos & cronograma.
+ * - Contas & acesso: Usuários, Mentores, IES, Contratos & cronograma.
  * - Conteúdo & comunicação: Guia de Estudos, Avisos, SanarClass.
  * - Suporte & dados: Feedbacks, Analytics, Auditoria.
  */
@@ -64,6 +65,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     label: 'Contas & acesso',
     items: [
       { title: 'Usuários', url: '/admin/usuarios', icon: Users, capability: 'users.manage' },
+      { title: 'Mentores', url: '/admin/mentores', icon: GraduationCap, capability: 'mentores.manage' },
       {
         title: 'IES',
         url: '/admin/ies',
