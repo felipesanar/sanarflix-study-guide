@@ -34,6 +34,10 @@ BEGIN
     RAISE EXCEPTION 'mentor B2B precisa de IES';
   END IF;
 
+  IF p_tipo = 'b2b' AND p_ies_id IN ('9f21b138-0027-44c8-9660-dc6706d57bc0'::uuid, 'abec7c7d-ef07-4871-9e19-090f4d951e5e'::uuid) THEN
+    RAISE EXCEPTION 'IES interna não pode ser a IES de um mentor B2B';
+  END IF;
+
   INSERT INTO public.mentores (user_id, tipo, turma_nome, ies_id, foto_url, formacao, link_agendamento, ativo, created_by)
   VALUES (p_user_id, p_tipo, btrim(p_turma_nome), CASE WHEN p_tipo = 'b2b' THEN p_ies_id END,
           p_foto_url, p_formacao, p_link_agendamento, p_ativo, auth.uid())
@@ -191,7 +195,7 @@ BEGIN
              COALESCE(a.nome, u.nome),
              (SELECT d.sanarflix_user_id FROM public.dim_aluno_b2b d
                WHERE d.email_normalizado = a.email
-               ORDER BY (d.status_atual = 'ativo') DESC
+               ORDER BY (d.status_atual = 'ativo') DESC NULLS LAST
                LIMIT 1),
              u.id,
              'planilha',

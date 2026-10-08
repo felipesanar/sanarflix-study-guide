@@ -12,7 +12,7 @@ create table public.mentores (
   ativo boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  created_by uuid references auth.users(id),
+  created_by uuid references auth.users(id) on delete set null,
   constraint mentores_b2b_exige_ies check (tipo = 'b2c' or ies_id is not null)
 );
 
@@ -21,7 +21,7 @@ comment on table public.mentores is
 
 create table public.mentoria_vinculos (
   id uuid primary key default gen_random_uuid(),
-  mentor_id uuid not null references public.mentores(user_id) on delete cascade,
+  mentor_id uuid not null references public.mentores(user_id) on delete restrict,
   email_normalizado text not null
     check (email_normalizado = lower(btrim(email_normalizado)) and email_normalizado like '%@%'),
   nome text,
@@ -30,7 +30,7 @@ create table public.mentoria_vinculos (
   inicio timestamptz not null default now(),
   fim timestamptz,
   origem text not null check (origem in ('planilha', 'manual', 'sgi', 'onboarding')),
-  created_by uuid references auth.users(id),
+  created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint mentoria_vinculos_fim_depois_inicio check (fim is null or fim >= inicio)
 );
@@ -55,7 +55,7 @@ create policy "Admin lê mentores"
 
 create policy "Mentor lê o próprio cadastro"
   on public.mentores for select to authenticated
-  using (user_id = auth.uid());
+  using (user_id = auth.uid() and public.has_role(auth.uid(), 'mentor'::app_role));
 
 create policy "Admin lê vínculos"
   on public.mentoria_vinculos for select to authenticated
@@ -63,7 +63,11 @@ create policy "Admin lê vínculos"
 
 create policy "Mentor lê os próprios vínculos"
   on public.mentoria_vinculos for select to authenticated
-  using (mentor_id = auth.uid());
+  using (
+    mentor_id = auth.uid()
+    and public.has_role(auth.uid(), 'mentor'::app_role)
+    and exists (select 1 from public.mentores m where m.user_id = auth.uid() and m.ativo)
+  );
 
 -- Helper para as RPCs das próximas ondas (turma, aluno, mural): o mentor
 -- logado tem vínculo ativo com este aluno? Admin sempre pode.

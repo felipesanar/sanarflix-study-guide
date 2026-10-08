@@ -37,8 +37,13 @@ export const ImportVinculosDialog: React.FC<Props> = ({ open, mentorId, mentorNo
   const onArquivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setErro(null);
+    // Zera tudo do arquivo anterior: se a simulação deste falhar, nada do
+    // anterior pode continuar na tela com "Aplicar importação" habilitado.
+    setSimulacao(null);
+    setLinhas([]);
+    setTrocar(false);
     setAplicado(null);
+    setErro(null);
     setOcupado(true);
     try {
       const lidas = await parseVinculosFile(file);

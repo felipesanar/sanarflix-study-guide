@@ -403,6 +403,11 @@ Deno.serve(async (req) => {
     // e `id_ies` (IES âncora). O acesso multi-IES é resolvido por user_roles +
     // get_accessible_ies(), não pelo campo semestre.
 
+    // O papel mentor só é concedido por admin (via /admin/mentores).
+    if (role === 'mentor' && !isAdmin) {
+      return errorResponse('FORBIDDEN', 'Somente admin pode criar mentor.');
+    }
+
     // Atendimento não pode criar admins nem usuários na IES B2B (staff Sanar).
     if (!isAdmin && isAtendimento) {
       if (role === 'admin') {

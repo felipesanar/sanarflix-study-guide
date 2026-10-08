@@ -54,8 +54,24 @@ describe('tabelas e RLS', () => {
     for (const p of policies) expect(p).toMatch(/for select/i);
   });
 
-  it('mentor só lê os próprios vínculos', () => {
-    expect(FUNDACAO).toMatch(/on public\.mentoria_vinculos for select to authenticated\s+using \(mentor_id = auth\.uid\(\)\)/i);
+  it('mentor só lê os próprios vínculos, com papel mentor e cadastro ativo', () => {
+    const m = FUNDACAO.match(/create policy "Mentor lê os próprios vínculos"[\s\S]*?;/i);
+    expect(m).not.toBeNull();
+    expect(m![0]).toMatch(/mentor_id = auth\.uid\(\)/i);
+    expect(m![0]).toMatch(/has_role\(auth\.uid\(\), 'mentor'::app_role\)/i);
+    expect(m![0]).toMatch(/exists \(select 1 from public\.mentores m where m\.user_id = auth\.uid\(\) and m\.ativo\)/i);
+  });
+
+  it('mentor só lê o próprio cadastro se ainda tiver o papel mentor', () => {
+    const m = FUNDACAO.match(/create policy "Mentor lê o próprio cadastro"[\s\S]*?;/i);
+    expect(m).not.toBeNull();
+    expect(m![0]).toMatch(/user_id = auth\.uid\(\)/i);
+    expect(m![0]).toMatch(/has_role\(auth\.uid\(\), 'mentor'::app_role\)/i);
+  });
+
+  it('histórico sobrevive à exclusão de conta: sem cascade em vínculos, created_by set null', () => {
+    expect(FUNDACAO).toMatch(/mentor_id uuid not null references public\.mentores\(user_id\) on delete restrict/i);
+    expect((FUNDACAO.match(/created_by uuid references auth\.users\(id\) on delete set null/gi) ?? []).length).toBe(2);
   });
 });
 
@@ -104,6 +120,17 @@ describe('RPCs de admin', () => {
   it('importação: dry run não escreve', () => {
     const body = corpo(RPCS, 'admin_importar_vinculos');
     expect(body).toMatch(/if not p_dry_run then/i);
+  });
+
+  it('upsert recusa as IES internas Sanar como IES de mentor B2B', () => {
+    const body = corpo(RPCS, 'admin_upsert_mentor');
+    expect(body).toContain('9f21b138-0027-44c8-9660-dc6706d57bc0');
+    expect(body).toContain('abec7c7d-ef07-4871-9e19-090f4d951e5e');
+    expect(body).toMatch(/IES interna não pode ser a IES de um mentor B2B/);
+  });
+
+  it('importação escolhe o sanarflix_user_id preferindo aluno ativo, nulos por último', () => {
+    expect(corpo(RPCS, 'admin_importar_vinculos')).toMatch(/order by \(d\.status_atual = 'ativo'\) desc nulls last/i);
   });
 
   it('get_mentor_contexto devolve só o mentor logado', () => {

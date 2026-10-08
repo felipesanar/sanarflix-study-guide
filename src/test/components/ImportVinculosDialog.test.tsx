@@ -63,4 +63,23 @@ describe('ImportVinculosDialog', () => {
     );
     expect(await screen.findByText(/2 alunos vinculados/)).toBeInTheDocument();
   });
+  it('segundo arquivo cuja simulação falha não deixa a simulação do primeiro habilitada', async () => {
+    parseVinculosFile
+      .mockResolvedValueOnce([{ email: 'a@x.com' }])
+      .mockResolvedValueOnce([{ email: 'b@x.com' }]);
+    importarVinculos
+      .mockResolvedValueOnce(base)
+      .mockRejectedValueOnce(new Error('Falha na simulação do arquivo B'));
+    renderDialog();
+
+    const input = screen.getByLabelText('Planilha de alunos');
+    fireEvent.change(input, { target: { files: [new File(['x'], 'a.xlsx')] } });
+    await screen.findByText(/Letícia Lima/);
+    expect(screen.getByRole('button', { name: 'Aplicar importação' })).toBeEnabled();
+
+    fireEvent.change(input, { target: { files: [new File(['y'], 'b.xlsx')] } });
+    expect(await screen.findByText('Falha na simulação do arquivo B')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aplicar importação' })).toBeDisabled();
+    expect(screen.queryByText(/Letícia Lima/)).not.toBeInTheDocument();
+  });
 });
