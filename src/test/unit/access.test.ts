@@ -94,6 +94,27 @@ describe('experiences/access — deriveAccessFromRoles', () => {
     expect(access.experiences).toEqual(['aluno']);
     expect(access.capabilities).toEqual([]);
   });
+
+  it('mentor ganha a experiência mentor e só mentoria.view', () => {
+    const access = deriveAccessFromRoles(['mentor']);
+    expect(access.experiences).toEqual(expect.arrayContaining(['aluno', 'mentor']));
+    expect(access.experiences).toHaveLength(2);
+    expect(access.capabilities).toEqual(['mentoria.view']);
+  });
+
+  it('mentor B2B que também é gestor soma as duas experiências', () => {
+    const access = deriveAccessFromRoles(['gestor', 'mentor']);
+    expect(access.experiences).toEqual(expect.arrayContaining(['aluno', 'gestao', 'mentor']));
+    expect(access.capabilities).toEqual(
+      expect.arrayContaining(['institutional.view', 'alunos.view', 'mentoria.view']),
+    );
+  });
+
+  it('admin ganha mentores.manage (cadastro de mentores), mas não a experiência mentor', () => {
+    const access = deriveAccessFromRoles(['admin']);
+    expect(access.capabilities).toContain('mentores.manage');
+    expect(access.experiences).not.toContain('mentor');
+  });
 });
 
 describe('experiences/access — can', () => {
@@ -182,5 +203,14 @@ describe('experiences/access — parseAccessPayload', () => {
     expect(parsed.roles).toEqual(['admin']);
     expect(parsed.experiences).toEqual(['admin']);
     expect(parsed.capabilities).toEqual(['users.manage']);
+  });
+
+  it('aceita a experiência mentor vinda da RPC', () => {
+    const parsed = parseAccessPayload({
+      roles: ['mentor'],
+      experiences: ['aluno', 'mentor'],
+      capabilities: ['mentoria.view'],
+    });
+    expect(parsed?.experiences).toEqual(['aluno', 'mentor']);
   });
 });
