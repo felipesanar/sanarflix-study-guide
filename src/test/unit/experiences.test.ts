@@ -207,3 +207,19 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
     });
   });
 });
+
+describe('getDefaultRouteForUser — mentor', () => {
+  it('mentor puro entra em /mentor', () => {
+    const user = makeUser(['mentor']);
+    expect(getDefaultRouteForUser(user, alunoRules, deriveAccessFromRoles(['mentor']))).toBe('/mentor');
+  });
+
+  it('mentor que também é gestor entra em /mentor (mentor vem antes de gestão)', () => {
+    const user = makeUser(['gestor', 'mentor']);
+    expect(getDefaultRouteForUser(user, gestorRules, deriveAccessFromRoles(['gestor', 'mentor']))).toBe('/mentor');
+  });
+
+  it('EXPERIENCE_ENTRYPOINTS tem a chave mentor', () => {
+    expect(EXPERIENCE_ENTRYPOINTS.mentor).toBe('/mentor');
+  });
+});

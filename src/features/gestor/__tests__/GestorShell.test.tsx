@@ -313,7 +313,7 @@ describe('GestorShell (spec §8.3)', () => {
     it('o rodapé traz o alternador de experiência, com a experiência ATUAL no nome acessível, e fora da nav de 3 itens', () => {
       renderizar('/gestor');
 
-      const alternador = screen.getByRole('button', { name: /experiência atual: gestão/i });
+      const alternador = screen.getByRole('button', { name: /experiência atual: gestor/i });
       expect(alternador).toBeInTheDocument();
 
       const nav = screen.getByRole('navigation', { name: /seções do portal/i });

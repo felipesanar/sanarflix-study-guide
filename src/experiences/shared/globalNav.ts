@@ -1,4 +1,4 @@
-import { UserCog, School, Headset, GraduationCap } from 'lucide-react';
+import { UserCog, School, Headset, GraduationCap, Users } from 'lucide-react';
 import type { ElementType } from 'react';
 import { hasExperience, type Access, type ExperienceId } from '@/experiences/access';
 
@@ -20,18 +20,27 @@ export interface ExperienceOption {
  * cada portal lista somente as telas daquele portal, e a alternância entre
  * eles acontece no `ExperienceSwitcher`, que consome esta lista.
  *
- * `aluno` é a base de todo usuário autenticado, por isso entra sempre.
+ * `aluno` entra para todos, exceto mentor que não é staff (seletor só para staff).
  */
 export const getExperienceOptions = (access: Access | null | undefined): ExperienceOption[] => {
-  const options: ExperienceOption[] = [
-    {
-      id: 'aluno',
-      label: 'Aluno',
-      description: 'Estudos, simulados e progresso',
-      url: '/',
-      icon: GraduationCap,
-    },
-  ];
+  // Handoff da Página do Mentor (tela 00): o seletor é só para staff. Quem é
+  // mentor e não é admin/atendimento não vê "Aluno" — e, sendo só mentor,
+  // fica com uma opção e o ExperienceSwitcher se esconde (options.length < 2).
+  // A ROTA de aluno continua montada para todos (buildAppRoutes); só o seletor muda.
+  const ehStaff = hasExperience(access, 'admin') || hasExperience(access, 'atendimento');
+  const escondeAluno = hasExperience(access, 'mentor') && !ehStaff;
+
+  const options: ExperienceOption[] = escondeAluno
+    ? []
+    : [
+        {
+          id: 'aluno',
+          label: 'Aluno',
+          description: 'Estudos, simulados e progresso',
+          url: '/',
+          icon: GraduationCap,
+        },
+      ];
 
   if (hasExperience(access, 'admin')) {
     options.push({
@@ -45,7 +54,7 @@ export const getExperienceOptions = (access: Access | null | undefined): Experie
   if (hasExperience(access, 'gestao')) {
     options.push({
       id: 'gestao',
-      label: 'Gestão',
+      label: 'Gestor',
       description: 'Desempenho institucional da sua IES',
       url: '/gestor',
       icon: School,
@@ -60,6 +69,15 @@ export const getExperienceOptions = (access: Access | null | undefined): Experie
       icon: Headset,
     });
   }
+  if (hasExperience(access, 'mentor')) {
+    options.push({
+      id: 'mentor',
+      label: 'Mentor',
+      description: 'Sua turma, mural, sessões e intervenções',
+      url: '/mentor',
+      icon: Users,
+    });
+  }
 
   return options;
 };
@@ -69,5 +87,6 @@ export const resolveCurrentExperience = (pathname: string): ExperienceId => {
   if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/gestor')) return 'gestao';
   if (pathname.startsWith('/atendimento')) return 'atendimento';
+  if (pathname.startsWith('/mentor')) return 'mentor';
   return 'aluno';
 };

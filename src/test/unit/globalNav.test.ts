@@ -40,4 +40,29 @@ describe('experiences/shared/getExperienceOptions — experiências (portais) do
     expect(resolveCurrentExperience('/guia-estudos')).toBe('aluno');
     expect(resolveCurrentExperience('/')).toBe('aluno');
   });
+
+  it('mentor puro: só a opção Mentor (o seletor some, pois ele esconde com menos de 2)', () => {
+    const options = getExperienceOptions(deriveAccessFromRoles(['mentor']));
+    expect(options.map((o) => o.id)).toEqual(['mentor']);
+    expect(options[0].url).toBe('/mentor');
+  });
+
+  it('mentor que também é gestor alterna entre Gestor e Mentor, sem Aluno', () => {
+    expect(ids(['gestor', 'mentor'])).toEqual(['gestao', 'mentor']);
+  });
+
+  it('staff que também é mentor continua vendo Aluno', () => {
+    expect(ids(['admin', 'mentor'])).toEqual(['aluno', 'admin', 'gestao', 'mentor']);
+    expect(ids(['atendimento', 'mentor'])).toEqual(['aluno', 'atendimento', 'mentor']);
+  });
+
+  it('o portal do gestor aparece como "Gestor", não "Gestão"', () => {
+    const options = getExperienceOptions(deriveAccessFromRoles(['gestor']));
+    expect(options.find((o) => o.id === 'gestao')?.label).toBe('Gestor');
+  });
+
+  it('resolveCurrentExperience reconhece /mentor', () => {
+    expect(resolveCurrentExperience('/mentor')).toBe('mentor');
+    expect(resolveCurrentExperience('/mentor/turma')).toBe('mentor');
+  });
 });

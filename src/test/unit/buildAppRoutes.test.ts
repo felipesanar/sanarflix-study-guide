@@ -398,3 +398,27 @@ describe('experiences/buildAppRoutes — admin', () => {
     expect(indexChild).toBeDefined();
   });
 });
+
+describe('experiences/buildAppRoutes — mentor', () => {
+  it('mentor monta a rota-layout /mentor com o Início como index', () => {
+    const routes = routesForRoles(['mentor'], alunoRules);
+    const mentorRoute = routes.get('/mentor');
+    expect(mentorRoute?.children?.length).toBeGreaterThan(0);
+    const indexChild = (mentorRoute?.children ?? []).find((c) => c.index);
+    expect(indexChild).toBeDefined();
+    expect(redirectTarget(indexChild)).toBeUndefined();
+  });
+
+  it('quem não é mentor recebe redirect de negação em /mentor', () => {
+    for (const roles of [[], ['gestor'], ['admin'], ['atendimento']]) {
+      const routes = routesForRoles(roles);
+      expect(redirectTarget(routes.get('/mentor'))).toBeDefined();
+      expect(routes.get('/mentor')?.children).toBeUndefined();
+    }
+  });
+
+  it('/home leva o mentor ao /mentor', () => {
+    const routes = routesForRoles(['mentor'], alunoRules);
+    expect(redirectTarget(routes.get('/home'))).toBe('/mentor');
+  });
+});
