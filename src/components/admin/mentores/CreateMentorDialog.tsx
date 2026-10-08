@@ -12,6 +12,16 @@ import { upsertMentor, type MentorTipo } from '@/services/admin/mentores';
 /** IES âncora da conta de mentor B2C. Nunca a IES "B2B" (ela concede admin no b2b-create-user). */
 export const IES_ANCORA_B2C = 'abec7c7d-ef07-4871-9e19-090f4d951e5e';
 
+/** IES internas (B2B e B2C) fora do select do mentor B2B: a "B2B" faz o b2b-create-user conceder admin. */
+export const IES_INTERNAS_FORA_DO_B2B: readonly string[] = [
+  '9f21b138-0027-44c8-9660-dc6706d57bc0',
+  IES_ANCORA_B2C,
+];
+
+const MSG_EMAIL_EXISTENTE =
+  'Já existe uma conta com este e-mail. O perfil de mentor precisa de um e-mail de login próprio.';
+const MSG_FALHA_PARCIAL = 'A conta foi criada, mas o cadastro de mentor falhou. Tente salvar de novo.';
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,6 +41,8 @@ export const CreateMentorDialog: React.FC<Props> = ({ open, onOpenChange }) => {
   const [iesId, setIesId] = React.useState('');
   const [erro, setErro] = React.useState<string | null>(null);
   const [ocupado, setOcupado] = React.useState(false);
+  // Conta já criada nesta sessão do diálogo: permite repetir só o upsertMentor sem bater na trava de e-mail.
+  const [contaCriada, setContaCriada] = React.useState<{ userId: string; email: string } | null>(null);
 
   const { data: iesList = [] } = useQuery({
     queryKey: ['admin', 'ies-lista'],
@@ -41,21 +53,44 @@ export const CreateMentorDialog: React.FC<Props> = ({ open, onOpenChange }) => {
     },
     enabled: open,
   });
+  const iesOpcoes = iesList.filter((i) => !IES_INTERNAS_FORA_DO_B2B.includes(i.id));
 
   const valido = nome.trim() && email.includes('@') && turma.trim() && (tipo === 'b2c' || iesId);
 
   const salvar = async () => {
     setOcupado(true);
     setErro(null);
+    const emailNorm = email.trim().toLowerCase();
+    let userId = contaCriada && contaCriada.email === emailNorm ? contaCriada.userId : null;
     try {
-      const conta = await usersService.createUser({
-        nome: nome.trim(),
-        email: email.trim().toLowerCase(),
-        id_ies: tipo === 'b2b' ? iesId : IES_ANCORA_B2C,
-        role: 'mentor',
-      });
-      if (!conta.success || !conta.userId) throw new Error(conta.error ?? 'Não foi possível criar a conta.');
-      await upsertMentor({ userId: conta.userId, tipo, turmaNome: turma.trim(), iesId: tipo === 'b2b' ? iesId : null });
+      if (!userId) {
+        // b2b-create-user reescreve nome/IES de quem já existe: e-mail de mentor tem de ser inédito.
+        const { data: existente, error: erroBusca } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', emailNorm)
+          .maybeSingle();
+        if (erroBusca) throw erroBusca;
+        if (existente) {
+          setErro(MSG_EMAIL_EXISTENTE);
+          return;
+        }
+        const conta = await usersService.createUser({
+          nome: nome.trim(),
+          email: emailNorm,
+          id_ies: tipo === 'b2b' ? iesId : IES_ANCORA_B2C,
+          role: 'mentor',
+        });
+        if (!conta.success || !conta.userId) throw new Error(conta.error ?? 'Não foi possível criar a conta.');
+        userId = conta.userId;
+        setContaCriada({ userId, email: emailNorm });
+      }
+      try {
+        await upsertMentor({ userId, tipo, turmaNome: turma.trim(), iesId: tipo === 'b2b' ? iesId : null });
+      } catch {
+        setErro(MSG_FALHA_PARCIAL);
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: ['admin', 'mentores'] });
       onOpenChange(false);
     } catch (err) {
@@ -100,7 +135,7 @@ export const CreateMentorDialog: React.FC<Props> = ({ open, onOpenChange }) => {
               <Select value={iesId} onValueChange={setIesId}>
                 <SelectTrigger><SelectValue placeholder="Escolha a IES" /></SelectTrigger>
                 <SelectContent>
-                  {iesList.map((i) => (
+                  {iesOpcoes.map((i) => (
                     <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>
                   ))}
                 </SelectContent>
