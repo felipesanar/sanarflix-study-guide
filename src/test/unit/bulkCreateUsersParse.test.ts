@@ -27,6 +27,11 @@ describe('normalizeRoleInput', () => {
     expect(normalizeRoleInput(' ATENDIMENTO ')).toBe('atendimento');
   });
 
+  it('aceita mentor', () => {
+    expect(normalizeRoleInput('Mentor')).toBe('mentor');
+    expect(normalizeRoleInput('mentor')).toBe('mentor');
+  });
+
   it('recusa papel inexistente', () => {
     expect(normalizeRoleInput('coordenador')).toBeNull();
   });

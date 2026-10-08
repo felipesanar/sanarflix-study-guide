@@ -7,7 +7,7 @@
  * `b2b-create-user` rejeita depois (ou pior, ignora).
  */
 
-export type AppUserRole = 'aluno' | 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento';
+export type AppUserRole = 'aluno' | 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento' | 'mentor';
 
 export const ROLE_OPTIONS: { value: AppUserRole; label: string }[] = [
   { value: 'aluno', label: 'Aluno (padrão)' },
@@ -16,6 +16,7 @@ export const ROLE_OPTIONS: { value: AppUserRole; label: string }[] = [
   { value: 'gestor', label: 'Gestor' },
   { value: 'gestor_grupo', label: 'Gestor de Grupo' },
   { value: 'atendimento', label: 'Atendimento' },
+  { value: 'mentor', label: 'Mentor' },
 ];
 
 /** Valores aceitos na planilha, exatamente como aparecem no Academy. */

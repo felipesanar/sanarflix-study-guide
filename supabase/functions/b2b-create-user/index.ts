@@ -55,7 +55,7 @@ const createUserSchema = z.object({
   // Matrícula/RA: opcional. Ausente/undefined = "não alterar"; string vazia
   // (ou null) = limpar (grava null). Editável na lista de usuários do Admin.
   matricula_ra: z.string().trim().max(50, 'Matrícula/RA muito longa').nullable().optional(),
-  role: z.enum(['admin', 'professor', 'gestor', 'atendimento', 'gestor_grupo']).optional(),
+  role: z.enum(['admin', 'professor', 'gestor', 'atendimento', 'gestor_grupo', 'mentor']).optional(),
   resend_email: z.boolean().optional(),
 });
 
