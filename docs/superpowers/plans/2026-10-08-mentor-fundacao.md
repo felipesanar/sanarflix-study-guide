@@ -2273,3 +2273,7 @@ Ordem de aplicação para o Felipe (vai no corpo do PR):
 5. Merge do front (o Vercel publica a partir da `main`).
 
 O front antes do banco é seguro: sem o papel `mentor`, ninguém recebe a experiência; a página `/admin/mentores` mostraria erro de RPC inexistente, então o merge vem por último.
+
+---
+
+**Aplicado em produção (gvqv) em 09/10/2026**, pelo MCP do Supabase, a pedido do Felipe. Os arquivos foram renomeados para as versões gravadas em `supabase_migrations.schema_migrations`: `20261009125338_app_role_mentor`, `20261009125425_mentoria_fundacao`, `20261009125504_mentoria_rpcs_admin` e a correção `20261009125601_mentoria_revoga_anon` (tira EXECUTE do papel anon nas seis funções novas, apontado pelo advisor). Verificado depois: `get_access` devolve para admin/gestor/CX o mesmo de antes (admin +`mentores.manage`). Edge `b2b-create-user` e front ainda NÃO publicados.

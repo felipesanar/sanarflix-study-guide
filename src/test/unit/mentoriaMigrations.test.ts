@@ -10,9 +10,9 @@ import { join } from 'node:path';
 const dir = join(process.cwd(), 'supabase', 'migrations');
 const ler = (nome: string) => readFileSync(join(dir, nome), 'utf8');
 
-const ENUM = ler('20261008120000_app_role_mentor.sql');
-const FUNDACAO = ler('20261008120100_mentoria_fundacao.sql');
-const RPCS = ler('20261008120200_mentoria_rpcs_admin.sql');
+const ENUM = ler('20261009125338_app_role_mentor.sql');
+const FUNDACAO = ler('20261009125425_mentoria_fundacao.sql');
+const RPCS = ler('20261009125504_mentoria_rpcs_admin.sql');
 
 /** Corpo de uma função (do CREATE até o $$ que fecha). */
 const corpo = (sql: string, nome: string): string => {
@@ -135,5 +135,22 @@ describe('RPCs de admin', () => {
 
   it('get_mentor_contexto devolve só o mentor logado', () => {
     expect(corpo(RPCS, 'get_mentor_contexto')).toMatch(/where m\.user_id = auth\.uid\(\)/i);
+  });
+});
+
+describe('revogação do anon (aplicada em prod em 09/10/2026)', () => {
+  const REVOGA = ler('20261009125601_mentoria_revoga_anon.sql');
+
+  it('nenhuma das seis funções novas fica executável sem login', () => {
+    for (const assinatura of [
+      'mentor_pode_ver_aluno(text)',
+      'admin_upsert_mentor(uuid, text, text, uuid, text, text, text, boolean)',
+      'admin_list_mentores()',
+      'admin_importar_vinculos(uuid, jsonb, boolean, boolean)',
+      'admin_encerrar_vinculo(uuid)',
+      'get_mentor_contexto()',
+    ]) {
+      expect(REVOGA).toContain(`revoke execute on function public.${assinatura} from anon;`);
+    }
   });
 });
