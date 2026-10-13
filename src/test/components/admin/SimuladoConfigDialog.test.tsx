@@ -415,4 +415,68 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
       expect(checkboxDefinitiva()).toHaveAttribute('data-state', 'unchecked');
     });
   });
+
+  /**
+   * Bug da liberação agendada. Salvar com `data_liberacao` FUTURA gravava
+   * `status = 'aguardando'`, e a RLS do aluno exige `status = 'ativo' AND
+   * (data_liberacao IS NULL OR data_liberacao <= now())` em `simulados_admin`
+   * e `questoes_simulado`. Nada (cron, trigger, função) promove 'aguardando'
+   * para 'ativo', então o simulado nunca aparecia para o aluno quando a data
+   * chegava. 'Agendado' é só estado de EXIBIÇÃO calculado pela data; a data na
+   * própria RLS é quem segura a liberação. Salvar sempre 'ativo' resolve.
+   */
+  describe('liberação agendada — nunca persiste status aguardando', () => {
+    it('data de liberação no FUTURO salva status ativo (a RLS segura pela data)', async () => {
+      renderDialog(
+        makeSimulado({
+          data_liberacao: '2099-01-10T13:00:00.000Z',
+          data_encerramento: '2099-12-20T13:00:00.000Z',
+        }),
+      );
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      const payload = payloadDoUpdate();
+      expect(payload.dataLiberacao).toBe('2099-01-10T13:00:00.000Z');
+      expect(payload.status).toBe('ativo');
+    });
+
+    it('simulado preso em aguardando no banco, com liberação no passado, salva como ativo ao reeditar', async () => {
+      renderDialog(makeSimulado({ statusDb: 'aguardando', status: 'ativo' }));
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      expect(payloadDoUpdate().status).toBe('ativo');
+    });
+
+    it('simulado preso em aguardando no banco, com liberação no futuro, também salva como ativo', async () => {
+      renderDialog(
+        makeSimulado({
+          statusDb: 'aguardando',
+          status: 'aguardando',
+          data_liberacao: '2099-01-10T13:00:00.000Z',
+          data_encerramento: null,
+        }),
+      );
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      expect(payloadDoUpdate().status).toBe('ativo');
+    });
+
+    it('liberação futura NÃO reabre um simulado encerrado manualmente (P1 continua valendo)', async () => {
+      renderDialog(
+        makeSimulado({
+          statusDb: 'encerrado',
+          status: 'encerrado',
+          data_liberacao: '2099-01-10T13:00:00.000Z',
+          data_encerramento: '2099-12-20T13:00:00.000Z',
+        }),
+      );
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      expect(payloadDoUpdate().status).toBe('encerrado');
+    });
+  });
 });
