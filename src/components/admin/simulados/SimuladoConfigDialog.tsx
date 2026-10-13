@@ -56,16 +56,25 @@ const DURACAO_OPCOES = [
  * admin estender a data para o futuro, a prova volta a 'ativo' (reabertura
  * intencional); se a data continuar no passado, o resultado permanece
  * 'encerrado' pelo próprio cálculo de data.
+ *
+ * NUNCA devolve 'aguardando'. A RLS do aluno (`simulados_admin` e
+ * `questoes_simulado`) exige `status = 'ativo' AND (data_liberacao IS NULL OR
+ * data_liberacao <= now())`, ou seja, ela já segura a liberação pela própria
+ * `data_liberacao`. Persistir 'aguardando' para uma data futura deixava o
+ * simulado invisível para sempre: nada (cron, trigger, função) promove
+ * 'aguardando' para 'ativo' quando a data chega. 'Agendado' é só um estado de
+ * EXIBIÇÃO calculado pela data (`ProvasTab.calcularStatus`, monitor). Por isso
+ * `dataLiberacaoISO` não entra no cálculo; um simulado preso em 'aguardando' no
+ * banco volta a 'ativo' ao ser reeditado.
  */
 function calcularStatusSalvar(
-  dataLiberacaoISO: string | null,
+  _dataLiberacaoISO: string | null,
   dataEncerramentoISO: string | null,
   statusBancoAtual: 'aguardando' | 'ativo' | 'encerrado' | null,
-): 'aguardando' | 'ativo' | 'encerrado' {
+): 'ativo' | 'encerrado' {
   const agora = new Date();
   if (statusBancoAtual === 'encerrado') return 'encerrado';
   if (dataEncerramentoISO && new Date(dataEncerramentoISO) < agora) return 'encerrado';
-  if (dataLiberacaoISO && new Date(dataLiberacaoISO) > agora) return 'aguardando';
   return 'ativo';
 }
 
