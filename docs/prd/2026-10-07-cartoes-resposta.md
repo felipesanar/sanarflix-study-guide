@@ -8,6 +8,11 @@
   - **LLM removida por completo.**
   - Novo cartão desenhado para leitura 100% por máquina.
   - Fim do suporte ao cartão antigo.
+- **Revisão 3 (13/10/2026):**
+  - Referência visual aprovada pelo time.
+  - Bloco de matrícula presente em todos os cartões, como reserva do QR.
+  - Modelo específico para o grupo **UniAtenas**, com matrícula `NN-X-NNNNN`.
+  - Pendências registradas na seção 13.
 - **Status:** aprovado para implementação da **V0**. A V1 está só em direção.
 - **Executor previsto:** Claude Code com Sonnet 5.5, **uma fase por sessão**.
 
@@ -83,16 +88,30 @@ Nós geramos o cartão **por código**, com `reportlab` + `segno`. O **gerador �
 
 Imagens feitas por IA ou por designers servem **só de referência visual**. Não se mede posição em imagem.
 
-### 5.1 Dois tipos de cartão
-| Tipo | Quando | Identificação | QR |
+**Referência visual aprovada pelo time (13/10/2026):** `docs/prd/Modelo Cartão Resposta.png`. O gerador deve reproduzir essa aparência:
+- marcadores de canto e marcador de orientação;
+- cabeçalho com "ALUNO:" e QR à direita;
+- bloco MATRÍCULA à esquerda e INSTRUÇÕES à direita;
+- grade de 4 × 25 questões;
+- rodapé.
+
+O QR da imagem é ilustrativo e não lê. As medidas valem as da seção 5.2.
+
+### 5.1 Modelos de cartão
+Todos os modelos têm o mesmo layout geral. Mudam só o conteúdo do cabeçalho, o QR e, no UniAtenas, o bloco de matrícula.
+
+| Modelo (`layout`) | Quando | Identificação | QR |
 |---|---|---|---|
-| **Personalizado** (principal) | Gerado antes da prova, um por aluno do roster das IES do simulado | Nome impresso + QR com o `user_id` | `SFA1\|<simulado_id>\|U\|<user_id>` |
-| **Genérico** (reserva) | Para aluno ausente do roster, cartão extraviado ou aluno novo | Matrícula preenchida em bolhas + nome manuscrito (só para a revisão humana) | `SFA1\|<simulado_id>\|G\|<seq>` |
+| **Personalizado** (`sfa`) — principal | Gerado antes da prova, um por aluno do roster das IES do simulado | Nome impresso após "ALUNO:" + QR com o `user_id`. A matrícula em bolhas fica como **reserva** se o QR não for lido. | `SFA1\|sfa\|<simulado_id>\|U\|<user_id>` |
+| **Genérico** (`sfa`) — reserva | Aluno ausente do roster, cartão extraviado ou aluno novo | Matrícula em bolhas + nome manuscrito (só para a revisão humana) | `SFA1\|sfa\|<simulado_id>\|G` |
+| **UniAtenas** (`uniatenas`) | Todas as provas do grupo UniAtenas. Não haverá personalização; um mesmo PDF é impresso para todos. | Matrícula em bolhas no formato `NN-X-NNNNN` (5.2.1) + nome manuscrito | `SFA1\|uniatenas\|<simulado_id>\|G` |
+
+O QR dos cartões genéricos e do UniAtenas **não tem número de série**. Se a IES fotocopiar um único cartão, nada quebra.
 
 **Por que o personalizado é o principal:** `users.matricula_ra` está vazia ou quase vazia em várias IES (UEA, Claretiano, USCS, FAI, Fame, Famp, Integrado). O QR com `user_id` identifica qualquer aluno cadastrado, sem depender da matrícula.
 
-**Matrícula no cartão genérico:**
-- Ela só identifica o aluno se estiver cadastrada.
+**Matrícula nos cartões genérico e UniAtenas:**
+- Ela só identifica o aluno se estiver cadastrada em `users.matricula_ra`.
 - Se não estiver, a página vai para Pendências, com o recorte do nome manuscrito, e o João atribui o aluno.
 
 ### 5.2 Especificação física (A4 retrato, 210 × 297 mm)
@@ -106,9 +125,9 @@ As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm,
 - **Área útil:** x de 20 a 190 mm, y de 20 a 277 mm.
 - **Bloco superior (y de 20 a 108 mm):**
   - **Título** (x de 20 a 150, y de 20 a 28): "CARTÃO-RESPOSTA" + nome do simulado + nome da IES + data.
-  - **Identificação** (x de 20 a 150, y de 30 a 40):
-    - no personalizado, "ALUNO: <NOME IMPRESSO>";
-    - no genérico, "NOME:" seguido de uma linha para escrever à mão.
+  - **Identificação** (x de 20 a 150, y de 30 a 40): "ALUNO:" seguido de uma linha.
+    - No personalizado, o nome vem impresso sobre a linha.
+    - No genérico e no UniAtenas, a linha fica em branco para o aluno escrever.
   - **QR code** (x de 158 a 188, y de 20 a 50):
     - 30 × 30 mm já com a zona de silêncio (4 módulos brancos);
     - correção de erro nível **Q**.
@@ -117,7 +136,8 @@ As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm,
     - Título "MATRÍCULA" e **N colunas**. Placeholder: N = 12. O N definitivo sai da consulta da Fase 0.
     - Cada coluna tem 6 mm de largura, com uma caixa de 5 × 6 mm no topo para escrever o dígito à mão (a máquina ignora essa caixa).
     - Abaixo da caixa, **10 bolhas de 0 a 9 na vertical**, com passo de 5,5 mm e diâmetro de 4 mm.
-    - No personalizado, o bloco vem preenchido de cinza-claro com a frase "Não preencher — cartão identificado", ou é omitido.
+    - O bloco aparece **em todos os modelos**, igual à referência visual.
+    - No personalizado, ele é reserva: o leitor só o usa se o QR não for lido.
   - **Instruções** (x de 98 a 150, y de 44 a 106):
     - "Use caneta esferográfica preta ou azul-escura."
     - "Preencha a bolha por completo."
@@ -140,6 +160,18 @@ As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm,
 - **Rodapé** (y de 279 a 287, entre os marcadores inferiores): "Não dobre nem amasse este cartão • Imprima só na frente • SanarFlix Academy", em 6 pt cinza.
 - **Proibido na área de leitura:** linhas-guia, zebrado, logos, numeração de página, texto decorativo.
 - **Impressão:** só frente, 100% de escala (sem "ajustar à página"), papel A4 75–90 g/m².
+
+### 5.2.1 Modelo UniAtenas (`uniatenas`)
+- **Formato de matrícula:** `NN-X-NNNNN`.
+  - Em produção (13/10/2026), 1.589 usuários seguem `^\d{2}-\d-\d{5}$`, todos em PARACATU, PASSOS, PORTO SEGURO, SETE LAGOAS, SORRISO e VALENÇA.
+  - Outros 5 usuários usam **`G`** na posição do meio: `99-G-99999`.
+- **Conjunto de campi:** inferido pelo formato da matrícula. **Ainda falta o João confirmar** que esses 6 são exatamente os campi do grupo (seção 13).
+- **Bloco MATRÍCULA:** **8 colunas**, agrupadas em 2 | 1 | 5.
+  - Entre os grupos há um **hífen impresso** em preto, que não é bolha. A caixa de escrita no topo de cada coluna é mantida.
+  - As colunas 1–2 e 4–8 têm bolhas de 0 a 9.
+  - **A coluna 3 tem 11 bolhas: 0 a 9 e `G`.** O bloco fica uma linha mais alto nessa coluna, e o gerador ajusta a altura do bloco e das instruções para continuar dentro de y ≤ 108 mm.
+- **Leitura:** a matrícula só é válida com as **8 colunas marcadas**. Ela é montada como `NN-X-NNNNN` e comparada com `matricula_ra` (`trim`, maiúsculas).
+- **Cobertura:** cerca de 15% dos alunos desses campi **não têm matrícula cadastrada**: PARACATU 97, PASSOS 57, SETE LAGOAS 29, SORRISO 21, PORTO SEGURO 21, VALENÇA 21. Os cartões deles sempre vão para Pendências. Ver seção 13.
 
 ### 5.3 Instruções de digitalização (vão para as IES)
 - Resolução de **200 a 300 dpi**, em tons de cinza ou colorido, num **único PDF com várias páginas**.
@@ -167,7 +199,9 @@ João revisa a aba "Pendências", corrige a aba "Respostas" e importa pela tela 
 
 **Outros comandos:**
 - `cartao-omr gerar-cartoes --simulado <id> [--genericos 30]`: gera **um PDF para impressão**, com um cartão personalizado por aluno do roster (ordenado por nome) e N cartões genéricos no fim.
-- `cartao-omr modelo`: gera um PDF de exemplo e o `templates/sfa_v1.json`.
+- `cartao-omr gerar-cartoes --simulado <id> --modelo uniatenas [--copias 1]`: gera o PDF do cartão UniAtenas, sem nome. A IES imprime ou fotocopia o mesmo PDF para todos os alunos.
+- `cartao-omr modelo [--layout sfa|uniatenas]`: gera um PDF de exemplo e o template do layout (`templates/sfa_v1.json`, `templates/uniatenas_v1.json`).
+- `processar` **detecta o layout pelo QR**. Se o QR não for lido, usa `--layout`, que é obrigatório quando o simulado tiver IES do grupo UniAtenas.
 
 **Estrutura:**
 ```
@@ -193,10 +227,20 @@ services/cartao-omr/
   "qr_box_mm": [x0,y0,x1,y1],
   "alternatives": ["A","B","C","D"],
   "questions": {"1": {"A":[cx,cy,d], "B":[...], "C":[...], "D":[...]}, "...": {}, "100": {}},
-  "matricula": {"columns": 12, "bubbles": [[{"digit":0,"c":[cx,cy,d]}, "..."], "..."]},
+  "matricula": {
+    "format": "digits",
+    "columns": [[{"symbol":"0","c":[cx,cy,d]}, "...", {"symbol":"9","c":[...]}], "..."],
+    "separators_after": []
+  },
   "crops_mm": {"nome":[x0,y0,x1,y1], "matricula":[x0,y0,x1,y1]}
 }
 ```
+No `uniatenas_v1.json`, a matrícula fica assim:
+- `"format": "uniatenas"`;
+- 8 colunas, sendo que a 3ª tem os símbolos `0`–`9` e `G`;
+- `"separators_after": [2, 3]`.
+
+O leitor monta a string inserindo `-` depois das colunas listadas em `separators_after`.
 As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `card.py` a partir do `layout.py`. Ninguém mede nada à mão.
 
 ### 7.2 Leitura de uma página
@@ -209,6 +253,7 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
 4. **QR:**
    - Ler com `zxing-cpp` no recorte retificado da área do QR, com fallback para a página inteira.
    - Validar o prefixo `SFA1` e o `simulado_id` contra `--simulado`. Se o simulado for outro, a página vira `simulado_divergente` e não é lida.
+   - O campo `layout` do QR escolhe o template. Na prática, a leitura do QR acontece antes do OMR; o alinhamento pelos marcadores é igual em todos os layouts.
    - Se o QR não for lido mas os marcadores forem, segue como genérico e registra a pendência `qr_ilegivel`.
 5. **OMR (respostas e matrícula):**
    - Para cada bolha, medir a fração de pixels escuros num círculo de 70% do diâmetro, depois de uma binarização adaptativa.
@@ -220,13 +265,15 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
      - **ambigua:** qualquer outro caso.
    - Os limiares iniciais saem da calibração da Fase 1 e ficam no `config.py`.
 6. **Matrícula:**
-   - Concatenar as colunas, ignorando as colunas em branco **à direita**.
-   - Uma coluna em branco no meio, ou uma coluna `multipla`/`ambigua`, torna a matrícula `matricula_invalida`.
+   - **`digits` (sfa):** concatenar as colunas, ignorando as colunas em branco **à direita**.
+   - **`uniatenas`:** as 8 colunas são obrigatórias. A string é montada como `NN-X-NNNNN`.
+   - Em qualquer layout, uma coluna em branco no meio (ou faltando no UniAtenas), ou uma coluna `multipla`/`ambigua`, torna a matrícula `matricula_invalida`.
 
 ### 7.3 Identificação (determinística)
 1. **QR personalizado (`U`):** o `user_id` precisa estar no roster das IES do simulado. Se não estiver, a página vira `aluno_fora_do_roster`.
-2. **Genérico (`G`) ou QR ilegível:**
-   - Normalizar a matrícula lida (maiúsculas, só `[A-Z0-9]`, sem zeros à esquerda) e fazer **match exato** com `matricula_ra` normalizada.
+2. **Genérico (`G`), UniAtenas ou QR ilegível:**
+   - **Layout `sfa`:** normalizar a matrícula lida (maiúsculas, só `[A-Z0-9]`, sem zeros à esquerda) e fazer **match exato** com `matricula_ra` normalizada do mesmo jeito.
+   - **Layout `uniatenas`:** comparar a string `NN-X-NNNNN` com `upper(trim(matricula_ra))`. Não remover zeros, porque o formato é posicional.
    - O candidato tem que ser único.
    - Zero candidatos ou mais de um viram `aluno_nao_identificado`.
    - Não usar aproximação: matrícula em bolha não tem "erro de leitura de letra", e aproximar arriscaria trocar alunos.
@@ -258,9 +305,9 @@ A ordem das abas importa: a tela de importação lê **só a primeira**.
 - **Entregáveis:**
   - Pacote `services/cartao-omr/` com `pyproject.toml`, README (instalação no Windows com `py -m venv`), `.gitignore` e `.env.example`.
   - `layout.py` e `card.py`:
-    - gera o PDF do cartão **personalizado** e do **genérico** conforme a seção 5.2;
-    - gera o `templates/sfa_v1.json`;
-    - comando `cartao-omr modelo`.
+    - geram os PDFs dos cartões **personalizado**, **genérico** e **UniAtenas**, conforme as seções 5.2 e 5.2.1 e fiéis à referência `docs/prd/Modelo Cartão Resposta.png`;
+    - geram `templates/sfa_v1.json` e `templates/uniatenas_v1.json`;
+    - comando `cartao-omr modelo --layout`.
   - `gerar-cartoes` **sem banco** nesta fase: aceita um CSV de roster falso (`user_id,nome`) para testes. A ligação com o banco fica na Fase 2.
   - `tools/make_fixtures.py`, que simula cartões preenchidos e digitalizados:
     - bolhas preenchidas por caneta preta/azul com cobertura de 60–100%;
@@ -283,9 +330,11 @@ A ordem das abas importa: a tela de importação lê **só a primeira**.
     order by i.nome;
     ```
 
-    - **Usar o resultado para definir N** (o número de colunas da matrícula). Se algum `so_digitos` vier `false`, **parar e reportar** ao João: a grade de matrícula só cobre dígitos.
+    - **Usar o resultado para definir N** (o número de colunas da matrícula do layout `sfa`). Ignorar os 6 campi UniAtenas, que têm layout próprio.
+    - Se alguma outra IES vier com `so_digitos = false`, **parar e reportar** ao João: a grade do `sfa` só cobre dígitos.
+  - As fixtures cobrem os dois layouts. As do UniAtenas incluem matrículas com `G` na 3ª coluna.
 - **Testes:**
-  - o template tem 400 bolhas de resposta e N×10 de matrícula;
+  - o template `sfa` tem 400 bolhas de resposta e N×10 de matrícula; o `uniatenas` tem 400 e 7×10 + 11;
   - não há sobreposição entre bolhas;
   - as bolhas, o QR e o bloco de matrícula ficam dentro da área útil;
   - o QR gerado é lido de volta pelo `zxing-cpp`.
@@ -320,7 +369,8 @@ A ordem das abas importa: a tela de importação lê **só a primeira**.
   - `gerar-cartoes` passa a usar o roster do banco.
   - Pastas de execução em `runs/<AAAA-MM-DD_HHMM>_<simulado>/`.
 - **Testes:**
-  - identificação: QR válido, QR de outro simulado, `user_id` fora do roster, matrícula exata, matrícula com zeros à esquerda, matrícula ausente no roster, matrícula repetida no roster, aluno duplicado;
+  - identificação: QR válido, QR de outro simulado, `user_id` fora do roster, matrícula exata, matrícula com zeros à esquerda, matrícula ausente no roster, matrícula repetida no roster, aluno duplicado, QR personalizado ilegível com a matrícula de reserva preenchida;
+  - UniAtenas: `12-3-45678` exata, `12-G-45678`, coluna faltando, `G` marcado junto com um dígito (múltipla);
   - xlsx: a 1ª aba se chama `Respostas`, tem só as colunas das questões do simulado e as células de pendência ficam amarelas;
   - **compatibilidade com a importação atual:** um teste que lê a aba 1 com as mesmas regras de `src/components/admin/simulados/ImportarRespostasTab.tsx` (cabeçalho de email, colunas numéricas) e confirma que nada é rejeitado. Implementar em Python, espelhando as regex daquele arquivo.
 - **Aceite:** testes verdes; uma execução ponta a ponta sobre as fixtures, contra um simulado real em modo leitura, gerando um xlsx que o João abre e confere.
@@ -364,6 +414,8 @@ A ordem das abas importa: a tela de importação lê **só a primeira**.
 | Aluno sem cadastro ou sem matrícula usa o cartão genérico | Pendência com recorte do nome; o João atribui o email na aba `Não identificados`. |
 | Matrícula com letras em alguma IES | Consulta da Fase 0. Se aparecer, parar e redesenhar o bloco (ex.: bolhas alfanuméricas) antes de seguir. |
 | A IES continua usando o cartão antigo | Fora da V0: esses cartões seguem o processo manual. Relacionamento comunica o novo modelo. |
+| UniAtenas fotocopia o cartão (perda de nitidez, escala diferente) | QR sem número de série; os marcadores e a homografia toleram escala; o guia pede impressão direta do PDF sempre que possível. |
+| Alunos UniAtenas sem matrícula cadastrada (~15%) | Pendência com recorte do nome. Ação preventiva na seção 13. |
 | Dados pessoais vazarem pelo Git | `.gitignore` de `runs/` e de PDFs reais; fixtures só sintéticas. |
 | Credencial com poder demais | Papel somente leitura, com colunas mínimas; service role proibida. |
 
@@ -391,3 +443,12 @@ Ao final, siga a regra 8 da seção 4 (testes, commit, tag cartoes-fase-{N}, han
 - Importação atual (edge): `supabase/functions/admin-import-simulado-responses/index.ts` (`normalizeResposta`, `validateRow`). **Não alterar.**
 - Tabelas lidas: `simulados_admin` (`ies_ids`), `questoes_simulado` (`numero_questao`, `ordem`), `users` (`email`, `nome`, `id_ies`, `matricula_ra`) e `ies`.
 - Default ACL do projeto: um papel novo precisa de `GRANT`s explícitos e mínimos. Conferir pela `information_schema.role_table_grants` / `column_privileges`.
+
+## 13. Pendências registradas (decisões em aberto)
+| # | Pendência | Bloqueia | Dono |
+|---|---|---|---|
+| P1 | **Hospedagem do N8N:** confirmar se é self-hosted (e quem administra o servidor) ou N8N Cloud. Define a hospedagem da V1 (seção 9). | Só a V1 | João |
+| P2 | **Campi do grupo UniAtenas:** confirmar que são exatamente PARACATU, PASSOS, PORTO SEGURO, SETE LAGOAS, SORRISO e VALENÇA. A lista foi inferida pelo formato da matrícula em 13/10/2026. | Fase 2 (validação de `--layout uniatenas`) | João |
+| P3 | **Matrículas faltantes no UniAtenas:** cerca de 246 alunos desses campi estão sem `matricula_ra`. Pedir a lista às IES via Relacionamento, antes da primeira prova com o cartão novo, e atualizar o cadastro. | Qualidade do piloto UniAtenas | João / Relacionamento |
+| P4 | **Matrícula com `G`:** confirmar com a UniAtenas se `G` é a única letra possível na 3ª posição. | Fase 0 (layout `uniatenas`) | João |
+| P5 | **Comunicação do cartão novo:** avisar às IES que o cartão antigo deixa de ser processado automaticamente. | Fase 3 | João / Relacionamento |
