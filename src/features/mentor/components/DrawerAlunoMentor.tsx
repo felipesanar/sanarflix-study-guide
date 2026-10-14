@@ -15,6 +15,7 @@ import { desligarAgenda, liberarAgenda } from '@/services/mentor/sessoes';
 import { invalidarMentor } from '@/services/mentor/invalidar';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { SecaoDesempenhoAluno } from '@/features/mentor/components/turma/SecaoDesempenhoAluno';
+import { SecaoConteudosAluno } from '@/features/mentor/components/turma/SecaoConteudosAluno';
 import { descreverEvento } from '@/features/mentor/components/turma/logEvento';
 import {
   SEGMENTO_CLASSE,
@@ -251,6 +252,8 @@ const ConteudoAluno: React.FC<{ email: string; detalhe: AlunoDetalhe }> = ({ ema
       </section>
 
       <SecaoDesempenhoAluno email={email} />
+
+      <SecaoConteudosAluno aluno={aluno} />
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">

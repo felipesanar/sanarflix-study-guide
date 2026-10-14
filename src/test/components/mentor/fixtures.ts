@@ -1,5 +1,34 @@
 import type { AlunoTurma, Segmento } from '@/services/mentor/turma';
 
+/** Aluno com fonte de consumo: contagens de 7d/30d (30d = 7d + 10 por padrão). */
+export function comConsumo(email: string, nome: string, videos7: number, docs7: number, over: Partial<AlunoTurma> = {}): AlunoTurma {
+  return aluno({
+    email,
+    nome,
+    segmento: 'ativo',
+    dias_sem_atividade: 1,
+    tem_dado_consumo: true,
+    conteudos_7d: { videos: videos7, documentos: docs7, total: videos7 + docs7 },
+    conteudos_30d: { videos: videos7 + 6, documentos: docs7 + 4, total: videos7 + docs7 + 10 },
+    ...over,
+  });
+}
+
+/** Aluno sem fonte (B2C hoje): o backend devolve o objeto com campos nulos. */
+export function semConsumo(email: string, nome: string, over: Partial<AlunoTurma> = {}): AlunoTurma {
+  const nulo = { videos: null, documentos: null, total: null };
+  return aluno({
+    email,
+    nome,
+    segmento: 'ativo',
+    dias_sem_atividade: 2,
+    tem_dado_consumo: false,
+    conteudos_7d: nulo,
+    conteudos_30d: nulo,
+    ...over,
+  });
+}
+
 export function aluno(over: Partial<AlunoTurma> & { email: string }): AlunoTurma {
   return {
     nome: null,

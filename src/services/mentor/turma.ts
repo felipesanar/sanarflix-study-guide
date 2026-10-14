@@ -8,6 +8,17 @@ import { Logger } from '@/utils/logger';
 
 export type Segmento = 'ativo' | 'esfriando' | 'sumido' | 'sem_dado';
 
+/**
+ * Contagem de conteúdos consumidos numa janela (vídeos + documentos).
+ * Sem fonte de dado o backend devolve o objeto com campos nulos (`tem_dado_consumo` falso);
+ * com fonte e sem consumo, 0/0/0.
+ */
+export interface ContagemConteudos {
+  videos: number | null;
+  documentos: number | null;
+  total: number | null;
+}
+
 /** Um aluno da turma — item de `mentor_turma()`. */
 export interface AlunoTurma {
   email: string;
@@ -21,6 +32,14 @@ export interface AlunoTurma {
   ultima_atividade: string | null;
   dias_sem_atividade: number | null;
   segmento: Segmento;
+  /**
+   * Consumo de conteúdo. Opcionais: ficam ausentes até o backend ser aplicado.
+   * `tem_dado_consumo` falso/ausente = SEM fonte de dado (mostrar "–", nunca 0), mesmo que o
+   * objeto venha com campos nulos; verdadeiro com zeros = o aluno não consumiu nada.
+   */
+  conteudos_7d?: ContagemConteudos | null;
+  conteudos_30d?: ContagemConteudos | null;
+  tem_dado_consumo?: boolean;
 }
 
 export interface AlunoDetalhe {

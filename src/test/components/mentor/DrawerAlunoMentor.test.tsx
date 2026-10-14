@@ -13,6 +13,11 @@ vi.mock('@/services/mentor/desempenho', async () => ({
   ...(await vi.importActual<typeof import('@/services/mentor/desempenho')>('@/services/mentor/desempenho')),
   fetchAlunoNotas: (e: string) => fetchAlunoNotas(e),
 }));
+vi.mock('@/services/mentor/conteudos', async () => ({
+  ...(await vi.importActual<typeof import('@/services/mentor/conteudos')>('@/services/mentor/conteudos')),
+  fetchAlunoConteudos: () =>
+    Promise.resolve({ email: 'a@x.com', tem_dado_consumo: false, por_semana: [], recentes: [], top_cursos: [] }),
+}));
 vi.mock('@/services/mentor/sessoes', () => ({
   liberarAgenda: (...a: unknown[]) => liberarAgenda(...a),
   desligarAgenda: (...a: unknown[]) => desligarAgenda(...a),

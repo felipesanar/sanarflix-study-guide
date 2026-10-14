@@ -10,6 +10,7 @@ import { fetchTurma, type AlunoTurma, type Segmento } from '@/services/mentor/tu
 import { chavesDesempenho, fetchDesempenhoTurma, type AlunoDesempenho, type SituacaoMeta } from '@/services/mentor/desempenho';
 import { DrawerAlunoMentor } from '@/features/mentor/components/DrawerAlunoMentor';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
+import { CardConteudosSemana, CelulaConteudos7d } from '@/features/mentor/components/turma/ConteudosSemana';
 import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
 import {
   ALERTA_ROTULO,
@@ -394,11 +395,7 @@ const MinhaTurma: React.FC = () => {
                 <CardEvolucao titulo="Acerto médio no último simulado" testId="card-acerto" linhas={linhasAcerto}>
                   <p className="text-xs text-muted-foreground">de quem fez</p>
                 </CardEvolucao>
-                <div className="space-y-1 rounded-xl border bg-card p-4" data-testid="card-questoes">
-                  <p className="text-sm text-muted-foreground">Questões na semana</p>
-                  <p className="text-3xl font-semibold">–</p>
-                  <p className="text-xs text-muted-foreground">chega com os dados de engajamento</p>
-                </div>
+                <CardConteudosSemana alunos={alunos} />
                 <CardEvolucao titulo="Participação no último simulado" testId="card-participacao" linhas={linhasParticipacao}>
                   {cards.naoFizeram > 0 && (
                     <button
@@ -416,7 +413,7 @@ const MinhaTurma: React.FC = () => {
               </div>
             )
           ) : (
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <CardResumo titulo="Ativos na semana">
                 <p className="text-3xl font-semibold">{contagem.ativo}</p>
                 <p className="text-xs text-muted-foreground">de {alunos.length}</p>
@@ -435,6 +432,7 @@ const MinhaTurma: React.FC = () => {
                 <p className="text-3xl font-semibold">—</p>
                 <p className="text-xs text-muted-foreground">Precisa de simulados e de Metas.</p>
               </CardResumo>
+              <CardConteudosSemana alunos={alunos} />
             </div>
           )}
 
@@ -549,6 +547,7 @@ const MinhaTurma: React.FC = () => {
                     ) : (
                       <th className="px-3 py-2 font-medium">Acerto</th>
                     )}
+                    <th className="px-3 py-2 font-medium">Conteúdos (7d)</th>
                     <th className="px-3 py-2 font-medium">Último acesso</th>
                   </tr>
                 </thead>
@@ -590,6 +589,9 @@ const MinhaTurma: React.FC = () => {
                           <td className="px-3 py-2 text-muted-foreground">Sem dado</td>
                         </>
                       )}
+                      <td className="px-3 py-2">
+                        <CelulaConteudos7d aluno={a} />
+                      </td>
                       <td className="px-3 py-2">{formatUltimoAcesso(a.dias_sem_atividade)}</td>
                     </tr>
                   ))}
@@ -608,7 +610,7 @@ const MinhaTurma: React.FC = () => {
                           </td>
                         );
                       })}
-                      <td className="px-3 py-2" colSpan={2} />
+                      <td className="px-3 py-2" colSpan={3} />
                     </tr>
                   </tfoot>
                 )}

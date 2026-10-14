@@ -9,6 +9,8 @@ import { listarSessoes } from '@/services/mentor/sessoes';
 import { listarIntervencoes } from '@/services/mentor/intervencoes';
 import { ehLinkHttp } from '@/features/mentor/lib/linkSeguro';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
+import { CardConteudosSemana } from '@/features/mentor/components/turma/ConteudosSemana';
+import { temDadoConsumo } from '@/features/mentor/components/turma/consumo';
 import { contarAlertas, numeroUltimoSimulado, temDadosSimulado, formatPct } from '@/features/mentor/components/turma/simulados';
 import { formatDiaMesHora, formatUltimoAcesso, nomeOuEmail, plural } from '@/features/mentor/components/turma/util';
 
@@ -234,6 +236,8 @@ const InicioMentor: React.FC = () => {
   const contexto = useQuery({ queryKey: ['mentor', 'contexto'], queryFn: fetchMentorContexto });
   const turma = useQuery({ queryKey: ['mentor', 'turma'], queryFn: fetchTurma, enabled: !!contexto.data?.mentor });
   const qtdSumidos = (turma.data ?? []).filter((a) => a.segmento === 'sumido').length;
+  // "Conteúdos na semana" só aparece quando ao menos um aluno tem fonte de consumo.
+  const mostrarConteudos = (turma.data ?? []).some(temDadoConsumo);
 
   if (contexto.isLoading) return <p className="text-sm text-muted-foreground">Carregando sua turma…</p>;
   if (contexto.isError) {
@@ -286,10 +290,11 @@ const InicioMentor: React.FC = () => {
 
       <AlertasSimulados habilitado={!!contexto.data?.mentor} />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className={mostrarConteudos ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-4' : 'grid gap-4 md:grid-cols-3'}>
         <CardSumiram />
         <CardProximaSessao />
         <CardAFazer />
+        {mostrarConteudos && <CardConteudosSemana alunos={turma.data ?? []} />}
       </div>
     </div>
   );

@@ -205,7 +205,7 @@ describe('MinhaTurma', () => {
       expect(screen.queryByText(/Os simulados ainda não chegam aqui/)).not.toBeInTheDocument();
       expect(screen.getByText('Possível aprovação')).toBeInTheDocument();
       expect(screen.getByText('Acerto médio no último simulado')).toBeInTheDocument();
-      expect(screen.getByText('Questões na semana')).toBeInTheDocument();
+      expect(screen.getByText('Conteúdos na semana')).toBeInTheDocument();
       expect(screen.getByText('Participação no último simulado')).toBeInTheDocument();
       // O Simulado 3 está aberto: o "Atual" é o 2 (último encerrado), nunca valores do 3 sob o rótulo do 2.
       // Possível aprovação no Simulado 2: Alice 80, Bruno 75 acima; Carla 60 abaixo (Diego sem corte fica fora) -> 2/3.
@@ -223,9 +223,9 @@ describe('MinhaTurma', () => {
       expect(cardAtual('card-participacao')).toHaveTextContent('80%');
       expect(screen.getByTestId('card-participacao')).toHaveTextContent('fizeram 4 de 5');
       expect(screen.getByTestId('card-participacao-anterior')).toHaveTextContent('Simulado 1');
-      // Questões na semana: ainda sem dado B2C.
-      expect(screen.getByTestId('card-questoes')).toHaveTextContent('–');
-      expect(screen.getByTestId('card-questoes')).toHaveTextContent('chega com os dados de engajamento');
+      // Conteúdos na semana: turma B2C sem fonte de consumo -> "–" + nota.
+      expect(screen.getByTestId('card-conteudos')).toHaveTextContent('–');
+      expect(screen.getByTestId('card-conteudos')).toHaveTextContent('Consumo de conteúdo ainda não chega para alunos B2C');
     });
 
     it('simulado encerrado que ninguém fez vira chip e Atual: participação 0%, acerto "–", Anterior e Primeiro seguem a lista', async () => {
