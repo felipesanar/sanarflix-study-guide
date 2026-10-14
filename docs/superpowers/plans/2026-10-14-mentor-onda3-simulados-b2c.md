@@ -113,7 +113,7 @@ create table public.b2c_sync_execucoes (
 
 ### Task 3: Sincronização diária (`sync-simulados-b2c`)
 
-**Files:** `supabase/functions/sync-simulados-b2c/index.ts` + `upsert.ts` (lógica pura) + teste Vitest; `supabase/migrations/20261014210100_b2c_sync_agenda.sql` (cron).
+**Files:** `supabase/functions/sync-simulados-b2c/index.ts` + `upsert.ts` (lógica pura) + teste Vitest; `supabase/migrations/20261014203709_b2c_sync_agenda.sql` (cron).
 
 - A edge: (1) lê `distinct email_normalizado` de `mentoria_vinculos where fim is null`; (2) lê `max(finalizada_em)` de `b2c_tentativas` para o `desde` (menos 2 dias de folga); (3) chama `mentoria-export` em lotes de 1.000 com o segredo; (4) upsert de `b2c_simulados`, `b2c_questoes`, `b2c_alunos` (calcula `corte_mais_dificil`), `b2c_tentativas`, `b2c_respostas` (ON CONFLICT DO UPDATE); (5) grava `b2c_sync_execucoes` com contagens ou `erro`.
 - Autenticação da própria edge: só aceita chamadas com `Authorization: Bearer <service role>` (o cron manda) — rejeita o resto com 401.
