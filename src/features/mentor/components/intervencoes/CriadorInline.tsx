@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AlvoIntervencao, CriarIntervencaoInput, TipoIntervencao } from '@/services/mentor/intervencoes';
 import type { AlunoTurma } from '@/services/mentor/turma';
@@ -6,39 +7,63 @@ import { TIPOS, rotuloTipo } from './util';
 
 interface Props {
   turma: AlunoTurma[];
-  alunoInicial?: string | null;
+  /** E-mails pré-preenchidos (`?aluno=` / `?alunos=`): 1 → "Um aluno"; 2+ → "Alunos selecionados" (grupo). */
+  alunosIniciais?: string[];
   enviando?: boolean;
   onCriar: (input: CriarIntervencaoInput) => void;
   onCancelar: () => void;
 }
 
-/** Criação inline no topo da coluna: tipo + aluno/turma obrigatórios, descrição opcional. */
-export const CriadorInline: React.FC<Props> = ({ turma, alunoInicial, enviando, onCriar, onCancelar }) => {
+const SEM_ALUNOS: string[] = [];
+
+function alvoInicial(n: number): AlvoIntervencao | '' {
+  if (n > 1) return 'grupo';
+  return n === 1 ? 'aluno' : '';
+}
+
+/** Criação inline no topo da coluna: tipo + aluno(s)/turma obrigatórios, descrição opcional. */
+export const CriadorInline: React.FC<Props> = ({
+  turma,
+  alunosIniciais = SEM_ALUNOS,
+  enviando,
+  onCriar,
+  onCancelar,
+}) => {
   const [tipo, setTipo] = React.useState<TipoIntervencao | ''>('');
-  const [alvo, setAlvo] = React.useState<AlvoIntervencao | ''>(alunoInicial ? 'aluno' : '');
-  const [aluno, setAluno] = React.useState(alunoInicial ?? '');
+  const [alvo, setAlvo] = React.useState<AlvoIntervencao | ''>(() => alvoInicial(alunosIniciais.length));
+  const [aluno, setAluno] = React.useState(alunosIniciais.length === 1 ? alunosIniciais[0] : '');
+  const [grupo, setGrupo] = React.useState<string[]>(alunosIniciais.length > 1 ? alunosIniciais : []);
   const [descricao, setDescricao] = React.useState('');
   const [erro, setErro] = React.useState<string | null>(null);
+  const temGrupoInicial = alunosIniciais.length > 1;
 
   const opcoes = React.useMemo(() => {
     const lista = [...turma].sort((a, b) => (a.nome ?? a.email).localeCompare(b.nome ?? b.email, 'pt-BR'));
-    if (alunoInicial && !lista.some((a) => a.email === alunoInicial)) {
-      lista.unshift({ email: alunoInicial, nome: null } as AlunoTurma);
+    // E-mail vindo da URL fora da turma carregada: mantém como opção, só com o e-mail.
+    for (const email of alunosIniciais) {
+      if (!lista.some((a) => a.email === email)) lista.unshift({ email, nome: null } as AlunoTurma);
     }
     return lista;
-  }, [turma, alunoInicial]);
+  }, [turma, alunosIniciais]);
+
+  const nomeDe = (email: string) => opcoes.find((a) => a.email === email)?.nome || email;
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tipo) return setErro('Escolha o tipo da intervenção.');
     if (!alvo) return setErro('Escolha para quem é: aluno ou turma toda.');
     if (alvo === 'aluno' && !aluno) return setErro('Escolha o aluno.');
+    if (alvo === 'grupo' && grupo.length === 0) return setErro('Selecione ao menos um aluno.');
     setErro(null);
-    const quem = alvo === 'turma' ? 'Turma toda' : (opcoes.find((a) => a.email === aluno)?.nome ?? aluno);
+    const alunos = alvo === 'aluno' ? [aluno] : alvo === 'grupo' ? grupo : [];
+    let quem: string;
+    if (alvo === 'turma') quem = 'Turma toda';
+    else if (alvo === 'grupo') quem = grupo.length === 1 ? nomeDe(grupo[0]) : `${grupo.length} alunos`;
+    else quem = nomeDe(aluno);
     onCriar({
       tipo,
       alvo,
-      alunos: alvo === 'aluno' ? [aluno] : [],
+      alunos,
       titulo: `${rotuloTipo(tipo)} — ${quem}`,
       nota: descricao.trim() || null,
     });
@@ -72,6 +97,7 @@ export const CriadorInline: React.FC<Props> = ({ turma, alunoInicial, enviando, 
         >
           <option value="">Aluno ou turma</option>
           <option value="aluno">Um aluno</option>
+          {temGrupoInicial ? <option value="grupo">Alunos selecionados</option> : null}
           <option value="turma">Turma toda</option>
         </select>
       </label>
@@ -92,6 +118,30 @@ export const CriadorInline: React.FC<Props> = ({ turma, alunoInicial, enviando, 
             ))}
           </select>
         </label>
+      ) : null}
+      {alvo === 'grupo' ? (
+        <div className="space-y-1">
+          <span className="text-xs font-medium">Alunos selecionados ({grupo.length})</span>
+          {grupo.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum aluno selecionado.</p>
+          ) : (
+            <ul className="flex flex-wrap gap-2" aria-label="Alunos selecionados">
+              {grupo.map((email) => (
+                <li key={email} className="flex items-center gap-1 rounded-full bg-muted py-1 pl-3 pr-1 text-xs">
+                  <span>{nomeDe(email)}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remover ${nomeDe(email)}`}
+                    className="rounded-full p-1 hover:bg-background"
+                    onClick={() => setGrupo((g) => g.filter((x) => x !== email))}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : null}
       <label className="block space-y-1">
         <span className="text-xs font-medium">Descrição (opcional)</span>

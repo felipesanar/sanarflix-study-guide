@@ -6,11 +6,13 @@ import { PostsPublicados } from '@/features/mentor/components/mural/PostsPublica
 import { fetchMentorContexto } from '@/services/mentor/contexto';
 import type { PostMural } from '@/services/mentor/mural';
 import { fetchTurma } from '@/services/mentor/turma';
+import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
 
 /** Mural (tela 05): nova publicação, preview "Como o aluno vê" e lista de publicações. */
 const Mural: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const paraEmail = searchParams.get('para')?.trim().toLowerCase() || null;
+  // `?para=a@x.com,b@x.com`: vários destinatários, normalizados e sem duplicados.
+  const paraEmails = React.useMemo(() => parseEmailsParam(searchParams.get('para')), [searchParams]);
   const [editando, setEditando] = React.useState<PostMural | null>(null);
   // Muda a cada save/edição para remontar o formulário com estado limpo.
   const [versaoForm, setVersaoForm] = React.useState(0);
@@ -49,11 +51,11 @@ const Mural: React.FC = () => {
       {turmaQuery.data && (
         <>
           <NovaPublicacao
-            key={`${editando?.id ?? 'novo'}-${versaoForm}-${paraEmail ?? ''}`}
+            key={`${editando?.id ?? 'novo'}-${versaoForm}-${paraEmails.join(',')}`}
             turma={turmaQuery.data}
             mentorId={contexto?.mentor?.user_id ?? null}
             post={editando}
-            destinatariosIniciais={!editando && paraEmail ? [paraEmail] : []}
+            destinatariosIniciais={!editando ? paraEmails : []}
             onConcluido={concluir}
             onCancelarEdicao={() => {
               setEditando(null);

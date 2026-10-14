@@ -8,7 +8,6 @@ import {
   derivarDistribuicao,
   formatPct,
   formatRespostas,
-  guardarDestinatariosMural,
   rotuloSimulado,
   urlIntervencao,
   urlMural,
@@ -32,10 +31,7 @@ export const PainelQuestao: React.FC<Props> = ({ questao, nomes, onFechar }) => 
   const navigate = useNavigate();
   const dist = questao ? derivarDistribuicao(questao) : null;
 
-  const mensagem = (emails: string[]) => {
-    guardarDestinatariosMural(emails);
-    navigate(urlMural(emails));
-  };
+  const mensagem = (emails: string[]) => navigate(urlMural(emails));
 
   return (
     <Sheet open={!!questao} onOpenChange={(o) => !o && onFechar()}>

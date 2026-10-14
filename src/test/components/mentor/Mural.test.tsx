@@ -168,6 +168,26 @@ describe('Mural — nova publicação', () => {
     expect(screen.getByRole('button', { name: 'Publicar para 1 aluno' })).toBeInTheDocument();
   });
 
+  it('?para=a,b pré-seleciona vários alunos (normaliza, remove duplicados e e-mails inválidos)', async () => {
+    renderMural('/mentor/mural?para=bia@a.com,%20CAIO@a.com,bia@a.com,,nao-e-email');
+    expect(await screen.findByRole('button', { name: 'Remover Bia' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remover Caio' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Selecionados' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Publicar para 2 alunos' })).toBeInTheDocument();
+  });
+
+  it('publicar com ?para=a,b envia os dois destinatários', async () => {
+    const user = userEvent.setup();
+    renderMural('/mentor/mural?para=bia%40a.com%2Ccaio%40a.com');
+    await preencherBasico(user);
+    await user.click(await screen.findByRole('button', { name: 'Publicar para 2 alunos' }));
+    await waitFor(() =>
+      expect(salvarPost).toHaveBeenCalledWith(
+        expect.objectContaining({ publico: 'selecionados', destinatarios: ['bia@a.com', 'caio@a.com'], publicar: true }),
+      ),
+    );
+  });
+
   it('aba "Pra você" do preview só aparece em Selecionados', async () => {
     const user = userEvent.setup();
     renderMural();

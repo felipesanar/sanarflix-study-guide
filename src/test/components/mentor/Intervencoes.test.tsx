@@ -171,6 +171,43 @@ describe('Intervencoes', () => {
     await waitFor(() => expect(within(form).getByLabelText('Aluno')).toHaveValue('ana@x.com'));
   });
 
+  it('?alunos=a,b abre o criador com os alunos selecionados e cria como grupo', async () => {
+    const user = userEvent.setup();
+    renderTela('/mentor/intervencoes?novo=1&alunos=ana@x.com,BIA@x.com,ana@x.com,lixo,%20');
+    const form = await screen.findByRole('form', { name: 'Nova intervenção' });
+    expect(within(form).getByLabelText('Para quem')).toHaveValue('grupo');
+    const lista = within(form).getByRole('list', { name: 'Alunos selecionados' });
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(2);
+    await waitFor(() => expect(within(lista).getByText('Ana Souza')).toBeInTheDocument());
+
+    await user.selectOptions(within(form).getByLabelText('Tipo'), 'reuniao_coletiva');
+    await user.click(within(form).getByRole('button', { name: 'Criar' }));
+    await waitFor(() =>
+      expect(svc.criarIntervencao).toHaveBeenCalledWith(
+        expect.objectContaining({ tipo: 'reuniao_coletiva', alvo: 'grupo', alunos: ['ana@x.com', 'bia@x.com'] }),
+      ),
+    );
+  });
+
+  it('?alunos= sem ?novo=1 também abre o criador; com 1 e-mail vira "Um aluno"', async () => {
+    renderTela('/mentor/intervencoes?alunos=ana@x.com');
+    const form = await screen.findByRole('form', { name: 'Nova intervenção' });
+    expect(within(form).getByLabelText('Para quem')).toHaveValue('aluno');
+    await waitFor(() => expect(within(form).getByLabelText('Aluno')).toHaveValue('ana@x.com'));
+  });
+
+  it('remover um aluno do grupo pré-preenchido tira ele do envio', async () => {
+    const user = userEvent.setup();
+    renderTela('/mentor/intervencoes?novo=1&alunos=ana@x.com,bia@x.com');
+    const form = await screen.findByRole('form', { name: 'Nova intervenção' });
+    await user.click(within(form).getAllByRole('button', { name: /^Remover / })[0]);
+    await user.selectOptions(within(form).getByLabelText('Tipo'), 'whatsapp');
+    await user.click(within(form).getByRole('button', { name: 'Criar' }));
+    await waitFor(() =>
+      expect(svc.criarIntervencao).toHaveBeenCalledWith(expect.objectContaining({ alvo: 'grupo', alunos: ['bia@x.com'] })),
+    );
+  });
+
   it('mostra erro com "Tentar de novo"', async () => {
     mock(svc.listarIntervencoes).mockRejectedValue(new Error('boom'));
     renderTela();

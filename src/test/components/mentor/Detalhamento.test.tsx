@@ -137,28 +137,32 @@ describe('Detalhamento por simulados', () => {
     expect((await screen.findAllByText('Hipertensão', undefined, T)).length).toBeGreaterThan(0);
     expect(fetchDetalhamento).toHaveBeenCalledTimes(1);
     expect(fetchDetalhamento).toHaveBeenCalledWith(['s2']);
-    expect(screen.getByRole('button', { name: 'Remover Simulado 2' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remover Simulado 1' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Simulado 2' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Simulado 1' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('com a seleção vazia mostra o convite para escolher e não busca o detalhamento', async () => {
+  it('nunca fica com seleção vazia: o último simulado marcado não desmarca e não refaz a busca', async () => {
     renderPagina();
-    await screen.findByRole('button', { name: 'Remover Simulado 2' }, T);
+    const s2 = await screen.findByRole('button', { name: 'Simulado 2' }, T);
     await waitFor(() => expect(fetchDetalhamento).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'Limpar seleção' }));
-    expect(await screen.findByText(/Escolha ao menos um simulado/i)).toBeInTheDocument();
-    expect(screen.queryByText('Hipertensão')).toBeNull();
+    fireEvent.click(s2);
+    expect(s2).toHaveAttribute('aria-pressed', 'true');
     expect(fetchDetalhamento).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Adicionar outro' })).toBeInTheDocument();
+    expect(screen.queryByText(/Escolha ao menos um simulado/i)).toBeNull();
+    expect(fetchDetalhamento).not.toHaveBeenCalledWith([]);
   });
 
-  it('adicionar outro simulado refaz a busca com os dois e mostra o comparativo', async () => {
+  it('marcar outro simulado refaz a busca com os dois e mostra o comparativo', async () => {
     renderPagina();
-    await screen.findByRole('button', { name: 'Remover Simulado 2' }, T);
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar outro' }));
-    fireEvent.click(await screen.findByRole('button', { name: /^Simulado 1/ }));
+    await screen.findByRole('button', { name: 'Simulado 2' }, T);
+    fireEvent.click(screen.getByRole('button', { name: 'Simulado 1' }));
     await waitFor(() => expect(fetchDetalhamento).toHaveBeenLastCalledWith(['s1', 's2']));
     expect((await screen.findAllByText(/vs\. Simulado 1/, undefined, T)).length).toBeGreaterThan(0);
+    // Com 2 marcados dá para desmarcar um; "Todos" marca todos.
+    fireEvent.click(screen.getByRole('button', { name: 'Simulado 2' }));
+    await waitFor(() => expect(fetchDetalhamento).toHaveBeenLastCalledWith(['s1']));
+    fireEvent.click(screen.getByRole('button', { name: 'Todos' }));
+    await waitFor(() => expect(fetchDetalhamento).toHaveBeenLastCalledWith(['s1', 's2']));
   });
 
   it('"Mais erradas" ordena do menor % de acerto para o maior', async () => {
@@ -193,10 +197,11 @@ describe('Detalhamento por simulados', () => {
     const url = new URL(navigate.mock.calls[0][0] as string, 'http://x');
     expect(url.pathname).toBe('/mentor/mural');
     expect(url.searchParams.get('para')).toBe('a@x.com,c@x.com');
-    expect(JSON.parse(window.sessionStorage.getItem('mentor.mural.para') ?? '[]')).toEqual(['a@x.com', 'c@x.com']);
+    // Um único mecanismo: a URL. Nada vai para o sessionStorage.
+    expect(window.sessionStorage.getItem('mentor.mural.para')).toBeNull();
   });
 
-  it('"Criar intervenção" leva às intervenções com o primeiro aluno', async () => {
+  it('"Criar intervenção" leva às intervenções com todos os alunos em ?alunos=', async () => {
     renderPagina();
     await screen.findAllByRole('button', { name: /^Abrir questão/ }, T);
     fireEvent.click(screen.getByRole('button', { name: /^Abrir questão 2/ }));
@@ -206,7 +211,8 @@ describe('Detalhamento por simulados', () => {
     const url = new URL(navigate.mock.calls[0][0] as string, 'http://x');
     expect(url.pathname).toBe('/mentor/intervencoes');
     expect(url.searchParams.get('novo')).toBe('1');
-    expect(url.searchParams.get('aluno')).toBe('a@x.com');
+    expect(url.searchParams.get('alunos')).toBe('a@x.com,c@x.com');
+    expect(url.searchParams.has('aluno')).toBe(false);
   });
 
   it('"Detalhar" na grande área abre o painel com os temas e o nº de respostas, sem nota de corte', async () => {

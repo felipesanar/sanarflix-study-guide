@@ -9,7 +9,7 @@ import { fetchTurma, type AlunoTurma, type Segmento } from '@/services/mentor/tu
 import { fetchDesempenhoTurma, type AlunoDesempenho, type SituacaoMeta } from '@/services/mentor/desempenho';
 import { DrawerAlunoMentor } from '@/features/mentor/components/DrawerAlunoMentor';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
-import { SeletorSimuladosMentor } from '@/features/mentor/components/turma/SeletorSimuladosMentor';
+import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
 import {
   ALERTA_ROTULO,
   SITUACAO_CLASSE,

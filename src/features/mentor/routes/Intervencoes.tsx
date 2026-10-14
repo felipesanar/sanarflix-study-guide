@@ -13,6 +13,7 @@ import {
   type TipoIntervencao,
 } from '@/services/mentor/intervencoes';
 import { fetchTurma } from '@/services/mentor/turma';
+import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
 import { DrawerIntervencao } from '@/features/mentor/components/DrawerIntervencao';
 import { CardIntervencaoKanban } from '@/features/mentor/components/intervencoes/CardIntervencaoKanban';
 import { CriadorInline } from '@/features/mentor/components/intervencoes/CriadorInline';
@@ -38,8 +39,9 @@ const Intervencoes: React.FC = () => {
   const [custom, setCustom] = React.useState({ de: '', ate: '' });
   const [busca, setBusca] = React.useState('');
   const [tipo, setTipo] = React.useState<TipoIntervencao | ''>('');
-  const [criando, setCriando] = React.useState(params.get('novo') === '1');
-  const [alunoInicial] = React.useState(() => params.get('aluno'));
+  // `?aluno=` (um) e `?alunos=` (lista separada por vírgula) pré-preenchem o criador.
+  const [alunosIniciais] = React.useState(() => parseEmailsParam(params.get('aluno'), params.get('alunos')));
+  const [criando, setCriando] = React.useState(params.get('novo') === '1' || params.has('alunos'));
   const [abertoId, setAbertoId] = React.useState<string | null>(null);
 
   const { de, ate } = intervaloPeriodo(periodo, hoje, custom);
@@ -63,10 +65,11 @@ const Intervencoes: React.FC = () => {
     mutationFn: (input: CriarIntervencaoInput) => criarIntervencao(input),
     onSuccess: () => {
       setCriando(false);
-      if (params.has('novo') || params.has('aluno')) {
+      if (params.has('novo') || params.has('aluno') || params.has('alunos')) {
         const p = new URLSearchParams(params);
         p.delete('novo');
         p.delete('aluno');
+        p.delete('alunos');
         setParams(p, { replace: true });
       }
       invalidar();
@@ -212,7 +215,7 @@ const Intervencoes: React.FC = () => {
                   {col.valor === 'a_fazer' && criando ? (
                     <CriadorInline
                       turma={turmaQ.data ?? []}
-                      alunoInicial={alunoInicial}
+                      alunosIniciais={alunosIniciais}
                       enviando={criar.isPending}
                       onCriar={(input) => criar.mutate(input)}
                       onCancelar={() => setCriando(false)}

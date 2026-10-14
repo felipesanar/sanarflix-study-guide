@@ -1,11 +1,9 @@
+import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
 import type {
   AlunoDesempenho,
   DesempenhoTurma,
   QuestaoDetalhe,
 } from '@/services/mentor/desempenho';
-
-/** Chave usada para repassar a lista de destinatários ao Mural (Mural lê só um e-mail em `?para=`). */
-export const MURAL_PARA_STORAGE_KEY = 'mentor.mural.para';
 
 export type OrdenacaoQuestoes = 'ordem_da_prova' | 'mais_erradas' | 'mais_acertadas';
 
@@ -156,24 +154,16 @@ export function derivarDistribuicao(questao: QuestaoDetalhe): {
   };
 }
 
-/** Rota do Mural com a lista de destinatários (e a cópia em sessionStorage para o Mural ler a lista inteira). */
+/** Rota do Mural com todos os destinatários em `?para=` (lista separada por vírgula). */
 export function urlMural(emails: string[]): string {
-  const p = new URLSearchParams({ para: emails.join(',') });
+  const p = new URLSearchParams({ para: parseEmailsParam(emails.join(',')).join(',') });
   return `/mentor/mural?${p.toString()}`;
 }
 
-/** Limitação: a criação de intervenção aceita um aluno por vez — vai o primeiro da lista. */
+/** Rota de Intervenções com o criador aberto e todos os alunos em `?alunos=`. */
 export function urlIntervencao(emails: string[]): string {
-  const p = new URLSearchParams({ novo: '1', aluno: emails[0] ?? '' });
+  const p = new URLSearchParams({ novo: '1', alunos: parseEmailsParam(emails.join(',')).join(',') });
   return `/mentor/intervencoes?${p.toString()}`;
-}
-
-export function guardarDestinatariosMural(emails: string[]): void {
-  try {
-    window.sessionStorage.setItem(MURAL_PARA_STORAGE_KEY, JSON.stringify(emails));
-  } catch {
-    // sem sessionStorage (janela privada / bloqueado): a URL já leva a lista.
-  }
 }
 
 export function classeAcerto(pct: number): string {

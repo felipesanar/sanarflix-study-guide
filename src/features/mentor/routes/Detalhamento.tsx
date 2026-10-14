@@ -7,7 +7,7 @@ import { AcertoPorArea } from '@/features/mentor/components/detalhamento/AcertoP
 import { IndicadoresDetalhamento } from '@/features/mentor/components/detalhamento/IndicadoresDetalhamento';
 import { ListaQuestoes } from '@/features/mentor/components/detalhamento/ListaQuestoes';
 import { PainelQuestao } from '@/features/mentor/components/detalhamento/PainelQuestao';
-import { SeletorSimuladosMentor } from '@/features/mentor/components/detalhamento/SeletorSimuladosMentor';
+import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
 import {
   ordenarSelecao,
   simuladoMaisRecente,
@@ -78,7 +78,12 @@ const Detalhamento: React.FC = () => {
     }
     return (
       <>
-        <SeletorSimuladosMentor disponiveis={disponiveis} selecionados={selecionados} onChange={setEscolha} />
+        <SeletorSimuladosMentor
+          opcoes={disponiveis}
+          selecionados={selecionados}
+          onChange={setEscolha}
+          exigirSelecao
+        />
         {!temSelecao ? (
           <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
             Escolha ao menos um simulado para ver o detalhamento.
