@@ -25,7 +25,8 @@ vi.mock('@/services/mentor/turma', () => ({
   fetchTurma: () => fetchTurma(),
   fetchAluno: (e: string) => fetchAluno(e),
 }));
-vi.mock('@/services/mentor/desempenho', () => ({
+vi.mock('@/services/mentor/desempenho', async () => ({
+  ...(await vi.importActual<typeof import('@/services/mentor/desempenho')>('@/services/mentor/desempenho')),
   fetchDesempenhoTurma: (...a: unknown[]) => fetchDesempenhoTurma(...a),
   fetchAlunoNotas: (e: string) => fetchAlunoNotas(e),
 }));

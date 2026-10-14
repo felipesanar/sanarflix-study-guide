@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import { marcarSessaoFeita, type Sessao } from '@/services/mentor/sessoes';
 import type { AlunoTurma } from '@/services/mentor/turma';
 import { ehLinkHttps, ehLinkSeguro, formatarDataHora } from './dataHora';
@@ -31,8 +32,7 @@ const LinhaSessao: React.FC<{ sessao: Sessao; alunos: AlunoTurma[]; quem: string
     mutationFn: () => marcarSessaoFeita(sessao.id, gravacao.trim() || null),
     onSuccess: async () => {
       setErro(null);
-      await qc.invalidateQueries({ queryKey: ['mentor', 'sessoes'] });
-      await qc.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
+      await invalidarMentor(qc);
     },
     onError: (e: Error) => setErro(e.message),
   });

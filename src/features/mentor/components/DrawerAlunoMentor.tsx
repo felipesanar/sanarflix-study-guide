@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
 import { fetchAluno, type AlunoDetalhe } from '@/services/mentor/turma';
 import { desligarAgenda, liberarAgenda } from '@/services/mentor/sessoes';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { SecaoDesempenhoAluno } from '@/features/mentor/components/turma/SecaoDesempenhoAluno';
 import { descreverEvento } from '@/features/mentor/components/turma/logEvento';
@@ -46,6 +47,11 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+/** A RPC `mentor_aluno` levanta "aluno … não é da sua turma" quando o e-mail está fora da turma. */
+function alunoForaDaTurma(error: unknown): boolean {
+  return error instanceof Error && /n[aã]o é da sua turma/i.test(error.message);
+}
+
 /** Drawer do aluno (tela 03): contato, ações, agenda individual e log de interações. */
 export const DrawerAlunoMentor: React.FC<Props> = ({ email, open, onOpenChange }) => {
   const query = useQuery({
@@ -65,7 +71,13 @@ export const DrawerAlunoMentor: React.FC<Props> = ({ email, open, onOpenChange }
             </SheetHeader>
           </>
         )}
-        {query.isError && (
+        {query.isError && alunoForaDaTurma(query.error) && (
+          <SheetHeader>
+            <SheetTitle>Aluno não encontrado</SheetTitle>
+            <SheetDescription>Este aluno não está na sua turma.</SheetDescription>
+          </SheetHeader>
+        )}
+        {query.isError && !alunoForaDaTurma(query.error) && (
           <>
             <SheetHeader>
               <SheetTitle>Aluno</SheetTitle>
@@ -91,9 +103,7 @@ const ConteudoAluno: React.FC<{ email: string; detalhe: AlunoDetalhe }> = ({ ema
   const [mensagem, setMensagem] = React.useState('');
 
   const aposMudanca = () => {
-    void queryClient.invalidateQueries({ queryKey: ['mentor', 'aluno', email] });
-    void queryClient.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
-    void queryClient.invalidateQueries({ queryKey: ['mentor', 'mural'] });
+    void invalidarMentor(queryClient);
   };
 
   const liberar = useMutation({

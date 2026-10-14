@@ -13,6 +13,7 @@ import {
 } from '@/services/mentor/intervencoes';
 import { liberarAgenda } from '@/services/mentor/sessoes';
 import { fetchTurma } from '@/services/mentor/turma';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import {
   STATUS,
   formatarDataHora,
@@ -59,7 +60,7 @@ export const DrawerIntervencao: React.FC<Props> = ({ card, onFechar }) => {
     setMensagemAgenda('');
   }, [card?.id]);
 
-  const invalidar = () => qc.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
+  const invalidar = () => invalidarMentor(qc);
   const falha = (e: unknown) =>
     toast({
       title: 'Não foi possível salvar',

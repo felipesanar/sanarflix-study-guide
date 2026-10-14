@@ -86,6 +86,16 @@ async function callRpc<T>(fn: string, args: Record<string, unknown>): Promise<T>
   return data as T;
 }
 
+/**
+ * Chaves de cache do desempenho da turma. Uma só fábrica para Início, Minha Turma e
+ * Detalhamento: a mesma chamada de `fetchDesempenhoTurma` tem sempre a mesma chave, então
+ * o cache é compartilhado entre as telas. Sem ids (ou lista vazia) = todos os simulados.
+ */
+export const chavesDesempenho = {
+  turma: (simulados?: readonly string[] | null) =>
+    ['mentor', 'desempenho', simulados && simulados.length > 0 ? [...simulados].sort() : 'todos'] as const,
+};
+
 /** `simulados` omitido = todos os simulados espelhados. */
 export async function fetchDesempenhoTurma(simulados?: string[]): Promise<DesempenhoTurma> {
   return callRpc<DesempenhoTurma>('mentor_desempenho_turma', { p_simulados: simulados ?? null });

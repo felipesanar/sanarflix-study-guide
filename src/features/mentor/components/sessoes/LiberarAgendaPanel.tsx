@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { definirLinkAgendamento, desligarAgenda, liberarAgenda } from '@/services/mentor/sessoes';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import type { AlunoTurma } from '@/services/mentor/turma';
 import { ehLinkHttps, formatarData } from './dataHora';
 
@@ -49,8 +50,7 @@ export const LiberarAgendaPanel: React.FC<Props> = ({ mentorId, alunos, link, li
   }, [alunos]);
 
   const refrescar = async () => {
-    await qc.invalidateQueries({ queryKey: ['mentor', 'agenda-liberacoes'] });
-    await qc.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
+    await invalidarMentor(qc);
   };
 
   const liberar = useMutation({

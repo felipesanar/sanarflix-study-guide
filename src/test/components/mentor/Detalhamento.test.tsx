@@ -6,7 +6,8 @@ import type { AlunoDesempenho, Detalhamento as DetalhamentoDados, DesempenhoTurm
 
 const fetchDesempenhoTurma = vi.fn();
 const fetchDetalhamento = vi.fn();
-vi.mock('@/services/mentor/desempenho', () => ({
+vi.mock('@/services/mentor/desempenho', async () => ({
+  ...(await vi.importActual<typeof import('@/services/mentor/desempenho')>('@/services/mentor/desempenho')),
   fetchDesempenhoTurma: (s?: string[]) => fetchDesempenhoTurma(s),
   fetchDetalhamento: (s: string[]) => fetchDetalhamento(s),
   fetchAlunoNotas: vi.fn(),

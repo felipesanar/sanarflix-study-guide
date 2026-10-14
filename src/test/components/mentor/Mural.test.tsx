@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -259,6 +259,36 @@ describe('Mural — nova publicação', () => {
     await user.upload(await screen.findByLabelText(/Anexo/), grande);
     expect(screen.getByRole('alert')).toHaveTextContent('10 MB');
     expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('o campo de anexo só aceita imagem (PNG, JPG, WebP) e PDF', async () => {
+    renderMural();
+    const campo = await screen.findByLabelText(/Anexo/);
+    expect(campo).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp,application/pdf');
+  });
+
+  it('anexo de tipo não permitido é recusado com mensagem clara e não envia', async () => {
+    renderMural();
+    const campo = await screen.findByLabelText(/Anexo/);
+    const planilha = new File(['x'], 'notas.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(campo, { target: { files: [planilha] } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Envie imagem (PNG, JPG, WebP) ou PDF');
+    expect(screen.queryByText('notas.xlsx')).not.toBeInTheDocument();
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('anexo de tipo permitido com type vazio (extensão .png) passa e vai com o content-type certo', async () => {
+    const user = userEvent.setup();
+    renderMural();
+    await preencherBasico(user);
+    fireEvent.change(screen.getByLabelText(/Anexo/), { target: { files: [new File(['x'], 'foto.PNG', { type: '' })] } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Publicar para/ })).toBeEnabled(), T);
+    await user.click(screen.getByRole('button', { name: /Publicar para/ }));
+    await waitFor(() => expect(upload).toHaveBeenCalled(), T);
+    expect(upload.mock.calls[0][3]).toEqual({ contentType: 'image/png' });
   });
 
   it('anexo é enviado ao bucket mural-anexos em {mentor}/{uuid}-{nome} e gravado no post', async () => {

@@ -149,6 +149,14 @@ const Sessoes: React.FC = () => {
           </Button>
         </div>
       )}
+      {contexto.isError && !mentorId && (
+        <div role="alert" className="rounded-md border border-destructive/40 p-3 text-sm">
+          Não foi possível carregar o seu cadastro de mentor, então a liberação de sessão individual está indisponível.{' '}
+          <Button size="sm" variant="link" className="px-1" onClick={() => contexto.refetch()}>
+            Tentar de novo
+          </Button>
+        </div>
+      )}
       {turma.isSuccess && mentorId && (
         <LiberarAgendaPanel
           mentorId={mentorId}

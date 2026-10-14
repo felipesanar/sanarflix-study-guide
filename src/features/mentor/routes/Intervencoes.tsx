@@ -12,6 +12,7 @@ import {
   type StatusIntervencao,
   type TipoIntervencao,
 } from '@/services/mentor/intervencoes';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import { fetchTurma } from '@/services/mentor/turma';
 import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
 import { DrawerIntervencao } from '@/features/mentor/components/DrawerIntervencao';
@@ -59,7 +60,7 @@ const Intervencoes: React.FC = () => {
       description: e instanceof Error ? e.message : undefined,
       variant: 'destructive',
     });
-  const invalidar = () => qc.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
+  const invalidar = () => invalidarMentor(qc);
 
   const criar = useMutation({
     mutationFn: (input: CriarIntervencaoInput) => criarIntervencao(input),
@@ -182,6 +183,15 @@ const Intervencoes: React.FC = () => {
           />
         </label>
       </div>
+
+      {turmaQ.isError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2 rounded border border-destructive/40 p-3 text-sm">
+          <p>Não foi possível carregar a turma. Os alunos aparecem pelo e-mail até a lista carregar.</p>
+          <Button size="sm" variant="outline" onClick={() => void turmaQ.refetch()}>
+            Tentar de novo
+          </Button>
+        </div>
+      ) : null}
 
       {lista.isLoading ? (
         <p role="status" className="text-sm text-muted-foreground">

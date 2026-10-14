@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { fetchMentorContexto } from '@/services/mentor/contexto';
 import { fetchTurma } from '@/services/mentor/turma';
-import { fetchDesempenhoTurma } from '@/services/mentor/desempenho';
+import { chavesDesempenho, fetchDesempenhoTurma } from '@/services/mentor/desempenho';
 import { listarSessoes } from '@/services/mentor/sessoes';
 import { listarIntervencoes } from '@/services/mentor/intervencoes';
 import { ehLinkHttp } from '@/features/mentor/lib/linkSeguro';
@@ -175,7 +175,7 @@ const CardAlerta: React.FC<{
 /** Faixa do último simulado + alertas. Só aparece quando a turma tem nota de simulado. */
 const AlertasSimulados: React.FC<{ habilitado: boolean }> = ({ habilitado }) => {
   const desempenho = useQuery({
-    queryKey: ['mentor', 'desempenho', 'todos'],
+    queryKey: chavesDesempenho.turma(),
     queryFn: () => fetchDesempenhoTurma(),
     enabled: habilitado,
   });

@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import { definirLinkAgendamento } from '@/services/mentor/sessoes';
 import { ehLinkHttps } from './dataHora';
 
@@ -16,12 +17,14 @@ interface Props {
 
 /** Bloco "Link do seu Google Agenda" — obrigatório antes de liberar a agenda. */
 export const LinkAgendaBlock: React.FC<Props> = ({ link, onLinkChange, salvo, salvoValor, onSalvo }) => {
+  const qc = useQueryClient();
   const [erro, setErro] = React.useState<string | null>(null);
   const salvar = useMutation({
     mutationFn: (url: string) => definirLinkAgendamento(url),
     onSuccess: (_r, url) => {
       setErro(null);
       onSalvo(url);
+      void invalidarMentor(qc);
     },
     onError: (e: Error) => setErro(e.message),
   });

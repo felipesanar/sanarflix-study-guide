@@ -9,7 +9,10 @@ const fetchAlunoNotas = vi.fn();
 const liberarAgenda = vi.fn();
 const desligarAgenda = vi.fn();
 vi.mock('@/services/mentor/turma', () => ({ fetchAluno: (e: string) => fetchAluno(e) }));
-vi.mock('@/services/mentor/desempenho', () => ({ fetchAlunoNotas: (e: string) => fetchAlunoNotas(e) }));
+vi.mock('@/services/mentor/desempenho', async () => ({
+  ...(await vi.importActual<typeof import('@/services/mentor/desempenho')>('@/services/mentor/desempenho')),
+  fetchAlunoNotas: (e: string) => fetchAlunoNotas(e),
+}));
 vi.mock('@/services/mentor/sessoes', () => ({
   liberarAgenda: (...a: unknown[]) => liberarAgenda(...a),
   desligarAgenda: (...a: unknown[]) => desligarAgenda(...a),
@@ -19,13 +22,14 @@ import { DrawerAlunoMentor } from '@/features/mentor/components/DrawerAlunoMento
 
 function renderDrawer() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const utils = render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <DrawerAlunoMentor email="a@x.com" open onOpenChange={() => {}} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...utils, client };
 }
 
 const T = { timeout: 3000 };
@@ -121,6 +125,32 @@ describe('DrawerAlunoMentor', () => {
     expect(screen.getByText('Intervenção criada · Reunião individual')).toBeInTheDocument();
     expect(screen.getByText('Status: A fazer → Feito')).toBeInTheDocument();
     expect(screen.queryByText('Mural · Aviso')).not.toBeInTheDocument();
+  });
+
+  it('liberar agenda invalida as queries do mentor (agenda-liberacoes, mural), menos o contexto', async () => {
+    fetchAluno.mockResolvedValue(detalhe());
+    const { client } = renderDrawer();
+    client.setQueryData(['mentor', 'agenda-liberacoes', 'm1'], []);
+    client.setQueryData(['mentor', 'mural', 'posts', '', ''], []);
+    client.setQueryData(['mentor', 'contexto'], { mentor: null, alunos_ativos: 0 });
+    await screen.findByText('Alice Souza', undefined, T);
+
+    fireEvent.click(screen.getByRole('switch', { name: /Liberar agendamento individual/ }));
+    fireEvent.change(screen.getByLabelText(/Mensagem para o aluno/), { target: { value: 'Vamos conversar?' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar e liberar' }));
+
+    await waitFor(() => expect(liberarAgenda).toHaveBeenCalled());
+    await waitFor(() => expect(client.getQueryState(['mentor', 'agenda-liberacoes', 'm1'])?.isInvalidated).toBe(true), T);
+    expect(client.getQueryState(['mentor', 'mural', 'posts', '', ''])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['mentor', 'contexto'])?.isInvalidated).toBe(false);
+  });
+
+  it('aluno fora da turma (RPC levanta "não é da sua turma") mostra "Aluno não encontrado", sem retry', async () => {
+    fetchAluno.mockRejectedValue(new Error('aluno a@x.com não é da sua turma'));
+    renderDrawer();
+    expect(await screen.findByText('Aluno não encontrado', undefined, T)).toBeInTheDocument();
+    expect(screen.getByText('Este aluno não está na sua turma.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument();
   });
 
   it('mostra erro com "Tentar de novo"', async () => {

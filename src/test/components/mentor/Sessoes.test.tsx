@@ -57,13 +57,14 @@ const sessaoAgendada = {
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const utils = render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/mentor/sessoes']}>
         <Sessoes />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...utils, client };
 }
 
 describe('Sessoes', () => {
@@ -144,6 +145,39 @@ describe('Sessoes', () => {
       alunoEmail: 'ana@x.com',
       inicio: '2026-10-22T17:30:00.000Z',
     });
+  });
+
+  it('criar sessão coletiva invalida o mural (a RPC cria um post), mas não o contexto', async () => {
+    const { client } = renderPage();
+    client.setQueryData(['mentor', 'mural', 'posts', '', ''], []);
+    await screen.findByText('Revisão de cardio', undefined, T);
+    const form = screen.getByRole('form', { name: 'Nova sessão' });
+    fireEvent.change(within(form).getByLabelText('Tema'), { target: { value: 'Revisão de nefro' } });
+    fireEvent.change(within(form).getByLabelText('Data e horário'), { target: { value: '2026-10-22T14:30' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Criar sessão' }));
+    await waitFor(() => expect(salvarSessao).toHaveBeenCalled(), T);
+    await waitFor(() => expect(client.getQueryState(['mentor', 'mural', 'posts', '', ''])?.isInvalidated).toBe(true), T);
+    expect(client.getQueryState(['mentor', 'contexto'])?.isInvalidated).toBe(false);
+  });
+
+  it('salvar o link do Google Agenda refaz a busca do link-agendamento do mentor', async () => {
+    renderPage();
+    await screen.findByLabelText('Selecionar Ana Lima', undefined, T);
+    await waitFor(() => expect(fetchLinkAgendamento).toHaveBeenCalledTimes(1), T);
+    fireEvent.change(screen.getByLabelText('Link do seu Google Agenda'), { target: { value: 'https://calendar.app.google/novo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar link' }));
+    await waitFor(() => expect(definirLinkAgendamento).toHaveBeenCalled(), T);
+    await waitFor(() => expect(fetchLinkAgendamento.mock.calls.length).toBeGreaterThan(1), T);
+  });
+
+  it('avisa com "Tentar de novo" quando o contexto do mentor falha e o painel de liberação some', async () => {
+    fetchMentorContexto.mockRejectedValueOnce(new Error('boom'));
+    renderPage();
+    expect(await screen.findByText(/liberação de sessão individual está indisponível/, undefined, T)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Liberar sessão individual' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tentar de novo' }).at(-1)!);
+    expect(await screen.findByRole('heading', { name: 'Liberar sessão individual' }, T)).toBeInTheDocument();
+    expect(screen.queryByText(/está indisponível/)).not.toBeInTheDocument();
   });
 
   it('liberar sem link do Google Agenda mostra o aviso e não chama a RPC', async () => {

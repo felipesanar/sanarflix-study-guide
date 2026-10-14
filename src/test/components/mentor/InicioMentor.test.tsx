@@ -11,7 +11,8 @@ const listarSessoes = vi.fn();
 const listarIntervencoes = vi.fn();
 vi.mock('@/services/mentor/contexto', () => ({ fetchMentorContexto: () => fetchMentorContexto() }));
 vi.mock('@/services/mentor/turma', () => ({ fetchTurma: () => fetchTurma() }));
-vi.mock('@/services/mentor/desempenho', () => ({
+vi.mock('@/services/mentor/desempenho', async () => ({
+  ...(await vi.importActual<typeof import('@/services/mentor/desempenho')>('@/services/mentor/desempenho')),
   fetchDesempenhoTurma: (...a: unknown[]) => fetchDesempenhoTurma(...a),
 }));
 vi.mock('@/services/mentor/sessoes', () => ({ listarSessoes: (q: string) => listarSessoes(q) }));

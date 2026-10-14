@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { fetchMentorContexto } from '@/services/mentor/contexto';
 import { fetchTurma, type AlunoTurma, type Segmento } from '@/services/mentor/turma';
-import { fetchDesempenhoTurma, type AlunoDesempenho, type SituacaoMeta } from '@/services/mentor/desempenho';
+import { chavesDesempenho, fetchDesempenhoTurma, type AlunoDesempenho, type SituacaoMeta } from '@/services/mentor/desempenho';
 import { DrawerAlunoMentor } from '@/features/mentor/components/DrawerAlunoMentor';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
@@ -188,13 +188,13 @@ const MinhaTurma: React.FC = () => {
 
   // Simulados: a consulta "todos" define os chips; com seleção, re-consulta só esses.
   const todosSimulados = useQuery({
-    queryKey: ['mentor', 'desempenho', 'todos'],
+    queryKey: chavesDesempenho.turma(),
     queryFn: () => fetchDesempenhoTurma(),
   });
   const idsOrdenados = React.useMemo(() => [...simuladosSel].sort(), [simuladosSel]);
   const recortado = simuladosSel.length > 0;
   const escopo = useQuery({
-    queryKey: ['mentor', 'desempenho', idsOrdenados],
+    queryKey: chavesDesempenho.turma(idsOrdenados),
     queryFn: () => fetchDesempenhoTurma(idsOrdenados),
     enabled: recortado,
     placeholderData: keepPreviousData,

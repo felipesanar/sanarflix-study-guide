@@ -214,6 +214,16 @@ describe('Intervencoes', () => {
     expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument();
   });
 
+  it('mostra erro inline com "Tentar de novo" quando a turma não carrega', async () => {
+    mock(fetchTurma).mockRejectedValueOnce(new Error('boom'));
+    renderTela();
+    expect(await screen.findByText(/Não foi possível carregar a turma/)).toBeInTheDocument();
+    expect(await screen.findByText('Reunião com Ana')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await waitFor(() => expect(screen.queryByText(/Não foi possível carregar a turma/)).not.toBeInTheDocument());
+    expect(fetchTurma).toHaveBeenCalledTimes(2);
+  });
+
   it('mostra vazio quando não há cards', async () => {
     mock(svc.listarIntervencoes).mockResolvedValue({ cards: [], planejadas: 0, realizadas: 0 });
     renderTela();

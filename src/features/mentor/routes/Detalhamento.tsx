@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchDesempenhoTurma, fetchDetalhamento, type QuestaoDetalhe } from '@/services/mentor/desempenho';
+import { chavesDesempenho, fetchDesempenhoTurma, fetchDetalhamento, type QuestaoDetalhe } from '@/services/mentor/desempenho';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { AcertoPorArea } from '@/features/mentor/components/detalhamento/AcertoPorArea';
 import { IndicadoresDetalhamento } from '@/features/mentor/components/detalhamento/IndicadoresDetalhamento';
@@ -25,7 +25,7 @@ const CarregandoBloco: React.FC = () => (
 const Detalhamento: React.FC = () => {
   // Todos os simulados com nota na turma: alimenta o seletor e o mapa e-mail → nome.
   const todos = useQuery({
-    queryKey: ['mentor', 'desempenho', 'todos'],
+    queryKey: chavesDesempenho.turma(),
     queryFn: () => fetchDesempenhoTurma(),
   });
   const disponiveis = React.useMemo(() => simuladosDisponiveis(todos.data?.alunos ?? []), [todos.data]);
@@ -41,7 +41,7 @@ const Detalhamento: React.FC = () => {
   const temSelecao = selecionados.length > 0;
 
   const recorte = useQuery({
-    queryKey: ['mentor', 'desempenho', 'recorte', selecionados],
+    queryKey: chavesDesempenho.turma(selecionados),
     queryFn: () => fetchDesempenhoTurma(selecionados),
     enabled: temSelecao,
   });

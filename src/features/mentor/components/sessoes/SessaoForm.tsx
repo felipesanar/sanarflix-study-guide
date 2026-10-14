@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { salvarSessao, type Sessao, type TipoSessao } from '@/services/mentor/sessoes';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import type { AlunoTurma } from '@/services/mentor/turma';
 import { campoParaIso, ehLinkHttps, isoParaCampo } from './dataHora';
 
@@ -38,8 +39,7 @@ export const SessaoForm: React.FC<Props> = ({ alunos, sessao, onFechar }) => {
         alunoEmail: tipo === 'individual' ? aluno : null,
       }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['mentor', 'sessoes'] });
-      await qc.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
+      await invalidarMentor(qc);
       if (!sessao) {
         setTema('');
         setInicio('');

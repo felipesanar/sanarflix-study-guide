@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { invalidarMentor } from '@/services/mentor/invalidar';
 import { listarTags, salvarPost, type PostMural } from '@/services/mentor/mural';
 import type { AlunoTurma } from '@/services/mentor/turma';
 import { PreviewAluno } from './PreviewAluno';
@@ -23,6 +24,24 @@ import {
   validarFormulario,
   type FormularioMural,
 } from './muralUtils';
+
+/** Tipos aceitos pelo bucket `mural-anexos` (o servidor recusa o resto). */
+const TIPOS_ANEXO = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+const ACCEPT_ANEXO = TIPOS_ANEXO.join(',');
+const TIPO_ANEXO_MENSAGEM = 'Envie imagem (PNG, JPG, WebP) ou PDF.';
+const EXTENSAO_POR_TIPO: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  pdf: 'application/pdf',
+};
+
+/** Alguns navegadores/SOs entregam `type` vazio; nesse caso vale a extensão. */
+function tipoDoAnexo(f: File): string | null {
+  if (f.type) return TIPOS_ANEXO.includes(f.type.toLowerCase()) ? f.type.toLowerCase() : null;
+  return EXTENSAO_POR_TIPO[f.name.split('.').pop()?.toLowerCase() ?? ''] ?? null;
+}
 
 interface Props {
   turma: AlunoTurma[];
@@ -77,6 +96,12 @@ export const NovaPublicacao: React.FC<Props> = ({
   const escolherArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     if (!f) return;
+    if (!tipoDoAnexo(f)) {
+      setErroAnexo(TIPO_ANEXO_MENSAGEM);
+      setArquivo(null);
+      e.target.value = '';
+      return;
+    }
     if (f.size > LIMITE_ANEXO_BYTES) {
       setErroAnexo(LIMITE_ANEXO_MENSAGEM);
       setArquivo(null);
@@ -101,7 +126,7 @@ export const NovaPublicacao: React.FC<Props> = ({
       if (arquivo) {
         if (!mentorId) throw new Error('Não foi possível identificar o mentor para enviar o anexo.');
         const path = `${mentorId}/${crypto.randomUUID()}-${nomeSeguro(arquivo.name)}`;
-        const { error } = await supabase.storage.from('mural-anexos').upload(path, arquivo);
+        const { error } = await supabase.storage.from('mural-anexos').upload(path, arquivo, { contentType: tipoDoAnexo(arquivo) ?? undefined });
         if (error) throw new Error(error.message || 'Falha ao enviar o anexo.');
         anexoPath = path;
         nome = arquivo.name;
@@ -123,8 +148,7 @@ export const NovaPublicacao: React.FC<Props> = ({
       return { resultado, publicar };
     },
     onSuccess: ({ publicar }) => {
-      void queryClient.invalidateQueries({ queryKey: ['mentor', 'mural'] });
-      void queryClient.invalidateQueries({ queryKey: ['mentor', 'intervencoes'] });
+      void invalidarMentor(queryClient);
       toast({ title: publicar ? 'Publicação enviada.' : 'Rascunho salvo.' });
       onConcluido();
     },
@@ -240,8 +264,14 @@ export const NovaPublicacao: React.FC<Props> = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="mural-anexo">Anexo (até 10 MB)</Label>
-          <Input id="mural-anexo" type="file" ref={inputArquivo} onChange={escolherArquivo} />
+          <Label htmlFor="mural-anexo">Anexo (imagem ou PDF, até 10 MB)</Label>
+          <Input
+            id="mural-anexo"
+            type="file"
+            accept={ACCEPT_ANEXO}
+            ref={inputArquivo}
+            onChange={escolherArquivo}
+          />
           {anexoNome && (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Paperclip className="h-4 w-4" />
