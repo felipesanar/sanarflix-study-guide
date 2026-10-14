@@ -6,7 +6,7 @@ import { ImageLightbox } from '@/components/simulados/ImageLightbox';
 import { cn } from '@/lib/utils';
 import type { QuestaoProvaOficial } from '../types';
 
-const LETRAS = ['A', 'B', 'C', 'D'] as const;
+const LETRAS = ['A', 'B', 'C', 'D', 'E'] as const;
 
 interface QuestaoRevisaoProps {
   questao: QuestaoProvaOficial;
