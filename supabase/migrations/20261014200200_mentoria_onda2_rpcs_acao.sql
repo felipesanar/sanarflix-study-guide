@@ -33,14 +33,20 @@ DECLARE
   v_interv_id uuid;
   v_alvo text;
   v_novo_publicado boolean;
+  v_link_url text := nullif(btrim(p_link_url), '');
+  v_link_titulo text := nullif(btrim(p_link_titulo), '');
 BEGIN
   IF coalesce(btrim(p_tag), '') = '' THEN RAISE EXCEPTION 'tag obrigatória'; END IF;
+  IF length(btrim(p_tag)) > 40 THEN RAISE EXCEPTION 'tag com no máximo 40 caracteres'; END IF;
   IF coalesce(btrim(p_titulo), '') = '' THEN RAISE EXCEPTION 'título obrigatório'; END IF;
   IF coalesce(btrim(p_mensagem), '') = '' THEN RAISE EXCEPTION 'mensagem obrigatória'; END IF;
   IF p_publico IS NULL OR p_publico NOT IN ('turma', 'selecionados') THEN
     RAISE EXCEPTION 'público inválido: % (use turma ou selecionados)', p_publico;
   END IF;
-  IF p_link_url IS NOT NULL AND coalesce(btrim(p_link_titulo), '') = '' THEN
+  IF v_link_url IS NOT NULL AND v_link_url !~* '^https://[^[:space:]]+$' THEN
+    RAISE EXCEPTION 'link inválido (use https)';
+  END IF;
+  IF v_link_url IS NOT NULL AND v_link_titulo IS NULL THEN
     RAISE EXCEPTION 'o link precisa de um título';
   END IF;
   IF p_anexo_path IS NOT NULL AND p_anexo_path NOT LIKE v_mentor::text || '/%' THEN
@@ -58,8 +64,8 @@ BEGIN
     v_status_antes := NULL;
     INSERT INTO public.mural_posts (mentor_id, tag, titulo, mensagem, link_titulo, link_url,
                                     anexo_path, anexo_nome, publico, status, publicado_em, origem)
-    VALUES (v_mentor, btrim(p_tag), btrim(p_titulo), btrim(p_mensagem), nullif(btrim(p_link_titulo), ''),
-            nullif(btrim(p_link_url), ''), p_anexo_path, p_anexo_nome, p_publico,
+    VALUES (v_mentor, btrim(p_tag), btrim(p_titulo), btrim(p_mensagem), v_link_titulo,
+            v_link_url, p_anexo_path, p_anexo_nome, p_publico,
             CASE WHEN p_publicar THEN 'publicado' ELSE 'rascunho' END,
             CASE WHEN p_publicar THEN now() END, 'mentor')
     RETURNING id, status INTO v_post_id, v_status;
@@ -74,8 +80,8 @@ BEGIN
     SET tag = btrim(p_tag),
         titulo = btrim(p_titulo),
         mensagem = btrim(p_mensagem),
-        link_titulo = nullif(btrim(p_link_titulo), ''),
-        link_url = nullif(btrim(p_link_url), ''),
+        link_titulo = v_link_titulo,
+        link_url = v_link_url,
         anexo_path = p_anexo_path,
         anexo_nome = p_anexo_nome,
         publico = p_publico,
@@ -185,17 +191,23 @@ DECLARE
   v_mentor uuid := public.mentor_ativo_id();
 BEGIN
   RETURN coalesce((
-    SELECT jsonb_agg(x.t ORDER BY x.t)
+    SELECT jsonb_agg(y.t ORDER BY y.t)
     FROM (
-      SELECT p.tag AS t FROM public.mural_posts p WHERE p.mentor_id = v_mentor
-      UNION
-      SELECT s FROM unnest(ARRAY['Desempenho', 'Aviso', 'Fique por dentro']) s
-    ) x
+      -- Sem repetir, ignorando maiúsculas: vale a grafia já usada pelo mentor.
+      SELECT DISTINCT ON (lower(x.t)) x.t
+      FROM (
+        SELECT p.tag AS t, 0 AS r FROM public.mural_posts p WHERE p.mentor_id = v_mentor
+        UNION ALL
+        SELECT s, 1 FROM unnest(ARRAY['Desempenho', 'Aviso', 'Fique por dentro']) s
+      ) x
+      ORDER BY lower(x.t), x.r, x.t
+    ) y
   ), '[]'::jsonb);
 END;
 $function$;
 
--- 4. Sessões: criar ou editar. Criar gera card (e post, na coletiva).
+-- 4. Sessões: criar ou editar. Criar gera card (e post, na coletiva); editar
+-- mantém o post e o card da coletiva em dia (ids em origem_ref).
 create or replace function public.mentor_sessao_salvar(
   p_id uuid,
   p_tipo text,
@@ -213,19 +225,74 @@ create or replace function public.mentor_sessao_salvar(
 as $function$
 DECLARE
   v_mentor uuid := public.mentor_ativo_id();
+  v_tipo text := p_tipo;
   v_aluno text;
   v_emails text[];
   v_sessao_id uuid;
   v_interv_id uuid;
   v_post_id uuid;
   v_mensagem text;
+  v_meet text := nullif(btrim(p_meet_link), '');
+  v_tema text := nullif(btrim(p_tema), '');
 BEGIN
+  IF coalesce(btrim(p_titulo), '') = '' THEN RAISE EXCEPTION 'título obrigatório'; END IF;
+  IF p_inicio IS NULL THEN RAISE EXCEPTION 'data e hora obrigatórias'; END IF;
+  IF p_duracao_min IS NOT NULL AND p_duracao_min NOT BETWEEN 5 AND 480 THEN
+    RAISE EXCEPTION 'duração deve estar entre 5 e 480 minutos';
+  END IF;
+  IF v_meet IS NOT NULL AND v_meet !~* '^https://[^[:space:]]+$' THEN
+    RAISE EXCEPTION 'link inválido (use https)';
+  END IF;
+
+  IF p_id IS NOT NULL THEN
+    -- Editar: tipo e aluno são imutáveis (lidos do que está gravado).
+    SELECT s.tipo INTO v_tipo
+    FROM public.mentoria_sessoes s
+    WHERE s.id = p_id AND s.mentor_id = v_mentor
+    FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'sessão não encontrada'; END IF;
+
+    UPDATE public.mentoria_sessoes
+    SET titulo = btrim(p_titulo),
+        tema = v_tema,
+        inicio = p_inicio,
+        duracao_min = coalesce(p_duracao_min, duracao_min),
+        meet_link = v_meet,
+        updated_at = now()
+    WHERE id = p_id AND mentor_id = v_mentor
+    RETURNING id INTO v_sessao_id;
+
+    -- O card ligado guarda o id do post da coletiva em origem_ref.
+    UPDATE public.mentoria_intervencoes i
+    SET titulo = btrim(p_titulo), atualizado_em = now()
+    WHERE i.mentor_id = v_mentor
+      AND i.origem_ref->>'kind' = 'sessao'
+      AND i.origem_ref->>'id' = p_id::text
+    RETURNING i.id, nullif(i.origem_ref->>'post_id', '')::uuid INTO v_interv_id, v_post_id;
+
+    IF v_tipo = 'coletiva' AND v_post_id IS NOT NULL THEN
+      v_mensagem := 'Sessão coletiva em '
+        || to_char(p_inicio AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY')
+        || ' às '
+        || to_char(p_inicio AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI')
+        || '.'
+        || CASE WHEN v_tema IS NOT NULL THEN E'\nTema: ' || v_tema ELSE '' END;
+
+      UPDATE public.mural_posts
+      SET titulo = 'Sessão coletiva: ' || btrim(p_titulo),
+          mensagem = v_mensagem,
+          link_titulo = CASE WHEN v_meet IS NOT NULL THEN 'Entrar na sessão' END,
+          link_url = v_meet,
+          updated_at = now()
+      WHERE id = v_post_id AND mentor_id = v_mentor;
+    END IF;
+
+    RETURN jsonb_build_object('sessao_id', v_sessao_id, 'intervencao_id', v_interv_id, 'post_id', v_post_id);
+  END IF;
+
   IF p_tipo IS NULL OR p_tipo NOT IN ('coletiva', 'individual') THEN
     RAISE EXCEPTION 'tipo de sessão inválido: % (use coletiva ou individual)', p_tipo;
   END IF;
-  IF coalesce(btrim(p_titulo), '') = '' THEN RAISE EXCEPTION 'título obrigatório'; END IF;
-  IF p_inicio IS NULL THEN RAISE EXCEPTION 'data e hora obrigatórias'; END IF;
-
   IF p_tipo = 'individual' THEN
     IF coalesce(btrim(p_aluno_email), '') = '' THEN
       RAISE EXCEPTION 'sessão individual exige um aluno';
@@ -233,26 +300,10 @@ BEGIN
     v_aluno := (public.mentor_exige_alunos(v_mentor, ARRAY[p_aluno_email]))[1];
   END IF;
 
-  IF p_id IS NOT NULL THEN
-    -- Editar: só os campos da sessão; card e post originais não são recriados.
-    UPDATE public.mentoria_sessoes
-    SET titulo = btrim(p_titulo),
-        tema = nullif(btrim(p_tema), ''),
-        inicio = p_inicio,
-        duracao_min = coalesce(p_duracao_min, duracao_min),
-        meet_link = nullif(btrim(p_meet_link), ''),
-        updated_at = now()
-    WHERE id = p_id AND mentor_id = v_mentor
-    RETURNING id INTO v_sessao_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'sessão não encontrada'; END IF;
-
-    RETURN jsonb_build_object('sessao_id', v_sessao_id, 'intervencao_id', NULL, 'post_id', NULL);
-  END IF;
-
   INSERT INTO public.mentoria_sessoes (mentor_id, tipo, titulo, tema, inicio, duracao_min, meet_link,
                                        aluno_email, status, origem, created_by)
-  VALUES (v_mentor, p_tipo, btrim(p_titulo), nullif(btrim(p_tema), ''), p_inicio, coalesce(p_duracao_min, 60),
-          nullif(btrim(p_meet_link), ''), v_aluno, 'agendada', 'academy', v_mentor)
+  VALUES (v_mentor, p_tipo, btrim(p_titulo), v_tema, p_inicio, coalesce(p_duracao_min, 60),
+          v_meet, v_aluno, 'agendada', 'academy', v_mentor)
   RETURNING id INTO v_sessao_id;
 
   IF p_tipo = 'coletiva' THEN
@@ -261,13 +312,12 @@ BEGIN
       || ' às '
       || to_char(p_inicio AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI')
       || '.'
-      || CASE WHEN nullif(btrim(p_tema), '') IS NOT NULL THEN E'\nTema: ' || btrim(p_tema) ELSE '' END;
+      || CASE WHEN v_tema IS NOT NULL THEN E'\nTema: ' || v_tema ELSE '' END;
 
     INSERT INTO public.mural_posts (mentor_id, tag, titulo, mensagem, link_titulo, link_url,
                                     publico, status, publicado_em, origem)
     VALUES (v_mentor, 'Aviso', 'Sessão coletiva: ' || btrim(p_titulo), v_mensagem,
-            CASE WHEN nullif(btrim(p_meet_link), '') IS NOT NULL THEN 'Entrar na sessão' END,
-            nullif(btrim(p_meet_link), ''),
+            CASE WHEN v_meet IS NOT NULL THEN 'Entrar na sessão' END, v_meet,
             'turma', 'publicado', now(), 'sessao_coletiva')
     RETURNING id INTO v_post_id;
 
@@ -277,7 +327,7 @@ BEGIN
 
     INSERT INTO public.mentoria_intervencoes (mentor_id, tipo, titulo, status, alvo, origem, origem_ref)
     VALUES (v_mentor, 'reuniao_coletiva', btrim(p_titulo), 'a_fazer', 'turma', 'auto',
-            jsonb_build_object('kind', 'sessao', 'id', v_sessao_id))
+            jsonb_build_object('kind', 'sessao', 'id', v_sessao_id, 'post_id', v_post_id))
     RETURNING id INTO v_interv_id;
   ELSE
     v_emails := ARRAY[v_aluno];
@@ -301,6 +351,7 @@ END;
 $function$;
 
 -- 5. Sessões: marcar como realizada (leva o card ligado para Feito).
+-- Idempotente: card e eventos só na primeira transição para realizada.
 create or replace function public.mentor_sessao_marcar_feita(p_id uuid, p_gravacao_url text)
  returns jsonb
  language plpgsql
@@ -309,32 +360,46 @@ create or replace function public.mentor_sessao_marcar_feita(p_id uuid, p_gravac
 as $function$
 DECLARE
   v_mentor uuid := public.mentor_ativo_id();
-  v_sessao_id uuid;
+  v_antes text;
+  v_gravacao text := nullif(btrim(p_gravacao_url), '');
 BEGIN
+  IF v_gravacao IS NOT NULL AND v_gravacao !~* '^https://[^[:space:]]+$' THEN
+    RAISE EXCEPTION 'link inválido (use https)';
+  END IF;
+
+  SELECT s.status INTO v_antes
+  FROM public.mentoria_sessoes s
+  WHERE s.id = p_id AND s.mentor_id = v_mentor
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'sessão não encontrada'; END IF;
+  IF v_antes = 'cancelada' THEN RAISE EXCEPTION 'sessão cancelada'; END IF;
+
   UPDATE public.mentoria_sessoes
   SET status = 'realizada',
-      realizada_em = now(),
-      gravacao_url = coalesce(nullif(btrim(p_gravacao_url), ''), gravacao_url),
+      realizada_em = coalesce(realizada_em, now()),
+      gravacao_url = coalesce(v_gravacao, gravacao_url),
       updated_at = now()
-  WHERE id = p_id AND mentor_id = v_mentor
-  RETURNING id INTO v_sessao_id;
-  IF NOT FOUND THEN RAISE EXCEPTION 'sessão não encontrada'; END IF;
+  WHERE id = p_id AND mentor_id = v_mentor;
 
-  WITH upd AS (
+  IF v_antes <> 'realizada' THEN
     UPDATE public.mentoria_intervencoes i
-    SET status = 'feito', concluido_em = now(), atualizado_em = now()
+    SET status = 'feito', concluido_em = coalesce(i.concluido_em, now()), atualizado_em = now()
     WHERE i.mentor_id = v_mentor
       AND i.origem_ref->>'kind' = 'sessao'
       AND i.origem_ref->>'id' = p_id::text
-      AND i.status <> 'feito'
-    RETURNING i.id
-  )
-  INSERT INTO public.mentoria_eventos (mentor_id, aluno_email, tipo, intervencao_id, payload)
-  SELECT v_mentor, a.aluno_email, 'sessao_realizada', upd.id, jsonb_build_object('sessao_id', v_sessao_id)
-  FROM upd
-  JOIN public.mentoria_intervencao_alunos a ON a.intervencao_id = upd.id;
+      AND i.status <> 'feito';
 
-  RETURN jsonb_build_object('sessao_id', v_sessao_id);
+    -- Eventos saem dos alunos do card, qualquer que fosse o status anterior dele.
+    INSERT INTO public.mentoria_eventos (mentor_id, aluno_email, tipo, intervencao_id, payload)
+    SELECT v_mentor, a.aluno_email, 'sessao_realizada', i.id, jsonb_build_object('sessao_id', p_id)
+    FROM public.mentoria_intervencoes i
+    JOIN public.mentoria_intervencao_alunos a ON a.intervencao_id = i.id
+    WHERE i.mentor_id = v_mentor
+      AND i.origem_ref->>'kind' = 'sessao'
+      AND i.origem_ref->>'id' = p_id::text;
+  END IF;
+
+  RETURN jsonb_build_object('sessao_id', p_id);
 END;
 $function$;
 
@@ -369,7 +434,8 @@ BEGIN
     ) ORDER BY CASE WHEN p_quando = 'proximas' THEN s.inicio END ASC, s.inicio DESC, s.id)
     FROM public.mentoria_sessoes s
     WHERE CASE p_quando
-            WHEN 'proximas' THEN s.mentor_id = v_mentor AND s.status = 'agendada' AND s.inicio >= now()
+            WHEN 'proximas' THEN s.mentor_id = v_mentor AND s.status = 'agendada'
+                                         AND s.inicio + make_interval(mins => s.duracao_min) >= now()
             WHEN 'realizadas' THEN s.status = 'realizada' AND (s.mentor_id = v_mentor OR s.origem = 'arquivo_2025')
             ELSE s.mentor_id = v_mentor OR s.origem = 'arquivo_2025'
           END
@@ -442,9 +508,9 @@ BEGIN
     VALUES (v_mentor, v_email, btrim(p_mensagem), true)
     RETURNING id INTO v_lib_id;
 
-    INSERT INTO public.mural_posts (mentor_id, tag, titulo, mensagem, link_titulo, link_url,
-                                    publico, status, publicado_em, origem)
-    VALUES (v_mentor, 'Agenda', 'Agendamento liberado', btrim(p_mensagem), 'Agendar horário', btrim(v_link),
+    -- O post não leva o link: a API só expõe o link_agendamento enquanto a liberação está ligada.
+    INSERT INTO public.mural_posts (mentor_id, tag, titulo, mensagem, publico, status, publicado_em, origem)
+    VALUES (v_mentor, 'Agenda', 'Agendamento liberado', btrim(p_mensagem),
             'selecionados', 'publicado', now(), 'liberacao_agenda')
     RETURNING id INTO v_post_id;
 

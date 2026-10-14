@@ -129,6 +129,76 @@ describe('Onda 2 · RPCs de ação', () => {
     for (const d of deletes) expect(d).toMatch(/mural_destinatarios/i);
   });
 
+  describe('fix round 1', () => {
+    it('coletiva guarda o post_id no origem_ref do card e a edição atualiza o post', () => {
+      const c = corpo('mentor_sessao_salvar');
+      expect(c).toMatch(/jsonb_build_object\('kind', 'sessao', 'id', v_sessao_id, 'post_id', v_post_id\)/);
+      expect(c).toMatch(/origem_ref->>'post_id'/);
+      expect(c).toMatch(/UPDATE public\.mural_posts\s+SET titulo = 'Sessão coletiva: ' \|\| btrim\(p_titulo\)/);
+      expect(c).toMatch(/link_titulo = CASE WHEN v_meet IS NOT NULL THEN 'Entrar na sessão' END/);
+      expect(c).toMatch(/UPDATE public\.mentoria_intervencoes i\s+SET titulo = btrim\(p_titulo\)/);
+      // a edição não mexe em publicado_em
+      const edicao = c.split('IF p_id IS NOT NULL THEN')[1].split('RETURN jsonb_build_object')[0];
+      expect(edicao).not.toMatch(/publicado_em/);
+    });
+
+    it('o post "Pra você" da liberação de agenda não leva o link', () => {
+      const c = corpo('mentor_agenda_liberar');
+      const insertPost = c.match(/INSERT INTO public\.mural_posts[\s\S]*?RETURNING id INTO v_post_id/)![0];
+      expect(insertPost).not.toMatch(/link_url|link_titulo/);
+    });
+
+    it('links só https em mural, sessão e gravação, com vazio tratado como nulo antes do título', () => {
+      const re = /!~\* '\^https:\/\/\[\^\[:space:\]\]\+\$'/;
+      expect(corpo('mentor_mural_salvar')).toMatch(re);
+      expect(corpo('mentor_sessao_salvar')).toMatch(re);
+      expect(corpo('mentor_sessao_marcar_feita')).toMatch(re);
+      for (const f of ['mentor_mural_salvar', 'mentor_sessao_salvar', 'mentor_sessao_marcar_feita']) {
+        expect(corpo(f)).toContain("RAISE EXCEPTION 'link inválido (use https)'");
+      }
+      const m = corpo('mentor_mural_salvar');
+      expect(m).toMatch(/v_link_url text := nullif\(btrim\(p_link_url\), ''\)/);
+      expect(m.indexOf('link inválido (use https)')).toBeLessThan(m.indexOf('o link precisa de um título'));
+      expect(m).toMatch(/v_link_url IS NOT NULL AND v_link_titulo IS NULL/);
+    });
+
+    it('marcar_feita rejeita cancelada e é idempotente', () => {
+      const c = corpo('mentor_sessao_marcar_feita');
+      expect(c).toContain("RAISE EXCEPTION 'sessão cancelada'");
+      expect(c).toMatch(/realizada_em = coalesce\(realizada_em, now\(\)\)/);
+      expect(c).toMatch(/IF v_antes <> 'realizada' THEN/);
+      // eventos saem dos alunos do card sem filtrar pelo status anterior do card
+      const ev = c.split("'sessao_realizada'")[1].split('END IF')[0];
+      expect(ev).not.toMatch(/status <> 'feito'/);
+    });
+
+    it('proximas inclui sessões em andamento', () => {
+      expect(corpo('mentor_sessoes_listar')).toMatch(/s\.inicio \+ make_interval\(mins => s\.duracao_min\) >= now\(\)/);
+    });
+
+    it('edição da sessão lê tipo gravado e não valida p_tipo/p_aluno_email', () => {
+      const c = corpo('mentor_sessao_salvar');
+      expect(c).toMatch(/SELECT s\.tipo INTO v_tipo/);
+      const antesDoRetornoDaEdicao = c.split('IF p_id IS NOT NULL THEN')[1].split('RETURN jsonb_build_object')[0];
+      expect(antesDoRetornoDaEdicao).not.toMatch(/mentor_exige_alunos|tipo de sessão inválido/);
+      // a validação de tipo vem depois do ramo de edição
+      expect(c.indexOf('tipo de sessão inválido')).toBeGreaterThan(c.indexOf('IF p_id IS NOT NULL THEN'));
+    });
+
+    it('erros amigáveis antes dos CHECKs: duração e tamanho da tag', () => {
+      expect(corpo('mentor_sessao_salvar')).toContain("RAISE EXCEPTION 'duração deve estar entre 5 e 480 minutos'");
+      expect(corpo('mentor_sessao_salvar')).toMatch(/NOT BETWEEN 5 AND 480/);
+      expect(corpo('mentor_mural_salvar')).toContain("RAISE EXCEPTION 'tag com no máximo 40 caracteres'");
+      expect(corpo('mentor_mural_salvar')).toMatch(/length\(btrim\(p_tag\)\) > 40/);
+    });
+
+    it('mentor_tags deduplica sem diferenciar maiúsculas', () => {
+      const c = corpo('mentor_tags');
+      expect(c).toMatch(/DISTINCT ON \(lower\(x\.t\)\)/);
+      expect(c).toMatch(/ORDER BY lower\(x\.t\), x\.r, x\.t/);
+    });
+  });
+
   it('nenhuma função é concedida a anon', () => {
     expect(SQL).not.toMatch(/grant execute[^;]*to anon/i);
   });
