@@ -23,19 +23,20 @@ BEGIN
     escopo AS (
       SELECT s.id, s.sequence_number, s.status, s.janela_fim
       FROM public.b2c_simulados s
-      WHERE p_simulados IS NULL OR s.id = ANY(p_simulados)
+      WHERE s.status = 'published' AND (p_simulados IS NULL OR s.id = ANY(p_simulados))
     ),
     -- uma nota por aluno e simulado: a tentativa finalizada mais recente
     por_simulado AS (
       SELECT DISTINCT ON (t.email, t.simulado_id)
-             t.email, t.simulado_id, e.sequence_number, t.finalizada_em, t.acerto_pct
+             t.id, t.email, t.simulado_id, e.sequence_number, t.finalizada_em, t.acerto_pct
       FROM public.b2c_tentativas t
       JOIN turma tu ON tu.email = t.email
       JOIN escopo e ON e.id = t.simulado_id
-      ORDER BY t.email, t.simulado_id, t.finalizada_em DESC
+      ORDER BY t.email, t.simulado_id, t.finalizada_em DESC, t.id DESC
     ),
+    -- "último", "2 últimos", "3 últimos" seguem a ORDEM DO SIMULADO, não a data de envio
     ranq AS (
-      SELECT p.*, row_number() OVER (PARTITION BY p.email ORDER BY p.finalizada_em DESC) AS rn
+      SELECT p.*, row_number() OVER (PARTITION BY p.email ORDER BY p.sequence_number DESC, p.finalizada_em DESC, p.id DESC) AS rn
       FROM por_simulado p
     ),
     resumo AS (
@@ -43,11 +44,11 @@ BEGIN
              max(r.acerto_pct) FILTER (WHERE r.rn = 1) AS ultimo,
              max(r.acerto_pct) FILTER (WHERE r.rn = 2) AS penultimo,
              count(*) FILTER (WHERE r.rn <= 3) AS n3,
-             (max(r.acerto_pct) FILTER (WHERE r.rn <= 3) - min(r.acerto_pct) FILTER (WHERE r.rn <= 3)) AS amplitude3,
+             round(max(r.acerto_pct) FILTER (WHERE r.rn <= 3) - min(r.acerto_pct) FILTER (WHERE r.rn <= 3), 1) AS amplitude3,
              jsonb_agg(jsonb_build_object(
                'simulado_id', r.simulado_id, 'sequence_number', r.sequence_number,
                'acerto_pct', round(r.acerto_pct, 1), 'finalizada_em', r.finalizada_em
-             ) ORDER BY r.finalizada_em) AS notas
+             ) ORDER BY r.sequence_number, r.finalizada_em, r.id) AS notas
       FROM ranq r
       GROUP BY r.email
     ),
@@ -55,7 +56,7 @@ BEGIN
     ultimo_enc AS (
       SELECT e.id FROM escopo e
       WHERE e.status = 'published' AND e.janela_fim < now()
-      ORDER BY e.janela_fim DESC
+      ORDER BY e.janela_fim DESC, e.sequence_number DESC
       LIMIT 1
     ),
     base AS (
@@ -63,7 +64,7 @@ BEGIN
              coalesce(tu.nome, b.nome) AS nome,
              b.corte_mais_dificil AS corte,
              rs.ultimo, rs.penultimo, rs.n3, rs.amplitude3,
-             (rs.ultimo - b.corte_mais_dificil) AS vs,
+             round(rs.ultimo - b.corte_mais_dificil, 1) AS vs,
              coalesce(rs.notas, '[]'::jsonb) AS notas,
              EXISTS (SELECT 1 FROM por_simulado p JOIN ultimo_enc u ON u.id = p.simulado_id
                       WHERE p.email = tu.email) AS fez_ultimo
@@ -78,7 +79,7 @@ BEGIN
                   WHEN x.vs >= 0 THEN 'acima'
                   WHEN x.vs >= -3 THEN 'proximo'
                   ELSE 'longe' END AS situacao,
-             (x.penultimo IS NOT NULL AND x.penultimo - x.ultimo >= 5) AS regrediu,
+             (x.penultimo IS NOT NULL AND round(x.penultimo - x.ultimo, 1) >= 5) AS regrediu,
              (x.n3 = 3 AND x.amplitude3 < 2) AS estagnado
       FROM base x
     )
@@ -88,7 +89,7 @@ BEGIN
           'email', a.email, 'nome', a.nome, 'notas', a.notas,
           'ultimo_acerto', round(a.ultimo, 1),
           'corte_mais_dificil', a.corte,
-          'vs_corte_pp', round(a.vs, 1),
+          'vs_corte_pp', a.vs,
           'situacao', a.situacao,
           'regrediu', a.regrediu,
           'estagnado', a.estagnado,
@@ -97,7 +98,9 @@ BEGIN
       'possivel_aprovacao_pct', (
         SELECT round(100.0 * count(*) FILTER (WHERE a.situacao = 'acima') / nullif(count(*), 0), 1)
         FROM alunos a WHERE a.situacao IN ('acima', 'proximo', 'longe')),
-      'acerto_medio_ultimo', (SELECT round(avg(a.ultimo), 1) FROM alunos a WHERE a.ultimo IS NOT NULL),
+      'acerto_medio_ultimo', (
+        SELECT round(avg(p.acerto_pct), 1)
+        FROM por_simulado p JOIN ultimo_enc u ON u.id = p.simulado_id),
       'participacao_ultimo', jsonb_build_object(
         'simulado_id', (SELECT id FROM ultimo_enc),
         'fizeram', (SELECT count(*) FROM alunos a WHERE a.fez_ultimo AND EXISTS (SELECT 1 FROM ultimo_enc)),
@@ -116,6 +119,9 @@ as $function$
 DECLARE
   v_mentor uuid := public.mentor_ativo_id();
 BEGIN
+  IF p_simulados IS NULL OR cardinality(p_simulados) = 0 THEN
+    RAISE EXCEPTION 'escolha ao menos um simulado';
+  END IF;
   RETURN (
     WITH turma AS (
       SELECT v.email_normalizado AS email
@@ -127,8 +133,9 @@ BEGIN
       SELECT DISTINCT ON (t.email, t.simulado_id) t.id, t.email, t.simulado_id
       FROM public.b2c_tentativas t
       JOIN turma tu ON tu.email = t.email
-      WHERE p_simulados IS NULL OR t.simulado_id = ANY(p_simulados)
-      ORDER BY t.email, t.simulado_id, t.finalizada_em DESC
+      JOIN public.b2c_simulados sp ON sp.id = t.simulado_id AND sp.status = 'published'
+      WHERE t.simulado_id = ANY(p_simulados)
+      ORDER BY t.email, t.simulado_id, t.finalizada_em DESC, t.id DESC
     ),
     resp AS (
       SELECT t.email, q.id AS questao_id, q.numero, s.sequence_number,
@@ -160,13 +167,16 @@ BEGIN
       FROM resp GROUP BY questao_id, numero, sequence_number, area, tema, correta_label
     ),
     por_alt AS (
-      SELECT questao_id, label, count(*) AS n, jsonb_agg(email ORDER BY email) AS emails
-      FROM resp GROUP BY questao_id, label
+      -- e-mails da alternativa correta ficam de fora (payload menor; a ação é sobre quem errou)
+      SELECT questao_id, label, count(*) AS n,
+             CASE WHEN label IS NOT DISTINCT FROM correta_label THEN NULL
+                  ELSE jsonb_agg(email ORDER BY email) END AS emails
+      FROM resp GROUP BY questao_id, label, correta_label
     ),
     alt_agg AS (
       SELECT questao_id,
              jsonb_object_agg(label, n) AS distribuicao,
-             jsonb_object_agg(label, emails) AS emails
+             jsonb_object_agg(label, emails) FILTER (WHERE emails IS NOT NULL) AS emails
       FROM por_alt GROUP BY questao_id
     )
     SELECT jsonb_build_object(
@@ -200,8 +210,12 @@ create or replace function public.mentor_aluno_notas(p_email text)
 as $function$
 DECLARE
   v_mentor uuid := public.mentor_ativo_id();
-  v_email text := (public.mentor_exige_alunos(v_mentor, array[p_email]))[1];
+  v_email text;
 BEGIN
+  IF p_email IS NULL OR btrim(p_email) = '' THEN
+    RAISE EXCEPTION 'e-mail obrigatório';
+  END IF;
+  v_email := (public.mentor_exige_alunos(v_mentor, array[p_email]))[1];
   RETURN (
     WITH turma AS (
       SELECT v.email_normalizado AS email
@@ -212,7 +226,8 @@ BEGIN
       SELECT DISTINCT ON (t.simulado_id) t.id, t.simulado_id, t.finalizada_em, t.acerto_pct
       FROM public.b2c_tentativas t
       JOIN turma tu ON tu.email = t.email
-      ORDER BY t.simulado_id, t.finalizada_em DESC
+      JOIN public.b2c_simulados sp ON sp.id = t.simulado_id AND sp.status = 'published'
+      ORDER BY t.simulado_id, t.finalizada_em DESC, t.id DESC
     ),
     resp AS (
       SELECT coalesce(q.grande_area, 'Sem área') AS area, coalesce(q.tema, 'Sem tema') AS tema, r.correta

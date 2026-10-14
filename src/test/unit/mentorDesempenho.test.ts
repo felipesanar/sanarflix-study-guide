@@ -14,7 +14,7 @@ describe('services/mentor/desempenho', () => {
   beforeEach(() => mockRpc.mockReset());
 
   it('fetchDesempenhoTurma sem filtro manda p_simulados nulo', async () => {
-    const dado = { alunos: [], possivel_aprovacao_pct: null, acerto_medio_ultimo: null, participacao_ultimo: null };
+    const dado = { alunos: [], possivel_aprovacao_pct: null, acerto_medio_ultimo: null, participacao_ultimo: { simulado_id: null, fizeram: 0, total: 0 } };
     mockRpc.mockReturnValue(Promise.resolve({ data: dado, error: null }));
     await expect(fetchDesempenhoTurma()).resolves.toEqual(dado);
     expect(mockRpc).toHaveBeenCalledWith('mentor_desempenho_turma', { p_simulados: null });
