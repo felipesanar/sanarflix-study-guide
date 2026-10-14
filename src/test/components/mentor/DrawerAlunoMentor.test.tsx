@@ -36,8 +36,9 @@ function detalhe(over: Record<string, unknown> = {}) {
     liberacao: null,
     intervencoes: [],
     log: [
-      { tipo: 'intervencao_criada', criado_em: '2026-10-01T12:00:00Z', payload: { titulo: 'Conversar' } },
-      { tipo: 'mural_publicado', criado_em: '2026-10-02T12:00:00Z', payload: { titulo: 'Aviso geral' } },
+      { tipo: 'intervencao_criada', criado_em: '2026-10-01T12:00:00Z', payload: { tipo: 'reuniao_individual', alvo: 'aluno' } },
+      { tipo: 'intervencao_status', criado_em: '2026-10-03T12:00:00Z', payload: { de: 'a_fazer', para: 'feito' } },
+      { tipo: 'mural_publicado', criado_em: '2026-10-02T12:00:00Z', payload: { post_id: 'p1', tag: 'Aviso' } },
     ],
     ...over,
   };
@@ -104,16 +105,19 @@ describe('DrawerAlunoMentor', () => {
     );
   });
 
-  it('filtra o log por Intervenções e Mural', async () => {
+  it('mostra o log com linhas em pt-BR e filtra por Intervenções e Mural', async () => {
     fetchAluno.mockResolvedValue(detalhe());
     renderDrawer();
-    await screen.findByText('Conversar', undefined, T);
-    expect(screen.getByText('Aviso geral')).toBeInTheDocument();
+    await screen.findByText('Intervenção criada · Reunião individual', undefined, T);
+    expect(screen.getByText('Mural · Aviso')).toBeInTheDocument();
+    expect(screen.getByText('Status: A fazer → Feito')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Mural' }));
-    expect(screen.queryByText('Conversar')).not.toBeInTheDocument();
+    expect(screen.queryByText('Intervenção criada · Reunião individual')).not.toBeInTheDocument();
+    expect(screen.getByText('Mural · Aviso')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Intervenções' }));
-    expect(screen.getByText('Conversar')).toBeInTheDocument();
-    expect(screen.queryByText('Aviso geral')).not.toBeInTheDocument();
+    expect(screen.getByText('Intervenção criada · Reunião individual')).toBeInTheDocument();
+    expect(screen.getByText('Status: A fazer → Feito')).toBeInTheDocument();
+    expect(screen.queryByText('Mural · Aviso')).not.toBeInTheDocument();
   });
 
   it('mostra erro com "Tentar de novo"', async () => {

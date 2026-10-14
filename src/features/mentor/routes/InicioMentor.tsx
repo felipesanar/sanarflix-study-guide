@@ -6,6 +6,7 @@ import { fetchMentorContexto } from '@/services/mentor/contexto';
 import { fetchTurma } from '@/services/mentor/turma';
 import { listarSessoes } from '@/services/mentor/sessoes';
 import { listarIntervencoes } from '@/services/mentor/intervencoes';
+import { ehLinkHttp } from '@/features/mentor/lib/linkSeguro';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { formatDiaMesHora, formatUltimoAcesso, nomeOuEmail, plural } from '@/features/mentor/components/turma/util';
 
@@ -92,9 +93,9 @@ const CardProximaSessao: React.FC = () => {
             <p className="font-medium">{proxima.titulo}</p>
             <p className="text-sm text-muted-foreground">{formatDiaMesHora(proxima.inicio)}</p>
           </div>
-          {proxima.meet_link ? (
+          {ehLinkHttp(proxima.meet_link) ? (
             <Button asChild variant="outline" size="sm">
-              <a href={proxima.meet_link} target="_blank" rel="noopener noreferrer">
+              <a href={proxima.meet_link?.trim()} target="_blank" rel="noopener noreferrer">
                 Abrir o Meet
               </a>
             </Button>

@@ -89,6 +89,29 @@ describe('InicioMentor', () => {
     expect(screen.getByRole('link', { name: /Ver todas as intervenções/ })).toHaveAttribute('href', '/mentor/intervencoes');
   });
 
+  const sessaoComMeet = (meet_link: string | null) => ({
+    id: 's1', tipo: 'coletiva', titulo: 'Revisão', tema: null, inicio: '2026-10-20T20:00:00Z',
+    duracao_min: 60, meet_link, gravacao_url: null, aluno_email: null, status: 'agendada',
+    realizada_em: null, origem: 'academy',
+  });
+
+  it('mostra "Abrir o Meet" só para link http(s)', async () => {
+    fetchTurma.mockResolvedValue([]);
+    listarSessoes.mockResolvedValue([sessaoComMeet('https://meet.google.com/abc-defg')]);
+    renderInicio();
+    const link = await screen.findByRole('link', { name: /Abrir o Meet/ }, T);
+    expect(link).toHaveAttribute('href', 'https://meet.google.com/abc-defg');
+    expect(screen.queryByRole('link', { name: /Adicionar link do Meet/ })).not.toBeInTheDocument();
+  });
+
+  it('trata meet_link com esquema perigoso como vazio', async () => {
+    fetchTurma.mockResolvedValue([]);
+    listarSessoes.mockResolvedValue([sessaoComMeet('javascript:alert(1)')]);
+    renderInicio();
+    expect(await screen.findByRole('link', { name: /Adicionar link do Meet/ }, T)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Abrir o Meet/ })).not.toBeInTheDocument();
+  });
+
   it('mostra erro com "Tentar de novo" quando o contexto falha', async () => {
     fetchMentorContexto.mockRejectedValue(new Error('boom'));
     fetchTurma.mockResolvedValue([]);

@@ -13,6 +13,7 @@ import { linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
 import { fetchAluno, type AlunoDetalhe } from '@/services/mentor/turma';
 import { desligarAgenda, liberarAgenda } from '@/services/mentor/sessoes';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
+import { descreverEvento } from '@/features/mentor/components/turma/logEvento';
 import {
   SEGMENTO_CLASSE,
   SEGMENTO_ETIQUETA,
@@ -30,17 +31,6 @@ const FILTROS_LOG: { valor: FiltroLog; rotulo: string }[] = [
   { valor: 'intervencoes', rotulo: 'Intervenções' },
   { valor: 'mural', rotulo: 'Mural' },
 ];
-
-const ROTULO_EVENTO: Record<string, string> = {
-  mural_publicado: 'Mural',
-  sessao_criada: 'Sessão agendada',
-  sessao_realizada: 'Sessão realizada',
-  agenda_liberada: 'Agenda liberada',
-  agenda_desligada: 'Agenda desligada',
-  intervencao_criada: 'Intervenção criada',
-  intervencao_status: 'Intervenção atualizada',
-  intervencao_comentario: 'Comentário em intervenção',
-};
 
 function passaFiltro(tipo: string, filtro: FiltroLog): boolean {
   if (filtro === 'tudo') return true;
@@ -273,18 +263,12 @@ const ConteudoAluno: React.FC<{ email: string; detalhe: AlunoDetalhe }> = ({ ema
           <p className="text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p>
         ) : (
           <ul className="space-y-2 text-sm">
-            {eventos.map((e, i) => {
-              const titulo = typeof e.payload?.titulo === 'string' ? e.payload.titulo : null;
-              return (
-                <li key={`${e.tipo}-${e.criado_em}-${i}`} className="flex justify-between gap-2 border-b pb-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{ROTULO_EVENTO[e.tipo] ?? 'Interação'}</p>
-                    {titulo && <p>{titulo}</p>}
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">{formatDiaMes(e.criado_em)}</span>
-                </li>
-              );
-            })}
+            {eventos.map((e, i) => (
+              <li key={`${e.tipo}-${e.criado_em}-${i}`} className="flex justify-between gap-2 border-b pb-2">
+                <p>{descreverEvento(e.tipo, e.payload)}</p>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatDiaMes(e.criado_em)}</span>
+              </li>
+            ))}
           </ul>
         )}
       </section>

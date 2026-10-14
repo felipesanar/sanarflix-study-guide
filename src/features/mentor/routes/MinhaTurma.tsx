@@ -209,15 +209,20 @@ const MinhaTurma: React.FC = () => {
                   {visiveis.map((a) => (
                     <tr
                       key={a.email}
-                      tabIndex={0}
                       onClick={() => abrirAluno(a.email)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') abrirAluno(a.email);
-                      }}
                       className="cursor-pointer border-b last:border-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                     >
                       <td className="px-3 py-2">
-                        <p className="font-medium">{nomeOuEmail(a)}</p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirAluno(a.email);
+                          }}
+                          className="text-left font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                        >
+                          {nomeOuEmail(a)}
+                        </button>
                         <span
                           className={cn(
                             'rounded-full px-2 py-0.5 text-[11px] font-medium',

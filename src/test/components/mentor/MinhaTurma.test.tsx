@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { comSegmento } from './fixtures';
 
 const fetchMentorContexto = vi.fn();
 const fetchTurma = vi.fn();
+const fetchAluno = vi.fn();
 vi.mock('@/services/mentor/contexto', () => ({ fetchMentorContexto: () => fetchMentorContexto() }));
 vi.mock('@/services/mentor/turma', () => ({
   fetchTurma: () => fetchTurma(),
-  fetchAluno: vi.fn().mockResolvedValue({ aluno: null, liberacao: null, intervencoes: [], log: [] }),
+  fetchAluno: (e: string) => fetchAluno(e),
 }));
 vi.mock('@/services/mentor/sessoes', () => ({ liberarAgenda: vi.fn(), desligarAgenda: vi.fn() }));
 
@@ -31,6 +32,7 @@ const T = { timeout: 3000 };
 describe('MinhaTurma', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchAluno.mockResolvedValue({ aluno: null, liberacao: null, intervencoes: [], log: [] });
     fetchMentorContexto.mockResolvedValue({
       mentor: { nome: 'Ana', tipo: 'b2c', turma_nome: 'Turma A' },
       alunos_ativos: 3,
@@ -71,6 +73,18 @@ describe('MinhaTurma', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'bruno' } });
     expect(screen.getByText('Bruno Ativo')).toBeInTheDocument();
     expect(screen.queryByText('Alice Sumida')).not.toBeInTheDocument();
+  });
+
+  it('abre o drawer do aluno de ?aluno=<email> e busca os detalhes', async () => {
+    renderTurma('/mentor/turma?aluno=teste1@exemplo.com');
+    expect(await screen.findByRole('dialog', undefined, T)).toBeInTheDocument();
+    await waitFor(() => expect(fetchAluno).toHaveBeenCalledWith('teste1@exemplo.com'));
+  });
+
+  it('abre o drawer ao clicar no botão com o nome do aluno', async () => {
+    renderTurma();
+    fireEvent.click(await screen.findByRole('button', { name: 'Bruno Ativo' }, T));
+    await waitFor(() => expect(fetchAluno).toHaveBeenCalledWith('b@x.com'));
   });
 
   it('usa o título "Visão Geral" para mentor b2b', async () => {
