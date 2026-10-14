@@ -51,7 +51,14 @@ export const SeletorSimuladosMentor: React.FC<Props> = ({
       {opcoes.map((o) => {
         const ativo = selecionados.includes(o.id);
         return (
-          <button key={o.id} type="button" aria-pressed={ativo} onClick={() => alternar(o.id)} className={chip(ativo)}>
+          <button
+            key={o.id}
+            type="button"
+            title={o.titulo || undefined}
+            aria-pressed={ativo}
+            onClick={() => alternar(o.id)}
+            className={chip(ativo)}
+          >
             Simulado {o.sequence_number}
           </button>
         );

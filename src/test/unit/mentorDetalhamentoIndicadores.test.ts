@@ -3,6 +3,7 @@ import {
   escolherAtual,
   indicadoresPorSimulado,
   rotuloSimuladoAtual,
+  simuladoPadrao,
 } from '@/features/mentor/components/detalhamento/util';
 import type { AlunoDesempenho } from '@/services/mentor/desempenho';
 
@@ -26,10 +27,11 @@ function aluno(email: string, corte: number | null, notas: [string, number, numb
   };
 }
 
+/** s1 e s2 encerrados; s3 ainda aberto. */
 const SELECAO = [
-  { id: 's1', sequence_number: 1 },
-  { id: 's2', sequence_number: 2 },
-  { id: 's3', sequence_number: 3 },
+  { id: 's1', sequence_number: 1, encerrado: true },
+  { id: 's2', sequence_number: 2, encerrado: true },
+  { id: 's3', sequence_number: 3, encerrado: false },
 ];
 
 describe('indicadoresPorSimulado', () => {
@@ -106,14 +108,14 @@ describe('escolherAtual', () => {
   });
 
   it('o fallback pula simulados sem nenhuma nota', () => {
-    const comVazio = indicadoresPorSimulado(alunos, [...SELECAO, { id: 's4', sequence_number: 4 }]);
+    const comVazio = indicadoresPorSimulado(alunos, [...SELECAO, { id: 's4', sequence_number: 4, encerrado: false }]);
     const { atual, anterior } = escolherAtual(comVazio, null);
     expect(atual?.simulado_id).toBe('s3');
     expect(anterior?.simulado_id).toBe('s2');
   });
 
   it('o encerrado da RPC na seleção é Atual mesmo sem nenhuma nota (não "em andamento")', () => {
-    const comVazio = indicadoresPorSimulado(alunos, [...SELECAO, { id: 's4', sequence_number: 4 }]);
+    const comVazio = indicadoresPorSimulado(alunos, [...SELECAO, { id: 's4', sequence_number: 4, encerrado: true }]);
     const { atual, anterior, emAndamento } = escolherAtual(comVazio, 's4');
     expect(atual?.simulado_id).toBe('s4');
     expect(atual?.fizeram).toBe(0);
@@ -122,8 +124,34 @@ describe('escolherAtual', () => {
     expect(emAndamento).toBe(false);
   });
 
+  it('"em andamento" vem de encerrado === false, não de o id ser o da RPC', () => {
+    // Fallback sobre um simulado já encerrado (RPC apontou para outro, fora da seleção): não é "em andamento".
+    const soEncerrados = indicadoresPorSimulado(alunos, SELECAO.slice(0, 2));
+    expect(escolherAtual(soEncerrados, 'fora').emAndamento).toBe(false);
+    // E o aberto é "em andamento" mesmo sem nenhuma nota.
+    const abertoVazio = indicadoresPorSimulado(alunos, [SELECAO[1], { id: 's4', sequence_number: 4, encerrado: false }]);
+    expect(escolherAtual(abertoVazio, 's4')).toMatchObject({ emAndamento: true });
+  });
+
   it('seleção vazia não quebra', () => {
     expect(escolherAtual([], null)).toEqual({ atual: null, anterior: null, emAndamento: false });
+  });
+});
+
+describe('simuladoPadrao', () => {
+  const lista = [
+    { id: 's1', sequence_number: 1, titulo: 'S1', janela_fim: null, encerrado: true },
+    { id: 's3', sequence_number: 3, titulo: 'S3', janela_fim: null, encerrado: false },
+    { id: 's2', sequence_number: 2, titulo: 'S2', janela_fim: null, encerrado: true },
+  ];
+  it('é o encerrado mais recente, pulando o aberto mesmo mais novo', () => {
+    expect(simuladoPadrao(lista)?.id).toBe('s2');
+  });
+  it('sem nenhum encerrado, cai no mais recente de todos', () => {
+    expect(simuladoPadrao(lista.map((s) => ({ ...s, encerrado: false })))?.id).toBe('s3');
+  });
+  it('lista vazia = nenhum', () => {
+    expect(simuladoPadrao([])).toBeNull();
   });
 });
 

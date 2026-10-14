@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { DesempenhoTurma } from '@/services/mentor/desempenho';
+import type { DesempenhoTurma, SimuladoB2C } from '@/services/mentor/desempenho';
 import {
   escolherAtual,
   formatDeltaPp,
@@ -8,13 +8,12 @@ import {
   indicadoresPorSimulado,
   rotuloSimulado,
   rotuloSimuladoAtual,
-  type SimuladoDisponivel,
 } from './util';
 
 interface Props {
   desempenho: DesempenhoTurma;
   /** Simulados do recorte, em ordem cronológica. */
-  selecionados: SimuladoDisponivel[];
+  selecionados: SimuladoB2C[];
 }
 
 const Delta: React.FC<{ valor: number | null; ref_: string }> = ({ valor, ref_ }) => {
@@ -51,9 +50,9 @@ const diff = (a: number | null | undefined, b: number | null | undefined) =>
 /**
  * Indicadores do recorte, todos calculados no cliente a partir das notas dos
  * alunos e rotulados com o simulado a que se referem. O "atual" é o último
- * simulado encerrado do recorte (o que a RPC aponta em `participacao_ultimo`);
- * se ele não estiver na seleção, o último selecionado com notas, marcado "em
- * andamento". O comparativo é sempre com o simulado imediatamente anterior ao
+ * simulado encerrado do recorte (o que a RPC aponta em `participacao_ultimo`),
+ * mesmo sem nenhuma nota; se ele não estiver na seleção, o último selecionado
+ * com notas. "Em andamento" vem de `encerrado === false` na lista da RPC. O comparativo é sempre com o simulado imediatamente anterior ao
  * atual dentro da seleção, e só existe quando há um.
  */
 export const IndicadoresDetalhamento: React.FC<Props> = ({ desempenho, selecionados }) => {

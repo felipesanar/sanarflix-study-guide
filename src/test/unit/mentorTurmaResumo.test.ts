@@ -6,12 +6,19 @@ import {
   segmentoHistorico,
   semNotaNoSimulado,
 } from '@/features/mentor/components/turma/resumo';
-import { contarAlertas, passaAlerta } from '@/features/mentor/components/turma/simulados';
-import { desempAluno, desempAlunoNulos, nota, SIM1, SIM2, SIM3 } from '../components/mentor/fixtures';
+import {
+  contarAlertas,
+  numeroUltimoSimulado,
+  opcoesSimulados,
+  passaAlerta,
+} from '@/features/mentor/components/turma/simulados';
+import { desempAluno, desempAlunoNulos, desempenho, nota, simuladoB2C, SIM1, SIM2, SIM3 } from '../components/mentor/fixtures';
 
-const S1 = { id: SIM1, sequence_number: 1 };
-const S2 = { id: SIM2, sequence_number: 2 };
-const S3 = { id: SIM3, sequence_number: 3 };
+const S1 = simuladoB2C(SIM1, 1);
+const S2 = simuladoB2C(SIM2, 2);
+const S3 = simuladoB2C(SIM3, 3);
+/** O Simulado 3 ainda com a janela aberta. */
+const S3_ABERTO = simuladoB2C(SIM3, 3, { encerrado: false });
 
 describe('segmentoHistorico', () => {
   it('exatamente no corte conta como acima', () => {
@@ -117,16 +124,32 @@ describe('escolherSimuladosDosCards', () => {
     expect(resumo.acertoMedio).toBeNull();
   });
   it('recorte sem o encerrado da RPC cai no último com nota, em andamento', () => {
-    const r = escolherSimuladosDosCards([S1, S3], alunos, SIM2);
-    expect(r.atual).toEqual({ simulado: S3, emAndamento: true });
+    const r = escolherSimuladosDosCards([S1, S3_ABERTO], alunos, SIM2);
+    expect(r.atual).toEqual({ simulado: S3_ABERTO, emAndamento: true });
     expect(r.anterior).toEqual(S1);
     expect(r.primeiro).toBeNull();
   });
   it('sem simulado encerrado (null) usa o último com nota', () => {
-    const r = escolherSimuladosDosCards([S1, S2, S3], alunos, null);
-    expect(r.atual).toEqual({ simulado: S3, emAndamento: true });
+    const r = escolherSimuladosDosCards([S1, S2, S3_ABERTO], alunos, null);
+    expect(r.atual).toEqual({ simulado: S3_ABERTO, emAndamento: true });
     expect(r.anterior).toEqual(S2);
     expect(r.primeiro).toEqual(S1);
+  });
+  it('"em andamento" vem de encerrado === false: o último com nota já encerrado não é rotulado assim', () => {
+    expect(escolherSimuladosDosCards([S1, S2, S3], alunos, null).atual).toEqual({ simulado: S3, emAndamento: false });
+    expect(escolherSimuladosDosCards([S1, S2, S3_ABERTO], alunos, null).atual?.emAndamento).toBe(true);
+  });
+  it('simulado aberto sem nenhuma nota nunca vira Atual por inferência', () => {
+    const r = escolherSimuladosDosCards([S1, S2, S3_ABERTO], [desempAluno({ email: 'a', notas: [nota(SIM1, 1, 50), nota(SIM2, 2, 60)] })], null);
+    expect(r.atual).toEqual({ simulado: S2, emAndamento: false });
+  });
+  it('Anterior e Primeiro incluem simulados sem nenhuma nota (cards mostram "–")', () => {
+    const so1 = [desempAluno({ email: 'a', notas: [nota(SIM1, 1, 50)] })];
+    const r = escolherSimuladosDosCards([S1, S2, S3], so1, SIM3);
+    expect(r.atual).toEqual({ simulado: S3, emAndamento: false });
+    expect(r.anterior).toEqual(S2);
+    expect(r.primeiro).toEqual(S1);
+    expect(resumoPorSimulado(so1, r.anterior!)).toMatchObject({ acertoMedio: null, participacao: { fizeram: 0, total: 1 } });
   });
   it('um simulado só: sem Anterior nem Primeiro', () => {
     const r = escolherSimuladosDosCards([S1], alunos, SIM1);
@@ -141,7 +164,7 @@ describe('escolherSimuladosDosCards', () => {
   });
   it('ignora a ordem de entrada e simulados sem nota', () => {
     const r = escolherSimuladosDosCards([S3, S1, S2], [desempAluno({ email: 'a', notas: [nota(SIM1, 1, 50)] })], null);
-    expect(r.atual).toEqual({ simulado: S1, emAndamento: true });
+    expect(r.atual).toEqual({ simulado: S1, emAndamento: false });
   });
   it('sem notas em lugar nenhum: nada', () => {
     expect(escolherSimuladosDosCards([S1], [desempAluno({ email: 'a' })], null)).toEqual({
@@ -149,6 +172,34 @@ describe('escolherSimuladosDosCards', () => {
       anterior: null,
       primeiro: null,
     });
+  });
+});
+
+describe('lista de simulados da RPC (chips e último simulado)', () => {
+  // O Simulado 3 está encerrado mas NINGUÉM da turma fez: só a lista da RPC o conhece.
+  const alunos = [desempAluno({ email: 'a', notas: [nota(SIM1, 1, 50), nota(SIM2, 2, 60)] })];
+  const dados = desempenho(alunos, {
+    simulados: [S3, S1, S2],
+    participacao_ultimo: { simulado_id: SIM3, fizeram: 0, total: 1 },
+  });
+
+  it('as opções vêm da lista, ordenadas, inclusive o simulado sem nenhuma nota', () => {
+    expect(opcoesSimulados(dados).map((o) => o.sequence_number)).toEqual([1, 2, 3]);
+    expect(opcoesSimulados(undefined)).toEqual([]);
+    expect(opcoesSimulados({ simulados: undefined as never })).toEqual([]);
+  });
+  it('o número do último simulado vem da lista, mesmo sem nota', () => {
+    expect(numeroUltimoSimulado(dados)).toBe(3);
+    expect(numeroUltimoSimulado({ ...dados, participacao_ultimo: { simulado_id: null, fizeram: 0, total: 1 } })).toBeNull();
+    expect(numeroUltimoSimulado({ ...dados, simulados: [] })).toBeNull();
+  });
+  it('o encerrado sem nota é o Atual, com participação 0 e acerto "–"', () => {
+    const r = escolherSimuladosDosCards(opcoesSimulados(dados), alunos, dados.participacao_ultimo.simulado_id);
+    expect(r.atual).toEqual({ simulado: S3, emAndamento: false });
+    expect(r.anterior).toEqual(S2);
+    const resumo = resumoPorSimulado(alunos, r.atual!.simulado);
+    expect(resumo.participacao).toEqual({ fizeram: 0, total: 1 });
+    expect(resumo.acertoMedio).toBeNull();
   });
 });
 

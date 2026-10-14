@@ -1,9 +1,5 @@
 import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
-import type {
-  AlunoDesempenho,
-  DesempenhoTurma,
-  QuestaoDetalhe,
-} from '@/services/mentor/desempenho';
+import type { AlunoDesempenho, QuestaoDetalhe, SimuladoB2C } from '@/services/mentor/desempenho';
 
 export type OrdenacaoQuestoes = 'ordem_da_prova' | 'mais_erradas' | 'mais_acertadas';
 
@@ -32,46 +28,21 @@ export function formatRespostas(n: number): string {
   return `${NUM.format(n)} ${n === 1 ? 'resposta' : 'respostas'}`;
 }
 
-export interface SimuladoDisponivel {
-  id: string;
-  sequence_number: number;
-  rotulo: string;
-  /** Data da última finalização no simulado (ISO). */
-  ultima_finalizacao: string;
-}
-
 export function rotuloSimulado(sequence: number): string {
   return `Simulado ${sequence}`;
 }
 
-/** Simulados com ao menos uma nota na turma, do mais antigo para o mais recente. */
-export function simuladosDisponiveis(alunos: AlunoDesempenho[]): SimuladoDisponivel[] {
-  const mapa = new Map<string, SimuladoDisponivel>();
-  for (const aluno of alunos) {
-    for (const nota of aluno.notas ?? []) {
-      const atual = mapa.get(nota.simulado_id);
-      if (!atual) {
-        mapa.set(nota.simulado_id, {
-          id: nota.simulado_id,
-          sequence_number: nota.sequence_number,
-          rotulo: rotuloSimulado(nota.sequence_number),
-          ultima_finalizacao: nota.finalizada_em,
-        });
-      } else if (nota.finalizada_em > atual.ultima_finalizacao) {
-        atual.ultima_finalizacao = nota.finalizada_em;
-      }
-    }
-  }
-  return [...mapa.values()].sort((a, b) => a.sequence_number - b.sequence_number);
-}
-
-/** O mais recente = maior número de sequência. */
-export function simuladoMaisRecente(lista: SimuladoDisponivel[]): SimuladoDisponivel | null {
-  return lista.length ? lista[lista.length - 1] : null;
+/**
+ * Seleção inicial do Detalhamento: o simulado ENCERRADO mais recente (maior sequence_number);
+ * sem nenhum encerrado, o mais recente de todos. Nunca prefere o que ainda está aberto.
+ */
+export function simuladoPadrao(lista: SimuladoB2C[]): SimuladoB2C | null {
+  const porSequencia = [...lista].sort((a, b) => b.sequence_number - a.sequence_number);
+  return porSequencia.find((s) => s.encerrado) ?? porSequencia[0] ?? null;
 }
 
 /** Mantém a ordem cronológica (por sequência) dos ids escolhidos. */
-export function ordenarSelecao(ids: string[], lista: SimuladoDisponivel[]): string[] {
+export function ordenarSelecao(ids: string[], lista: SimuladoB2C[]): string[] {
   const posicao = new Map(lista.map((s, i) => [s.id, i]));
   return [...ids].sort((a, b) => (posicao.get(a) ?? 0) - (posicao.get(b) ?? 0));
 }
@@ -84,6 +55,8 @@ export function rotuloSimuladoAtual(sequence: number, emAndamento: boolean): str
 export interface IndicadoresSimulado {
   simulado_id: string;
   sequence_number: number;
+  /** Da lista da RPC: false = a janela ainda está aberta. */
+  encerrado: boolean;
   /** Média do % de acerto de quem fez este simulado; null se ninguém fez. */
   acerto_medio: number | null;
   fizeram: number;
@@ -106,7 +79,7 @@ export interface IndicadoresSimulado {
  */
 export function indicadoresPorSimulado(
   alunos: AlunoDesempenho[],
-  selecionados: Pick<SimuladoDisponivel, 'id' | 'sequence_number'>[],
+  selecionados: Pick<SimuladoB2C, 'id' | 'sequence_number' | 'encerrado'>[],
 ): IndicadoresSimulado[] {
   const total = alunos.length;
   return selecionados.map((sim) => {
@@ -127,6 +100,7 @@ export function indicadoresPorSimulado(
     return {
       simulado_id: sim.id,
       sequence_number: sim.sequence_number,
+      encerrado: sim.encerrado,
       acerto_medio: fizeram > 0 ? soma / fizeram : null,
       fizeram,
       total,
@@ -142,22 +116,22 @@ export interface SimuladoAtual {
   atual: IndicadoresSimulado | null;
   /** Simulado anterior ao atual dentro da seleção (base do "vs."). */
   anterior: IndicadoresSimulado | null;
-  /** true quando o atual não é o último simulado encerrado da RPC. */
+  /** true quando a lista da RPC marca o atual como não encerrado (`encerrado === false`). */
   emAndamento: boolean;
 }
 
 /**
  * "Atual" = o último simulado encerrado da RPC (`participacao_ultimo.simulado_id`)
- * se estiver na seleção; senão, o último da seleção com notas (em andamento).
- * `indicadores` vem em ordem cronológica.
+ * se estiver na seleção, mesmo sem nenhuma nota (participação 0, acerto "–"); senão,
+ * o último da seleção com notas. "Em andamento" vem de `encerrado === false` na lista
+ * da RPC. `indicadores` vem em ordem cronológica.
  */
 export function escolherAtual(
   indicadores: IndicadoresSimulado[],
   encerradoId: string | null | undefined,
 ): SimuladoAtual {
   let idx = encerradoId ? indicadores.findIndex((i) => i.simulado_id === encerradoId) : -1;
-  const encerrado = idx >= 0;
-  if (!encerrado) {
+  if (idx < 0) {
     for (let i = indicadores.length - 1; i >= 0; i -= 1) {
       if (indicadores[i].fizeram > 0) {
         idx = i;
@@ -170,7 +144,7 @@ export function escolherAtual(
   return {
     atual: indicadores[idx],
     anterior: idx > 0 ? indicadores[idx - 1] : null,
-    emAndamento: !encerrado,
+    emAndamento: indicadores[idx].encerrado === false,
   };
 }
 

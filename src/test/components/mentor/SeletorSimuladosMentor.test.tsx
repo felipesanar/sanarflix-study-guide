@@ -1,16 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
+import { simuladoB2C } from './fixtures';
 
-const OPCOES = [
-  { id: 's1', sequence_number: 1 },
-  { id: 's2', sequence_number: 2 },
-  { id: 's3', sequence_number: 3 },
-];
+const OPCOES = [simuladoB2C('s1', 1), simuladoB2C('s2', 2), simuladoB2C('s3', 3, { encerrado: false })];
 
 const pressed = (nome: string) => screen.getByRole('button', { name: nome }).getAttribute('aria-pressed');
 
 describe('SeletorSimuladosMentor', () => {
+  it('rotula o chip "Simulado N" e põe o título do simulado no tooltip', () => {
+    render(<SeletorSimuladosMentor opcoes={OPCOES} selecionados={[]} onChange={vi.fn()} />);
+    const chip = screen.getByRole('button', { name: 'Simulado 2' });
+    expect(chip).toHaveAttribute('title', 'Simulado 2 — título');
+    expect(screen.getByRole('button', { name: 'Todos' })).not.toHaveAttribute('title');
+  });
+
   describe('modo padrão (Minha turma): vazio = Todos', () => {
     it('mostra "Todos" ativo com seleção vazia e um chip por simulado', () => {
       render(<SeletorSimuladosMentor opcoes={OPCOES} selecionados={[]} onChange={vi.fn()} />);

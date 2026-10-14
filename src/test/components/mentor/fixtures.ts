@@ -20,10 +20,26 @@ export function comSegmento(email: string, nome: string, segmento: Segmento, dia
   return aluno({ email, nome, segmento, dias_sem_atividade: dias });
 }
 
-import type { AlunoDesempenho, DesempenhoTurma } from '@/services/mentor/desempenho';
+import type { AlunoDesempenho, DesempenhoTurma, SimuladoB2C } from '@/services/mentor/desempenho';
 
 export const SIM1 = 'sim-1';
 export const SIM2 = 'sim-2';
+export const SIM3 = 'sim-3';
+
+/** Simulado B2C da lista devolvida pela RPC (por padrão encerrado). */
+export function simuladoB2C(id: string, sequence_number: number, over: Partial<SimuladoB2C> = {}): SimuladoB2C {
+  return {
+    id,
+    sequence_number,
+    titulo: `Simulado ${sequence_number} — título`,
+    janela_fim: '2026-10-01T00:00:00Z',
+    encerrado: true,
+    ...over,
+  };
+}
+
+/** Lista padrão da RPC: os 3 simulados publicados, todos encerrados. */
+export const SIMULADOS_PADRAO: SimuladoB2C[] = [simuladoB2C(SIM1, 1), simuladoB2C(SIM2, 2), simuladoB2C(SIM3, 3)];
 
 export function desempAluno(over: Partial<AlunoDesempenho> & { email: string }): AlunoDesempenho {
   return {
@@ -47,6 +63,7 @@ export function nota(simulado_id: string, sequence_number: number, acerto_pct: n
 export function desempenho(alunos: AlunoDesempenho[], over: Partial<DesempenhoTurma> = {}): DesempenhoTurma {
   return {
     alunos,
+    simulados: SIMULADOS_PADRAO,
     possivel_aprovacao_pct: null,
     acerto_medio_ultimo: null,
     participacao_ultimo: { simulado_id: null, fizeram: 0, total: alunos.length },
@@ -60,5 +77,3 @@ export const SEM_DESEMPENHO: DesempenhoTurma = desempenho([]);
 export function desempAlunoNulos(over: Partial<AlunoDesempenho> & { email: string }): AlunoDesempenho {
   return desempAluno({ regrediu: null, estagnado: null, ...over });
 }
-
-export const SIM3 = 'sim-3';

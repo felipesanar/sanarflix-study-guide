@@ -1,10 +1,7 @@
-import type { AlunoDesempenho, DesempenhoTurma, SituacaoMeta } from '@/services/mentor/desempenho';
+import type { AlunoDesempenho, DesempenhoTurma, SimuladoB2C, SituacaoMeta } from '@/services/mentor/desempenho';
 
-/** Um simulado que aparece como chip/coluna: o título vem de "Simulado N". */
-export interface OpcaoSimulado {
-  id: string;
-  sequence_number: number;
-}
+/** Um simulado que aparece como chip/coluna: o rótulo é "Simulado N" (o `titulo` vai no tooltip). */
+export type OpcaoSimulado = SimuladoB2C;
 
 export type AlertaFiltro = 'nao_fez' | 'regrediu' | 'estagnado';
 
@@ -41,22 +38,16 @@ export function temDadosSimulado(d: DesempenhoTurma | null | undefined): boolean
   return !!d && d.alunos.some((a) => (a.notas ?? []).length > 0);
 }
 
-/** Simulados com nota na turma, na ordem do simulado (sequence_number). */
-export function opcoesSimulados(alunos: AlunoDesempenho[]): OpcaoSimulado[] {
-  const mapa = new Map<string, number>();
-  for (const a of alunos) {
-    for (const n of a.notas ?? []) mapa.set(n.simulado_id, n.sequence_number);
-  }
-  return [...mapa.entries()]
-    .map(([id, sequence_number]) => ({ id, sequence_number }))
-    .sort((x, y) => x.sequence_number - y.sequence_number);
+/** Simulados B2C publicados (lista da RPC, sem recorte), na ordem do simulado (sequence_number). */
+export function opcoesSimulados(d: Pick<DesempenhoTurma, 'simulados'> | null | undefined): OpcaoSimulado[] {
+  return [...(d?.simulados ?? [])].sort((x, y) => x.sequence_number - y.sequence_number);
 }
 
-/** Número do "último" simulado (por ordem do simulado), se alguém tem nota nele. */
+/** Número do "último" simulado (`participacao_ultimo.simulado_id`), resolvido pela lista da RPC. */
 export function numeroUltimoSimulado(d: DesempenhoTurma): number | null {
   const id = d.participacao_ultimo?.simulado_id;
   if (!id) return null;
-  return opcoesSimulados(d.alunos).find((o) => o.id === id)?.sequence_number ?? null;
+  return (d.simulados ?? []).find((o) => o.id === id)?.sequence_number ?? null;
 }
 
 export function contarAlertas(alunos: AlunoDesempenho[]): Record<AlertaFiltro, number> {

@@ -204,7 +204,8 @@ const MinhaTurma: React.FC = () => {
   // Com o recorte ainda carregando (ou com erro) a tabela segue na tela com o que já se tem.
   const dados = recortado ? (escopo.data ?? todosSimulados.data) : todosSimulados.data;
   const atualizandoRecorte = recortado && escopo.isFetching;
-  const opcoes = React.useMemo(() => opcoesSimulados(todosSimulados.data?.alunos ?? []), [todosSimulados.data]);
+  // Chips e colunas vêm da lista de simulados publicados da RPC sem recorte (inclui os que ninguém fez).
+  const opcoes = React.useMemo(() => opcoesSimulados(todosSimulados.data), [todosSimulados.data]);
   const colunas = React.useMemo(
     () => (recortado ? opcoes.filter((o) => simuladosSel.includes(o.id)) : opcoes),
     [opcoes, recortado, simuladosSel],

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { comSegmento, desempAluno, desempenho, nota, SEM_DESEMPENHO, SIM1, SIM2 } from './fixtures';
+import { comSegmento, desempAluno, desempenho, nota, SEM_DESEMPENHO, SIM1, SIM2, SIM3 } from './fixtures';
 
 const fetchMentorContexto = vi.fn();
 const fetchTurma = vi.fn();
@@ -149,6 +149,19 @@ describe('InicioMentor', () => {
       '/mentor/turma?filtro=estagnado',
     );
     expect(screen.queryByRole('link', { name: /Ver os 1 /i })).not.toBeInTheDocument();
+  });
+
+  it('o número do último simulado vem da lista da RPC, mesmo que ninguém tenha feito', async () => {
+    fetchTurma.mockResolvedValue([comSegmento('a@x.com', 'Alice', 'ativo', 1)]);
+    fetchDesempenhoTurma.mockResolvedValue(
+      desempenho([desempAluno({ email: 'a@x.com', notas: [nota(SIM1, 1, 70), nota(SIM2, 2, 60)], fez_ultimo: false })], {
+        participacao_ultimo: { simulado_id: SIM3, fizeram: 0, total: 1 },
+      }),
+    );
+    renderInicio();
+    expect(await screen.findByText(/fizeram 0 de 1 \(0%\)/, undefined, T)).toBeInTheDocument();
+    expect(screen.getByText('Simulado 3')).toBeInTheDocument();
+    expect(screen.queryByText('Último simulado')).not.toBeInTheDocument();
   });
 
   it('usa o plural nos links dos alertas quando há mais de um aluno', async () => {

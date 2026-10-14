@@ -13,6 +13,7 @@ import {
   SIM1,
   SIM2,
   SIM3,
+  simuladoB2C,
 } from './fixtures';
 
 const fetchMentorContexto = vi.fn();
@@ -153,7 +154,7 @@ describe('MinhaTurma', () => {
       'a@x.com': 70, 'b@x.com': 70, 'c@x.com': 70, 'd@x.com': null, 'e@x.com': 70,
     };
 
-    /** Imita a RPC: recorta as notas e devolve o último simulado ENCERRADO dentro do recorte. */
+    /** Imita a RPC: recorta as notas, devolve o último simulado ENCERRADO dentro do recorte e a lista completa de simulados. */
     function rpc(encerrados: string[], over?: { alerta?: Record<string, { regrediu?: boolean; estagnado?: boolean }> }) {
       return (ids?: string[]): DesempenhoTurma => {
         const escopo = ids && ids.length > 0 ? ids : null;
@@ -173,6 +174,7 @@ describe('MinhaTurma', () => {
           });
         });
         return desempenho(alunos, {
+          simulados: [1, 2, 3].map((n) => simuladoB2C(IDS[n], n, { encerrado: encerrados.includes(IDS[n]) })),
           participacao_ultimo: {
             simulado_id: ultimoEnc,
             fizeram: alunos.filter((a) => a.fez_ultimo).length,
@@ -224,6 +226,41 @@ describe('MinhaTurma', () => {
       // Questões na semana: ainda sem dado B2C.
       expect(screen.getByTestId('card-questoes')).toHaveTextContent('–');
       expect(screen.getByTestId('card-questoes')).toHaveTextContent('chega com os dados de engajamento');
+    });
+
+    it('simulado encerrado que ninguém fez vira chip e Atual: participação 0%, acerto "–", Anterior e Primeiro seguem a lista', async () => {
+      // Todos encerrados, mas ninguém da turma fez o 3: sem a lista da RPC ele não existiria na tela.
+      const semNotasNo3 = (ids?: string[]) => {
+        const r = rpc([SIM1, SIM2, SIM3])(ids);
+        return { ...r, alunos: r.alunos.map((a) => ({ ...a, notas: a.notas.filter((n) => n.simulado_id !== SIM3) })) };
+      };
+      fetchDesempenhoTurma.mockImplementation((ids?: string[]) => Promise.resolve(semNotasNo3(ids)));
+      renderTurma();
+      const grupo = await screen.findByRole('group', { name: 'Filtro de simulados' }, T);
+      expect(within(grupo).getByRole('button', { name: 'Simulado 3' })).toHaveAttribute('title', 'Simulado 3 — título');
+      expect(screen.getByRole('columnheader', { name: 'Simulado 3' })).toBeInTheDocument();
+      expect(screen.getByTestId('card-participacao')).toHaveTextContent('Atual: Simulado 3');
+      expect(screen.getByTestId('card-participacao')).not.toHaveTextContent('em andamento');
+      expect(cardAtual('card-participacao')).toHaveTextContent('0%');
+      expect(screen.getByTestId('card-participacao')).toHaveTextContent('fizeram 0 de 5');
+      expect(cardAtual('card-acerto')).toHaveTextContent('–');
+      expect(cardAtual('card-aprovacao')).toHaveTextContent('–');
+      expect(screen.getByTestId('card-acerto-anterior')).toHaveTextContent('Anterior: Simulado 2');
+      expect(screen.getByTestId('card-acerto-primeiro')).toHaveTextContent('Primeiro: Simulado 1');
+
+      // Selecionar só o chip dele também funciona (recorte com zero notas).
+      fireEvent.click(within(grupo).getByRole('button', { name: 'Simulado 3' }));
+      await waitFor(() => expect(fetchDesempenhoTurma).toHaveBeenLastCalledWith([SIM3]));
+      await waitFor(() => expect(screen.queryByTestId('card-acerto-anterior')).not.toBeInTheDocument());
+      expect(screen.getByTestId('card-acerto')).toHaveTextContent('Atual: Simulado 3');
+      expect(cardAtual('card-participacao')).toHaveTextContent('0%');
+    });
+
+    it('o simulado aberto é chip, mas só leva "em andamento" quando encerrado === false na lista', async () => {
+      renderTurma();
+      const grupo = await screen.findByRole('group', { name: 'Filtro de simulados' }, T);
+      expect(within(grupo).getByRole('button', { name: 'Simulado 3' })).toBeInTheDocument();
+      expect(screen.queryByText(/em andamento/)).not.toBeInTheDocument();
     });
 
     it('sem nenhum simulado encerrado, Atual = último com nota, "em andamento", com Anterior e Primeiro', async () => {

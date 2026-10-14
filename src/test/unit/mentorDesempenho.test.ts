@@ -14,10 +14,22 @@ describe('services/mentor/desempenho', () => {
   beforeEach(() => mockRpc.mockReset());
 
   it('fetchDesempenhoTurma sem filtro manda p_simulados nulo', async () => {
-    const dado = { alunos: [], possivel_aprovacao_pct: null, acerto_medio_ultimo: null, participacao_ultimo: { simulado_id: null, fizeram: 0, total: 0 } };
+    const dado = {
+      alunos: [],
+      simulados: [{ id: 's1', sequence_number: 1, titulo: 'Simulado 1', janela_fim: '2026-10-01T00:00:00Z', encerrado: true }],
+      possivel_aprovacao_pct: null,
+      acerto_medio_ultimo: null,
+      participacao_ultimo: { simulado_id: null, fizeram: 0, total: 0 },
+    };
     mockRpc.mockReturnValue(Promise.resolve({ data: dado, error: null }));
     await expect(fetchDesempenhoTurma()).resolves.toEqual(dado);
     expect(mockRpc).toHaveBeenCalledWith('mentor_desempenho_turma', { p_simulados: null });
+  });
+
+  it('fetchDesempenhoTurma assume simulados = [] quando a RPC não manda a chave', async () => {
+    mockRpc.mockReturnValue(Promise.resolve({ data: { alunos: [], participacao_ultimo: { simulado_id: null, fizeram: 0, total: 0 } }, error: null }));
+    const r = await fetchDesempenhoTurma();
+    expect(r.simulados).toEqual([]);
   });
 
   it('fetchDesempenhoTurma repassa os simulados escolhidos', async () => {

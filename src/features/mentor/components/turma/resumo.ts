@@ -81,7 +81,7 @@ export function resumoPorSimulado(alunos: AlunoDesempenho[], simulado: OpcaoSimu
 }
 
 export interface SimuladosDosCards {
-  /** Simulado "Atual"; `emAndamento` quando a janela ainda não encerrou (não veio de participacao_ultimo). */
+  /** Simulado "Atual"; `emAndamento` quando a lista da RPC o marca como não encerrado (`encerrado === false`). */
   atual: { simulado: OpcaoSimulado; emAndamento: boolean } | null;
   anterior: OpcaoSimulado | null;
   primeiro: OpcaoSimulado | null;
@@ -90,9 +90,10 @@ export interface SimuladosDosCards {
 /**
  * Escolhe Primeiro / Anterior / Atual dentro do recorte (`recorte` em ordem de
  * sequence_number).
- * - Atual = último simulado encerrado da RPC se estiver no recorte; senão o último
- *   do recorte com nota, marcado "em andamento".
- * - Anterior = o simulado imediatamente antes do Atual no recorte.
+ * - Atual = último simulado encerrado da RPC (`participacao_ultimo.simulado_id`) se
+ *   estiver no recorte, mesmo sem nenhuma nota; senão o último do recorte com nota.
+ *   "Em andamento" vem de `encerrado === false` na lista da RPC, não de inferência.
+ * - Anterior = o simulado imediatamente antes do Atual no recorte (com ou sem nota).
  * - Primeiro = o primeiro do recorte; some se coincidir com Atual ou Anterior.
  */
 export function escolherSimuladosDosCards(
@@ -103,23 +104,18 @@ export function escolherSimuladosDosCards(
   const ordenado = [...recorte].sort((a, b) => a.sequence_number - b.sequence_number);
   const temNota = (o: OpcaoSimulado) => alunos.some((a) => (a.notas ?? []).some((n) => n.simulado_id === o.id));
 
-  let atual: SimuladosDosCards['atual'] = null;
-  const encerrado = ultimoEncerradoId ? ordenado.find((o) => o.id === ultimoEncerradoId) : undefined;
-  if (encerrado) {
-    atual = { simulado: encerrado, emAndamento: false };
-  } else {
-    const ultimoComNota = [...ordenado].reverse().find(temNota);
-    if (ultimoComNota) atual = { simulado: ultimoComNota, emAndamento: true };
-  }
-  if (!atual) return { atual: null, anterior: null, primeiro: null };
+  const doRpc = ultimoEncerradoId ? ordenado.find((o) => o.id === ultimoEncerradoId) : undefined;
+  const escolhido = doRpc ?? [...ordenado].reverse().find(temNota);
+  if (!escolhido) return { atual: null, anterior: null, primeiro: null };
+  const atual = { simulado: escolhido, emAndamento: escolhido.encerrado === false };
 
-  const idx = ordenado.findIndex((o) => o.id === atual!.simulado.id);
+  const idx = ordenado.findIndex((o) => o.id === escolhido.id);
   const anterior = idx > 0 ? ordenado[idx - 1] : null;
   const primeiro = ordenado[0];
   return {
     atual,
     anterior,
-    primeiro: primeiro.id === atual.simulado.id || primeiro.id === anterior?.id ? null : primeiro,
+    primeiro: primeiro.id === escolhido.id || primeiro.id === anterior?.id ? null : primeiro,
   };
 }
 

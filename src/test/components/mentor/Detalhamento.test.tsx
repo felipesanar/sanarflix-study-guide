@@ -35,6 +35,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 import Detalhamento from '@/features/mentor/routes/Detalhamento';
+import { simuladoB2C } from './fixtures';
 import Mural from '@/features/mentor/routes/Mural';
 import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
 
@@ -64,6 +65,7 @@ const TURMA: DesempenhoTurma = {
     alunoDes('b@x.com', 'Bruno Lima', [['s1', 1, 50], ['s2', 2, 64]]),
     alunoDes('c@x.com', 'Carla Dias', [['s1', 1, 55]]),
   ],
+  simulados: [simuladoB2C('s1', 1), simuladoB2C('s2', 2)],
   possivel_aprovacao_pct: 40,
   acerto_medio_ultimo: 67,
   participacao_ultimo: { simulado_id: 's2', fizeram: 2, total: 3 },
@@ -255,7 +257,7 @@ describe('Detalhamento por simulados', () => {
   });
 
   it('sem nenhum simulado com dados mostra o estado vazio', async () => {
-    fetchDesempenhoTurma.mockResolvedValue({ ...TURMA, alunos: [] });
+    fetchDesempenhoTurma.mockResolvedValue({ ...TURMA, alunos: [], simulados: [] });
     renderPagina();
     expect(await screen.findByText(/Ainda não há simulados/i, undefined, T)).toBeInTheDocument();
     expect(fetchDetalhamento).not.toHaveBeenCalled();
@@ -307,16 +309,18 @@ describe('Detalhamento por simulados', () => {
         al('b@x.com', 'Bruno Lima', 66, [['s1', 1, 50], ['s2', 2, 64]]),
         al('c@x.com', 'Carla Dias', null, [['s1', 1, 55], ['s3', 3, 40]]),
       ],
+      simulados: [simuladoB2C('s1', 1), simuladoB2C('s2', 2), simuladoB2C('s3', 3, { encerrado: false })],
       possivel_aprovacao_pct: null,
       acerto_medio_ultimo: null,
       participacao_ultimo: { simulado_id: 's2', fizeram: 2, total: 3 },
     };
-    /** Emula a RPC: s1 e s2 encerrados, s3 aberto. */
+    /** Emula a RPC: s1 e s2 encerrados, s3 aberto. A lista de simulados não depende do recorte. */
     const rpc = (ids?: string[]): DesempenhoTurma => {
       if (!ids) return TURMA3;
       const encerrados = ids.filter((i) => i === 's1' || i === 's2');
       return {
         alunos: TURMA3.alunos.map((a) => ({ ...a, notas: a.notas.filter((n) => ids.includes(n.simulado_id)) })),
+        simulados: TURMA3.simulados,
         participacao_ultimo: {
           simulado_id: encerrados.length ? encerrados[encerrados.length - 1] : null,
           fizeram: 0,
@@ -333,10 +337,24 @@ describe('Detalhamento por simulados', () => {
       fetchDesempenhoTurma.mockImplementation(async (s?: string[]) => rpc(s));
     });
 
-    it('com o simulado mais novo (aberto) selecionado, mostra os valores dele, rotulado "em andamento"', async () => {
+    it('a seleção inicial é o encerrado mais recente: pula o simulado aberto, que segue como chip', async () => {
       renderPagina();
       await screen.findByRole('region', { name: 'Indicadores' }, T);
-      expect(fetchDetalhamento).toHaveBeenCalledWith(['s3']);
+      expect(fetchDetalhamento).toHaveBeenCalledTimes(1);
+      expect(fetchDetalhamento).toHaveBeenCalledWith(['s2']);
+      expect(fetchDetalhamento).not.toHaveBeenCalledWith(['s3']);
+      expect(screen.getByRole('button', { name: 'Simulado 2' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: 'Simulado 3' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.queryByText(/em andamento/)).toBeNull();
+    });
+
+    it('com o simulado aberto selecionado, mostra os valores dele, rotulado "em andamento" (vem de encerrado)', async () => {
+      renderPagina();
+      await screen.findByRole('region', { name: 'Indicadores' }, T);
+      fireEvent.click(screen.getByRole('button', { name: 'Simulado 3' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Simulado 2' }));
+      await waitFor(() => expect(fetchDetalhamento).toHaveBeenLastCalledWith(['s3']));
+      await waitFor(() => expect(indicadores().getByText('No Simulado 3 · em andamento')).toBeInTheDocument());
       const ind = indicadores();
       expect(ind.getByText('No Simulado 3 · em andamento')).toBeInTheDocument();
       expect(ind.getByText('60%')).toBeInTheDocument(); // (80 + 40) / 2
@@ -349,8 +367,6 @@ describe('Detalhamento por simulados', () => {
     it('com um simulado encerrado, não marca "em andamento" e os valores são dele', async () => {
       renderPagina();
       await screen.findByRole('region', { name: 'Indicadores' }, T);
-      fireEvent.click(screen.getByRole('button', { name: 'Simulado 2' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Simulado 3' }));
       await waitFor(() => expect(fetchDetalhamento).toHaveBeenLastCalledWith(['s2']));
       await waitFor(() => expect(indicadores().getByText('No Simulado 2')).toBeInTheDocument());
       expect(indicadores().getByText('67%')).toBeInTheDocument(); // (70 + 64) / 2
@@ -372,10 +388,34 @@ describe('Detalhamento por simulados', () => {
       expect(indicadores().queryByText(/vs\. Simulado 3/)).toBeNull();
     });
 
+    it('simulado encerrado que ninguém fez aparece como chip e como Atual, com participação 0% e acerto "–"', async () => {
+      const turma = {
+        ...TURMA3,
+        simulados: [simuladoB2C('s1', 1), simuladoB2C('s2', 2), simuladoB2C('s3', 3), simuladoB2C('s4', 4)],
+      };
+      const rpcVazio = (ids?: string[]): DesempenhoTurma => ({
+        ...turma,
+        alunos: turma.alunos.map((a) => ({ ...a, notas: ids ? a.notas.filter((n) => ids.includes(n.simulado_id)) : a.notas })),
+        participacao_ultimo: { simulado_id: 's4', fizeram: 0, total: 3 },
+      });
+      fetchDesempenhoTurma.mockImplementation(async (s?: string[]) => rpcVazio(s));
+      renderPagina();
+      await screen.findByRole('region', { name: 'Indicadores' }, T);
+      // Nenhuma nota é do s4, mas ele é o encerrado mais recente: chip existe e é a seleção inicial.
+      expect(screen.getByRole('button', { name: 'Simulado 4' })).toHaveAttribute('aria-pressed', 'true');
+      expect(fetchDetalhamento).toHaveBeenCalledWith(['s4']);
+      const ind = indicadores();
+      expect(ind.getByText('No Simulado 4')).toBeInTheDocument();
+      expect(ind.getByText('0%')).toBeInTheDocument(); // participação
+      expect(ind.getByText('0 de 3 alunos · Simulado 4')).toBeInTheDocument();
+      expect(ind.getAllByText('–').length).toBeGreaterThanOrEqual(2); // acerto médio e possível aprovação
+      expect(screen.queryByText(/em andamento/)).toBeNull();
+    });
+
     it('com 2 e 3 selecionados, Atual é o 2 e não há comparativo (nada antes dele na seleção)', async () => {
       renderPagina();
       await screen.findByRole('region', { name: 'Indicadores' }, T);
-      fireEvent.click(screen.getByRole('button', { name: 'Simulado 2' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Simulado 3' }));
       await waitFor(() => expect(fetchDetalhamento).toHaveBeenLastCalledWith(['s2', 's3']));
       await waitFor(() => expect(indicadores().getByText('No Simulado 2')).toBeInTheDocument());
       expect(indicadores().queryByText(/vs\./)).toBeNull();

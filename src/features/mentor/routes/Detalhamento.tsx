@@ -8,11 +8,8 @@ import { IndicadoresDetalhamento } from '@/features/mentor/components/detalhamen
 import { ListaQuestoes } from '@/features/mentor/components/detalhamento/ListaQuestoes';
 import { PainelQuestao } from '@/features/mentor/components/detalhamento/PainelQuestao';
 import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
-import {
-  ordenarSelecao,
-  simuladoMaisRecente,
-  simuladosDisponiveis,
-} from '@/features/mentor/components/detalhamento/util';
+import { ordenarSelecao, simuladoPadrao } from '@/features/mentor/components/detalhamento/util';
+import { opcoesSimulados } from '@/features/mentor/components/turma/simulados';
 
 const CarregandoBloco: React.FC = () => (
   <div className="space-y-3" aria-busy="true">
@@ -23,19 +20,19 @@ const CarregandoBloco: React.FC = () => (
 
 /** Detalhamento por Simulados (telas 04 e 04b): recorte por simulados, acerto por grande área e questões. */
 const Detalhamento: React.FC = () => {
-  // Todos os simulados com nota na turma: alimenta o seletor e o mapa e-mail → nome.
+  // Sem recorte: a lista de simulados publicados alimenta o seletor; os alunos, o mapa e-mail → nome.
   const todos = useQuery({
     queryKey: chavesDesempenho.turma(),
     queryFn: () => fetchDesempenhoTurma(),
   });
-  const disponiveis = React.useMemo(() => simuladosDisponiveis(todos.data?.alunos ?? []), [todos.data]);
+  const disponiveis = React.useMemo(() => opcoesSimulados(todos.data), [todos.data]);
 
-  // null = ainda não mexeu: vale o simulado mais recente. [] = limpou de propósito.
+  // null = ainda não mexeu: vale o simulado encerrado mais recente (não o aberto). [] = limpou de propósito.
   const [escolha, setEscolha] = React.useState<string[] | null>(null);
   const selecionados = React.useMemo(() => {
     if (escolha !== null) return ordenarSelecao(escolha, disponiveis);
-    const recente = simuladoMaisRecente(disponiveis);
-    return recente ? [recente.id] : [];
+    const padrao = simuladoPadrao(disponiveis);
+    return padrao ? [padrao.id] : [];
   }, [escolha, disponiveis]);
   const selecionadosInfo = disponiveis.filter((s) => selecionados.includes(s.id));
   const temSelecao = selecionados.length > 0;
@@ -72,7 +69,7 @@ const Detalhamento: React.FC = () => {
     if (disponiveis.length === 0) {
       return (
         <p className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-          Ainda não há simulados com dados da sua turma.
+          Ainda não há simulados publicados.
         </p>
       );
     }

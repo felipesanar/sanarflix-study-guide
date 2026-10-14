@@ -31,8 +31,23 @@ export interface AlunoDesempenho {
   fez_ultimo: boolean | null;
 }
 
+/**
+ * Simulado B2C publicado. `mentor_desempenho_turma` devolve TODOS, ordenados por
+ * `sequence_number`, independente do recorte (`p_simulados`) e de alguém da turma
+ * ter feito: é a fonte dos chips e do "último simulado".
+ */
+export interface SimuladoB2C {
+  id: string;
+  sequence_number: number;
+  titulo: string;
+  janela_fim: string | null;
+  encerrado: boolean;
+}
+
 export interface DesempenhoTurma {
   alunos: AlunoDesempenho[];
+  /** Todos os simulados B2C publicados, por sequence_number (não depende do recorte). */
+  simulados: SimuladoB2C[];
   possivel_aprovacao_pct: number | null;
   acerto_medio_ultimo: number | null;
   participacao_ultimo: { simulado_id: string | null; fizeram: number; total: number };
@@ -98,7 +113,9 @@ export const chavesDesempenho = {
 
 /** `simulados` omitido = todos os simulados espelhados. */
 export async function fetchDesempenhoTurma(simulados?: string[]): Promise<DesempenhoTurma> {
-  return callRpc<DesempenhoTurma>('mentor_desempenho_turma', { p_simulados: simulados ?? null });
+  const dados = await callRpc<DesempenhoTurma>('mentor_desempenho_turma', { p_simulados: simulados ?? null });
+  // Defensivo: backend anterior à lista não manda a chave.
+  return { ...dados, simulados: dados?.simulados ?? [] };
 }
 
 export async function fetchDetalhamento(simulados: string[]): Promise<Detalhamento> {
