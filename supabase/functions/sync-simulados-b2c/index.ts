@@ -40,6 +40,22 @@ function compararSegredo(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// O env SUPABASE_SERVICE_ROLE_KEY pode vir no formato novo (sb_secret_…) enquanto o
+// cron manda a service_role legada (JWT) guardada no Vault: as duas são válidas, mas
+// não são iguais. Fora a igualdade exata, aceita quem prova acesso de serviço lendo
+// b2c_sync_execucoes — anon e authenticated não têm grant nessa tabela.
+async function temAcessoDeServico(supabaseUrl: string, token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/b2c_sync_execucoes?select=id&limit=1`, {
+      headers: { apikey: token, Authorization: `Bearer ${token}` },
+    });
+    await res.body?.cancel();
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method !== "POST") return json(405, { ok: false, erro: "metodo_nao_permitido" });
 
@@ -55,7 +71,7 @@ serve(async (req: Request) => {
 
   const auth = req.headers.get("Authorization") ?? "";
   const recebido = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (!recebido || !compararSegredo(recebido, serviceKey)) {
+  if (!recebido || !(compararSegredo(recebido, serviceKey) || await temAcessoDeServico(supabaseUrl, recebido))) {
     return json(401, { ok: false, erro: "nao_autorizado" });
   }
 

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const sql = readFileSync(
-  resolve(__dirname, '../../../supabase/migrations/20261014210100_b2c_sync_agenda.sql'),
+  resolve(__dirname, '../../../supabase/migrations/20261014203709_b2c_sync_agenda.sql'),
   'utf8',
 );
 
