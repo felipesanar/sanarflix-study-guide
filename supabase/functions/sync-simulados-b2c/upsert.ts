@@ -22,6 +22,34 @@ export function corteMaisDificil(
   return max;
 }
 
+// Separa os e-mails em "novos" (ainda fora do espelho: precisam do histórico
+// completo, desde = null) e "existentes" (sincronização incremental).
+export function separarPorEspelho(
+  emails: string[],
+  emailsNoEspelho: Iterable<string>,
+): { novos: string[]; existentes: string[] } {
+  const espelho = new Set<string>();
+  for (const e of emailsNoEspelho) espelho.add(e.trim().toLowerCase());
+  const novos: string[] = [];
+  const existentes: string[] = [];
+  for (const e of emails) {
+    (espelho.has(e.trim().toLowerCase()) ? existentes : novos).push(e);
+  }
+  return { novos, existentes };
+}
+
+// Remove e-mails de mensagens de erro antes de gravar/logar (dado pessoal).
+export function sanitizarErro(mensagem: string): string {
+  return mensagem.replace(/[^\s@]+@[^\s@]+/g, "<email>");
+}
+
+// Mantém a última ocorrência de cada chave (a primeira posição é preservada).
+function deduplicar<T>(linhas: T[], chave: (l: T) => string): T[] {
+  const mapa = new Map<string, T>();
+  for (const l of linhas) mapa.set(chave(l), l);
+  return [...mapa.values()];
+}
+
 export interface PacoteSimulado {
   id: string;
   sequence_number: number;
@@ -145,5 +173,12 @@ export function mapearPacote(pacote: Pacote) {
     }
   }
 
-  return { simulados, questoes, alunos, tentativas, respostas };
+  // Duplicata na origem abortaria o upsert ("cannot affect row a second time").
+  return {
+    simulados: deduplicar(simulados, (x) => x.id),
+    questoes: deduplicar(questoes, (x) => x.id),
+    alunos: deduplicar(alunos, (x) => x.email),
+    tentativas: deduplicar(tentativas, (x) => x.id),
+    respostas: deduplicar(respostas, (x) => `${x.tentativa_id}|${x.questao_id}`),
+  };
 }

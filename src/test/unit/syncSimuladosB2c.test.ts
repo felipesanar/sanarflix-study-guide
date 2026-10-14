@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   lotes,
   corteMaisDificil,
   mapearPacote,
+  separarPorEspelho,
+  sanitizarErro,
 } from '../../../supabase/functions/sync-simulados-b2c/upsert';
 
 describe('sync-simulados-b2c/upsert', () => {
@@ -176,14 +176,62 @@ describe('sync-simulados-b2c/upsert', () => {
     expect(m.alunos[0].alvos).toEqual([]);
   });
 
-  it('exporta em lotes de 100 e-mails (101 e-mails viram 2 chamadas)', () => {
-    const src = readFileSync(
-      resolve(__dirname, '../../../supabase/functions/sync-simulados-b2c/index.ts'),
-      'utf8',
-    );
-    expect(src).toContain('const LOTE_EXPORTACAO = 100;');
-    expect(src).toContain('lotes([...emails], LOTE_EXPORTACAO)');
+  it('101 e-mails novos viram 2 lotes de exportação (100 + 1)', () => {
     const emails = Array.from({ length: 101 }, (_, i) => `a${i}@x.com`);
-    expect(lotes(emails, 100).map((l) => l.length)).toEqual([100, 1]);
+    const { novos, existentes } = separarPorEspelho(emails, []);
+    expect(existentes).toEqual([]);
+    expect(lotes(novos, 100).map((l) => l.length)).toEqual([100, 1]);
+  });
+
+  it('separarPorEspelho divide novos (fora do espelho) e existentes', () => {
+    const r = separarPorEspelho(['a@x.com', 'b@x.com', 'c@x.com'], ['B@x.com', 'z@x.com']);
+    expect(r.novos).toEqual(['a@x.com', 'c@x.com']);
+    expect(r.existentes).toEqual(['b@x.com']);
+  });
+
+  it('sanitizarErro troca e-mails por <email>', () => {
+    expect(sanitizarErro('upsert b2c_alunos: key (email)=(ana.silva@x.com.br) violates fk')).toBe(
+      'upsert b2c_alunos: key <email> violates fk',
+    );
+    expect(sanitizarErro('a@b.com e c@d.org falharam')).toBe('<email> e <email> falharam');
+    expect(sanitizarErro('sem email aqui')).toBe('sem email aqui');
+  });
+
+  it('mapearPacote deduplica respostas por (tentativa, questão) mantendo a última', () => {
+    const r = (sel: string | null, ok: boolean) => ({
+      attempt_id: 't1',
+      question_id: 'q1',
+      selected_label: sel,
+      is_correct: ok,
+      was_answered: sel !== null,
+    });
+    const m = mapearPacote({
+      gerado_em: '2026-10-15T07:00:00Z',
+      simulados: [],
+      questoes: [],
+      alunos: [
+        {
+          email: 'a@x.com',
+          nome: null,
+          segment: null,
+          especialidade: null,
+          alvos: [],
+          tentativas: [
+            {
+              id: 't1',
+              simulado_id: 's1',
+              finished_at: '2026-09-01T12:00:00Z',
+              score_percentage: 10,
+              total_correct: 1,
+              total_answered: 1,
+              attempt_type: 'online',
+            },
+          ],
+          respostas: [r('A', false), r('B', true)],
+        },
+      ],
+    });
+    expect(m.respostas).toHaveLength(1);
+    expect(m.respostas[0]).toMatchObject({ marcada_label: 'B', correta: true });
   });
 });

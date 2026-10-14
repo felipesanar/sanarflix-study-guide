@@ -1,6 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { lotes, mapearPacote, type Pacote } from "./upsert.ts";
+import {
+  lotes,
+  mapearPacote,
+  sanitizarErro,
+  separarPorEspelho,
+  type Pacote,
+} from "./upsert.ts";
 
 // Sincronização diária dos simulados B2C (Onda 3 da Página do Mentor).
 //
@@ -62,13 +68,27 @@ serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  // Execução anterior (lida ANTES de registrar a atual): se terminou com erro
+  // ou nem terminou (queda/timeout), esta rodada reenvia tudo sem `desde`.
+  const { data: anterior, error: antErr } = await db
+    .from("b2c_sync_execucoes")
+    .select("terminado_em, erro")
+    .order("id", { ascending: false })
+    .limit(1);
+  if (antErr) {
+    console.error("sync-simulados-b2c: falha ao ler execução anterior", sanitizarErro(antErr.message));
+    return json(500, { ok: false, erro: "execucao_anterior_ilegivel" });
+  }
+  const anteriorFalhou = !!anterior && anterior.length > 0 &&
+    (anterior[0].erro !== null || anterior[0].terminado_em === null);
+
   const { data: exec, error: execErr } = await db
     .from("b2c_sync_execucoes")
     .insert({})
     .select("id")
     .single();
   if (execErr || !exec) {
-    console.error("sync-simulados-b2c: falha ao registrar execução", execErr?.message);
+    console.error("sync-simulados-b2c: falha ao registrar execução", sanitizarErro(execErr?.message ?? ""));
     return json(500, { ok: false, erro: "execucao_nao_registrada" });
   }
   const execId = exec.id as number;
@@ -108,28 +128,50 @@ serve(async (req: Request) => {
       return json(200, { ok: true, ...totais });
     }
 
-    // 2. Janela incremental: max(finalizada_em) menos a folga.
+    // 2. Quem já está no espelho (paginado).
+    const noEspelho = new Set<string>();
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await db
+        .from("b2c_alunos")
+        .select("email")
+        .order("email")
+        .range(de, de + 999);
+      if (error) throw new Error(`ler espelho: ${error.message}`);
+      for (const r of data ?? []) noEspelho.add(String(r.email));
+      if (!data || data.length < 1000) break;
+    }
+
+    // 3. Janela incremental (só para quem já está no espelho): max(finalizada_em) menos a folga.
     const { data: ult, error: ultErr } = await db
       .from("b2c_tentativas")
       .select("finalizada_em")
       .order("finalizada_em", { ascending: false })
       .limit(1);
     if (ultErr) throw new Error(`ler ultima tentativa: ${ultErr.message}`);
-    let desde: string | null = null;
+    let desdeExistentes: string | null = null;
     if (ult && ult.length > 0 && ult[0].finalizada_em && Number.isFinite(Date.parse(ult[0].finalizada_em as string))) {
       const ms = Date.parse(ult[0].finalizada_em as string) - FOLGA_DIAS * 24 * 60 * 60 * 1000;
-      desde = new Date(ms).toISOString();
+      desdeExistentes = new Date(ms).toISOString();
     }
 
-    // 3-4. Exporta por lotes de e-mails e grava na ordem das FKs.
+    // Novos (ou rodada anterior falhou): histórico completo, desde = null.
+    const { novos, existentes } = anteriorFalhou
+      ? { novos: [...emails], existentes: [] as string[] }
+      : separarPorEspelho([...emails], noEspelho);
+    const grupos = [
+      ...lotes(novos, LOTE_EXPORTACAO).map((l) => ({ emails: l, desde: null as string | null })),
+      ...lotes(existentes, LOTE_EXPORTACAO).map((l) => ({ emails: l, desde: desdeExistentes })),
+    ];
+
+    // 4. Exporta por lote e grava na ordem das FKs.
     const simuladosVistos = new Set<string>();
     const questoesVistas = new Set<string>();
 
-    for (const loteEmails of lotes([...emails], LOTE_EXPORTACAO)) {
+    for (const grupo of grupos) {
       const resp = await fetch(exportUrl, {
         method: "POST",
         headers: { ...JSON_HEADERS, "x-mentoria-export-secret": exportSecret },
-        body: JSON.stringify({ emails: loteEmails, desde }),
+        body: JSON.stringify({ emails: grupo.emails, desde: grupo.desde }),
       });
       if (!resp.ok) throw new Error(`mentoria-export respondeu ${resp.status}`);
       const pacote = (await resp.json()) as Pacote;
@@ -159,7 +201,7 @@ serve(async (req: Request) => {
 
     return json(200, { ok: true, ...totais });
   } catch (e) {
-    const mensagem = e instanceof Error ? e.message : "erro_desconhecido";
+    const mensagem = sanitizarErro(e instanceof Error ? e.message : "erro_desconhecido");
     console.error("sync-simulados-b2c:", mensagem);
     await db
       .from("b2c_sync_execucoes")
