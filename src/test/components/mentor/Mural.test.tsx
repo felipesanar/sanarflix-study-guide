@@ -18,6 +18,9 @@ vi.mock('@/services/mentor/mural', () => ({
   listarTags: () => listarTags(),
 }));
 
+const toast = vi.fn();
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
+
 const fetchTurma = vi.fn();
 vi.mock('@/services/mentor/turma', () => ({ fetchTurma: () => fetchTurma() }));
 
@@ -27,6 +30,7 @@ vi.mock('@/services/mentor/contexto', () => ({
 }));
 
 import Mural from '@/features/mentor/routes/Mural';
+import { nomeSeguro } from '@/features/mentor/components/mural/muralUtils';
 
 const aluno = (over: Record<string, unknown>) => ({
   email: 'x@a.com',
@@ -175,6 +179,58 @@ describe('Mural — nova publicação', () => {
     expect(screen.getByRole('tab', { name: 'Pra você' })).toBeInTheDocument();
   });
 
+  it('Enter no campo de busca ou no título não publica nada', async () => {
+    const user = userEvent.setup();
+    renderMural();
+    await preencherBasico(user);
+    await user.click(screen.getByRole('radio', { name: 'Selecionados' }));
+    await user.click(screen.getByRole('button', { name: 'Sumidos (1)' }));
+    await user.type(screen.getByLabelText('Buscar aluno'), 'dani{Enter}');
+    await user.type(screen.getByLabelText('Título'), '{Enter}');
+    await user.type(screen.getByLabelText('Tag'), '{Enter}');
+    expect(salvarPost).not.toHaveBeenCalled();
+  });
+
+  it('link sem https:// bloqueia a publicação', async () => {
+    const user = userEvent.setup();
+    renderMural();
+    await preencherBasico(user);
+    await user.type(screen.getByLabelText('Link (opcional)'), 'http://exemplo.com');
+    await user.type(screen.getByLabelText('Título do link'), 'Material');
+    expect(screen.getByText('Use um link https://')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Publicar para/ })).toBeDisabled();
+  });
+
+  it('erro da RPC aparece no toast com a mensagem', async () => {
+    const user = userEvent.setup();
+    salvarPost.mockRejectedValue(new Error('link inválido (use https)'));
+    renderMural();
+    await preencherBasico(user);
+    await user.click(await screen.findByRole('button', { name: /Publicar para/ }));
+    await waitFor(
+      () =>
+        expect(toast).toHaveBeenCalledWith(
+          expect.objectContaining({ description: 'link inválido (use https)', variant: 'destructive' }),
+        ),
+      T,
+    );
+  });
+
+  it('falha no upload mostra erro e não chama salvarPost', async () => {
+    const user = userEvent.setup();
+    upload.mockResolvedValue({ data: null, error: { message: 'bucket indisponível' } });
+    renderMural();
+    await preencherBasico(user);
+    await user.upload(screen.getByLabelText(/Anexo/), new File(['abc'], 'a.pdf', { type: 'application/pdf' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Publicar para/ })).toBeEnabled(), T);
+    await user.click(screen.getByRole('button', { name: /Publicar para/ }));
+    await waitFor(
+      () => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'bucket indisponível' })),
+      T,
+    );
+    expect(salvarPost).not.toHaveBeenCalled();
+  });
+
   it('anexo acima de 10 MB é recusado com mensagem clara e não envia', async () => {
     const user = userEvent.setup();
     renderMural();
@@ -264,5 +320,13 @@ describe('Mural — publicadas', () => {
     await user.click(screen.getByRole('button', { name: 'Publicar para 1 aluno' }));
     await waitFor(() => expect(salvarPost).toHaveBeenCalled(), T);
     expect(salvarPost).toHaveBeenCalledWith(expect.objectContaining({ id: 'p9', publicar: true }));
+  });
+});
+
+describe('nomeSeguro', () => {
+  it('limita a 100 caracteres preservando a extensão', () => {
+    const r = nomeSeguro(`${'a'.repeat(300)}.pdf`);
+    expect(r).toHaveLength(100);
+    expect(r.endsWith('.pdf')).toBe(true);
   });
 });

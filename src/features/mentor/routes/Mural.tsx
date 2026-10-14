@@ -49,7 +49,7 @@ const Mural: React.FC = () => {
       {turmaQuery.data && (
         <>
           <NovaPublicacao
-            key={`${editando?.id ?? 'novo'}-${versaoForm}`}
+            key={`${editando?.id ?? 'novo'}-${versaoForm}-${paraEmail ?? ''}`}
             turma={turmaQuery.data}
             mentorId={contexto?.mentor?.user_id ?? null}
             post={editando}

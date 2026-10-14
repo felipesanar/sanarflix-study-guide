@@ -141,10 +141,8 @@ export const NovaPublicacao: React.FC<Props> = ({
       <form
         className="space-y-4"
         aria-label={post ? 'Editar publicação' : 'Nova publicação'}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!bloqueado) mutation.mutate(true);
-        }}
+        // Enter num campo de texto nunca publica: só os botões explícitos agem.
+        onSubmit={(e) => e.preventDefault()}
       >
         <h2 className="text-lg font-semibold">{post ? 'Editar publicação' : 'Nova publicação'}</h2>
 
@@ -223,7 +221,7 @@ export const NovaPublicacao: React.FC<Props> = ({
             <Label htmlFor="mural-link-url">Link (opcional)</Label>
             <Input
               id="mural-link-url"
-              type="url"
+              type="text"
               inputMode="url"
               placeholder="https://"
               value={form.linkUrl}
@@ -283,7 +281,7 @@ export const NovaPublicacao: React.FC<Props> = ({
           <Button type="button" variant="outline" disabled={bloqueado} onClick={() => mutation.mutate(false)}>
             Salvar rascunho
           </Button>
-          <Button type="submit" disabled={bloqueado}>
+          <Button type="button" disabled={bloqueado} onClick={() => mutation.mutate(true)}>
             Publicar para {pluralAlunos(nAlunos)}
           </Button>
           {post && onCancelarEdicao && (
