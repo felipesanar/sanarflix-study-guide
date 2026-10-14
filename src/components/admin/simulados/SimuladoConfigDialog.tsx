@@ -460,6 +460,9 @@ export default function SimuladoConfigDialog({
           if (!correta || !['A', 'B', 'C', 'D', 'E'].includes(correta)) {
             throw new Error(`Questão ${index + 1}: campo "Gabarito" inválido. Deve ser A, B, C, D ou E. Valor: "${correta}"`);
           }
+          if (correta === 'E' && !String(normalizedRow['alternativa e'] ?? '').trim()) {
+            throw new Error(`Questão ${index + 1}: gabarito é "E", mas a coluna "Alternativa E" está vazia.`);
+          }
 
           const numeroQuestao = Number(normalizedRow['numero']) || index + 1;
           const rawEnunciado = extracted.enunciadoImages[numeroQuestao];
