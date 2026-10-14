@@ -13,7 +13,7 @@ export interface AlunoTurma {
   email: string;
   nome: string | null;
   telefone: string | null;
-  semestre: string | null;
+  semestre: number | null;
   acesso_ate: string | null;
   b2b: boolean;
   academy_user_id: string | null;

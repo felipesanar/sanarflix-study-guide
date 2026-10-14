@@ -22,4 +22,9 @@ describe('Onda 2 · turma', () => {
     expect(TURMA).toMatch(/fato_consumo_conteudo_b2b/i);
     expect(TURMA).toMatch(/user_sessions/i);
   });
+
+  it('dias sem atividade contam no fuso de São Paulo, não em current_date (UTC)', () => {
+    expect(TURMA).not.toMatch(/current_date/i);
+    expect(TURMA).toContain("(now() AT TIME ZONE 'America/Sao_Paulo')::date");
+  });
 });

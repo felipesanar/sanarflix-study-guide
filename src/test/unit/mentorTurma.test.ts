@@ -16,7 +16,7 @@ describe('services/mentor/turma', () => {
   it('fetchTurma chama mentor_turma sem argumentos e devolve a lista', async () => {
     const lista = [
       {
-        email: 'a@x.com', nome: 'Ana', telefone: null, semestre: '5', acesso_ate: null, b2b: false,
+        email: 'a@x.com', nome: 'Ana', telefone: null, semestre: 5, acesso_ate: null, b2b: false,
         academy_user_id: 'u1', sanarflix_user_id: null, ultima_atividade: null,
         dias_sem_atividade: null, segmento: 'sem_dado',
       },

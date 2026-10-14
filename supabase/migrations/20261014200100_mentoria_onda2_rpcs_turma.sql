@@ -41,7 +41,7 @@ BEGIN
       FROM alunos a
     ),
     calculado AS (
-      SELECT x.*, (current_date - (x.ultima_atividade AT TIME ZONE 'America/Sao_Paulo')::date) AS dias
+      SELECT x.*, ((now() AT TIME ZONE 'America/Sao_Paulo')::date - (x.ultima_atividade AT TIME ZONE 'America/Sao_Paulo')::date) AS dias
       FROM atividade x
     )
     SELECT jsonb_agg(jsonb_build_object(
