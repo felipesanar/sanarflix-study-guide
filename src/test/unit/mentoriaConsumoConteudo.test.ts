@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SQL = readFileSync(
-  join(process.cwd(), 'supabase', 'migrations', '20261014240000_mentoria_consumo_conteudo.sql'),
+  join(process.cwd(), 'supabase', 'migrations', '20261014205241_mentoria_consumo_conteudo.sql'),
   'utf8',
 );
 const idx = SQL.search(/function public\.mentor_aluno_conteudos/i);
@@ -27,8 +27,9 @@ describe('Consumo de conteúdo · mentor_turma', () => {
     expect(TURMA).not.toMatch(/current_date/i);
   });
 
-  it('usa LATERAL com FILTER e EXISTS para tem_dado_consumo', () => {
-    expect(TURMA).toMatch(/LEFT JOIN LATERAL[\s\S]*count\(\*\) FILTER/i);
+  it('usa LATERAL com FILTER e EXISTS para tem_dado_consumo; conta conteúdos distintos, não eventos', () => {
+    expect(TURMA).toMatch(/LEFT JOIN LATERAL[\s\S]*count\(DISTINCT f\.content_id\) FILTER/i);
+    expect(TURMA).not.toMatch(/count\(\*\) FILTER/i);
     expect(TURMA).toMatch(/sanarflix_user_id IS NOT NULL AND EXISTS/i);
   });
 
@@ -77,8 +78,9 @@ describe('Consumo de conteúdo · mentor_aluno_conteudos', () => {
     expect(CONTEUDOS).toMatch(/ORDER BY w\.semana/);
   });
 
-  it('recentes = 20 eventos mais novos; top_cursos = 5 em 30 dias', () => {
-    expect(CONTEUDOS).toMatch(/ORDER BY f\.event_timestamp DESC[\s\S]*?LIMIT 20/);
+  it('recentes = 20 conteúdos mais novos (1 por conteúdo); top_cursos = 5 em 30 dias por conteúdos distintos', () => {
+    expect(CONTEUDOS).toMatch(/DISTINCT ON \(f\.content_id\)[\s\S]*?ORDER BY u\.quando DESC[\s\S]*?LIMIT 20/);
+    expect(CONTEUDOS).toMatch(/count\(DISTINCT f\.content_id\) AS total/);
     expect(CONTEUDOS).toMatch(/event_date >= v_hoje - 29[\s\S]*?LIMIT 5/);
     expect(CONTEUDOS).toContain("event_timestamp AT TIME ZONE 'UTC'");
   });

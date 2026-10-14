@@ -8,6 +8,8 @@
 -- batem com a data de SP e 0 com a data UTC. Por isso a janela "7 dias incluindo hoje" é
 -- event_date >= hoje_SP - 6 (30 dias: - 29), com hoje_SP = (now() AT TIME ZONE 'America/Sao_Paulo')::date.
 -- A conversão de event_timestamp para timestamptz usa AT TIME ZONE 'UTC'.
+-- CONTAGEM = conteúdos DISTINTOS (content_id), não eventos: o mesmo vídeo gera ~1,5 evento/dia
+-- em média (aluna-teste: 109 eventos = 40 conteúdos em 7 dias). Os recentes são 1 por conteúdo.
 -- tem_dado_consumo distingue "sem fonte de dados" (exibir "–") de "tem fonte, consumiu 0" (exibir 0).
 
 create or replace function public.mentor_turma()
@@ -56,13 +58,13 @@ BEGIN
       LEFT JOIN LATERAL (
         SELECT
           CASE WHEN a.sanarflix_user_id IS NULL THEN NULL
-               ELSE count(*) FILTER (WHERE f.content_type = 'video' AND f.event_date >= v_hoje - 6) END AS v7,
+               ELSE count(DISTINCT f.content_id) FILTER (WHERE f.content_type = 'video' AND f.event_date >= v_hoje - 6) END AS v7,
           CASE WHEN a.sanarflix_user_id IS NULL THEN NULL
-               ELSE count(*) FILTER (WHERE f.content_type = 'document' AND f.event_date >= v_hoje - 6) END AS d7,
+               ELSE count(DISTINCT f.content_id) FILTER (WHERE f.content_type = 'document' AND f.event_date >= v_hoje - 6) END AS d7,
           CASE WHEN a.sanarflix_user_id IS NULL THEN NULL
-               ELSE count(*) FILTER (WHERE f.content_type = 'video') END AS v30,
+               ELSE count(DISTINCT f.content_id) FILTER (WHERE f.content_type = 'video') END AS v30,
           CASE WHEN a.sanarflix_user_id IS NULL THEN NULL
-               ELSE count(*) FILTER (WHERE f.content_type = 'document') END AS d30
+               ELSE count(DISTINCT f.content_id) FILTER (WHERE f.content_type = 'document') END AS d30
         FROM public.fato_consumo_conteudo_b2b f
         WHERE a.sanarflix_user_id IS NOT NULL
           AND f.sanarflix_user_id = a.sanarflix_user_id
@@ -139,8 +141,8 @@ BEGIN
       FROM (SELECT v_segunda - 49 + 7 * g AS semana FROM generate_series(0, 7) AS g) AS w
       LEFT JOIN (
         SELECT date_trunc('week', f.event_date::timestamp)::date AS semana,
-               count(*) FILTER (WHERE f.content_type = 'video') AS videos,
-               count(*) FILTER (WHERE f.content_type = 'document') AS documentos
+               count(DISTINCT f.content_id) FILTER (WHERE f.content_type = 'video') AS videos,
+               count(DISTINCT f.content_id) FILTER (WHERE f.content_type = 'document') AS documentos
         FROM public.fato_consumo_conteudo_b2b f
         WHERE f.sanarflix_user_id = v_sfx AND f.event_date >= v_segunda - 49
         GROUP BY 1
@@ -150,24 +152,28 @@ BEGIN
       SELECT jsonb_agg(jsonb_build_object('quando', r.quando, 'tipo', r.tipo, 'conteudo', r.conteudo, 'curso', r.curso, 'modulo', r.modulo)
                        ORDER BY r.quando DESC, r.event_key)
       FROM (
-        SELECT f.event_key,
-               (f.event_timestamp AT TIME ZONE 'UTC') AS quando,
-               f.content_type AS tipo, f.content_name AS conteudo,
-               f.course_name AS curso, f.module_name AS modulo
-        FROM public.fato_consumo_conteudo_b2b f
-        WHERE f.sanarflix_user_id = v_sfx
-        ORDER BY f.event_timestamp DESC, f.event_key
+        -- um item por conteúdo (o evento mais recente dele): o mesmo vídeo gera vários eventos
+        SELECT * FROM (
+          SELECT DISTINCT ON (f.content_id) f.event_key,
+                 (f.event_timestamp AT TIME ZONE 'UTC') AS quando,
+                 f.content_type AS tipo, f.content_name AS conteudo,
+                 f.course_name AS curso, f.module_name AS modulo
+          FROM public.fato_consumo_conteudo_b2b f
+          WHERE f.sanarflix_user_id = v_sfx AND f.event_date >= v_hoje - 89
+          ORDER BY f.content_id, f.event_timestamp DESC, f.event_key
+        ) u
+        ORDER BY u.quando DESC, u.event_key
         LIMIT 20
       ) r
     ), '[]'::jsonb),
     'top_cursos', coalesce((
       SELECT jsonb_agg(jsonb_build_object('curso', t.curso, 'total', t.total) ORDER BY t.total DESC, t.curso)
       FROM (
-        SELECT f.course_name AS curso, count(*) AS total
+        SELECT f.course_name AS curso, count(DISTINCT f.content_id) AS total
         FROM public.fato_consumo_conteudo_b2b f
         WHERE f.sanarflix_user_id = v_sfx AND f.event_date >= v_hoje - 29
         GROUP BY f.course_name
-        ORDER BY count(*) DESC, f.course_name
+        ORDER BY count(DISTINCT f.content_id) DESC, f.course_name
         LIMIT 5
       ) t
     ), '[]'::jsonb)
