@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SQL = readFileSync(
-  join(process.cwd(), 'supabase', 'migrations', '20261014200300_mentoria_onda2_rpcs_api.sql'),
+  join(process.cwd(), 'supabase', 'migrations', '20261014170827_mentoria_onda2_rpcs_api.sql'),
   'utf8',
 );
 const FUNCOES = ['api_mentoria_me', 'api_mentoria_mural', 'api_mentoria_sessoes'];

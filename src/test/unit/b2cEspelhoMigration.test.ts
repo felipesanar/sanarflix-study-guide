@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const sql = readFileSync(
-  resolve(__dirname, "../../../supabase/migrations/20261014210000_b2c_simulados_espelho.sql"),
+  resolve(__dirname, "../../../supabase/migrations/20261014170837_b2c_simulados_espelho.sql"),
   "utf8",
 );
 

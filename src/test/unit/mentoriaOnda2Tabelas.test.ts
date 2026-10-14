@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 const dir = join(process.cwd(), 'supabase', 'migrations');
 const ler = (nome: string) => readFileSync(join(dir, nome), 'utf8');
-const TAB = ler('20261014200000_mentoria_onda2_tabelas.sql');
+const TAB = ler('20261014170750_mentoria_onda2_tabelas.sql');
 
 const TABELAS = [
   'mentoria_sessoes', 'mentoria_agenda_liberacoes', 'mural_posts', 'mural_destinatarios',

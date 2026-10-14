@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const dir = join(process.cwd(), 'supabase', 'migrations');
 const ler = (nome: string) => readFileSync(join(dir, nome), 'utf8');
-const TURMA = ler('20261014200100_mentoria_onda2_rpcs_turma.sql');
+const TURMA = ler('20261014170806_mentoria_onda2_rpcs_turma.sql');
 
 describe('Onda 2 · turma', () => {
   it('as duas RPCs exigem mentor ativo', () => {
