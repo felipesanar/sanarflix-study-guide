@@ -139,10 +139,33 @@ describe('InicioMentor', () => {
       'href',
       '/mentor/turma?filtro=nao_fez',
     );
-    expect(screen.getByRole('link', { name: 'Ver os 1 que regrediram' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Ver o aluno que regrediu' })).toHaveAttribute(
       'href',
       '/mentor/turma?filtro=regrediu',
     );
+    expect(screen.getByRole('link', { name: 'Ver o aluno estagnado' })).toHaveAttribute(
+      'href',
+      '/mentor/turma?filtro=estagnado',
+    );
+    expect(screen.queryByRole('link', { name: /Ver os 1 /i })).not.toBeInTheDocument();
+  });
+
+  it('usa o plural nos links dos alertas quando há mais de um aluno', async () => {
+    fetchTurma.mockResolvedValue([comSegmento('a@x.com', 'Alice', 'ativo', 1)]);
+    fetchDesempenhoTurma.mockResolvedValue(
+      desempenho(
+        [
+          desempAluno({ email: 'a@x.com', notas: [nota(SIM1, 1, 70), nota(SIM2, 2, 60)], regrediu: true, estagnado: true, fez_ultimo: true }),
+          desempAluno({ email: 'b@x.com', notas: [nota(SIM1, 1, 70), nota(SIM2, 2, 60)], regrediu: true, estagnado: true, fez_ultimo: true }),
+          desempAluno({ email: 'c@x.com', notas: [nota(SIM1, 1, 55)], fez_ultimo: false }),
+        ],
+        { participacao_ultimo: { simulado_id: SIM2, fizeram: 2, total: 3 } },
+      ),
+    );
+    renderInicio();
+    expect(await screen.findByRole('link', { name: 'Ver os 2 que regrediram' }, T)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver os 2 estagnados' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver o aluno que não fez' })).toBeInTheDocument();
   });
 
   it('esconde faixa e alertas de simulado quando ninguém tem nota', async () => {

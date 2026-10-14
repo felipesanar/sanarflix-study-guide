@@ -1,7 +1,15 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import type { DesempenhoTurma } from '@/services/mentor/desempenho';
-import { formatDeltaPp, formatPct, resumoPorSimulado, rotuloSimulado, type SimuladoDisponivel } from './util';
+import {
+  escolherAtual,
+  formatDeltaPp,
+  formatPct,
+  indicadoresPorSimulado,
+  rotuloSimulado,
+  rotuloSimuladoAtual,
+  type SimuladoDisponivel,
+} from './util';
 
 interface Props {
   desempenho: DesempenhoTurma;
@@ -37,55 +45,51 @@ const Card: React.FC<{ titulo: string; valor: string; sub?: string; children?: R
   </div>
 );
 
+const diff = (a: number | null | undefined, b: number | null | undefined) =>
+  a === null || a === undefined || b === null || b === undefined ? null : a - b;
+
 /**
- * Indicadores do recorte. O valor é o do último simulado do recorte; o
- * comparativo (vs. simulado anterior do recorte) só aparece com 2+ simulados.
- * Possível aprovação não tem comparativo: a RPC só devolve o valor do último.
+ * Indicadores do recorte, todos calculados no cliente a partir das notas dos
+ * alunos e rotulados com o simulado a que se referem. O "atual" é o último
+ * simulado encerrado do recorte (o que a RPC aponta em `participacao_ultimo`);
+ * se ele não estiver na seleção, o último selecionado com notas, marcado "em
+ * andamento". O comparativo é sempre com o simulado imediatamente anterior ao
+ * atual dentro da seleção, e só existe quando há um.
  */
 export const IndicadoresDetalhamento: React.FC<Props> = ({ desempenho, selecionados }) => {
-  const ultimo = selecionados[selecionados.length - 1];
-  const anterior = selecionados.length >= 2 ? selecionados[selecionados.length - 2] : null;
-  const resumo = resumoPorSimulado(
-    desempenho,
-    selecionados.map((s) => s.id),
-  );
-  const rUltimo = resumo[resumo.length - 1];
-  const rAnterior = anterior ? resumo[resumo.length - 2] : null;
+  const indicadores = indicadoresPorSimulado(desempenho.alunos, selecionados);
+  const { atual, anterior, emAndamento } = escolherAtual(indicadores, desempenho.participacao_ultimo.simulado_id);
+  const rotuloAtual = atual ? rotuloSimuladoAtual(atual.sequence_number, emAndamento) : null;
+  const rotuloAnterior = anterior ? rotuloSimulado(anterior.sequence_number) : null;
+  const deltaAcerto = diff(atual?.acerto_medio, anterior?.acerto_medio);
+  const deltaPart = diff(atual?.participacao_pct, anterior?.participacao_pct);
 
-  const deltaAcerto =
-    rAnterior && rUltimo?.acerto_medio !== null && rAnterior.acerto_medio !== null && rUltimo
-      ? rUltimo.acerto_medio - rAnterior.acerto_medio
-      : null;
-  const pctPart = (r: { fizeram: number; total: number }) => (r.total > 0 ? (r.fizeram / r.total) * 100 : 0);
-  const deltaPart = rAnterior && rUltimo ? pctPart(rUltimo) - pctPart(rAnterior) : null;
-
-  const part = desempenho.participacao_ultimo;
-  const partPct = part.total > 0 ? (part.fizeram / part.total) * 100 : null;
+  const aprovacaoSub = !atual
+    ? undefined
+    : atual.possivel_aprovacao_pct === null
+      ? `Sem alunos com meta e corte cadastrados · ${rotuloAtual}`
+      : `${atual.no_corte} de ${atual.com_corte} ${atual.com_corte === 1 ? 'aluno' : 'alunos'} no corte da meta · ${rotuloAtual}`;
 
   return (
     <section aria-label="Indicadores" className="grid gap-3 sm:grid-cols-3">
       <Card
         titulo="Percentual de acerto médio"
-        valor={formatPct(desempenho.acerto_medio_ultimo)}
-        sub={ultimo ? `No ${rotuloSimulado(ultimo.sequence_number)}` : undefined}
+        valor={formatPct(atual?.acerto_medio)}
+        sub={rotuloAtual ? `No ${rotuloAtual}` : undefined}
       >
-        {anterior && <Delta valor={deltaAcerto} ref_={rotuloSimulado(anterior.sequence_number)} />}
+        {rotuloAnterior && <Delta valor={deltaAcerto} ref_={rotuloAnterior} />}
       </Card>
-      <Card
-        titulo="Possível aprovação"
-        valor={formatPct(desempenho.possivel_aprovacao_pct)}
-        sub={
-          desempenho.possivel_aprovacao_pct === null
-            ? 'Sem alunos com meta e corte cadastrados'
-            : 'Alunos no corte da meta, no último simulado do recorte'
-        }
-      />
+      <Card titulo="Possível aprovação" valor={formatPct(atual?.possivel_aprovacao_pct)} sub={aprovacaoSub} />
       <Card
         titulo="Participação"
-        valor={formatPct(partPct)}
-        sub={`${part.fizeram} de ${part.total} ${part.total === 1 ? 'aluno' : 'alunos'}`}
+        valor={formatPct(atual?.participacao_pct)}
+        sub={
+          atual
+            ? `${atual.fizeram} de ${atual.total} ${atual.total === 1 ? 'aluno' : 'alunos'} · ${rotuloAtual}`
+            : undefined
+        }
       >
-        {anterior && <Delta valor={deltaPart} ref_={rotuloSimulado(anterior.sequence_number)} />}
+        {rotuloAnterior && <Delta valor={deltaPart} ref_={rotuloAnterior} />}
       </Card>
     </section>
   );

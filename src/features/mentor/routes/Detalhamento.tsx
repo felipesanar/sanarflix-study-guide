@@ -113,6 +113,7 @@ const Detalhamento: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Sem questões respondidas neste recorte.</p>
                 ) : (
                   <ListaQuestoes
+                    key={selecionados.join(',')}
                     questoes={detalhe.data.questoes}
                     multiSimulado={selecionados.length > 1}
                     onAbrir={setAberta}

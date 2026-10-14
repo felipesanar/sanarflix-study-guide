@@ -76,28 +76,102 @@ export function ordenarSelecao(ids: string[], lista: SimuladoDisponivel[]): stri
   return [...ids].sort((a, b) => (posicao.get(a) ?? 0) - (posicao.get(b) ?? 0));
 }
 
-export interface ResumoSimulado {
-  simulado_id: string;
-  acerto_medio: number | null;
-  fizeram: number;
-  total: number;
+/** "Simulado 3" ou "Simulado 3 · em andamento". */
+export function rotuloSimuladoAtual(sequence: number, emAndamento: boolean): string {
+  return emAndamento ? `${rotuloSimulado(sequence)} · em andamento` : rotuloSimulado(sequence);
 }
 
-/** Acerto médio e participação por simulado, calculados das notas da turma. */
-export function resumoPorSimulado(desempenho: DesempenhoTurma, ids: string[]): ResumoSimulado[] {
-  const total = desempenho.alunos.length;
-  return ids.map((id) => {
-    const notas = desempenho.alunos
-      .map((a) => a.notas?.find((n) => n.simulado_id === id))
-      .filter((n): n is NonNullable<typeof n> => !!n);
-    const soma = notas.reduce((acc, n) => acc + n.acerto_pct, 0);
+export interface IndicadoresSimulado {
+  simulado_id: string;
+  sequence_number: number;
+  /** Média do % de acerto de quem fez este simulado; null se ninguém fez. */
+  acerto_medio: number | null;
+  fizeram: number;
+  /** Alunos da turma (denominador da participação). */
+  total: number;
+  /** % da turma que fez este simulado; null com turma vazia. */
+  participacao_pct: number | null;
+  /** Alunos que fizeram e têm corte cadastrado (denominador da possível aprovação). */
+  com_corte: number;
+  /** Desses, quantos alcançaram o corte (acerto >= corte_mais_dificil). */
+  no_corte: number;
+  /** % no corte entre os que têm corte; null quando ninguém tem corte. */
+  possivel_aprovacao_pct: number | null;
+}
+
+/**
+ * Indicadores calculados no cliente, simulado a simulado, a partir das notas
+ * dos alunos. Não dependem do "último encerrado" da RPC: valem para qualquer
+ * simulado do recorte, aberto ou encerrado.
+ */
+export function indicadoresPorSimulado(
+  alunos: AlunoDesempenho[],
+  selecionados: Pick<SimuladoDisponivel, 'id' | 'sequence_number'>[],
+): IndicadoresSimulado[] {
+  const total = alunos.length;
+  return selecionados.map((sim) => {
+    let fizeram = 0;
+    let soma = 0;
+    let comCorte = 0;
+    let noCorte = 0;
+    for (const aluno of alunos) {
+      const nota = aluno.notas?.find((n) => n.simulado_id === sim.id);
+      if (!nota) continue;
+      fizeram += 1;
+      soma += nota.acerto_pct;
+      if (aluno.corte_mais_dificil !== null && aluno.corte_mais_dificil !== undefined) {
+        comCorte += 1;
+        if (nota.acerto_pct >= aluno.corte_mais_dificil) noCorte += 1;
+      }
+    }
     return {
-      simulado_id: id,
-      acerto_medio: notas.length ? soma / notas.length : null,
-      fizeram: notas.length,
+      simulado_id: sim.id,
+      sequence_number: sim.sequence_number,
+      acerto_medio: fizeram > 0 ? soma / fizeram : null,
+      fizeram,
       total,
+      participacao_pct: total > 0 ? (fizeram / total) * 100 : null,
+      com_corte: comCorte,
+      no_corte: noCorte,
+      possivel_aprovacao_pct: comCorte > 0 ? (noCorte / comCorte) * 100 : null,
     };
   });
+}
+
+export interface SimuladoAtual {
+  atual: IndicadoresSimulado | null;
+  /** Simulado anterior ao atual dentro da seleção (base do "vs."). */
+  anterior: IndicadoresSimulado | null;
+  /** true quando o atual não é o último simulado encerrado da RPC. */
+  emAndamento: boolean;
+}
+
+/**
+ * "Atual" = o último simulado encerrado da RPC (`participacao_ultimo.simulado_id`)
+ * se estiver na seleção; senão, o último da seleção com notas (em andamento).
+ * `indicadores` vem em ordem cronológica.
+ */
+export function escolherAtual(
+  indicadores: IndicadoresSimulado[],
+  encerradoId: string | null | undefined,
+): SimuladoAtual {
+  let idx = encerradoId ? indicadores.findIndex((i) => i.simulado_id === encerradoId) : -1;
+  const encerrado = idx >= 0;
+  if (!encerrado) {
+    for (let i = indicadores.length - 1; i >= 0; i -= 1) {
+      if (indicadores[i].fizeram > 0) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx < 0 && indicadores.length > 0) idx = indicadores.length - 1;
+  }
+  if (idx < 0) return { atual: null, anterior: null, emAndamento: false };
+  return {
+    atual: indicadores[idx],
+    anterior: idx > 0 ? indicadores[idx - 1] : null,
+    emAndamento: !encerrado,
+  };
 }
 
 export function ordenarQuestoes(questoes: QuestaoDetalhe[], ordem: OrdenacaoQuestoes): QuestaoDetalhe[] {

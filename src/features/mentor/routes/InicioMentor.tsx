@@ -147,6 +147,10 @@ const CardAFazer: React.FC = () => {
   );
 };
 
+/** "Ver o aluno que regrediu" / "Ver os 3 que regrediram". */
+const verOsQue = (n: number, singular: string, pluralForma: string): string =>
+  n === 1 ? `Ver ${singular}` : `Ver os ${n} ${pluralForma}`;
+
 const CardAlerta: React.FC<{
   titulo: string;
   descricao: string;
@@ -198,23 +202,23 @@ const AlertasSimulados: React.FC<{ habilitado: boolean }> = ({ habilitado }) => 
           qtd={alertas.regrediu}
           vazio="Ninguém regrediu."
           link="/mentor/turma?filtro=regrediu"
-          rotuloLink={`Ver os ${alertas.regrediu} que regrediram`}
+          rotuloLink={verOsQue(alertas.regrediu, 'o aluno que regrediu', 'que regrediram')}
         />
         <CardAlerta
-          titulo="Estagnados"
-          descricao="Menos de 2 p.p. de variação nos 3 últimos simulados"
+          titulo='Estagnados'
+          descricao='Menos de 2 p.p. de variação nos 3 últimos simulados'
           qtd={alertas.estagnado}
-          vazio="Ninguém estagnado."
-          link="/mentor/turma?filtro=estagnado"
-          rotuloLink={`Ver os ${alertas.estagnado} estagnados`}
+          vazio='Ninguém estagnado.'
+          link='/mentor/turma?filtro=estagnado'
+          rotuloLink={verOsQue(alertas.estagnado, 'o aluno estagnado', 'estagnados')}
         />
         <CardAlerta
-          titulo="Não fizeram o último simulado"
-          descricao="Simulado encerrado, sem tentativa finalizada"
+          titulo='Não fizeram o último simulado'
+          descricao='Simulado encerrado, sem tentativa finalizada'
           qtd={alertas.nao_fez}
-          vazio="Todos fizeram."
-          link="/mentor/turma?filtro=nao_fez"
-          rotuloLink={`Ver os ${alertas.nao_fez} que não fizeram`}
+          vazio='Todos fizeram.'
+          link='/mentor/turma?filtro=nao_fez'
+          rotuloLink={verOsQue(alertas.nao_fez, 'o aluno que não fez', 'que não fizeram')}
         />
       </div>
     </div>

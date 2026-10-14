@@ -88,12 +88,10 @@ export const ListaQuestoes: React.FC<Props> = ({ questoes, multiSimulado, onAbri
       ) : (
         <ul className="divide-y rounded-xl border bg-card">
           {visiveis.slice(0, limite).map((q) => {
-            const nome = `Abrir questão ${q.numero}${multiSimulado ? ` do ${rotuloSimulado(q.sequence_number)}` : ''}`;
             return (
               <li key={q.questao_id}>
                 <button
                   type="button"
-                  aria-label={nome}
                   onClick={() => onAbrir(q)}
                   className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 p-3 text-left hover:bg-muted/50 sm:grid-cols-[8rem_1fr_10rem_5rem_6rem]"
                 >
