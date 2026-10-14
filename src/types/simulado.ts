@@ -21,6 +21,7 @@ export interface Questao {
   alternativa_b: string;
   alternativa_c: string;
   alternativa_d: string;
+  alternativa_e?: string;
   gabarito: 'A' | 'B' | 'C' | 'D';
   imagem?: string;
   imagem_2?: string;

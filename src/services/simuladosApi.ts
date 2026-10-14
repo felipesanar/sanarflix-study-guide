@@ -136,6 +136,7 @@ export const simuladosApi = {
       alternativa_b: q.alternativa_b || '',
       alternativa_c: q.alternativa_c || '',
       alternativa_d: q.alternativa_d || '',
+      alternativa_e: q.alternativa_e || '',
       gabarito: (q.correta || 'A') as 'A' | 'B' | 'C' | 'D',
       imagem: q.imagem || undefined,
       imagem_2: (q as any).imagem_2 || undefined,

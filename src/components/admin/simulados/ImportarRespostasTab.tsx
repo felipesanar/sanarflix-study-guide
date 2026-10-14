@@ -173,7 +173,7 @@ export default function ImportarRespostasTab() {
     }
     const headers = ['matricula_ra', ...Array.from({ length: total }, (_, i) => `Questão ${i + 1}`)];
     const sample: Record<string, string | number> = { matricula_ra: '2023001234' };
-    for (let i = 1; i <= total; i++) sample[`Questão ${i}`] = ['A', 'B', 'C', 'D'][i % 4];
+    for (let i = 1; i <= total; i++) sample[`Questão ${i}`] = ['A', 'B', 'C', 'D', 'E'][i % 5];
 
     const ws = XLSX.utils.json_to_sheet([sample], { header: headers });
     const wb = XLSX.utils.book_new();
