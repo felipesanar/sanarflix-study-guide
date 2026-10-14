@@ -6,3 +6,6 @@ verify_jwt = false
 [functions.metabase-proxy]
 verify_jwt = false
 
+[functions.mentoria-api]
+# Auth propria: chave injetada pelo Kong (x-mentoria-key), nao JWT.
+verify_jwt = false
