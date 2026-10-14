@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { fetchMentorContexto } from '@/services/mentor/contexto';
 import { fetchTurma } from '@/services/mentor/turma';
+import { fetchDesempenhoTurma } from '@/services/mentor/desempenho';
 import { listarSessoes } from '@/services/mentor/sessoes';
 import { listarIntervencoes } from '@/services/mentor/intervencoes';
 import { ehLinkHttp } from '@/features/mentor/lib/linkSeguro';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
+import { contarAlertas, numeroUltimoSimulado, temDadosSimulado, formatPct } from '@/features/mentor/components/turma/simulados';
 import { formatDiaMesHora, formatUltimoAcesso, nomeOuEmail, plural } from '@/features/mentor/components/turma/util';
 
 const MAX_NOMES_SUMIDOS = 5;
@@ -145,10 +147,84 @@ const CardAFazer: React.FC = () => {
   );
 };
 
+const CardAlerta: React.FC<{
+  titulo: string;
+  descricao: string;
+  qtd: number;
+  vazio: string;
+  link: string;
+  rotuloLink: string;
+}> = ({ titulo, descricao, qtd, vazio, link, rotuloLink }) => (
+  <CardBase titulo={titulo}>
+    <p className="text-3xl font-semibold">{qtd}</p>
+    <p className="text-xs text-muted-foreground">{descricao}</p>
+    {qtd === 0 ? (
+      <p className="text-sm text-muted-foreground">{vazio}</p>
+    ) : (
+      <Button asChild variant="outline" size="sm">
+        <Link to={link}>{rotuloLink}</Link>
+      </Button>
+    )}
+  </CardBase>
+);
+
+/** Faixa do último simulado + alertas. Só aparece quando a turma tem nota de simulado. */
+const AlertasSimulados: React.FC<{ habilitado: boolean }> = ({ habilitado }) => {
+  const desempenho = useQuery({
+    queryKey: ['mentor', 'desempenho', 'todos'],
+    queryFn: () => fetchDesempenhoTurma(),
+    enabled: habilitado,
+  });
+  const dados = desempenho.data;
+  if (!dados || !temDadosSimulado(dados)) return null;
+
+  const alertas = contarAlertas(dados.alunos);
+  const { simulado_id, fizeram, total } = dados.participacao_ultimo;
+  const numero = numeroUltimoSimulado(dados);
+  const pct = total > 0 ? (fizeram / total) * 100 : 0;
+
+  return (
+    <div className="space-y-4">
+      {simulado_id && (
+        <p className="rounded-xl border bg-card px-4 py-3 text-sm">
+          <span className="font-medium">{numero !== null ? `Simulado ${numero}` : 'Último simulado'}</span>
+          {' · '}fizeram {fizeram} de {total} ({formatPct(pct)})
+        </p>
+      )}
+      <div className="grid gap-4 md:grid-cols-3">
+        <CardAlerta
+          titulo="Regrediram"
+          descricao="Queda de 5 p.p. ou mais entre os 2 últimos simulados"
+          qtd={alertas.regrediu}
+          vazio="Ninguém regrediu."
+          link="/mentor/turma?filtro=regrediu"
+          rotuloLink={`Ver os ${alertas.regrediu} que regrediram`}
+        />
+        <CardAlerta
+          titulo="Estagnados"
+          descricao="Menos de 2 p.p. de variação nos 3 últimos simulados"
+          qtd={alertas.estagnado}
+          vazio="Ninguém estagnado."
+          link="/mentor/turma?filtro=estagnado"
+          rotuloLink={`Ver os ${alertas.estagnado} estagnados`}
+        />
+        <CardAlerta
+          titulo="Não fizeram o último simulado"
+          descricao="Simulado encerrado, sem tentativa finalizada"
+          qtd={alertas.nao_fez}
+          vazio="Todos fizeram."
+          link="/mentor/turma?filtro=nao_fez"
+          rotuloLink={`Ver os ${alertas.nao_fez} que não fizeram`}
+        />
+      </div>
+    </div>
+  );
+};
+
 /**
  * Início do mentor (tela 01) — alertas da turma, próxima sessão coletiva e
- * as intervenções a fazer. Regrediram/Estagnados/Não fizeram o simulado ficam
- * de fora: dependem da integração dos simulados B2C.
+ * as intervenções a fazer. Regrediram/Estagnados/Não fizeram e a faixa do
+ * último simulado só aparecem quando a turma tem nota de simulado.
  */
 const InicioMentor: React.FC = () => {
   const contexto = useQuery({ queryKey: ['mentor', 'contexto'], queryFn: fetchMentorContexto });
@@ -203,6 +279,8 @@ const InicioMentor: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <AlertasSimulados habilitado={!!contexto.data?.mentor} />
 
       <div className="grid gap-4 md:grid-cols-3">
         <CardSumiram />

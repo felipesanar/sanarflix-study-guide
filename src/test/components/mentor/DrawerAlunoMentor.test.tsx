@@ -5,9 +5,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { aluno } from './fixtures';
 
 const fetchAluno = vi.fn();
+const fetchAlunoNotas = vi.fn();
 const liberarAgenda = vi.fn();
 const desligarAgenda = vi.fn();
 vi.mock('@/services/mentor/turma', () => ({ fetchAluno: (e: string) => fetchAluno(e) }));
+vi.mock('@/services/mentor/desempenho', () => ({ fetchAlunoNotas: (e: string) => fetchAlunoNotas(e) }));
 vi.mock('@/services/mentor/sessoes', () => ({
   liberarAgenda: (...a: unknown[]) => liberarAgenda(...a),
   desligarAgenda: (...a: unknown[]) => desligarAgenda(...a),
@@ -47,6 +49,7 @@ function detalhe(over: Record<string, unknown> = {}) {
 describe('DrawerAlunoMentor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchAlunoNotas.mockResolvedValue({ email: 'a@x.com', notas: [], areas: [] });
     liberarAgenda.mockResolvedValue({ liberados: 1, intervencoes: 1 });
     desligarAgenda.mockResolvedValue({ desligados: 1 });
   });
@@ -124,5 +127,54 @@ describe('DrawerAlunoMentor', () => {
     fetchAluno.mockRejectedValue(new Error('boom'));
     renderDrawer();
     expect(await screen.findByRole('button', { name: 'Tentar de novo' }, T)).toBeInTheDocument();
+  });
+
+  it('mostra as notas dos simulados e o desempenho por área', async () => {
+    fetchAluno.mockResolvedValue(detalhe());
+    fetchAlunoNotas.mockResolvedValue({
+      email: 'a@x.com',
+      notas: [
+        { simulado_id: 's2', sequence_number: 2, titulo: 'Simulado Nacional 2', acerto_pct: 64.5, finalizada_em: '2026-10-08T15:00:00Z' },
+        { simulado_id: 's1', sequence_number: 1, titulo: 'Simulado Nacional 1', acerto_pct: 58, finalizada_em: '2026-09-20T15:00:00Z' },
+      ],
+      areas: [
+        {
+          grande_area: 'Clínica Médica',
+          acerto_pct: 61,
+          respostas: 40,
+          temas: [{ tema: 'Hipertensão', acerto_pct: 45, respostas: 8 }],
+        },
+      ],
+    });
+    renderDrawer();
+    expect(await screen.findByRole('heading', { name: 'Notas dos simulados' }, T)).toBeInTheDocument();
+    expect(screen.getByText('Simulado Nacional 1')).toBeInTheDocument();
+    expect(screen.getByText('58%')).toBeInTheDocument();
+    expect(screen.getByText('64,5%')).toBeInTheDocument();
+    expect(screen.getByText('08/10')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Desempenho por área' })).toBeInTheDocument();
+    expect(screen.getByText('Clínica Médica')).toBeInTheDocument();
+    expect(screen.getByText('Hipertensão')).toBeInTheDocument();
+    expect(screen.getByText('45%')).toBeInTheDocument();
+    expect(screen.getByText('8 respostas')).toBeInTheDocument();
+    expect(fetchAlunoNotas).toHaveBeenCalledWith('a@x.com');
+  });
+
+  it('esconde as seções de simulado quando o aluno não tem notas nem áreas', async () => {
+    fetchAluno.mockResolvedValue(detalhe());
+    renderDrawer();
+    await screen.findByText('Alice Souza', undefined, T);
+    await waitFor(() => expect(fetchAlunoNotas).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Carregando simulados…')).not.toBeInTheDocument());
+    expect(screen.queryByRole('heading', { name: 'Notas dos simulados' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Desempenho por área' })).not.toBeInTheDocument();
+  });
+
+  it('mostra erro quando as notas falham, sem derrubar o resto do drawer', async () => {
+    fetchAluno.mockResolvedValue(detalhe());
+    fetchAlunoNotas.mockRejectedValue(new Error('boom'));
+    renderDrawer();
+    expect(await screen.findByText(/Não foi possível carregar os simulados/, undefined, T)).toBeInTheDocument();
+    expect(screen.getByText('Alice Souza')).toBeInTheDocument();
   });
 });
