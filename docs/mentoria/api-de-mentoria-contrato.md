@@ -85,7 +85,8 @@ aparece. Sem mentor: `itens: []`, `tem_pra_voce: false`.
   ]
 }
 ```
-Próximas: do mentor atual do aluno, agendadas e a partir de agora; as coletivas
+Próximas: do mentor atual do aluno, agendadas e ainda não encerradas (início +
+duração ≥ agora, então uma sessão em andamento continua na lista); as coletivas
 mais a individual do próprio aluno (nunca a de outro). Realizadas: coletivas de
 todos os mentores com gravação, mais o arquivo 2025 (sem mentor: `mentor_nome`
 `null`), até 200, da mais recente para a mais antiga; `meet_link` vem `null`

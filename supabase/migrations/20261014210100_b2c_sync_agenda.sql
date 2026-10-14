@@ -4,7 +4,14 @@
 -- (o controller o cadastra; o valor nunca é versionado).
 -- Idempotente: remove o job anterior de mesmo nome antes de agendar.
 
-select cron.unschedule(jobid) from cron.job where jobname = 'sync-simulados-b2c';
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM vault.secrets WHERE name = 'service_role_key') THEN RAISE EXCEPTION 'cadastre service_role_key no Vault antes de agendar o sync'; END IF; END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (select 1 from cron.job where jobname = 'sync-simulados-b2c') THEN
+    PERFORM cron.unschedule('sync-simulados-b2c');
+  END IF;
+END $$;
 
 select cron.schedule(
   'sync-simulados-b2c',

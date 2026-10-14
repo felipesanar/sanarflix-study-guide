@@ -27,6 +27,18 @@ describe('migration b2c_sync_agenda', () => {
     expect(sql).toContain("name = 'service_role_key'");
   });
 
+  it('falha cedo se o segredo service_role_key não está no Vault', () => {
+    const guard = sql.indexOf("FROM vault.secrets WHERE name = 'service_role_key'");
+    expect(guard).toBeGreaterThan(-1);
+    expect(sql).toContain("RAISE EXCEPTION 'cadastre service_role_key no Vault antes de agendar o sync'");
+    expect(guard).toBeLessThan(sql.indexOf('cron.schedule'));
+  });
+
+  it('só desagenda se o job existe (guardado por cron.job)', () => {
+    expect(sql).toMatch(/IF EXISTS \(select 1 from cron\.job where jobname = 'sync-simulados-b2c'\)/i);
+    expect(sql).toMatch(/PERFORM cron\.unschedule\('sync-simulados-b2c'\)/);
+  });
+
   it('não versiona nenhum JWT literal', () => {
     expect(sql).not.toMatch(/eyJ/);
   });
