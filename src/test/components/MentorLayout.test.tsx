@@ -61,13 +61,14 @@ describe('MentorLayout', () => {
     expect(logout).toHaveBeenCalledTimes(1);
   });
 
-  it('expõe os 5 itens de menu (desktop e mobile) com os hrefs certos — b2c: Minha Turma', async () => {
+  it('expõe os 6 itens de menu (desktop e mobile) com os hrefs certos — b2c: Minha Turma', async () => {
     const { settled } = renderLayout();
     await settled();
     expect(fetchMentorContexto).toHaveBeenCalled();
     const esperados: Array<[string, string]> = [
       ['Início', '/mentor'],
       ['Minha Turma', '/mentor/turma'],
+      ['Detalhamento', '/mentor/detalhamento'],
       ['Mural', '/mentor/mural'],
       ['Sessões', '/mentor/sessoes'],
       ['Intervenções', '/mentor/intervencoes'],

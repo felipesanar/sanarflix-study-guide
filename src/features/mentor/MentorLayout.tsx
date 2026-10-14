@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { CalendarDays, Home, KanbanSquare, LogOut, Megaphone, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, Home, KanbanSquare, LogOut, Megaphone, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,6 +15,7 @@ import { fetchMentorContexto } from '@/services/mentor/contexto';
 const NAV_ITENS = [
   { title: 'Início', url: '/mentor', icon: Home, end: true },
   { title: 'Minha Turma', url: '/mentor/turma', icon: Users, end: false },
+  { title: 'Detalhamento', url: '/mentor/detalhamento', icon: BarChart3, end: false },
   { title: 'Mural', url: '/mentor/mural', icon: Megaphone, end: false },
   { title: 'Sessões', url: '/mentor/sessoes', icon: CalendarDays, end: false },
   { title: 'Intervenções', url: '/mentor/intervencoes', icon: KanbanSquare, end: false },

@@ -410,12 +410,13 @@ describe('experiences/buildAppRoutes — mentor', () => {
     expect(redirectTarget(indexChild)).toBeUndefined();
   });
 
-  it('/mentor tem os filhos index, turma, mural, sessoes e intervencoes, nessa ordem', () => {
+  it('/mentor tem os filhos index, turma, detalhamento, mural, sessoes e intervencoes, nessa ordem', () => {
     const routes = routesForRoles(['mentor'], alunoRules);
     const children = routes.get('/mentor')?.children ?? [];
     expect(children.map((c) => (c.index ? 'index' : c.path))).toEqual([
       'index',
       'turma',
+      'detalhamento',
       'mural',
       'sessoes',
       'intervencoes',

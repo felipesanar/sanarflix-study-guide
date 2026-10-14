@@ -5,6 +5,7 @@ import { MentorLayout } from '@/features/mentor/MentorLayout';
 
 const InicioMentor = lazy(() => import('@/features/mentor/routes/InicioMentor'));
 const MinhaTurma = lazy(() => import('@/features/mentor/routes/MinhaTurma'));
+const Detalhamento = lazy(() => import('@/features/mentor/routes/Detalhamento'));
 const Mural = lazy(() => import('@/features/mentor/routes/Mural'));
 const Sessoes = lazy(() => import('@/features/mentor/routes/Sessoes'));
 const Intervencoes = lazy(() => import('@/features/mentor/routes/Intervencoes'));
@@ -21,6 +22,7 @@ export const mentorRoutes = (): RouteObject[] => [
     children: [
       { index: true, element: <InicioMentor /> },
       { path: 'turma', element: <MinhaTurma /> },
+      { path: 'detalhamento', element: <Detalhamento /> },
       { path: 'mural', element: <Mural /> },
       { path: 'sessoes', element: <Sessoes /> },
       { path: 'intervencoes', element: <Intervencoes /> },
