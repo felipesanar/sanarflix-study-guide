@@ -112,6 +112,16 @@ describe('escolherAtual', () => {
     expect(anterior?.simulado_id).toBe('s2');
   });
 
+  it('o encerrado da RPC na seleção é Atual mesmo sem nenhuma nota (não "em andamento")', () => {
+    const comVazio = indicadoresPorSimulado(alunos, [...SELECAO, { id: 's4', sequence_number: 4 }]);
+    const { atual, anterior, emAndamento } = escolherAtual(comVazio, 's4');
+    expect(atual?.simulado_id).toBe('s4');
+    expect(atual?.fizeram).toBe(0);
+    expect(atual?.acerto_medio).toBeNull();
+    expect(anterior?.simulado_id).toBe('s3');
+    expect(emAndamento).toBe(false);
+  });
+
   it('seleção vazia não quebra', () => {
     expect(escolherAtual([], null)).toEqual({ atual: null, anterior: null, emAndamento: false });
   });

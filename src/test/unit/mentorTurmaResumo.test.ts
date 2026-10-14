@@ -108,6 +108,14 @@ describe('escolherSimuladosDosCards', () => {
     expect(r.anterior).toEqual(S1);
     expect(r.primeiro).toBeNull();
   });
+  it('o encerrado da RPC no recorte é Atual mesmo sem nenhuma nota (participação 0, acerto "–")', () => {
+    const r = escolherSimuladosDosCards([S1, S2, S3], [desempAluno({ email: 'a', notas: [nota(SIM1, 1, 50), nota(SIM2, 2, 60)] })], SIM3);
+    expect(r.atual).toEqual({ simulado: S3, emAndamento: false });
+    expect(r.anterior).toEqual(S2);
+    const resumo = resumoPorSimulado([desempAluno({ email: 'a', notas: [nota(SIM1, 1, 50)] })], S3);
+    expect(resumo.participacao).toEqual({ fizeram: 0, total: 1 });
+    expect(resumo.acertoMedio).toBeNull();
+  });
   it('recorte sem o encerrado da RPC cai no último com nota, em andamento', () => {
     const r = escolherSimuladosDosCards([S1, S3], alunos, SIM2);
     expect(r.atual).toEqual({ simulado: S3, emAndamento: true });

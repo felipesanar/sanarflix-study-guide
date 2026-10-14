@@ -52,7 +52,7 @@ export function validarFormulario(f: FormularioMural): string[] {
   if (!f.tag.trim()) erros.push('Escolha ou escreva uma tag.');
   if (!f.titulo.trim()) erros.push('Informe o título.');
   if (!f.mensagem.trim()) erros.push('Escreva a mensagem.');
-  if (f.linkUrl.trim() && !/^https:\/\/\S+/i.test(f.linkUrl.trim())) erros.push('Use um link https://');
+  if (f.linkUrl.trim() && !/^https:\/\/\S+$/i.test(f.linkUrl.trim())) erros.push('Use um link https://');
   if (f.linkUrl.trim() && !f.linkTitulo.trim()) erros.push('Dê um título ao link.');
   if (f.publico === 'selecionados' && f.destinatarios.length === 0) {
     erros.push('Selecione ao menos um aluno.');

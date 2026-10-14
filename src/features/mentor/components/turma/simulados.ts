@@ -76,10 +76,8 @@ export function passaAlerta(a: AlunoDesempenho | undefined, alerta: AlertaFiltro
 
 const nf = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
 
-/** % de acerto (0–100): "61%" / "61,5%". */
-export function formatPct(valor: number): string {
-  return `${nf.format(valor)}%`;
-}
+/** Implementação única em `detalhamento/util.ts` (aceita nulo e devolve "–"). */
+export { formatPct } from '../detalhamento/util';
 
 /** Distância em pontos percentuais, com sinal: "+3,2 p.p." / "-4 p.p.". */
 export function formatPp(valor: number): string {

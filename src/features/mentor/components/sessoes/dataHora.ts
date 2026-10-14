@@ -43,23 +43,7 @@ export function campoParaIso(valor: string): string {
   return new Date(`${valor}:00-03:00`).toISOString();
 }
 
-/** Só aceita https com host. */
-export function ehLinkHttps(valor: string): boolean {
-  try {
-    const u = new URL(valor.trim());
-    return u.protocol === 'https:' && u.hostname.length > 0;
-  } catch {
-    return false;
-  }
-}
+export { ehLinkHttps } from '../../lib/linkSeguro';
 
-/** Link seguro para href: só http(s). Bloqueia javascript:, data: etc. */
-export function ehLinkSeguro(valor: string | null | undefined): boolean {
-  if (!valor || !/^https?:\/\//i.test(valor.trim())) return false;
-  try {
-    const u = new URL(valor.trim());
-    return (u.protocol === 'https:' || u.protocol === 'http:') && u.hostname.length > 0;
-  } catch {
-    return false;
-  }
-}
+/** @deprecated Use `ehLinkHttps`: links são https apenas. */
+export { ehLinkHttps as ehLinkSeguro } from '../../lib/linkSeguro';
