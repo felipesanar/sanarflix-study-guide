@@ -68,7 +68,7 @@ export const MentorLayout: React.FC = () => {
       </nav>
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-card p-4 md:flex">
         <p className="mb-4 font-semibold text-foreground">Portal do Mentor</p>
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav aria-label="Navegação do mentor" className="flex flex-1 flex-col gap-1">
           {itens.map((item) => (
             <NavLink
               key={item.url}
