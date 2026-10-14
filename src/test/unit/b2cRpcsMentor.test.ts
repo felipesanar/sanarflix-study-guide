@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const SQL = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261014220000_b2c_rpcs_mentor.sql'), 'utf8');
+const SQL = readFileSync(join(process.cwd(), 'supabase', 'migrations', '20261014173149_b2c_rpcs_mentor.sql'), 'utf8');
 
 const corpo = (assinatura: string) => {
   const i = SQL.toLowerCase().indexOf(`create or replace function public.${assinatura}`.toLowerCase());
