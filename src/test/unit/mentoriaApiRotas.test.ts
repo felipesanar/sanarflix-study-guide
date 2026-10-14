@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolverRequisicao, compararSegredo } from '../../../supabase/functions/mentoria-api/rotas';
+import { resolverRequisicao, compararSegredo, ehErro } from '../../../supabase/functions/mentoria-api/rotas';
 
 const CHAVE = 'segredo-do-kong';
 const req = (over: Partial<Parameters<typeof resolverRequisicao>[0]> = {}) => ({
@@ -108,8 +108,8 @@ describe('mentoria-api · rotas', () => {
 
   it('toda resposta de erro traz mensagem em pt-BR', () => {
     const r = resolverRequisicao(req({ path: '/outra' }), CHAVE);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.corpo.mensagem.length).toBeGreaterThan(3);
+    expect(ehErro(r)).toBe(true);
+    if (ehErro(r)) expect(r.corpo.mensagem.length).toBeGreaterThan(3);
   });
 });
 

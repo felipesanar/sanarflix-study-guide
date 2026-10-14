@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { resolverRequisicao } from "./rotas.ts";
+import { ehErro, resolverRequisicao } from "./rotas.ts";
 
 // API de Mentoria para o SanarFlix PRO ENAMED (Flix).
 //
@@ -38,7 +38,7 @@ serve(async (request: Request) => {
       { method: request.method, path: url.pathname, headers, query },
       chave,
     );
-    if (!r.ok) return json(r.status, r.corpo);
+    if (ehErro(r)) return json(r.status, r.corpo);
 
     if (!supabaseUrl || !serviceKey) {
       console.error("mentoria-api: SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes");

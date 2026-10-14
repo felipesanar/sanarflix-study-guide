@@ -63,8 +63,10 @@ aluno (`agendamento_liberado: true`, com a `mensagem_liberacao` do mentor).
 `link` e `anexo` vêm `null` quando o post não tem. Só posts publicados do mentor
 atual do aluno. `coletivo` = posts para a turma; `pra-voce` = posts em que o
 aluno é destinatário. Página de 20, do mais novo ao mais antigo;
-`proximo_cursor` (timestamp ISO) é `null` na última página e vai de volta em
-`?cursor=` para buscar a seguinte. `tem_pra_voce: false` → a aba "Pra você" não
+`proximo_cursor` (timestamp ISO, ex.: `2026-10-08T15:00:00+00:00`) é `null` na
+última página e vai de volta em `?cursor=` para buscar a seguinte. O `cursor`
+deve ir codificado na URL (o `+` do offset vira `%2B`; sem isso o servidor lê
+espaço e responde `400 parametro_invalido`). `tem_pra_voce: false` → a aba "Pra você" não
 aparece. Sem mentor: `itens: []`, `tem_pra_voce: false`.
 
 ### GET /mentoria/sessoes?quando=proximas|realizadas

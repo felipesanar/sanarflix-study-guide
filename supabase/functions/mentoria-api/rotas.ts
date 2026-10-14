@@ -14,6 +14,11 @@ export type Resolucao =
   | { ok: true; rota: Rota; email: string; params: Record<string, string | undefined> }
   | { ok: false; status: number; corpo: { erro: string; mensagem: string } };
 
+export type ResolucaoErro = Extract<Resolucao, { ok: false }>;
+
+/** Type guard (tsconfig.app.json não é strict, então `!r.ok` não estreita a união). */
+export const ehErro = (r: Resolucao): r is ResolucaoErro => r.ok === false;
+
 const falha = (status: number, erro: string, mensagem: string): Resolucao => ({
   ok: false,
   status,
