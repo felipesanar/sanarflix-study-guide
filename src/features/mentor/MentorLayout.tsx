@@ -1,20 +1,36 @@
 import * as React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home, LogOut } from 'lucide-react';
+import { CalendarDays, Home, KanbanSquare, LogOut, Megaphone, Users } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { ExperienceSwitcher } from '@/experiences/shared/ExperienceSwitcher';
 import { cn } from '@/lib/utils';
+import { fetchMentorContexto } from '@/services/mentor/contexto';
 
 /**
- * Shell mínimo do Portal do Mentor (`/mentor/*`). Onda 1: só o Início.
- * As seções Minha Turma / Visão Geral, Mural, Sessões e Intervenções entram
- * nas próximas ondas, cada uma como item novo em NAV_ITENS.
+ * Shell do Portal do Mentor (`/mentor/*`). "Minha Turma" vira "Visão Geral"
+ * para mentor b2b (sem turma própria).
  */
-const NAV_ITENS = [{ title: 'Início', url: '/mentor', icon: Home, end: true }];
+const NAV_ITENS = [
+  { title: 'Início', url: '/mentor', icon: Home, end: true },
+  { title: 'Minha Turma', url: '/mentor/turma', icon: Users, end: false },
+  { title: 'Mural', url: '/mentor/mural', icon: Megaphone, end: false },
+  { title: 'Sessões', url: '/mentor/sessoes', icon: CalendarDays, end: false },
+  { title: 'Intervenções', url: '/mentor/intervencoes', icon: KanbanSquare, end: false },
+];
 
 export const MentorLayout: React.FC = () => {
   const { logout } = useAuth();
+  const { data: contexto } = useQuery({
+    queryKey: ['mentor', 'contexto'],
+    queryFn: fetchMentorContexto,
+  });
+  const itens = NAV_ITENS.map((item) =>
+    item.url === '/mentor/turma' && contexto?.mentor?.tipo === 'b2b'
+      ? { ...item, title: 'Visão Geral' }
+      : item,
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:flex-row">
@@ -29,10 +45,31 @@ export const MentorLayout: React.FC = () => {
           </Button>
         </div>
       </header>
+      <nav
+        aria-label="Navegação do mentor"
+        className="flex gap-1 overflow-x-auto border-b bg-card px-2 py-1 md:hidden"
+      >
+        {itens.map((item) => (
+          <NavLink
+            key={item.url}
+            to={item.url}
+            end={item.end}
+            className={({ isActive }) =>
+              cn(
+                'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
+                isActive ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )
+            }
+          >
+            <item.icon className="h-4 w-4" />
+            {item.title}
+          </NavLink>
+        ))}
+      </nav>
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-card p-4 md:flex">
         <p className="mb-4 font-semibold text-foreground">Portal do Mentor</p>
         <nav className="flex flex-1 flex-col gap-1">
-          {NAV_ITENS.map((item) => (
+          {itens.map((item) => (
             <NavLink
               key={item.url}
               to={item.url}

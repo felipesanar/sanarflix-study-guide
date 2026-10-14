@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const logout = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({
@@ -10,15 +11,40 @@ vi.mock('@/experiences/shared/ExperienceSwitcher', () => ({
   ExperienceSwitcher: () => <div data-testid="experience-switcher" />,
 }));
 
+const fetchMentorContexto = vi.fn();
+vi.mock('@/services/mentor/contexto', () => ({
+  fetchMentorContexto: () => fetchMentorContexto(),
+}));
+
 import { MentorLayout } from '@/features/mentor/MentorLayout';
 
-describe('MentorLayout', () => {
-  it('tem Sair e troca de experiência no desktop e na barra mobile', () => {
-    render(
+function contexto(tipo: 'b2c' | 'b2b') {
+  return {
+    mentor: { id: 'm1', nome: 'Ana Souza', tipo, turma_nome: 'Turma A' },
+    alunos_ativos: 3,
+  };
+}
+
+function renderLayout() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/mentor']}>
         <MentorLayout />
-      </MemoryRouter>,
-    );
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe('MentorLayout', () => {
+  beforeEach(() => {
+    logout.mockClear();
+    fetchMentorContexto.mockReset();
+    fetchMentorContexto.mockResolvedValue(contexto('b2c'));
+  });
+
+  it('tem Sair e troca de experiência no desktop e na barra mobile', () => {
+    renderLayout();
     const sair = screen.getAllByRole('button', { name: 'Sair' });
     expect(sair).toHaveLength(2);
     expect(screen.getAllByTestId('experience-switcher')).toHaveLength(2);
@@ -26,5 +52,31 @@ describe('MentorLayout', () => {
 
     fireEvent.click(sair[1]);
     expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('expõe os 5 itens de menu (desktop e mobile) com os hrefs certos — b2c: Minha Turma', async () => {
+    renderLayout();
+    const esperados: Array<[string, string]> = [
+      ['Início', '/mentor'],
+      ['Minha Turma', '/mentor/turma'],
+      ['Mural', '/mentor/mural'],
+      ['Sessões', '/mentor/sessoes'],
+      ['Intervenções', '/mentor/intervencoes'],
+    ];
+    for (const [nome, href] of esperados) {
+      const links = await screen.findAllByRole('link', { name: nome });
+      expect(links).toHaveLength(2);
+      links.forEach((l) => expect(l).toHaveAttribute('href', href));
+    }
+    expect(screen.queryByRole('link', { name: 'Visão Geral' })).toBeNull();
+  });
+
+  it('mentor b2b vê "Visão Geral" no lugar de "Minha Turma"', async () => {
+    fetchMentorContexto.mockResolvedValue(contexto('b2b'));
+    renderLayout();
+    const links = await screen.findAllByRole('link', { name: 'Visão Geral' });
+    expect(links).toHaveLength(2);
+    links.forEach((l) => expect(l).toHaveAttribute('href', '/mentor/turma'));
+    expect(screen.queryByRole('link', { name: 'Minha Turma' })).toBeNull();
   });
 });
