@@ -55,3 +55,10 @@ export function desempenho(alunos: AlunoDesempenho[], over: Partial<DesempenhoTu
 }
 
 export const SEM_DESEMPENHO: DesempenhoTurma = desempenho([]);
+
+/** Aluno com 1 simulado só: a RPC devolve regrediu/estagnado = null (não avaliável). */
+export function desempAlunoNulos(over: Partial<AlunoDesempenho> & { email: string }): AlunoDesempenho {
+  return desempAluno({ regrediu: null, estagnado: null, ...over });
+}
+
+export const SIM3 = 'sim-3';

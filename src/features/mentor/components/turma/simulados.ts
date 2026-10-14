@@ -61,16 +61,16 @@ export function numeroUltimoSimulado(d: DesempenhoTurma): number | null {
 
 export function contarAlertas(alunos: AlunoDesempenho[]): Record<AlertaFiltro, number> {
   return {
-    regrediu: alunos.filter((a) => a.regrediu).length,
-    estagnado: alunos.filter((a) => a.estagnado).length,
+    regrediu: alunos.filter((a) => a.regrediu === true).length,
+    estagnado: alunos.filter((a) => a.estagnado === true).length,
     nao_fez: alunos.filter((a) => a.fez_ultimo === false).length,
   };
 }
 
 export function passaAlerta(a: AlunoDesempenho | undefined, alerta: AlertaFiltro): boolean {
   if (!a) return false;
-  if (alerta === 'regrediu') return a.regrediu;
-  if (alerta === 'estagnado') return a.estagnado;
+  if (alerta === 'regrediu') return a.regrediu === true;
+  if (alerta === 'estagnado') return a.estagnado === true;
   return a.fez_ultimo === false;
 }
 

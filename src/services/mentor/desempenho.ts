@@ -24,8 +24,9 @@ export interface AlunoDesempenho {
   corte_mais_dificil: number | null;
   vs_corte_pp: number | null;
   situacao: SituacaoMeta;
-  regrediu: boolean;
-  estagnado: boolean;
+  /** null quando não dá para avaliar (menos de 2/3 simulados no escopo). */
+  regrediu: boolean | null;
+  estagnado: boolean | null;
   /** null quando não há simulado encerrado no escopo. */
   fez_ultimo: boolean | null;
 }
