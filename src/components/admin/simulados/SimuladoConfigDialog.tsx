@@ -56,16 +56,25 @@ const DURACAO_OPCOES = [
  * admin estender a data para o futuro, a prova volta a 'ativo' (reabertura
  * intencional); se a data continuar no passado, o resultado permanece
  * 'encerrado' pelo próprio cálculo de data.
+ *
+ * NUNCA devolve 'aguardando'. A RLS do aluno (`simulados_admin` e
+ * `questoes_simulado`) exige `status = 'ativo' AND (data_liberacao IS NULL OR
+ * data_liberacao <= now())`, ou seja, ela já segura a liberação pela própria
+ * `data_liberacao`. Persistir 'aguardando' para uma data futura deixava o
+ * simulado invisível para sempre: nada (cron, trigger, função) promove
+ * 'aguardando' para 'ativo' quando a data chega. 'Agendado' é só um estado de
+ * EXIBIÇÃO calculado pela data (`ProvasTab.calcularStatus`, monitor). Por isso
+ * `dataLiberacaoISO` não entra no cálculo; um simulado preso em 'aguardando' no
+ * banco volta a 'ativo' ao ser reeditado.
  */
 function calcularStatusSalvar(
-  dataLiberacaoISO: string | null,
+  _dataLiberacaoISO: string | null,
   dataEncerramentoISO: string | null,
   statusBancoAtual: 'aguardando' | 'ativo' | 'encerrado' | null,
-): 'aguardando' | 'ativo' | 'encerrado' {
+): 'ativo' | 'encerrado' {
   const agora = new Date();
   if (statusBancoAtual === 'encerrado') return 'encerrado';
   if (dataEncerramentoISO && new Date(dataEncerramentoISO) < agora) return 'encerrado';
-  if (dataLiberacaoISO && new Date(dataLiberacaoISO) > agora) return 'aguardando';
   return 'ativo';
 }
 
@@ -307,6 +316,7 @@ export default function SimuladoConfigDialog({
         'Alternativa B': 'Ecocardiograma',
         'Alternativa C': 'Cateterismo cardíaco',
         'Alternativa D': 'Ressonância magnética cardíaca',
+        'Alternativa E': 'Tomografia de tórax',
         Gabarito: 'A',
         Comentário: 'A radiografia de tórax é o exame inicial de escolha para avaliar dispneia.',
         'Imagem do Comentário': '',
@@ -447,8 +457,11 @@ export default function SimuladoConfigDialog({
           });
 
           const correta = String(normalizedRow['gabarito'] ?? '').toUpperCase();
-          if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
-            throw new Error(`Questão ${index + 1}: campo "Gabarito" inválido. Deve ser A, B, C ou D. Valor: "${correta}"`);
+          if (!correta || !['A', 'B', 'C', 'D', 'E'].includes(correta)) {
+            throw new Error(`Questão ${index + 1}: campo "Gabarito" inválido. Deve ser A, B, C, D ou E. Valor: "${correta}"`);
+          }
+          if (correta === 'E' && !String(normalizedRow['alternativa e'] ?? '').trim()) {
+            throw new Error(`Questão ${index + 1}: gabarito é "E", mas a coluna "Alternativa E" está vazia.`);
           }
 
           const numeroQuestao = Number(normalizedRow['numero']) || index + 1;
@@ -474,8 +487,8 @@ export default function SimuladoConfigDialog({
             alternativa_b: String(normalizedRow['alternativa b'] ?? ''),
             alternativa_c: String(normalizedRow['alternativa c'] ?? ''),
             alternativa_d: String(normalizedRow['alternativa d'] ?? ''),
-            alternativa_e: null,
-            correta: correta as 'A' | 'B' | 'C' | 'D',
+            alternativa_e: String(normalizedRow['alternativa e'] ?? '').trim() || null,
+            correta: correta as 'A' | 'B' | 'C' | 'D' | 'E',
             comentario: normalizedRow['comentário'] ? String(normalizedRow['comentário']) : null,
             feedback_corretas: null,
             imagem: null,
@@ -727,7 +740,7 @@ export default function SimuladoConfigDialog({
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Colunas obrigatórias: numero, Grande Área, Especialidade, Tema, Enunciado, Alternativa A–D, Gabarito,
+                Colunas obrigatórias: numero, Grande Área, Especialidade, Tema, Enunciado, Alternativa A–E (E opcional), Gabarito,
                 Comentário. Imagens coladas nas colunas de enunciado/comentário são extraídas automaticamente — se
                 alguma não puder ser vinculada a uma questão, você verá um aviso abaixo antes de poder salvar
                 (nenhuma imagem é perdida em silêncio).

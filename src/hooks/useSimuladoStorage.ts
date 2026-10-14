@@ -140,7 +140,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
     salvarEstadoDebounced(novoEstado);
   }, [carregarEstado, salvarEstadoDebounced]);
 
-  const eliminarAlternativa = useCallback((questaoId: string, alternativa: 'A' | 'B' | 'C' | 'D', eliminar: boolean) => {
+  const eliminarAlternativa = useCallback((questaoId: string, alternativa: 'A' | 'B' | 'C' | 'D' | 'E', eliminar: boolean) => {
     const estado = carregarEstado();
     if (!estado) return;
 
