@@ -9,3 +9,7 @@ verify_jwt = false
 [functions.mentoria-api]
 # Auth propria: chave injetada pelo Kong (x-mentoria-key), nao JWT.
 verify_jwt = false
+
+[functions.sync-simulados-b2c]
+# Auth propria: Bearer service role comparado em tempo constante no codigo.
+verify_jwt = false
