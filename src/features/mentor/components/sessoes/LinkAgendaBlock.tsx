@@ -9,11 +9,13 @@ interface Props {
   link: string;
   onLinkChange: (v: string) => void;
   salvo: boolean;
+  /** Valor já gravado no cadastro; só chama a RPC quando o link mudou. */
+  salvoValor?: string | null;
   onSalvo: (url: string) => void;
 }
 
 /** Bloco "Link do seu Google Agenda" — obrigatório antes de liberar a agenda. */
-export const LinkAgendaBlock: React.FC<Props> = ({ link, onLinkChange, salvo, onSalvo }) => {
+export const LinkAgendaBlock: React.FC<Props> = ({ link, onLinkChange, salvo, salvoValor, onSalvo }) => {
   const [erro, setErro] = React.useState<string | null>(null);
   const salvar = useMutation({
     mutationFn: (url: string) => definirLinkAgendamento(url),
@@ -31,6 +33,11 @@ export const LinkAgendaBlock: React.FC<Props> = ({ link, onLinkChange, salvo, on
       setErro('Informe um link https válido do Google Agenda.');
       return;
     }
+    if (url === salvoValor) {
+      setErro(null);
+      onSalvo(url);
+      return;
+    }
     salvar.mutate(url);
   };
 
@@ -42,7 +49,7 @@ export const LinkAgendaBlock: React.FC<Props> = ({ link, onLinkChange, salvo, on
       <p className="text-sm text-muted-foreground">
         É o link que o aluno usa para marcar a sessão individual com você. Cadastre antes de liberar a agenda.
       </p>
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+      <form noValidate onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
         <Input
           type="url"
           aria-label="Link do seu Google Agenda"
@@ -62,7 +69,7 @@ export const LinkAgendaBlock: React.FC<Props> = ({ link, onLinkChange, salvo, on
           {erro}
         </p>
       )}
-      {salvo && !erro && <p className="text-sm text-emerald-700">Link salvo</p>}
+      {salvo && !erro && <p role="status" className="text-sm text-emerald-700">Link salvo</p>}
     </section>
   );
 };

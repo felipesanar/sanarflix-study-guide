@@ -2,6 +2,8 @@ import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fetchMentorContexto } from '@/services/mentor/contexto';
+import { fetchLinkAgendamento } from '@/services/mentor/agenda';
 import { listarSessoes } from '@/services/mentor/sessoes';
 import { fetchTurma } from '@/services/mentor/turma';
 import { AgendaTable } from '@/features/mentor/components/sessoes/AgendaTable';
@@ -37,16 +39,44 @@ const Sessoes: React.FC = () => {
   const [tipo, setTipo] = React.useState<FiltroTipo>('todas');
   const [quando, setQuando] = React.useState<FiltroQuando>('proximas');
   const [link, setLink] = React.useState('');
-  const [linkSalvo, setLinkSalvo] = React.useState(false);
+  /** Valor gravado no cadastro (ou salvo agora); o link só conta como salvo se for igual a ele. */
+  const [salvoValor, setSalvoValor] = React.useState<string | null>(null);
+  const linkSalvo = salvoValor !== null && link.trim() === salvoValor;
+
+  const contexto = useQuery({ queryKey: ['mentor', 'contexto'], queryFn: fetchMentorContexto });
+  const mentorId = contexto.data?.mentor?.user_id;
 
   const turma = useQuery({ queryKey: ['mentor', 'turma'], queryFn: fetchTurma });
+  // 'proximas' e 'realizadas' do banco escondem sessões que já passaram e não foram
+  // marcadas como feitas; por isso lemos 'todas' e filtramos aqui.
   const sessoes = useQuery({
-    queryKey: ['mentor', 'sessoes', quando],
-    queryFn: () => listarSessoes(quando),
+    queryKey: ['mentor', 'sessoes', 'todas'],
+    queryFn: () => listarSessoes('todas'),
+  });
+  const linkCadastrado = useQuery({
+    queryKey: ['mentor', 'link-agendamento', mentorId],
+    queryFn: () => fetchLinkAgendamento(mentorId as string),
+    enabled: !!mentorId,
   });
 
+  const prefillFeito = React.useRef(false);
+  React.useEffect(() => {
+    if (prefillFeito.current || !linkCadastrado.isSuccess) return;
+    prefillFeito.current = true;
+    if (linkCadastrado.data) {
+      setLink(linkCadastrado.data);
+      setSalvoValor(linkCadastrado.data);
+    }
+  }, [linkCadastrado.isSuccess, linkCadastrado.data]);
+
   const alunos = turma.data ?? [];
-  const lista = (sessoes.data ?? []).filter((s) => tipo === 'todas' || s.tipo === tipo);
+  const lista = React.useMemo(() => {
+    const todas = (sessoes.data ?? []).filter((s) => tipo === 'todas' || s.tipo === tipo);
+    const t = (s: { inicio: string }) => new Date(s.inicio).getTime();
+    return quando === 'proximas'
+      ? todas.filter((s) => s.status === 'agendada').sort((a, b) => t(a) - t(b))
+      : todas.filter((s) => s.status === 'realizada').sort((a, b) => t(b) - t(a));
+  }, [sessoes.data, tipo, quando]);
 
   return (
     <div className="space-y-6">
@@ -101,12 +131,13 @@ const Sessoes: React.FC = () => {
 
       <LinkAgendaBlock
         link={link}
-        onLinkChange={(v) => {
-          setLink(v);
-          setLinkSalvo(false);
-        }}
+        onLinkChange={setLink}
         salvo={linkSalvo}
-        onSalvo={() => setLinkSalvo(true)}
+        salvoValor={salvoValor}
+        onSalvo={(url) => {
+          setLink(url);
+          setSalvoValor(url);
+        }}
       />
 
       {turma.isLoading && <Skeleton className="h-40 w-full" aria-label="Carregando turma" />}
@@ -118,14 +149,15 @@ const Sessoes: React.FC = () => {
           </Button>
         </div>
       )}
-      {turma.isSuccess && (
+      {turma.isSuccess && mentorId && (
         <LiberarAgendaPanel
+          mentorId={mentorId}
           alunos={alunos}
           link={link}
           linkSalvo={linkSalvo}
           onLinkSalvo={(url) => {
             setLink(url);
-            setLinkSalvo(true);
+            setSalvoValor(url);
           }}
         />
       )}

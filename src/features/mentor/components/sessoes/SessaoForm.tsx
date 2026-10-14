@@ -64,6 +64,7 @@ export const SessaoForm: React.FC<Props> = ({ alunos, sessao, onFechar }) => {
 
   return (
     <form
+      noValidate
       onSubmit={submit}
       aria-label={sessao ? 'Editar sessão' : 'Nova sessão'}
       className="rounded-lg border bg-muted/30 p-4 space-y-3"

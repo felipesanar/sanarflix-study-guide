@@ -5,12 +5,24 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { listarLiberacoesLigadas } from '@/services/mentor/agenda';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { definirLinkAgendamento, desligarAgenda, liberarAgenda } from '@/services/mentor/sessoes';
 import type { AlunoTurma } from '@/services/mentor/turma';
 import { ehLinkHttps, formatarData } from './dataHora';
-import { listarLiberacoesLigadas } from './liberacoes';
 
 interface Props {
+  mentorId: string;
   alunos: AlunoTurma[];
   /** Link digitado no bloco do Google Agenda. */
   link: string;
@@ -20,7 +32,7 @@ interface Props {
 }
 
 /** Liberação em massa da agenda individual + lista de quem já está liberado. */
-export const LiberarAgendaPanel: React.FC<Props> = ({ alunos, link, linkSalvo, onLinkSalvo }) => {
+export const LiberarAgendaPanel: React.FC<Props> = ({ mentorId, alunos, link, linkSalvo, onLinkSalvo }) => {
   const qc = useQueryClient();
   const [busca, setBusca] = React.useState('');
   const [selecionados, setSelecionados] = React.useState<Set<string>>(new Set());
@@ -28,7 +40,7 @@ export const LiberarAgendaPanel: React.FC<Props> = ({ alunos, link, linkSalvo, o
   const [aviso, setAviso] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState<string | null>(null);
 
-  const liberacoes = useQuery({ queryKey: ['mentor', 'agenda-liberacoes'], queryFn: listarLiberacoesLigadas });
+  const liberacoes = useQuery({ queryKey: ['mentor', 'agenda-liberacoes', mentorId], queryFn: () => listarLiberacoesLigadas(mentorId) });
 
   const nomePorEmail = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -65,8 +77,15 @@ export const LiberarAgendaPanel: React.FC<Props> = ({ alunos, link, linkSalvo, o
 
   const desligar = useMutation({
     mutationFn: (emails: string[] | null) => desligarAgenda(emails),
-    onSuccess: refrescar,
-    onError: (e: Error) => setAviso(e.message),
+    onSuccess: async (r) => {
+      setAviso(null);
+      setOk(`Agenda desligada para ${r.desligados} ${r.desligados === 1 ? 'aluno' : 'alunos'}.`);
+      await refrescar();
+    },
+    onError: (e: Error) => {
+      setOk(null);
+      setAviso(e.message);
+    },
   });
 
   const submit = (e: React.FormEvent) => {
@@ -118,7 +137,7 @@ export const LiberarAgendaPanel: React.FC<Props> = ({ alunos, link, linkSalvo, o
         </p>
       </div>
 
-      <form onSubmit={submit} className="space-y-3">
+      <form noValidate onSubmit={submit} className="space-y-3">
         <Input
           aria-label="Buscar aluno"
           placeholder="Buscar aluno por nome ou e-mail"
@@ -155,7 +174,7 @@ export const LiberarAgendaPanel: React.FC<Props> = ({ alunos, link, linkSalvo, o
             {aviso}
           </p>
         )}
-        {ok && <p className="text-sm text-emerald-700">{ok}</p>}
+        {ok && <p role="status" className="text-sm text-emerald-700">{ok}</p>}
         <Button type="submit" disabled={liberar.isPending}>
           {liberar.isPending
             ? 'Liberando...'
@@ -169,14 +188,26 @@ export const LiberarAgendaPanel: React.FC<Props> = ({ alunos, link, linkSalvo, o
             {liberacoes.isSuccess ? `Liberada para ${ligadas.length} ${ligadas.length === 1 ? 'aluno' : 'alunos'}` : 'Liberações'}
           </h3>
           {ligadas.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={desligar.isPending}
-              onClick={() => desligar.mutate(null)}
-            >
-              Desligar todos
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="outline" disabled={desligar.isPending}>
+                  Desligar todos
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Desligar a agenda de todos?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {ligadas.length} {ligadas.length === 1 ? 'aluno deixa' : 'alunos deixam'} de ver o link do seu Google
+                    Agenda. Você pode liberar de novo depois.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => desligar.mutate(null)}>Sim, desligar todos</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
         {liberacoes.isLoading && <p className="text-sm text-muted-foreground">Carregando liberações...</p>}

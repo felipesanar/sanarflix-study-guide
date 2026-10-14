@@ -52,3 +52,14 @@ export function ehLinkHttps(valor: string): boolean {
     return false;
   }
 }
+
+/** Link seguro para href: só http(s). Bloqueia javascript:, data: etc. */
+export function ehLinkSeguro(valor: string | null | undefined): boolean {
+  if (!valor || !/^https?:\/\//i.test(valor.trim())) return false;
+  try {
+    const u = new URL(valor.trim());
+    return (u.protocol === 'https:' || u.protocol === 'http:') && u.hostname.length > 0;
+  } catch {
+    return false;
+  }
+}

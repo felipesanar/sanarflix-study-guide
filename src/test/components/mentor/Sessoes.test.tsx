@@ -22,9 +22,14 @@ const fetchTurma = vi.fn();
 vi.mock('@/services/mentor/turma', () => ({ fetchTurma: () => fetchTurma() }));
 
 const listarLiberacoesLigadas = vi.fn();
-vi.mock('@/features/mentor/components/sessoes/liberacoes', () => ({
-  listarLiberacoesLigadas: () => listarLiberacoesLigadas(),
+const fetchLinkAgendamento = vi.fn();
+vi.mock('@/services/mentor/agenda', () => ({
+  listarLiberacoesLigadas: (...a: unknown[]) => listarLiberacoesLigadas(...a),
+  fetchLinkAgendamento: (...a: unknown[]) => fetchLinkAgendamento(...a),
 }));
+
+const fetchMentorContexto = vi.fn();
+vi.mock('@/services/mentor/contexto', () => ({ fetchMentorContexto: () => fetchMentorContexto() }));
 
 import Sessoes from '@/features/mentor/routes/Sessoes';
 
@@ -63,10 +68,12 @@ function renderPage() {
 
 describe('Sessoes', () => {
   beforeEach(() => {
-    [listarSessoes, salvarSessao, marcarSessaoFeita, definirLinkAgendamento, liberarAgenda, desligarAgenda, fetchTurma, listarLiberacoesLigadas].forEach((m) => m.mockReset());
+    [listarSessoes, salvarSessao, marcarSessaoFeita, definirLinkAgendamento, liberarAgenda, desligarAgenda, fetchTurma, listarLiberacoesLigadas, fetchLinkAgendamento, fetchMentorContexto].forEach((m) => m.mockReset());
     listarSessoes.mockResolvedValue([sessaoAgendada]);
     fetchTurma.mockResolvedValue(alunos);
     listarLiberacoesLigadas.mockResolvedValue([]);
+    fetchLinkAgendamento.mockResolvedValue(null);
+    fetchMentorContexto.mockResolvedValue({ mentor: { user_id: 'm1', nome: 'Mentor' }, alunos_ativos: 2 });
     salvarSessao.mockResolvedValue({ sessao_id: 's2', intervencao_id: null, post_id: null });
     marcarSessaoFeita.mockResolvedValue({ sessao_id: 's1' });
     definirLinkAgendamento.mockResolvedValue({ link_agendamento: 'https://calendar.app.google/x' });
@@ -79,7 +86,7 @@ describe('Sessoes', () => {
     expect(await screen.findByText('Revisão de cardio', undefined, T)).toBeInTheDocument();
     expect(screen.getByText('20/10/2026 17:00')).toBeInTheDocument();
     expect(screen.getByText('Falta link')).toBeInTheDocument();
-    expect(listarSessoes).toHaveBeenCalledWith('proximas');
+    expect(listarSessoes).toHaveBeenCalledWith('todas');
   });
 
   it('mostra estado vazio e erro com "Tentar de novo"', async () => {
@@ -94,15 +101,15 @@ describe('Sessoes', () => {
   });
 
   it('trocar para Realizadas consulta realizadas e arquivo 2025 fica sem ações', async () => {
-    listarSessoes.mockImplementation(async (q: string) =>
-      q === 'realizadas'
-        ? [{ ...sessaoAgendada, id: 'a1', titulo: 'Mentoria geral 2025', tema: 'Mentoria geral 2025', status: 'realizada', origem: 'arquivo_2025', gravacao_url: 'https://rec.example/1' }]
-        : [sessaoAgendada],
-    );
+    listarSessoes.mockResolvedValue([
+      sessaoAgendada,
+      { ...sessaoAgendada, id: 'a1', titulo: 'Mentoria geral 2025', tema: 'Mentoria geral 2025', status: 'realizada', origem: 'arquivo_2025', gravacao_url: 'https://rec.example/1' },
+    ]);
     renderPage();
     await screen.findByText('Revisão de cardio', undefined, T);
     fireEvent.click(screen.getByRole('button', { name: 'Realizadas' }));
     expect(await screen.findByText('Mentoria geral 2025', undefined, T)).toBeInTheDocument();
+    expect(screen.queryByText('Revisão de cardio')).not.toBeInTheDocument();
     expect(screen.getByText('Arquivo 2025')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver gravação' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Marcar feita' })).not.toBeInTheDocument();
@@ -198,6 +205,72 @@ describe('Sessoes', () => {
     await waitFor(() => expect(desligarAgenda).toHaveBeenCalledWith(['ana@x.com']), T);
 
     fireEvent.click(screen.getByRole('button', { name: 'Desligar todos' }));
+    expect(desligarAgenda).not.toHaveBeenCalledWith(null);
+    fireEvent.click(await screen.findByRole('button', { name: 'Sim, desligar todos' }));
     await waitFor(() => expect(desligarAgenda).toHaveBeenCalledWith(null), T);
+    expect(await screen.findByRole('status', undefined, T)).toHaveTextContent('Agenda desligada para 2 alunos');
+  });
+
+  it('sessão agendada que já passou continua em Próximas, marcada como pendente, com Marcar feita', async () => {
+    listarSessoes.mockResolvedValue([
+      { ...sessaoAgendada, id: 'p2', titulo: 'Sessão futura', tema: 'Sessão futura', inicio: '2099-01-01T12:00:00Z' },
+      { ...sessaoAgendada, id: 'p1', titulo: 'Sessão de ontem', tema: 'Sessão de ontem', inicio: '2020-01-01T12:00:00Z' },
+    ]);
+    renderPage();
+    expect(await screen.findByText('Sessão de ontem', undefined, T)).toBeInTheDocument();
+    expect(screen.getByText('Pendente · marque como feita')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Marcar feita' })).toHaveLength(2);
+    const linhas = screen.getAllByRole('row').map((r) => r.textContent ?? '');
+    expect(linhas.findIndex((t) => t.includes('Sessão de ontem'))).toBeLessThan(linhas.findIndex((t) => t.includes('Sessão futura')));
+  });
+
+  it('não renderiza href com javascript: nem outros esquemas', async () => {
+    listarSessoes.mockResolvedValue([
+      { ...sessaoAgendada, id: 'x1', meet_link: 'javascript:alert(1)' },
+      { ...sessaoAgendada, id: 'x2', titulo: 'Gravada', tema: 'Gravada', status: 'realizada', gravacao_url: 'data:text/html,<b>x</b>' },
+    ]);
+    renderPage();
+    await screen.findByText('Revisão de cardio', undefined, T);
+    expect(screen.getByText('link inválido')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Realizadas' }));
+    expect(await screen.findByText('Gravada', undefined, T)).toBeInTheDocument();
+    expect(screen.getByText('link inválido')).toBeInTheDocument();
+    expect(document.querySelector('a[href^="javascript:"], a[href^="data:"]')).toBeNull();
+  });
+
+  it('pré-preenche o link do Agenda cadastrado e só chama definirLinkAgendamento quando muda', async () => {
+    fetchLinkAgendamento.mockResolvedValue('https://calendar.app.google/antigo');
+    renderPage();
+    const campo = await screen.findByDisplayValue('https://calendar.app.google/antigo', undefined, T);
+    expect(fetchLinkAgendamento).toHaveBeenCalledWith('m1');
+    await screen.findByLabelText('Selecionar Ana Lima', undefined, T);
+
+    fireEvent.click(screen.getByLabelText('Selecionar Ana Lima'));
+    fireEvent.change(screen.getByLabelText('Mensagem para o aluno'), { target: { value: 'Oi' } });
+    fireEvent.click(screen.getByRole('button', { name: /Liberar para 1 aluno/ }));
+    await waitFor(() => expect(liberarAgenda).toHaveBeenCalledWith(['ana@x.com'], 'Oi'), T);
+    expect(definirLinkAgendamento).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Agenda liberada para 1 aluno/, undefined, T)).toHaveAttribute('role', 'status');
+
+    fireEvent.change(campo, { target: { value: 'https://calendar.app.google/novo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar link' }));
+    await waitFor(() => expect(definirLinkAgendamento).toHaveBeenCalledWith('https://calendar.app.google/novo'), T);
+  });
+
+  it('erro ao liberar limpa a mensagem de sucesso anterior', async () => {
+    fetchLinkAgendamento.mockResolvedValue('https://calendar.app.google/x');
+    renderPage();
+    await screen.findByDisplayValue('https://calendar.app.google/x', undefined, T);
+    await screen.findByLabelText('Selecionar Ana Lima', undefined, T);
+    fireEvent.click(screen.getByLabelText('Selecionar Ana Lima'));
+    fireEvent.change(screen.getByLabelText('Mensagem para o aluno'), { target: { value: 'Oi' } });
+    fireEvent.click(screen.getByRole('button', { name: /Liberar para 1 aluno/ }));
+    await screen.findByText(/Agenda liberada para 1 aluno/, undefined, T);
+    liberarAgenda.mockRejectedValueOnce(new Error('falhou geral'));
+    fireEvent.click(screen.getByLabelText('Selecionar Bia Costa'));
+    fireEvent.change(screen.getByLabelText('Mensagem para o aluno'), { target: { value: 'Oi 2' } });
+    fireEvent.click(screen.getByRole('button', { name: /Liberar para 1 aluno/ }));
+    expect(await screen.findByText('falhou geral', undefined, T)).toBeInTheDocument();
+    expect(screen.queryByText(/Agenda liberada para 1 aluno/)).not.toBeInTheDocument();
   });
 });
