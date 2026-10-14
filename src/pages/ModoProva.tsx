@@ -241,7 +241,7 @@ export const ModoProva = () => {
   const questaoAtualData = questoes[questaoAtual];
   const respostaAtual = estado?.respostas[questaoAtualData?.id];
 
-  const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
+  const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D' | 'E') => {
     if (!questaoAtualData || !podeInteragir) return;
 
     setEstado(prevEstado => {
@@ -265,7 +265,7 @@ export const ModoProva = () => {
     });
   }, [questaoAtualData, podeInteragir, storage]);
 
-  const handleEliminarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
+  const handleEliminarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D' | 'E') => {
     if (!questaoAtualData) return;
 
     setEstado(prevEstado => {

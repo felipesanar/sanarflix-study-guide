@@ -3,7 +3,7 @@ import { Trash2, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AlternativaProvaProps {
-  letra: 'A' | 'B' | 'C' | 'D';
+  letra: 'A' | 'B' | 'C' | 'D' | 'E';
   texto: string;
   selecionada: boolean;
   eliminada: boolean;

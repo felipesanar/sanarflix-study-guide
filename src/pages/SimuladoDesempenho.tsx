@@ -79,7 +79,7 @@ interface OverallStats { total: number; acertos: number; percentual: number; }
 interface UserData { semestre: number; }
 interface ReviewedQuestion {
   id: string;
-  gabarito: 'A' | 'B' | 'C' | 'D';
+  gabarito: 'A' | 'B' | 'C' | 'D' | 'E';
   enunciado: string;
   a: string; b: string; c: string; d: string;
   comentario: string;
@@ -138,7 +138,7 @@ const QuestionModal: React.FC<{
   const handlePrev = () => setCurrentIndex(prev => Math.max(prev - 1, 0));
 
   const question = questions.length > 0 ? questions[currentIndex] : null;
-  const alternatives: Array<{ key: 'A' | 'B' | 'C' | 'D'; text: string }> = question ? [{ key: 'A', text: question.a }, { key: 'B', text: question.b }, { key: 'C', text: question.c }, { key: 'D', text: question.d }] : [];
+  const alternatives: Array<{ key: 'A' | 'B' | 'C' | 'D' | 'E'; text: string }> = question ? [{ key: 'A', text: question.a }, { key: 'B', text: question.b }, { key: 'C', text: question.c }, { key: 'D', text: question.d }] : [];
   const userGotItRight = question?.acertou;
 
   return (

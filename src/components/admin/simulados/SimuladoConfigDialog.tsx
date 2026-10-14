@@ -485,7 +485,7 @@ export default function SimuladoConfigDialog({
             alternativa_c: String(normalizedRow['alternativa c'] ?? ''),
             alternativa_d: String(normalizedRow['alternativa d'] ?? ''),
             alternativa_e: String(normalizedRow['alternativa e'] ?? '').trim() || null,
-            correta: correta as 'A' | 'B' | 'C' | 'D',
+            correta: correta as 'A' | 'B' | 'C' | 'D' | 'E',
             comentario: normalizedRow['comentário'] ? String(normalizedRow['comentário']) : null,
             feedback_corretas: null,
             imagem: null,

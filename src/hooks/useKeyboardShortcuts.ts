@@ -67,9 +67,10 @@ export const useKeyboardShortcuts = (
 /**
  * Mapeamento de teclas para letras de alternativas
  */
-export const KEY_TO_ALTERNATIVE: Record<string, 'A' | 'B' | 'C' | 'D'> = {
+export const KEY_TO_ALTERNATIVE: Record<string, 'A' | 'B' | 'C' | 'D' | 'E'> = {
   '1': 'A',
   '2': 'B',
   '3': 'C',
   '4': 'D',
+  '5': 'E',
 };

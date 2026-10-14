@@ -22,7 +22,7 @@ export interface Questao {
   alternativa_c: string;
   alternativa_d: string;
   alternativa_e?: string;
-  gabarito: 'A' | 'B' | 'C' | 'D';
+  gabarito: 'A' | 'B' | 'C' | 'D' | 'E';
   imagem?: string;
   imagem_2?: string;
   imagem_comentario?: string;
@@ -33,9 +33,9 @@ export interface Questao {
 
 export interface RespostaSimulado {
   questao_id: string;
-  resposta: 'A' | 'B' | 'C' | 'D' | null;
+  resposta: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   marcada_revisao: boolean;
-  alternativas_eliminadas: ('A' | 'B' | 'C' | 'D')[];
+  alternativas_eliminadas: ('A' | 'B' | 'C' | 'D' | 'E')[];
   respondida?: boolean;
 }
 
