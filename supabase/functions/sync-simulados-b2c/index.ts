@@ -40,17 +40,23 @@ function compararSegredo(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// O env SUPABASE_SERVICE_ROLE_KEY pode vir no formato novo (sb_secret_…) enquanto o
-// cron manda a service_role legada (JWT) guardada no Vault: as duas são válidas, mas
-// não são iguais. Fora a igualdade exata, aceita quem prova acesso de serviço lendo
-// b2c_sync_execucoes — anon e authenticated não têm grant nessa tabela.
+// O env SUPABASE_SERVICE_ROLE_KEY pode vir num formato diferente da service_role
+// legada (JWT) que o cron manda do Vault: as duas são válidas, mas não são iguais.
+// Fora a igualdade exata, a prova é explícita: o PostgREST valida a assinatura da
+// chave e a RPC b2c_sync_sou_servico (executável só por service_role) responde se
+// auth.role() = 'service_role'. Qualquer falha nega (fail-closed).
 async function temAcessoDeServico(supabaseUrl: string, token: string): Promise<boolean> {
   try {
-    const res = await fetch(`${supabaseUrl}/rest/v1/b2c_sync_execucoes?select=id&limit=1`, {
-      headers: { apikey: token, Authorization: `Bearer ${token}` },
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/b2c_sync_sou_servico`, {
+      method: "POST",
+      headers: { ...JSON_HEADERS, apikey: token, Authorization: `Bearer ${token}` },
+      body: "{}",
     });
-    await res.body?.cancel();
-    return res.ok;
+    if (!res.ok) {
+      await res.body?.cancel();
+      return false;
+    }
+    return (await res.json()) === true;
   } catch {
     return false;
   }
