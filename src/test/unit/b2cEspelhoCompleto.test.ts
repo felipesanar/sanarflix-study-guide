@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SQL = readFileSync(
-  join(process.cwd(), 'supabase', 'migrations', '20261015090000_b2c_espelho_completo.sql'),
+  join(process.cwd(), 'supabase', 'migrations', '20261015030653_b2c_espelho_completo.sql'),
   'utf8',
 );
 
