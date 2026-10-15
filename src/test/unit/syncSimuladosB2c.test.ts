@@ -383,4 +383,61 @@ describe('sync-simulados-b2c/upsert', () => {
       });
     });
   });
+
+  describe('resposta de simulado ainda não liberado (is_correct nulo)', () => {
+    const pacoteCom = (respostas: { sel: string | null; ok: boolean | null; was?: boolean | null }[]) =>
+      ({
+        gerado_em: '2026-10-15T07:00:00Z',
+        simulados: [],
+        questoes: [],
+        alunos: [
+          {
+            email: 'a@x.com',
+            nome: null,
+            segment: null,
+            especialidade: null,
+            alvos: [],
+            tentativas: [
+              {
+                id: 't1',
+                simulado_id: 's1',
+                finished_at: '2026-09-01T12:00:00Z',
+                score_percentage: 50,
+                total_correct: 1,
+                total_answered: 2,
+                attempt_type: 'online',
+              },
+            ],
+            respostas: respostas.map((r, i) => ({
+              attempt_id: 't1',
+              question_id: `q${i + 1}`,
+              selected_label: r.sel,
+              is_correct: r.ok,
+              was_answered: r.was === undefined ? r.sel !== null : r.was,
+            })),
+          },
+        ],
+      }) as Parameters<typeof mapearPacote>[0];
+
+    it('is_correct nulo (redigido) grava correta = null, não false', () => {
+      const m = mapearPacote(pacoteCom([{ sel: 'B', ok: null }, { sel: 'C', ok: null }]));
+      expect(m.respostas.map((r) => r.correta)).toEqual([null, null]);
+      expect(m.respostas[0]).toMatchObject({ marcada_label: 'B', respondida: true });
+    });
+
+    it('is_correct booleano (liberado) continua booleano', () => {
+      const m = mapearPacote(pacoteCom([{ sel: 'B', ok: true }, { sel: 'C', ok: false }]));
+      expect(m.respostas.map((r) => r.correta)).toEqual([true, false]);
+    });
+
+    it('em branco explícito (was_answered=false) nunca é acerto: correta = false mesmo com is_correct nulo', () => {
+      const m = mapearPacote(pacoteCom([{ sel: null, ok: null, was: false }]));
+      expect(m.respostas[0]).toMatchObject({ correta: false, respondida: false });
+    });
+
+    it('was_answered ausente + is_correct nulo continua null (não assume em branco)', () => {
+      const m = mapearPacote(pacoteCom([{ sel: null, ok: null, was: null }]));
+      expect(m.respostas[0].correta).toBeNull();
+    });
+  });
 });

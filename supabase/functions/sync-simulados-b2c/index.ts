@@ -176,8 +176,21 @@ serve(async (req: Request) => {
       desdeExistentes = new Date(ms).toISOString();
     }
 
-    // Novos (ou rodada anterior falhou): histórico completo, desde = null.
-    const { novos, existentes } = anteriorFalhou
+    // Correções pendentes: simulado que JÁ foi liberado mas ainda tem resposta com
+    // correta NULL (gravada redigida antes da liberação). A janela incremental não
+    // reenviaria essas respostas, então a rodada vira completa (desde = null), como
+    // quando a anterior falhou. Se a checagem falhar, assume pendente (fail-safe).
+    let correcoesPendentes = false;
+    const { data: pend, error: pendErr } = await db.rpc("b2c_sync_correcoes_pendentes");
+    if (pendErr) {
+      console.error("sync-simulados-b2c: falha ao checar correções pendentes", sanitizarErro(pendErr.message));
+      correcoesPendentes = true;
+    } else {
+      correcoesPendentes = pend === true;
+    }
+
+    // Novos (ou rodada anterior falhou / correções pendentes): histórico completo, desde = null.
+    const { novos, existentes } = (anteriorFalhou || correcoesPendentes)
       ? { novos: [...emails], existentes: [] as string[] }
       : separarPorEspelho([...emails], noEspelho);
     const grupos = [

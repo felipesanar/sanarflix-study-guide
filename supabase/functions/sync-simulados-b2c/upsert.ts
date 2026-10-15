@@ -213,7 +213,9 @@ export function mapearPacote(pacote: Pacote) {
         tentativa_id: r.attempt_id,
         questao_id: r.question_id,
         marcada_label: r.selected_label,
-        correta: r.is_correct ?? false,
+        // null = resultado ainda não liberado na origem (resposta redigida): NÃO vira "errou".
+        // Única exceção: em branco explícito (was_answered === false) nunca é acerto.
+        correta: r.is_correct ?? (r.was_answered === false ? false : null),
         respondida: r.was_answered ?? r.selected_label !== null,
       });
     }
