@@ -58,6 +58,8 @@ export interface PacoteSimulado {
   execution_window_start: string | null;
   execution_window_end: string | null;
   status: string | null;
+  // Novos no export; ausentes em payloads antigos (tratados como null).
+  results_release_at?: string | null;
 }
 export interface PacoteQuestao {
   id: string;
@@ -66,6 +68,20 @@ export interface PacoteQuestao {
   area: string | null;
   theme: string | null;
   correta_label: string | null;
+  // Novos no export; ausentes em payloads antigos (tratados como null).
+  text?: string | null;
+  explanation?: string | null;
+  image_url?: string | null;
+  image_url_2?: string | null;
+  explanation_image_url?: string | null;
+  difficulty?: string | null;
+}
+export interface PacoteOpcao {
+  id: string;
+  question_id: string;
+  label: string;
+  text: string | null;
+  is_correct: boolean | null;
 }
 export interface PacoteAlvo {
   institution_id: string;
@@ -81,6 +97,11 @@ export interface PacoteTentativa {
   total_correct: number | null;
   total_answered: number | null;
   attempt_type: string | null;
+  // Novos no export; ausentes em payloads antigos (tratados como null).
+  is_within_window?: boolean | null;
+  posicao?: number | null;
+  participantes?: number | null;
+  percentil?: number | null;
 }
 export interface PacoteResposta {
   attempt_id: string;
@@ -102,6 +123,8 @@ export interface Pacote {
   gerado_em: string;
   simulados: PacoteSimulado[];
   questoes: PacoteQuestao[];
+  // Novo no export; ausente em payloads antigos (tratado como []).
+  opcoes?: PacoteOpcao[];
   alunos: PacoteAluno[];
 }
 
@@ -116,6 +139,7 @@ export function mapearPacote(pacote: Pacote) {
     janela_inicio: s.execution_window_start,
     janela_fim: s.execution_window_end,
     status: s.status,
+    resultado_liberado_em: s.results_release_at ?? null,
     sincronizado_em: sincronizadoEm,
   }));
 
@@ -126,7 +150,25 @@ export function mapearPacote(pacote: Pacote) {
     grande_area: q.area,
     tema: q.theme,
     correta_label: q.correta_label,
+    enunciado: q.text ?? null,
+    explicacao: q.explanation ?? null,
+    imagem_url: q.image_url ?? null,
+    imagem_url_2: q.image_url_2 ?? null,
+    explicacao_imagem_url: q.explanation_image_url ?? null,
+    dificuldade: q.difficulty ?? null,
   }));
+
+  // FK: alternativa só entra se a questão dela está neste pacote (a questão é gravada antes).
+  const idsQuestoes = new Set(questoes.map((q) => q.id));
+  const alternativas = (pacote.opcoes ?? [])
+    .filter((o) => o.id && o.label && idsQuestoes.has(o.question_id))
+    .map((o) => ({
+      id: o.id,
+      questao_id: o.question_id,
+      label: o.label,
+      texto: o.text ?? null,
+      correta: o.is_correct ?? false,
+    }));
 
   const alunos = [];
   const tentativas = [];
@@ -158,6 +200,10 @@ export function mapearPacote(pacote: Pacote) {
         acertos: t.total_correct,
         respondidas: t.total_answered,
         modalidade: t.attempt_type,
+        dentro_janela: t.is_within_window ?? null,
+        posicao: t.posicao ?? null,
+        participantes: t.participantes ?? null,
+        percentil: t.percentil ?? null,
       });
     }
 
@@ -177,6 +223,11 @@ export function mapearPacote(pacote: Pacote) {
   return {
     simulados: deduplicar(simulados, (x) => x.id),
     questoes: deduplicar(questoes, (x) => x.id),
+    // unique (questao_id, label) também aborta o upsert: dedupe pelas duas chaves
+    alternativas: deduplicar(
+      deduplicar(alternativas, (x) => x.id),
+      (x) => `${x.questao_id}|${x.label}`,
+    ),
     alunos: deduplicar(alunos, (x) => x.email),
     tentativas: deduplicar(tentativas, (x) => x.id),
     respostas: deduplicar(respostas, (x) => `${x.tentativa_id}|${x.questao_id}`),

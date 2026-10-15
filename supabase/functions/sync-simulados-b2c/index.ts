@@ -188,6 +188,7 @@ serve(async (req: Request) => {
     // 4. Exporta por lote e grava na ordem das FKs.
     const simuladosVistos = new Set<string>();
     const questoesVistas = new Set<string>();
+    const alternativasVistas = new Set<string>();
 
     for (const grupo of grupos) {
       const resp = await fetch(exportUrl, {
@@ -203,9 +204,12 @@ serve(async (req: Request) => {
       simulados.forEach((s) => simuladosVistos.add(s.id));
       const questoes = m.questoes.filter((q) => !questoesVistas.has(q.id));
       questoes.forEach((q) => questoesVistas.add(q.id));
+      const alternativas = m.alternativas.filter((a) => !alternativasVistas.has(a.id));
+      alternativas.forEach((a) => alternativasVistas.add(a.id));
 
       await upsert("b2c_simulados", simulados, "id");
       await upsert("b2c_questoes", questoes, "id");
+      await upsert("b2c_alternativas", alternativas, "id");
       await upsert("b2c_alunos", m.alunos, "email");
       await upsert("b2c_tentativas", m.tentativas, "id");
       await upsert("b2c_respostas", m.respostas, "tentativa_id,questao_id");

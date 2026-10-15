@@ -112,6 +112,7 @@ describe('sync-simulados-b2c/upsert', () => {
         janela_inicio: '2026-09-01T00:00:00Z',
         janela_fim: '2026-09-02T00:00:00Z',
         status: 'published',
+        resultado_liberado_em: null,
         sincronizado_em: '2026-10-15T07:00:00Z',
       },
     ]);
@@ -123,6 +124,12 @@ describe('sync-simulados-b2c/upsert', () => {
       grande_area: 'Clínica Médica',
       tema: 'Diabetes',
       correta_label: 'B',
+      enunciado: null,
+      explicacao: null,
+      imagem_url: null,
+      imagem_url_2: null,
+      explicacao_imagem_url: null,
+      dificuldade: null,
     });
     expect(m.alunos).toEqual([
       {
@@ -146,8 +153,13 @@ describe('sync-simulados-b2c/upsert', () => {
         acertos: 1,
         respondidas: 2,
         modalidade: 'online',
+        dentro_janela: null,
+        posicao: null,
+        participantes: null,
+        percentil: null,
       },
     ]);
+    expect(m.alternativas).toEqual([]);
     expect(m.respostas).toEqual([
       { tentativa_id: 't1', questao_id: 'q1', marcada_label: 'B', correta: true, respondida: true },
       { tentativa_id: 't1', questao_id: 'q2', marcada_label: null, correta: false, respondida: false },
@@ -233,5 +245,142 @@ describe('sync-simulados-b2c/upsert', () => {
     });
     expect(m.respostas).toHaveLength(1);
     expect(m.respostas[0]).toMatchObject({ marcada_label: 'B', correta: true });
+  });
+  describe('espelho completo (campos novos do export)', () => {
+    const pacoteNovo = () => ({
+      gerado_em: '2026-10-15T07:00:00Z',
+      simulados: [
+        {
+          id: 's1',
+          sequence_number: 1,
+          title: 'Simulado 1',
+          questions_count: 2,
+          execution_window_start: '2026-09-01T00:00:00Z',
+          execution_window_end: '2026-09-02T00:00:00Z',
+          status: 'published',
+          results_release_at: '2026-09-03T12:00:00Z',
+        },
+      ],
+      questoes: [
+        {
+          id: 'q1',
+          simulado_id: 's1',
+          question_number: 1,
+          area: 'Pediatria',
+          theme: 'Asma',
+          correta_label: 'B',
+          text: 'Enunciado da questão 1',
+          explanation: 'Porque B',
+          image_url: 'https://img/1.png',
+          image_url_2: null,
+          explanation_image_url: 'https://img/exp.png',
+          difficulty: 'dificil',
+        },
+      ],
+      opcoes: [
+        { id: 'o1', question_id: 'q1', label: 'A', text: 'Alt A', is_correct: false },
+        { id: 'o2', question_id: 'q1', label: 'B', text: 'Alt B', is_correct: true },
+        { id: 'o3', question_id: 'q1', label: 'C', text: null, is_correct: null },
+        // duplicada por id: fica só a última
+        { id: 'o1', question_id: 'q1', label: 'A', text: 'Alt A v2', is_correct: false },
+        // questão fora do pacote: não entra (quebraria a FK)
+        { id: 'o9', question_id: 'q-inexistente', label: 'A', text: 'x', is_correct: false },
+      ],
+      alunos: [
+        {
+          email: 'ana@x.com',
+          nome: 'Ana',
+          segment: 'b2c',
+          especialidade: null,
+          alvos: [],
+          tentativas: [
+            {
+              id: 't1',
+              simulado_id: 's1',
+              finished_at: '2026-09-01T12:00:00Z',
+              score_percentage: 70,
+              total_correct: 7,
+              total_answered: 10,
+              attempt_type: 'online',
+              is_within_window: true,
+              posicao: 12,
+              participantes: 300,
+              percentil: 96.1,
+            },
+          ],
+          respostas: [],
+        },
+      ],
+    });
+
+    it('mapeia liberação, conteúdo da questão, alternativas e classificação', () => {
+      const m = mapearPacote(pacoteNovo());
+      expect(m.simulados[0].resultado_liberado_em).toBe('2026-09-03T12:00:00Z');
+      expect(m.questoes[0]).toEqual({
+        id: 'q1',
+        simulado_id: 's1',
+        numero: 1,
+        grande_area: 'Pediatria',
+        tema: 'Asma',
+        correta_label: 'B',
+        enunciado: 'Enunciado da questão 1',
+        explicacao: 'Porque B',
+        imagem_url: 'https://img/1.png',
+        imagem_url_2: null,
+        explicacao_imagem_url: 'https://img/exp.png',
+        dificuldade: 'dificil',
+      });
+      expect(m.alternativas).toEqual([
+        { id: 'o1', questao_id: 'q1', label: 'A', texto: 'Alt A v2', correta: false },
+        { id: 'o2', questao_id: 'q1', label: 'B', texto: 'Alt B', correta: true },
+        { id: 'o3', questao_id: 'q1', label: 'C', texto: null, correta: false },
+      ]);
+      expect(m.tentativas[0]).toMatchObject({
+        dentro_janela: true,
+        posicao: 12,
+        participantes: 300,
+        percentil: 96.1,
+      });
+    });
+
+    it('dedupe de alternativas também por (questão, label)', () => {
+      const p = pacoteNovo();
+      p.opcoes = [
+        { id: 'o1', question_id: 'q1', label: 'A', text: 'primeira', is_correct: false },
+        { id: 'o1b', question_id: 'q1', label: 'A', text: 'segunda', is_correct: false },
+      ];
+      const m = mapearPacote(p);
+      expect(m.alternativas).toHaveLength(1);
+      expect(m.alternativas[0].texto).toBe('segunda');
+    });
+
+    it('payload antigo (sem as chaves novas) sincroniza com null / []', () => {
+      const p = pacoteNovo() as Record<string, unknown>;
+      delete p.opcoes;
+      for (const s of p.simulados as Record<string, unknown>[]) delete s.results_release_at;
+      for (const q of p.questoes as Record<string, unknown>[]) {
+        for (const k of ['text', 'explanation', 'image_url', 'image_url_2', 'explanation_image_url', 'difficulty']) delete q[k];
+      }
+      for (const a of p.alunos as { tentativas: Record<string, unknown>[] }[]) {
+        for (const t of a.tentativas) for (const k of ['is_within_window', 'posicao', 'participantes', 'percentil']) delete t[k];
+      }
+      const m = mapearPacote(p as unknown as Parameters<typeof mapearPacote>[0]);
+      expect(m.alternativas).toEqual([]);
+      expect(m.simulados[0].resultado_liberado_em).toBeNull();
+      expect(m.questoes[0]).toMatchObject({
+        enunciado: null,
+        explicacao: null,
+        imagem_url: null,
+        imagem_url_2: null,
+        explicacao_imagem_url: null,
+        dificuldade: null,
+      });
+      expect(m.tentativas[0]).toMatchObject({
+        dentro_janela: null,
+        posicao: null,
+        participantes: null,
+        percentil: null,
+      });
+    });
   });
 });
