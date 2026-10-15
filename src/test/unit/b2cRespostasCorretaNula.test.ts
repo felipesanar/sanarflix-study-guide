@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const raiz = process.cwd();
 const SQL = readFileSync(
-  join(raiz, 'supabase', 'migrations', '20261015120000_b2c_respostas_correta_nula.sql'),
+  join(raiz, 'supabase', 'migrations', '20261015201557_b2c_respostas_correta_nula.sql'),
   'utf8',
 );
 const INDEX_TS = readFileSync(join(raiz, 'supabase', 'functions', 'sync-simulados-b2c', 'index.ts'), 'utf8');
