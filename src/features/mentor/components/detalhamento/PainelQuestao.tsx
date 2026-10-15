@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ehLinkHttps } from '@/features/mentor/lib/linkSeguro';
-import { textoSeguro } from '@/features/mentor/lib/textoSeguro';
+import { semPrefixoAlternativa, textoSeguro } from '@/features/mentor/lib/textoSeguro';
 import {
   chavesDesempenho,
   fetchQuestao,
@@ -90,8 +90,14 @@ const Imagem: React.FC<{ url: unknown; alt: string }> = ({ url, alt }) => {
   );
 };
 
-const Texto: React.FC<{ valor: string | null | undefined; className?: string }> = ({ valor, className }) => {
-  const t = textoSeguro(valor);
+const Texto: React.FC<{ valor: string | null | undefined; className?: string; letra?: string }> = ({
+  valor,
+  className,
+  letra,
+}) => {
+  const limpo = textoSeguro(valor);
+  // O texto da alternativa já vem com o rótulo ("A) …") e o rótulo aparece como badge: tira a repetição.
+  const t = letra ? semPrefixoAlternativa(limpo, letra) : limpo;
   if (!t) return null;
   // Texto puro (React escapa) com as quebras de linha preservadas.
   return <p className={cn('whitespace-pre-line break-words text-sm leading-relaxed', className)}>{t}</p>;
@@ -226,7 +232,7 @@ export const PainelQuestao: React.FC<Props> = ({ questao, simulados, nomes, onFe
                         {alt.contagem} · {formatPct(alt.pct)}
                       </span>
                     </div>
-                    {alt.texto && <Texto valor={alt.texto} className="text-muted-foreground" />}
+                    {alt.texto && <Texto valor={alt.texto} letra={alt.letra} className="text-muted-foreground" />}
                     <div className="h-2 rounded-full bg-muted" aria-hidden="true">
                       <div
                         className={cn(

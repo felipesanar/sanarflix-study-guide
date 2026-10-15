@@ -54,7 +54,7 @@ function completa(over: Partial<QuestaoCompleta> = {}): QuestaoCompleta {
     alternativas: [
       { label: 'A', texto: 'Metformina', correta: true, n: 3, pct: 30, emails: null },
       { label: 'B', texto: 'Insulina', correta: false, n: 1, pct: 10, emails: ['b@x.com'] },
-      { label: 'C', texto: 'Sulfonilureia', correta: false, n: 5, pct: 50, emails: ['a@x.com', 'c@x.com'] },
+      { label: 'C', texto: 'C) Sulfonilureia', correta: false, n: 5, pct: 50, emails: ['a@x.com', 'c@x.com'] },
       { label: 'D', texto: 'Dieta', correta: false, n: 1, pct: 10, emails: null },
     ],
     branco: { n: 0, emails: [] },
@@ -114,6 +114,9 @@ describe('PainelQuestao: busca lazy e resumo como placeholder', () => {
     expect(p.textContent).toBe('Paciente de 45 anos.\nGlicemia de jejum 180.\n\nQual a conduta?');
     expect(within(painel).getByTestId('alternativa-A')).toHaveTextContent('Metformina');
     expect(within(painel).getByTestId('alternativa-C')).toHaveTextContent('Sulfonilureia');
+    // O texto vem com o rótulo na frente ("C) Sulfonilureia"): o rótulo aparece uma vez só, no badge.
+    expect(within(painel).getByTestId('alternativa-C').textContent).not.toMatch(/C\)/);
+    expect(within(painel).getAllByText(/Sulfonilureia/)).toHaveLength(1);
     expect(painel.textContent).toMatch(/Endocrinologia/);
     expect(painel.textContent).toMatch(/Difícil/);
   });

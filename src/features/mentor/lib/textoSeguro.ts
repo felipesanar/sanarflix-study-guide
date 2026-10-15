@@ -52,3 +52,16 @@ export function tituloDeParam(bruto: string | null | undefined): string | null {
     .trim();
   return t.length > 0 ? t : null;
 }
+
+/**
+ * O banco devolve o texto da alternativa já com o próprio rótulo na frente ("A) Suspeitar…"),
+ * e o painel já mostra o rótulo como badge. Tira só o prefixo que bate com o rótulo desta
+ * alternativa ("A)", "a.", "B –", "C:"); o de outra letra fica como está.
+ * Espera texto já limpo (saída de `textoSeguro`).
+ */
+export function semPrefixoAlternativa(texto: string | null | undefined, label: string | null | undefined): string {
+  if (typeof texto !== 'string') return '';
+  if (typeof label !== 'string' || label.trim().length === 0) return texto;
+  const escapado = label.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return texto.replace(new RegExp(String.raw`^\s*${escapado}\s*[).\-:\u2013]\s*`, 'i'), '');
+}
