@@ -195,6 +195,54 @@ describe('Onda 3 · espelho B2C completo (migration)', () => {
     expect(c).toMatch(/LEFT JOIN public\.b2c_area_mapa m ON m\.area_origem = q\.grande_area/);
   });
 
+  it('hierarquia: especialidade/tema vêm do tema ("Esp > Tema", split no PRIMEIRO >), mapa só como fallback', () => {
+    for (const assin of [DETALHAMENTO, QUESTAO, NOTAS]) {
+      const c = corpo(assin);
+      // tema colapsado e aparado
+      expect(c).toMatch(/btrim\(regexp_replace\(coalesce\(q\.tema, ''\), '\\s\+', ' ', 'g'\)\) AS tc/);
+      // especialidade: antes do primeiro '>'
+      expect(c).toMatch(/position\('>' IN c\.tc\) > 0 THEN left\(c\.tc, position\('>' IN c\.tc\) - 1\)/);
+      // tema: depois do primeiro '>'; sem '>' é o texto inteiro; vazio -> 'Sem tema'
+      expect(c).toMatch(/substr\(c\.tc, position\('>' IN c\.tc\) \+ 1\) ELSE c\.tc END/);
+      expect(c).toContain("'Sem tema'");
+      // fallback: especialidade do mapa quando o tema não tem '>'
+      expect(c).toMatch(/nullif\(btrim\(regexp_replace\(coalesce\(m\.especialidade, ''\), '\\s\+', ' ', 'g'\)\), ''\)\) AS esp_label/);
+      // a grande área continua vindo do mapa
+      expect(c).toMatch(/coalesce\(m\.grande_area, nullif\(btrim\(q\.grande_area\), ''\), 'Sem área'\)/);
+    }
+    // o mapa passa a definir só a grande área (+ fallback)
+    expect(SQL).toMatch(/a coluna especialidade deste mapa só é o fallback quando o tema não tem ">"/);
+  });
+
+  it('agrupamento insensível a caixa/espaços: chave lower(collapse) e rótulo = grafia mais frequente (empate: menor)', () => {
+    for (const assin of [DETALHAMENTO, NOTAS]) {
+      const c = corpo(assin);
+      expect(c).toMatch(/lower\(regexp_replace\(btrim\(p\.esp_label\), '\\s\+', ' ', 'g'\)\) AS esp_key/);
+      expect(c).toMatch(/lower\(regexp_replace\(btrim\(p\.tema_label\), '\\s\+', ' ', 'g'\)\) AS tema_key/);
+      expect(c).toMatch(/lower\(regexp_replace\(btrim\(coalesce\(nullif\(c\.tc, ''\), 'Sem tema'\)\), '\\s\+', ' ', 'g'\)\) AS full_key/);
+      // um rótulo por chave: mais frequente (n DESC), empate pelo menor (ASC)
+      expect(c).toMatch(/SELECT DISTINCT ON \(esp_key\) esp_key, esp_label/);
+      expect(c).toMatch(/ORDER BY esp_key, n DESC, esp_label/);
+      expect(c).toMatch(/DISTINCT ON \(area, esp_key, tema_key\)[\s\S]*ORDER BY area, esp_key, tema_key, n DESC, tema_label/);
+      // lista plana (compat.) também junta duplicatas, com a string completa "Esp > Tema"
+      expect(c).toMatch(/DISTINCT ON \(area, full_key\)[\s\S]*ORDER BY area, full_key, n DESC, tema_full/);
+      // agregação pelas chaves, não pelo texto cru
+      expect(c).toMatch(/FROM resp GROUP BY area, esp_key\) g/);
+      expect(c).toMatch(/FROM resp GROUP BY area, esp_key, tema_key\) g/);
+      expect(c).toMatch(/FROM resp GROUP BY area, full_key\) g/);
+      expect(c).toMatch(/te\.esp_key IS NOT DISTINCT FROM e\.esp_key/);
+    }
+  });
+
+  it('tema_curto: em questoes[] do detalhamento e em mentor_questao; tema segue completo', () => {
+    const d = corpo(DETALHAMENTO);
+    expect(d).toMatch(/'tema', q\.tema, 'tema_curto', q\.tema_curto/);
+    expect(d).toMatch(/el\.esp_label AS especialidade, tl\.tema_label AS tema_curto, g\.tema_full AS tema/);
+    const q = corpo(QUESTAO);
+    expect(q).toMatch(/'tema', v_q\.tema_full,\s*'tema_curto', v_q\.tema_curto/);
+    expect(q).toMatch(/p\.esp_label AS especialidade/);
+  });
+
   it('grants: revoke de public/anon e grant só para authenticated nas três funções', () => {
     for (const assin of ['mentor_detalhamento(uuid[])', 'mentor_questao(uuid, uuid[])', 'mentor_aluno_notas(text)']) {
       expect(SQL).toContain(`revoke all on function public.${assin} from public;`);

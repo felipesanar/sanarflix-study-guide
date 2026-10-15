@@ -52,7 +52,7 @@ create table if not exists public.b2c_area_mapa (
 );
 
 comment on table public.b2c_area_mapa is
-  'Normaliza b2c_questoes.grande_area (valor bruto da plataforma) em grande área + especialidade. ESTE AGRUPAMENTO É UMA PROPOSTA, pendente de validação do produto (Felipe). Área sem linha aqui cai em btrim(area) como grande área e especialidade NULL (área vazia: Sem área).';
+  'Normaliza b2c_questoes.grande_area (valor bruto da plataforma) em GRANDE ÁREA. A especialidade vem do prefixo de b2c_questoes.tema ("Especialidade > Tema"); a coluna especialidade deste mapa só é o fallback quando o tema não tem ">". ESTE AGRUPAMENTO É UMA PROPOSTA, pendente de validação do produto (Felipe). Área sem linha aqui cai em btrim(area) como grande área e sem especialidade de fallback (área vazia: Sem área).';
 
 alter table public.b2c_area_mapa enable row level security;
 revoke all on table public.b2c_area_mapa from anon, authenticated;
@@ -78,8 +78,16 @@ on conflict (area_origem) do update
   set grande_area = excluded.grande_area, especialidade = excluded.especialidade;
 
 -- 4. mentor_detalhamento: respeita a liberação, usa o mapa de áreas e devolve mais por questão.
---    Chaves NOVAS: bloqueados[], areas[].especialidades[], questoes[].{especialidade, dificuldade,
---    enunciado_inicio, tem_imagem}. Todas as chaves anteriores permanecem (areas[].temas inclusive).
+--    Chaves NOVAS: bloqueados[], areas[].especialidades[], questoes[].{especialidade, tema_curto,
+--    dificuldade, enunciado_inicio, tem_imagem}. Todas as chaves anteriores permanecem
+--    (areas[].temas inclusive).
+--    Hierarquia: grande área vem do mapa (b2c_area_mapa); ESPECIALIDADE e TEMA vêm do campo
+--    `tema` da plataforma, formatado "Especialidade > Tema" (split no PRIMEIRO '>'). Sem '>',
+--    a especialidade cai na do mapa e o tema é o texto inteiro. Agrupamento insensível a caixa e
+--    espaços (lower + whitespace colapsado); cada chave exibe UM rótulo: a grafia mais frequente
+--    (empate: menor em ordem alfabética). questoes[].tema é a string completa (colapsada);
+--    questoes[].tema_curto é o tema sem a especialidade. areas[].temas (lista plana, compat.)
+--    usa a string completa "Esp > Tema" com a mesma regra de chave/rótulo.
 --    areas[].especialidades[].especialidade é NULL quando a área não tem especialidade
 --    (o front rotula, ex.: 'Geral').
 create or replace function public.mentor_detalhamento(p_simulados uuid[])
@@ -126,8 +134,8 @@ BEGIN
     resp AS (
       SELECT t.email, q.id AS questao_id, q.numero, s.sequence_number,
              coalesce(m.grande_area, nullif(btrim(q.grande_area), ''), 'Sem área') AS area,
-             m.especialidade AS especialidade,
-             coalesce(q.tema, 'Sem tema') AS tema,
+             p.esp_label, k.esp_key, p.tema_label, k.tema_key, k.full_key,
+             coalesce(nullif(c.tc, ''), 'Sem tema') AS tema_full,
              q.correta_label,
              CASE WHEN r.respondida THEN coalesce(r.marcada_label, 'branco') ELSE 'branco' END AS label,
              r.correta
@@ -136,24 +144,66 @@ BEGIN
       JOIN public.b2c_questoes q ON q.id = r.questao_id
       JOIN public.b2c_simulados s ON s.id = q.simulado_id
       LEFT JOIN public.b2c_area_mapa m ON m.area_origem = q.grande_area
+      CROSS JOIN LATERAL (
+        -- tema com whitespace colapsado e aparado (a plataforma traz espaços duplos/finais)
+        SELECT btrim(regexp_replace(coalesce(q.tema, ''), '\s+', ' ', 'g')) AS tc
+      ) c
+      CROSS JOIN LATERAL (
+        -- "Especialidade > Tema": especialidade = antes do PRIMEIRO '>'; sem '>' (ou prefixo
+        -- vazio) cai na especialidade do mapa. Tema = depois do primeiro '>' (ou o tema inteiro).
+        SELECT coalesce(
+                 nullif(btrim(CASE WHEN position('>' IN c.tc) > 0 THEN left(c.tc, position('>' IN c.tc) - 1) END), ''),
+                 nullif(btrim(regexp_replace(coalesce(m.especialidade, ''), '\s+', ' ', 'g')), '')) AS esp_label,
+               coalesce(
+                 nullif(btrim(CASE WHEN position('>' IN c.tc) > 0 THEN substr(c.tc, position('>' IN c.tc) + 1) ELSE c.tc END), ''),
+                 'Sem tema') AS tema_label
+      ) p
+      CROSS JOIN LATERAL (
+        -- chaves de agrupamento: insensíveis a caixa e a espaços
+        SELECT lower(regexp_replace(btrim(p.esp_label), '\s+', ' ', 'g')) AS esp_key,
+               lower(regexp_replace(btrim(p.tema_label), '\s+', ' ', 'g')) AS tema_key,
+               lower(regexp_replace(btrim(coalesce(nullif(c.tc, ''), 'Sem tema')), '\s+', ' ', 'g')) AS full_key
+      ) k
+    ),
+    -- um rótulo de exibição por chave: a grafia mais frequente; empate -> menor (min) em ordem alfabética
+    esp_lbl AS (
+      SELECT DISTINCT ON (esp_key) esp_key, esp_label
+      FROM (SELECT esp_key, esp_label, count(*) AS n FROM resp WHERE esp_key IS NOT NULL GROUP BY esp_key, esp_label) x
+      ORDER BY esp_key, n DESC, esp_label
+    ),
+    tema_lbl AS (
+      SELECT DISTINCT ON (area, esp_key, tema_key) area, esp_key, tema_key, tema_label
+      FROM (SELECT area, esp_key, tema_key, tema_label, count(*) AS n FROM resp GROUP BY area, esp_key, tema_key, tema_label) x
+      ORDER BY area, esp_key, tema_key, n DESC, tema_label
+    ),
+    full_lbl AS (
+      SELECT DISTINCT ON (area, full_key) area, full_key, tema_full
+      FROM (SELECT area, full_key, tema_full, count(*) AS n FROM resp GROUP BY area, full_key, tema_full) x
+      ORDER BY area, full_key, n DESC, tema_full
     ),
     por_tema AS (
-      SELECT area, tema,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY area, tema
+      SELECT g.area, fl.tema_full AS tema, g.acerto_pct, g.respostas
+      FROM (SELECT area, full_key,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp GROUP BY area, full_key) g
+      JOIN full_lbl fl ON fl.area = g.area AND fl.full_key = g.full_key
     ),
     por_esp AS (
-      SELECT area, especialidade,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY area, especialidade
+      SELECT g.area, g.esp_key, el.esp_label AS especialidade, g.acerto_pct, g.respostas
+      FROM (SELECT area, esp_key,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp GROUP BY area, esp_key) g
+      LEFT JOIN esp_lbl el ON el.esp_key = g.esp_key
     ),
     por_tema_esp AS (
-      SELECT area, especialidade, tema,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY area, especialidade, tema
+      SELECT g.area, g.esp_key, tl.tema_label AS tema, g.acerto_pct, g.respostas
+      FROM (SELECT area, esp_key, tema_key,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp GROUP BY area, esp_key, tema_key) g
+      JOIN tema_lbl tl ON tl.area = g.area AND tl.esp_key IS NOT DISTINCT FROM g.esp_key AND tl.tema_key = g.tema_key
     ),
     por_area AS (
       SELECT area,
@@ -162,10 +212,16 @@ BEGIN
       FROM resp GROUP BY area
     ),
     por_questao AS (
-      SELECT questao_id, numero, sequence_number, area, especialidade, tema, correta_label,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY questao_id, numero, sequence_number, area, especialidade, tema, correta_label
+      SELECT g.questao_id, g.numero, g.sequence_number, g.area,
+             el.esp_label AS especialidade, tl.tema_label AS tema_curto, g.tema_full AS tema,
+             g.correta_label, g.acerto_pct, g.respostas
+      FROM (SELECT questao_id, numero, sequence_number, area, esp_key, tema_key, tema_full, correta_label,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp
+            GROUP BY questao_id, numero, sequence_number, area, esp_key, tema_key, tema_full, correta_label) g
+      LEFT JOIN esp_lbl el ON el.esp_key = g.esp_key
+      LEFT JOIN tema_lbl tl ON tl.area = g.area AND tl.esp_key IS NOT DISTINCT FROM g.esp_key AND tl.tema_key = g.tema_key
     ),
     por_alt AS (
       -- e-mails da alternativa correta ficam de fora (payload menor; a ação é sobre quem errou)
@@ -191,7 +247,7 @@ BEGIN
                 SELECT jsonb_agg(jsonb_build_object('tema', te.tema, 'acerto_pct', te.acerto_pct, 'respostas', te.respostas)
                                  ORDER BY te.acerto_pct, te.tema)
                 FROM por_tema_esp te
-                WHERE te.area = a.area AND te.especialidade IS NOT DISTINCT FROM e.especialidade), '[]'::jsonb)
+                WHERE te.area = a.area AND te.esp_key IS NOT DISTINCT FROM e.esp_key), '[]'::jsonb)
             ) ORDER BY e.acerto_pct, e.especialidade NULLS LAST)
             FROM por_esp e WHERE e.area = a.area), '[]'::jsonb),
           'temas', coalesce((
@@ -202,7 +258,7 @@ BEGIN
       'questoes', coalesce((
         SELECT jsonb_agg(jsonb_build_object(
           'questao_id', q.questao_id, 'numero', q.numero, 'sequence_number', q.sequence_number,
-          'grande_area', q.area, 'especialidade', q.especialidade, 'tema', q.tema,
+          'grande_area', q.area, 'especialidade', q.especialidade, 'tema', q.tema, 'tema_curto', q.tema_curto,
           'dificuldade', qq.dificuldade,
           'enunciado_inicio', left(nullif(regexp_replace(btrim(coalesce(qq.enunciado, '')), '\s+', ' ', 'g'), ''), 140),
           'tem_imagem', (nullif(btrim(qq.imagem_url), '') IS NOT NULL OR nullif(btrim(qq.imagem_url_2), '') IS NOT NULL),
@@ -228,7 +284,7 @@ $function$;
 --    do mentor. p_simulados (opcional) restringe as tentativas consideradas: como a questão
 --    pertence a um único simulado, uma seleção que não o contém resulta em 0 respostas.
 --    Retorno:
---    { questao_id, simulado_id, sequence_number, numero, grande_area, especialidade, tema,
+--    { questao_id, simulado_id, sequence_number, numero, grande_area, especialidade, tema, tema_curto,
 --      dificuldade, enunciado, imagens: [url], explicacao, explicacao_imagem_url,
 --      respostas, acerto_pct,
 --      alternativas: [{label, texto, correta, n, pct, emails}],  -- emails só nas ERRADAS (null na correta)
@@ -252,11 +308,25 @@ BEGIN
          s.sequence_number,
          greatest(coalesce(s.resultado_liberado_em, s.janela_fim), s.janela_fim) AS libera_em,
          coalesce(m.grande_area, nullif(btrim(q.grande_area), ''), 'Sem área') AS area,
-         m.especialidade AS especialidade
+         p.esp_label AS especialidade,
+         coalesce(nullif(c.tc, ''), 'Sem tema') AS tema_full,
+         p.tema_label AS tema_curto
     INTO v_q
   FROM public.b2c_questoes q
   JOIN public.b2c_simulados s ON s.id = q.simulado_id AND s.status = 'published'
   LEFT JOIN public.b2c_area_mapa m ON m.area_origem = q.grande_area
+  CROSS JOIN LATERAL (
+    SELECT btrim(regexp_replace(coalesce(q.tema, ''), '\s+', ' ', 'g')) AS tc
+  ) c
+  CROSS JOIN LATERAL (
+    -- especialidade = antes do PRIMEIRO '>' do tema (fallback: a do mapa); tema = depois dele
+    SELECT coalesce(
+             nullif(btrim(CASE WHEN position('>' IN c.tc) > 0 THEN left(c.tc, position('>' IN c.tc) - 1) END), ''),
+             nullif(btrim(regexp_replace(coalesce(m.especialidade, ''), '\s+', ' ', 'g')), '')) AS esp_label,
+           coalesce(
+             nullif(btrim(CASE WHEN position('>' IN c.tc) > 0 THEN substr(c.tc, position('>' IN c.tc) + 1) ELSE c.tc END), ''),
+             'Sem tema') AS tema_label
+  ) p
   WHERE q.id = p_questao_id;
 
   IF NOT FOUND THEN
@@ -318,7 +388,8 @@ BEGIN
       'numero', v_q.numero,
       'grande_area', v_q.area,
       'especialidade', v_q.especialidade,
-      'tema', coalesce(v_q.tema, 'Sem tema'),
+      'tema', v_q.tema_full,
+      'tema_curto', v_q.tema_curto,
       'dificuldade', v_q.dificuldade,
       'enunciado', v_q.enunciado,
       'imagens', to_jsonb(array_remove(array[nullif(btrim(v_q.imagem_url), ''), nullif(btrim(v_q.imagem_url_2), '')], NULL)),
@@ -376,30 +447,73 @@ BEGIN
     ),
     resp AS (
       SELECT coalesce(m.grande_area, nullif(btrim(q.grande_area), ''), 'Sem área') AS area,
-             m.especialidade AS especialidade,
-             coalesce(q.tema, 'Sem tema') AS tema, r.correta
+             p.esp_label, k.esp_key, p.tema_label, k.tema_key, k.full_key,
+             coalesce(nullif(c.tc, ''), 'Sem tema') AS tema_full,
+             r.correta
       FROM tent t
       JOIN public.b2c_respostas r ON r.tentativa_id = t.id
       JOIN public.b2c_questoes q ON q.id = r.questao_id
       LEFT JOIN public.b2c_area_mapa m ON m.area_origem = q.grande_area
+      CROSS JOIN LATERAL (
+        -- tema com whitespace colapsado e aparado (a plataforma traz espaços duplos/finais)
+        SELECT btrim(regexp_replace(coalesce(q.tema, ''), '\s+', ' ', 'g')) AS tc
+      ) c
+      CROSS JOIN LATERAL (
+        -- "Especialidade > Tema": especialidade = antes do PRIMEIRO '>'; sem '>' (ou prefixo
+        -- vazio) cai na especialidade do mapa. Tema = depois do primeiro '>' (ou o tema inteiro).
+        SELECT coalesce(
+                 nullif(btrim(CASE WHEN position('>' IN c.tc) > 0 THEN left(c.tc, position('>' IN c.tc) - 1) END), ''),
+                 nullif(btrim(regexp_replace(coalesce(m.especialidade, ''), '\s+', ' ', 'g')), '')) AS esp_label,
+               coalesce(
+                 nullif(btrim(CASE WHEN position('>' IN c.tc) > 0 THEN substr(c.tc, position('>' IN c.tc) + 1) ELSE c.tc END), ''),
+                 'Sem tema') AS tema_label
+      ) p
+      CROSS JOIN LATERAL (
+        -- chaves de agrupamento: insensíveis a caixa e a espaços
+        SELECT lower(regexp_replace(btrim(p.esp_label), '\s+', ' ', 'g')) AS esp_key,
+               lower(regexp_replace(btrim(p.tema_label), '\s+', ' ', 'g')) AS tema_key,
+               lower(regexp_replace(btrim(coalesce(nullif(c.tc, ''), 'Sem tema')), '\s+', ' ', 'g')) AS full_key
+      ) k
+    ),
+    -- um rótulo de exibição por chave: a grafia mais frequente; empate -> menor (min) em ordem alfabética
+    esp_lbl AS (
+      SELECT DISTINCT ON (esp_key) esp_key, esp_label
+      FROM (SELECT esp_key, esp_label, count(*) AS n FROM resp WHERE esp_key IS NOT NULL GROUP BY esp_key, esp_label) x
+      ORDER BY esp_key, n DESC, esp_label
+    ),
+    tema_lbl AS (
+      SELECT DISTINCT ON (area, esp_key, tema_key) area, esp_key, tema_key, tema_label
+      FROM (SELECT area, esp_key, tema_key, tema_label, count(*) AS n FROM resp GROUP BY area, esp_key, tema_key, tema_label) x
+      ORDER BY area, esp_key, tema_key, n DESC, tema_label
+    ),
+    full_lbl AS (
+      SELECT DISTINCT ON (area, full_key) area, full_key, tema_full
+      FROM (SELECT area, full_key, tema_full, count(*) AS n FROM resp GROUP BY area, full_key, tema_full) x
+      ORDER BY area, full_key, n DESC, tema_full
     ),
     por_tema AS (
-      SELECT area, tema,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY area, tema
+      SELECT g.area, fl.tema_full AS tema, g.acerto_pct, g.respostas
+      FROM (SELECT area, full_key,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp GROUP BY area, full_key) g
+      JOIN full_lbl fl ON fl.area = g.area AND fl.full_key = g.full_key
     ),
     por_esp AS (
-      SELECT area, especialidade,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY area, especialidade
+      SELECT g.area, g.esp_key, el.esp_label AS especialidade, g.acerto_pct, g.respostas
+      FROM (SELECT area, esp_key,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp GROUP BY area, esp_key) g
+      LEFT JOIN esp_lbl el ON el.esp_key = g.esp_key
     ),
     por_tema_esp AS (
-      SELECT area, especialidade, tema,
-             round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
-             count(*) AS respostas
-      FROM resp GROUP BY area, especialidade, tema
+      SELECT g.area, g.esp_key, tl.tema_label AS tema, g.acerto_pct, g.respostas
+      FROM (SELECT area, esp_key, tema_key,
+                   round(100.0 * count(*) FILTER (WHERE correta) / count(*), 1) AS acerto_pct,
+                   count(*) AS respostas
+            FROM resp GROUP BY area, esp_key, tema_key) g
+      JOIN tema_lbl tl ON tl.area = g.area AND tl.esp_key IS NOT DISTINCT FROM g.esp_key AND tl.tema_key = g.tema_key
     ),
     por_area AS (
       SELECT area,
@@ -427,7 +541,7 @@ BEGIN
                 SELECT jsonb_agg(jsonb_build_object('tema', te.tema, 'acerto_pct', te.acerto_pct, 'respostas', te.respostas)
                                  ORDER BY te.acerto_pct, te.tema)
                 FROM por_tema_esp te
-                WHERE te.area = a.area AND te.especialidade IS NOT DISTINCT FROM e.especialidade), '[]'::jsonb)
+                WHERE te.area = a.area AND te.esp_key IS NOT DISTINCT FROM e.esp_key), '[]'::jsonb)
             ) ORDER BY e.acerto_pct, e.especialidade NULLS LAST)
             FROM por_esp e WHERE e.area = a.area), '[]'::jsonb),
           'temas', coalesce((
