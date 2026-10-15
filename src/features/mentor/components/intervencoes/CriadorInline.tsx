@@ -3,12 +3,17 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AlvoIntervencao, CriarIntervencaoInput, TipoIntervencao } from '@/services/mentor/intervencoes';
 import type { AlunoTurma } from '@/services/mentor/turma';
+import { TITULO_MAX } from '@/features/mentor/lib/textoSeguro';
 import { TIPOS, rotuloTipo } from './util';
 
 interface Props {
   turma: AlunoTurma[];
   /** E-mails pré-preenchidos (`?aluno=` / `?alunos=`): 1 → "Um aluno"; 2+ → "Alunos selecionados" (grupo). */
   alunosIniciais?: string[];
+  /** `?titulo=` já validado como texto simples (<= 120). Com ele o formulário mostra o campo Título, editável. */
+  tituloInicial?: string | null;
+  /** `?alvo=turma`: abre com "Turma toda" escolhido (e sem alunos pré-selecionados). */
+  alvoPreSelecionado?: 'turma' | null;
   enviando?: boolean;
   onCriar: (input: CriarIntervencaoInput) => void;
   onCancelar: () => void;
@@ -25,12 +30,17 @@ function alvoInicial(n: number): AlvoIntervencao | '' {
 export const CriadorInline: React.FC<Props> = ({
   turma,
   alunosIniciais = SEM_ALUNOS,
+  tituloInicial = null,
+  alvoPreSelecionado = null,
   enviando,
   onCriar,
   onCancelar,
 }) => {
   const [tipo, setTipo] = React.useState<TipoIntervencao | ''>('');
-  const [alvo, setAlvo] = React.useState<AlvoIntervencao | ''>(() => alvoInicial(alunosIniciais.length));
+  const [alvo, setAlvo] = React.useState<AlvoIntervencao | ''>(() =>
+    alunosIniciais.length === 0 && alvoPreSelecionado === 'turma' ? 'turma' : alvoInicial(alunosIniciais.length),
+  );
+  const [titulo, setTitulo] = React.useState(tituloInicial ?? '');
   const [aluno, setAluno] = React.useState(alunosIniciais.length === 1 ? alunosIniciais[0] : '');
   const [grupo, setGrupo] = React.useState<string[]>(alunosIniciais.length > 1 ? alunosIniciais : []);
   const [descricao, setDescricao] = React.useState('');
@@ -60,11 +70,12 @@ export const CriadorInline: React.FC<Props> = ({
     if (alvo === 'turma') quem = 'Turma toda';
     else if (alvo === 'grupo') quem = grupo.length === 1 ? nomeDe(grupo[0]) : `${grupo.length} alunos`;
     else quem = nomeDe(aluno);
+    const automatico = `${rotuloTipo(tipo)} — ${quem}`;
     onCriar({
       tipo,
       alvo,
       alunos,
-      titulo: `${rotuloTipo(tipo)} — ${quem}`,
+      titulo: tituloInicial !== null ? titulo.trim().slice(0, TITULO_MAX) || automatico : automatico,
       nota: descricao.trim() || null,
     });
   };
@@ -142,6 +153,19 @@ export const CriadorInline: React.FC<Props> = ({
             </ul>
           )}
         </div>
+      ) : null}
+      {tituloInicial !== null ? (
+        <label className="block space-y-1">
+          <span className="text-xs font-medium">Título</span>
+          <input
+            type="text"
+            aria-label="Título"
+            value={titulo}
+            maxLength={TITULO_MAX}
+            onChange={(e) => setTitulo(e.target.value)}
+            className="h-8 w-full rounded border bg-background px-2"
+          />
+        </label>
       ) : null}
       <label className="block space-y-1">
         <span className="text-xs font-medium">Descrição (opcional)</span>

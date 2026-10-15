@@ -1,5 +1,14 @@
+import type { NivelDesempenho } from '@/features/gestor/api/types';
+// Régua única de desempenho: o corte mora no módulo de regras do Gestor e não é copiado aqui.
+import { nivelDesempenho } from '@/features/gestor/lib/regras';
 import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
-import type { AlunoDesempenho, QuestaoDetalhe, SimuladoB2C } from '@/services/mentor/desempenho';
+import { TITULO_MAX, tituloDeParam } from '@/features/mentor/lib/textoSeguro';
+import type {
+  AlunoDesempenho,
+  QuestaoCompleta,
+  QuestaoDetalhe,
+  SimuladoB2C,
+} from '@/services/mentor/desempenho';
 
 export type OrdenacaoQuestoes = 'ordem_da_prova' | 'mais_erradas' | 'mais_acertadas';
 
@@ -26,6 +35,11 @@ export function formatDeltaPp(valor: number): string {
 
 export function formatRespostas(n: number): string {
   return `${NUM.format(n)} ${n === 1 ? 'resposta' : 'respostas'}`;
+}
+
+/** Tema para exibir: a parte curta ("Sepse neonatal") quando o backend manda; senão o `tema` completo. */
+export function temaExibido(q: { tema_curto?: string | null; tema?: string | null }): string {
+  return q.tema_curto?.trim() || q.tema || '';
 }
 
 export function rotuloSimulado(sequence: number): string {
@@ -202,6 +216,51 @@ export function derivarDistribuicao(questao: QuestaoDetalhe): {
   };
 }
 
+export interface AlternativaCompleta extends AlternativaDistribuicao {
+  texto: string | null;
+  /** null = o backend não expõe os alunos desta alternativa. */
+  emails: string[] | null;
+}
+
+/**
+ * Distribuição a partir de `mentor_questao`. Distrator dominante = a alternativa ERRADA com mais
+ * respostas (precisa de n > 0). Empate fica com a primeira na ordem das alternativas.
+ */
+export function distribuicaoCompleta(questao: QuestaoCompleta): {
+  alternativas: AlternativaCompleta[];
+  branco: number;
+  brancoEmails: string[] | null;
+  brancoPct: number;
+} {
+  const alts = questao.alternativas ?? [];
+  const branco = questao.branco?.n ?? 0;
+  const total = alts.reduce((acc, a) => acc + (a.n ?? 0), 0) + branco;
+  const calc = (n: number) => (total > 0 ? (n / total) * 100 : 0);
+
+  let dominante: string | null = null;
+  let maior = 0;
+  for (const a of alts) {
+    if (!a.correta && (a.n ?? 0) > maior) {
+      maior = a.n;
+      dominante = a.label;
+    }
+  }
+  return {
+    alternativas: alts.map((a) => ({
+      letra: a.label,
+      texto: a.texto ?? null,
+      contagem: a.n ?? 0,
+      pct: typeof a.pct === 'number' && Number.isFinite(a.pct) ? a.pct : calc(a.n ?? 0),
+      correta: a.correta,
+      dominante: a.label === dominante,
+      emails: a.emails ?? null,
+    })),
+    branco,
+    brancoEmails: questao.branco?.emails ?? null,
+    brancoPct: calc(branco),
+  };
+}
+
 /** Rota do Mural com todos os destinatários em `?para=` (lista separada por vírgula). */
 export function urlMural(emails: string[]): string {
   const p = new URLSearchParams({ para: parseEmailsParam(emails.join(',')).join(',') });
@@ -214,8 +273,37 @@ export function urlIntervencao(emails: string[]): string {
   return `/mentor/intervencoes?${p.toString()}`;
 }
 
+/** Intervenções para a turma toda a partir de um tema: título pré-preenchido, só texto, até 120 caracteres. */
+export function urlIntervencaoTema(tema: string, grandeArea: string): string {
+  const titulo = tituloDeParam(`Tema: ${tema} (${grandeArea})`) ?? 'Tema';
+  const p = new URLSearchParams({ novo: '1', alvo: 'turma', titulo: titulo.slice(0, TITULO_MAX) });
+  return `/mentor/intervencoes?${p.toString()}`;
+}
+
+/** Rótulos curtos da régua única do Gestor (3 níveis sobre % de acerto): o nível vem de `nivelDesempenho`. */
+export const ROTULO_NIVEL: Record<NivelDesempenho, string> = {
+  critico: 'Crítico',
+  mediano: 'Mediano',
+  excelente: 'Bom',
+};
+
+export const CLASSE_PILULA_NIVEL: Record<NivelDesempenho, string> = {
+  critico: 'bg-red-100 text-red-800',
+  mediano: 'bg-amber-100 text-amber-800',
+  excelente: 'bg-emerald-100 text-emerald-800',
+};
+
+export function rotuloNivel(pct: number | null | undefined): string | null {
+  const nivel = nivelDesempenho(pct ?? null);
+  return nivel ? ROTULO_NIVEL[nivel] : null;
+}
+
+const CLASSE_BARRA: Record<NivelDesempenho, string> = {
+  critico: 'bg-red-500',
+  mediano: 'bg-amber-500',
+  excelente: 'bg-emerald-500',
+};
+
 export function classeAcerto(pct: number): string {
-  if (pct >= 70) return 'bg-emerald-500';
-  if (pct >= 50) return 'bg-amber-500';
-  return 'bg-red-500';
+  return CLASSE_BARRA[nivelDesempenho(pct) ?? 'critico'];
 }

@@ -196,6 +196,39 @@ describe('Intervencoes', () => {
     await waitFor(() => expect(within(form).getByLabelText('Aluno')).toHaveValue('ana@x.com'));
   });
 
+  it('?titulo=&alvo=turma abre o criador para a turma toda com o título pré-preenchido e cria com ele', async () => {
+    const user = userEvent.setup();
+    const titulo = encodeURIComponent('Tema: Diabetes (Clínica Médica)');
+    renderTela(`/mentor/intervencoes?novo=1&alvo=turma&titulo=${titulo}`);
+    const form = await screen.findByRole('form', { name: 'Nova intervenção' });
+    expect(within(form).getByLabelText('Para quem')).toHaveValue('turma');
+    expect(within(form).getByLabelText('Título')).toHaveValue('Tema: Diabetes (Clínica Médica)');
+
+    await user.selectOptions(within(form).getByLabelText('Tipo'), 'reuniao_coletiva');
+    await user.click(within(form).getByRole('button', { name: 'Criar' }));
+    await waitFor(() =>
+      expect(svc.criarIntervencao).toHaveBeenCalledWith(
+        expect.objectContaining({ alvo: 'turma', alunos: [], titulo: 'Tema: Diabetes (Clínica Médica)' }),
+      ),
+    );
+  });
+
+  it('?titulo= é texto simples: tags somem e passa de 120 caracteres é cortado', async () => {
+    const longo = 'x'.repeat(200);
+    renderTela(`/mentor/intervencoes?novo=1&titulo=${encodeURIComponent(`<b>Oi</b> ${longo}`)}`);
+    const form = await screen.findByRole('form', { name: 'Nova intervenção' });
+    const valor = (within(form).getByLabelText('Título') as HTMLInputElement).value;
+    expect(valor.startsWith('Oi xxx')).toBe(true);
+    expect(valor).not.toMatch(/[<>]/);
+    expect(valor.length).toBe(120);
+  });
+
+  it('sem ?titulo= o formulário não mostra o campo Título (como antes)', async () => {
+    renderTela('/mentor/intervencoes?novo=1');
+    const form = await screen.findByRole('form', { name: 'Nova intervenção' });
+    expect(within(form).queryByLabelText('Título')).toBeNull();
+  });
+
   it('remover um aluno do grupo pré-preenchido tira ele do envio', async () => {
     const user = userEvent.setup();
     renderTela('/mentor/intervencoes?novo=1&alunos=ana@x.com,bia@x.com');

@@ -15,6 +15,7 @@ import {
 import { invalidarMentor } from '@/services/mentor/invalidar';
 import { fetchTurma } from '@/services/mentor/turma';
 import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
+import { tituloDeParam } from '@/features/mentor/lib/textoSeguro';
 import { DrawerIntervencao } from '@/features/mentor/components/DrawerIntervencao';
 import { CardIntervencaoKanban } from '@/features/mentor/components/intervencoes/CardIntervencaoKanban';
 import { CriadorInline } from '@/features/mentor/components/intervencoes/CriadorInline';
@@ -42,6 +43,9 @@ const Intervencoes: React.FC = () => {
   const [tipo, setTipo] = React.useState<TipoIntervencao | ''>('');
   // `?aluno=` (um) e `?alunos=` (lista separada por vírgula) pré-preenchem o criador.
   const [alunosIniciais] = React.useState(() => parseEmailsParam(params.get('aluno'), params.get('alunos')));
+  // `?titulo=` (texto simples, até 120) e `?alvo=turma` pré-preenchem o criador (ex.: "Intervenção" de um tema).
+  const [tituloInicial] = React.useState(() => tituloDeParam(params.get('titulo')));
+  const [alvoPreSelecionado] = React.useState<'turma' | null>(() => (params.get('alvo') === 'turma' ? 'turma' : null));
   const [criando, setCriando] = React.useState(params.get('novo') === '1' || params.has('alunos'));
   const [abertoId, setAbertoId] = React.useState<string | null>(null);
 
@@ -66,11 +70,9 @@ const Intervencoes: React.FC = () => {
     mutationFn: (input: CriarIntervencaoInput) => criarIntervencao(input),
     onSuccess: () => {
       setCriando(false);
-      if (params.has('novo') || params.has('aluno') || params.has('alunos')) {
+      if (['novo', 'aluno', 'alunos', 'titulo', 'alvo'].some((k) => params.has(k))) {
         const p = new URLSearchParams(params);
-        p.delete('novo');
-        p.delete('aluno');
-        p.delete('alunos');
+        for (const k of ['novo', 'aluno', 'alunos', 'titulo', 'alvo']) p.delete(k);
         setParams(p, { replace: true });
       }
       invalidar();
@@ -226,6 +228,8 @@ const Intervencoes: React.FC = () => {
                     <CriadorInline
                       turma={turmaQ.data ?? []}
                       alunosIniciais={alunosIniciais}
+                      tituloInicial={tituloInicial}
+                      alvoPreSelecionado={alvoPreSelecionado}
                       enviando={criar.isPending}
                       onCriar={(input) => criar.mutate(input)}
                       onCancelar={() => setCriando(false)}

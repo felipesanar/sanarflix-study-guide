@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { previaEmUmaLinha } from '@/features/mentor/lib/textoSeguro';
 import type { QuestaoDetalhe } from '@/services/mentor/desempenho';
 import {
   ORDENACOES,
@@ -9,6 +10,7 @@ import {
   formatRespostas,
   ordenarQuestoes,
   rotuloSimulado,
+  temaExibido,
   type OrdenacaoQuestoes,
 } from './util';
 
@@ -88,6 +90,7 @@ export const ListaQuestoes: React.FC<Props> = ({ questoes, multiSimulado, onAbri
       ) : (
         <ul className="divide-y rounded-xl border bg-card">
           {visiveis.slice(0, limite).map((q) => {
+            const previa = previaEmUmaLinha(q.enunciado_inicio);
             return (
               <li key={q.questao_id}>
                 <button
@@ -105,8 +108,16 @@ export const ListaQuestoes: React.FC<Props> = ({ questoes, multiSimulado, onAbri
                     )}
                   </span>
                   <span className="hidden min-w-0 sm:block">
-                    <span className="block truncate text-sm">{q.tema}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{q.grande_area}</span>
+                    <span className="block truncate text-sm">{temaExibido(q)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {q.especialidade ? `${q.grande_area} · ${q.especialidade}` : q.grande_area}
+                    </span>
+                    {previa && (
+                      <span className="block truncate text-xs text-muted-foreground/80" data-testid="previa-enunciado">
+                        {q.tem_imagem ? <span className="sr-only">Com imagem. </span> : null}
+                        {previa}
+                      </span>
+                    )}
                   </span>
                   <span className="hidden sm:block" aria-hidden="true">
                     <span className="block h-2 rounded-full bg-muted">

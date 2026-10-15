@@ -1,6 +1,15 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import type { SimuladoBloqueado } from '@/services/mentor/desempenho';
 import type { OpcaoSimulado } from './turma/simulados';
+import { formatDiaMesHora } from './turma/util';
+
+/** Tooltip do chip bloqueado: quando o resultado é liberado (ou que ainda não há data). */
+export function dicaBloqueado(b: SimuladoBloqueado): string {
+  return b.libera_em && formatDiaMesHora(b.libera_em) !== '—'
+    ? `Resultado liberado em ${formatDiaMesHora(b.libera_em)}`
+    : 'Resultado ainda não liberado';
+}
 
 interface Props {
   opcoes: OpcaoSimulado[];
@@ -12,6 +21,12 @@ interface Props {
    * Sem a flag (Minha turma), seleção vazia = "Todos".
    */
   exigirSelecao?: boolean;
+  /**
+   * Simulados cujo resultado ainda não foi liberado aos alunos (id → info). Viram chips desabilitados
+   * com tooltip da data de liberação; "Todos" não os marca. Um bloqueado que já está marcado
+   * continua desmarcável. Ausente = comportamento de antes.
+   */
+  bloqueados?: Record<string, SimuladoBloqueado>;
 }
 
 /**
@@ -24,9 +39,11 @@ export const SeletorSimuladosMentor: React.FC<Props> = ({
   selecionados,
   onChange,
   exigirSelecao = false,
+  bloqueados,
 }) => {
+  const livres = opcoes.filter((o) => !bloqueados?.[o.id]);
   const todosAtivo = exigirSelecao
-    ? opcoes.length > 0 && opcoes.every((o) => selecionados.includes(o.id))
+    ? livres.length > 0 && livres.every((o) => selecionados.includes(o.id))
     : selecionados.length === 0;
 
   const alternar = (id: string) => {
@@ -34,7 +51,7 @@ export const SeletorSimuladosMentor: React.FC<Props> = ({
     if (exigirSelecao && selecionados.length <= 1) return;
     onChange(selecionados.filter((x) => x !== id));
   };
-  const marcarTodos = () => onChange(exigirSelecao ? opcoes.map((o) => o.id) : []);
+  const marcarTodos = () => onChange(exigirSelecao ? livres.map((o) => o.id) : []);
 
   const chip = (ativo: boolean) =>
     cn(
@@ -50,17 +67,39 @@ export const SeletorSimuladosMentor: React.FC<Props> = ({
       </button>
       {opcoes.map((o) => {
         const ativo = selecionados.includes(o.id);
+        const bloqueado = bloqueados?.[o.id];
+        if (!bloqueado) {
+          return (
+            <button
+              key={o.id}
+              type="button"
+              title={o.titulo || undefined}
+              aria-pressed={ativo}
+              onClick={() => alternar(o.id)}
+              className={chip(ativo)}
+            >
+              Simulado {o.sequence_number}
+            </button>
+          );
+        }
+        const dica = dicaBloqueado(bloqueado);
+        // Botão desabilitado não dispara tooltip nativo: o `title` vai no invólucro.
         return (
-          <button
-            key={o.id}
-            type="button"
-            title={o.titulo || undefined}
-            aria-pressed={ativo}
-            onClick={() => alternar(o.id)}
-            className={chip(ativo)}
-          >
-            Simulado {o.sequence_number}
-          </button>
+          <span key={o.id} title={dica} data-testid={`chip-bloqueado-${o.sequence_number}`}>
+            <button
+              type="button"
+              aria-pressed={ativo}
+              aria-describedby={`dica-bloqueado-${o.id}`}
+              disabled={!ativo}
+              onClick={() => alternar(o.id)}
+              className={cn(chip(ativo), 'opacity-60', !ativo && 'cursor-not-allowed line-through decoration-1')}
+            >
+              Simulado {o.sequence_number}
+            </button>
+            <span id={`dica-bloqueado-${o.id}`} className="sr-only">
+              {dica}
+            </span>
+          </span>
         );
       })}
     </div>

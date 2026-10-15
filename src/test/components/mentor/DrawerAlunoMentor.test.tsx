@@ -212,4 +212,83 @@ describe('DrawerAlunoMentor', () => {
     expect(await screen.findByText(/Não foi possível carregar os simulados/, undefined, T)).toBeInTheDocument();
     expect(screen.getByText('Alice Souza')).toBeInTheDocument();
   });
+
+  describe('ranking e árvore de áreas (espelho completo)', () => {
+    const nota = (over: Record<string, unknown>) => ({
+      simulado_id: 's1',
+      sequence_number: 1,
+      titulo: 'Simulado Nacional 1',
+      acerto_pct: 58,
+      finalizada_em: '2026-10-08T12:00:00Z',
+      ...over,
+    });
+
+    it('mostra "Nº X de Y", percentil com tooltip e a tag "fora da janela"', async () => {
+      fetchAluno.mockResolvedValue(detalhe());
+      fetchAlunoNotas.mockResolvedValue({
+        email: 'a@x.com',
+        notas: [
+          nota({ posicao: 3, participantes: 40, percentil: 92.5, dentro_janela: true }),
+          nota({ simulado_id: 's2', sequence_number: 2, titulo: 'Simulado Nacional 2', posicao: null, participantes: 38, percentil: null, dentro_janela: false }),
+        ],
+        areas: [],
+      });
+      renderDrawer();
+      expect(await screen.findByText('Nº 3 de 40', undefined, T)).toBeInTheDocument();
+      const percentil = screen.getByTestId('percentil');
+      expect(percentil).toHaveTextContent('percentil 93');
+      expect(percentil).toHaveAttribute('title', 'entre quem fez dentro da janela');
+      // Só a nota 2 está fora da janela e sem posição.
+      expect(screen.getAllByTestId('fora-da-janela')).toHaveLength(1);
+      expect(screen.getByTestId('fora-da-janela')).toHaveTextContent('fora da janela');
+      expect(screen.getAllByTestId('posicao')).toHaveLength(1);
+    });
+
+    it('backend antigo (sem os campos): mostra só nota e data, sem ranking nem tag', async () => {
+      fetchAluno.mockResolvedValue(detalhe());
+      fetchAlunoNotas.mockResolvedValue({ email: 'a@x.com', notas: [nota({})], areas: [] });
+      renderDrawer();
+      expect(await screen.findByText('Simulado Nacional 1', { exact: false }, T)).toBeInTheDocument();
+      expect(screen.getByText('58%')).toBeInTheDocument();
+      expect(screen.queryByTestId('posicao')).toBeNull();
+      expect(screen.queryByTestId('percentil')).toBeNull();
+      expect(screen.queryByTestId('fora-da-janela')).toBeNull();
+    });
+
+    it('dentro_janela ausente não gera tag; posição sem total mostra só "Nº X"', async () => {
+      fetchAluno.mockResolvedValue(detalhe());
+      fetchAlunoNotas.mockResolvedValue({ email: 'a@x.com', notas: [nota({ posicao: 5 })], areas: [] });
+      renderDrawer();
+      expect(await screen.findByText('Nº 5', undefined, T)).toBeInTheDocument();
+      expect(screen.queryByTestId('fora-da-janela')).toBeNull();
+    });
+
+    it('desempenho por área vira árvore grande área → especialidade → tema, com "Geral" para nula', async () => {
+      fetchAluno.mockResolvedValue(detalhe());
+      fetchAlunoNotas.mockResolvedValue({
+        email: 'a@x.com',
+        notas: [nota({})],
+        areas: [
+          {
+            grande_area: 'Pediatria',
+            acerto_pct: 60,
+            respostas: 18,
+            temas: [{ tema: 'Sepse neonatal', acerto_pct: 40, respostas: 10 }],
+            especialidades: [
+              { especialidade: 'Neonatologia', acerto_pct: 40, respostas: 10, temas: [{ tema: 'Sepse neonatal', acerto_pct: 40, respostas: 10 }] },
+              { especialidade: null, acerto_pct: 85, respostas: 8, temas: [{ tema: 'Vacinas', acerto_pct: 85, respostas: 8 }] },
+            ],
+          },
+        ],
+      });
+      renderDrawer();
+      const neo = await screen.findByTestId('especialidade-Neonatologia', undefined, T);
+      expect(neo).toHaveTextContent('40%');
+      expect(neo).toHaveTextContent('Sepse neonatal');
+      const geral = screen.getByTestId('especialidade-Geral');
+      expect(geral).toHaveTextContent('Vacinas');
+      // O tema não aparece duplicado na lista plana quando a árvore existe.
+      expect(screen.getAllByText('Sepse neonatal')).toHaveLength(1);
+    });
+  });
 });

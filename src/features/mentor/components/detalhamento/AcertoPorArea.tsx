@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import type { AreaDesempenho } from '@/services/mentor/desempenho';
+import { PainelGrandeArea } from './PainelGrandeArea';
 import { classeAcerto, formatPct, formatRespostas } from './util';
 
 const Barra: React.FC<{ pct: number }> = ({ pct }) => (
@@ -16,11 +16,10 @@ interface Props {
   areas: AreaDesempenho[];
 }
 
-/** Acerto por grande área (tela 04) + painel "Detalhar" com os temas (tela 04b, sem nota de corte). */
+/** Acerto por grande área (tela 04); "Detalhar" abre o painel de especialidades e temas (tela 04b). */
 export const AcertoPorArea: React.FC<Props> = ({ areas }) => {
   const [aberta, setAberta] = React.useState<string | null>(null);
   const area = areas.find((a) => a.grande_area === aberta) ?? null;
-  const temas = area ? [...area.temas].sort((a, b) => a.acerto_pct - b.acerto_pct) : [];
 
   return (
     <section aria-label="Acerto por grande área" className="space-y-3">
@@ -58,33 +57,7 @@ export const AcertoPorArea: React.FC<Props> = ({ areas }) => {
         </ul>
       )}
 
-      <Sheet open={!!area} onOpenChange={(o) => !o && setAberta(null)}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
-          {area && (
-            <>
-              <SheetHeader>
-                <SheetTitle>{area.grande_area}</SheetTitle>
-                <SheetDescription>
-                  {formatPct(area.acerto_pct)} de acerto · {formatRespostas(area.respostas)}
-                </SheetDescription>
-              </SheetHeader>
-              <ul className="mt-4 space-y-3">
-                {temas.length === 0 && <li className="text-sm text-muted-foreground">Sem temas neste recorte.</li>}
-                {temas.map((t) => (
-                  <li key={t.tema} className="space-y-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-sm font-medium">{t.tema}</span>
-                      <span className="text-sm font-semibold">{formatPct(t.acerto_pct)}</span>
-                    </div>
-                    <Barra pct={t.acerto_pct} />
-                    <p className="text-xs text-muted-foreground">{formatRespostas(t.respostas)}</p>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+      <PainelGrandeArea area={area} onFechar={() => setAberta(null)} />
     </section>
   );
 };

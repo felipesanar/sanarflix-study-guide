@@ -14,6 +14,12 @@ export interface NotaSimulado {
   sequence_number: number;
   acerto_pct: number;
   finalizada_em: string;
+  /** Posição do aluno entre quem fez o simulado dentro da janela. Ausente até o backend novo. */
+  posicao?: number | null;
+  participantes?: number | null;
+  percentil?: number | null;
+  /** false = o aluno fez fora da janela (não entra no ranking). */
+  dentro_janela?: boolean | null;
 }
 
 export interface AlunoDesempenho {
@@ -59,11 +65,22 @@ export interface TemaDesempenho {
   respostas: number;
 }
 
+/** Especialidade dentro de uma grande área; `especialidade` nula = sem classificação ("Geral"). */
+export interface EspecialidadeDesempenho {
+  especialidade: string | null;
+  acerto_pct: number;
+  respostas: number;
+  temas: TemaDesempenho[];
+}
+
 export interface AreaDesempenho {
   grande_area: string;
   acerto_pct: number;
   respostas: number;
+  /** Todos os temas da área (lista plana, existente). */
   temas: TemaDesempenho[];
+  /** Árvore grande área → especialidade → tema. Ausente até o backend novo: a UI cai em `temas`. */
+  especialidades?: EspecialidadeDesempenho[];
 }
 
 export interface QuestaoDetalhe {
@@ -79,11 +96,65 @@ export interface QuestaoDetalhe {
   distribuicao: Record<string, number>;
   /** e-mails de quem marcou cada alternativa (só da turma). */
   emails: Record<string, string[]>;
+  /** Campos novos (opcionais até o backend novo ser aplicado). */
+  especialidade?: string | null;
+  /** Parte do `tema` depois de ">" ("Especialidade > Tema"); `tema` segue sendo a string completa. */
+  tema_curto?: string | null;
+  dificuldade?: string | null;
+  /** Primeiras linhas do enunciado, para a prévia na lista. */
+  enunciado_inicio?: string | null;
+  tem_imagem?: boolean;
+}
+
+/** Simulado cujo resultado ainda não foi liberado aos alunos: fica fora dos dados. */
+export interface SimuladoBloqueado {
+  simulado_id: string;
+  sequence_number: number;
+  /** Quando o resultado é liberado; nulo = sem data definida. */
+  libera_em: string | null;
 }
 
 export interface Detalhamento {
   areas: AreaDesempenho[];
   questoes: QuestaoDetalhe[];
+  /** Simulados do recorte ainda não liberados (excluídos de `areas` e `questoes`). */
+  bloqueados?: SimuladoBloqueado[];
+}
+
+export interface AlternativaQuestao {
+  label: string;
+  texto: string | null;
+  correta: boolean;
+  n: number;
+  pct: number;
+  /** null = o backend não expõe os alunos desta alternativa (ex.: a correta). */
+  emails: string[] | null;
+}
+
+/** Questão completa (`mentor_questao`): enunciado, imagens, alternativas com texto e explicação. */
+export interface QuestaoCompleta {
+  questao_id: string;
+  simulado_id: string;
+  sequence_number: number;
+  numero: number;
+  grande_area: string | null;
+  especialidade: string | null;
+  tema: string | null;
+  tema_curto?: string | null;
+  dificuldade: string | null;
+  enunciado: string | null;
+  imagens: string[] | null;
+  explicacao: string | null;
+  explicacao_imagem_url: string | null;
+  respostas: number;
+  acerto_pct: number;
+  alternativas: AlternativaQuestao[];
+  branco: { n: number; emails: string[] | null } | null;
+}
+
+/** Mensagem da RPC quando o simulado da questão ainda não foi liberado. */
+export function questaoNaoLiberada(error: unknown): boolean {
+  return error instanceof Error && /ainda n[aã]o foi liberado/i.test(error.message);
 }
 
 export interface AlunoNotas {
@@ -107,6 +178,9 @@ async function callRpc<T>(fn: string, args: Record<string, unknown>): Promise<T>
  * o cache é compartilhado entre as telas. Sem ids (ou lista vazia) = todos os simulados.
  */
 export const chavesDesempenho = {
+  /** Questão aberta (lazy): mesma questão + mesmo recorte = mesmo cache. */
+  questao: (questaoId: string, simulados: readonly string[]) =>
+    ['mentor', 'questao', questaoId, [...simulados].sort()] as const,
   turma: (simulados?: readonly string[] | null) =>
     ['mentor', 'desempenho', simulados && simulados.length > 0 ? [...simulados].sort() : 'todos'] as const,
 };
@@ -120,6 +194,10 @@ export async function fetchDesempenhoTurma(simulados?: string[]): Promise<Desemp
 
 export async function fetchDetalhamento(simulados: string[]): Promise<Detalhamento> {
   return callRpc<Detalhamento>('mentor_detalhamento', { p_simulados: simulados });
+}
+
+export async function fetchQuestao(questaoId: string, simulados: string[]): Promise<QuestaoCompleta> {
+  return callRpc<QuestaoCompleta>('mentor_questao', { p_questao_id: questaoId, p_simulados: simulados });
 }
 
 export async function fetchAlunoNotas(email: string): Promise<AlunoNotas> {
