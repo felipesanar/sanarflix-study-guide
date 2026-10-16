@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
       let multiCells = 0, multiRows = 0;
       for (const row of payload.rows) {
         const key = normRa(row.matricula_ra);
-        const validation = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount);
+        const validation = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount, ctx);
         const mc = countMulti(row);
         if (mc > 0 && validation.status !== 'preview_error') {
           multiCells += mc; multiRows++;
@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
 
     for (const row of payload.rows) {
       const key = normRa(row.matricula_ra);
-      const v = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount);
+      const v = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount, ctx);
       if (v.status === 'preview_error') {
         const userId = userByRa.get(key)?.user_id ?? '00000000-0000-0000-0000-000000000000';
         invalidFailures.push({ user_id: userId, reason: v.reason ?? 'validation_failed' });
@@ -572,6 +572,11 @@ function validatePayload(p: RequestPayload): string[] {
   return errs;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isUuid(v: string): boolean {
+  return UUID_REGEX.test(v.trim());
+}
+
 function normRa(raw: unknown): string {
   return String(raw ?? '').trim().toLowerCase();
 }
@@ -612,19 +617,22 @@ function validateRow(
   expectedNumeros: number[],
   userByRa: Map<string, { user_id: string; nome: string; email: string; match_count: number }>,
   raCount: Map<string, number>,
+  ctx: { idNotInIes: Set<string> } = { idNotInIes: new Set() },
 ): RowResult {
   const matricula_ra = String(row.matricula_ra ?? '').trim();
   if (!key) {
     return { matricula_ra, status: 'preview_error', reason: 'ra_missing' };
   }
+  const byId = isUuid(key);
   if ((raCount.get(key) ?? 0) > 1) {
-    return { matricula_ra, status: 'preview_error', reason: 'duplicate_ra_in_file' };
+    return { matricula_ra, status: 'preview_error', reason: byId ? 'duplicate_student_in_file' : 'duplicate_ra_in_file' };
   }
   const user = userByRa.get(key);
   if (!user) {
+    if (byId) return { matricula_ra, status: 'preview_error', reason: ctx.idNotInIes.has(key) ? 'id_not_in_ies' : 'id_not_found' };
     return { matricula_ra, status: 'preview_error', reason: 'ra_not_found' };
   }
-  const base = { matricula_ra, email: user.email, nome: user.nome };
+  const base = { matricula_ra, email: user.email, nome: user.nome, identificado_por: byId ? 'id' : 'ra' };
   if (user.match_count > 1) {
     return { ...base, status: 'preview_error', reason: 'ra_ambiguous' };
   }
