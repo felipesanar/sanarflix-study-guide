@@ -353,7 +353,8 @@ export default function ImportarRespostasTab() {
   const downloadReport = () => {
     if (!finalReport) return;
     const rows = finalReport.results.map((r) => ({
-      matricula_ra: r.matricula_ra,
+      matricula_ra_ou_id: r.matricula_ra,
+      identificado_por: isUuid(r.matricula_ra) ? 'ID do aluno' : 'Matrícula/RA',
       nome: r.nome ?? '',
       email: r.email ?? '',
       marcacoes_multiplas: Number((r.details as { multi_marked_cells?: number } | undefined)?.multi_marked_cells ?? 0) || '',
