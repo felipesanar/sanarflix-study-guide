@@ -3,8 +3,8 @@
 Correção automática de cartões-resposta do SanarFlix Academy (PDF digitalizado → planilha de importação).
 **V0, local, sem LLM.** Especificação completa em `docs/prd/2026-10-07-cartoes-resposta.md` (revisão 4).
 
-> **Estado: Fase 1.** Existem o gerador do cartão, os templates, as fixtures sintéticas e o pipeline de leitura
-> de uma página (`cartao_omr/pipeline/`). O comando `processar` (banco, identificação e planilha) entra na Fase 2;
+> **Estado: Fases 0, 1 e E.** Existem o gerador do cartão, os templates, as fixtures sintéticas, o pipeline de leitura
+> de uma página (`cartao_omr/pipeline/`) e a emissão dos cartões no Academy, em TypeScript. O comando `processar` (banco, identificação e planilha) entra na Fase 2;
 > o runbook completo, na Fase 3.
 
 ## Como a operação funciona
@@ -108,6 +108,29 @@ bolhas `[cx, cy, d]` (centro e diâmetro). No `sfa_v2`, `matricula` é `null`.
 | UniAtenas | `SFA2:A:<SIM8>` | 1 / 1,03 mm |
 
 `SIM8` são os 8 primeiros hex do `simulado_id`; `UID32` é o `user_id` sem hífens. `cartao_omr.models.parse_qr` faz a leitura inversa.
+
+## Emissão dos cartões no Academy (TypeScript)
+
+A tela **Admin → Simulados → Cartões-resposta** gera o PDF no próprio navegador, sem serviço externo. O código está em
+`src/features/cartoes/` (na raiz do repositório) e usa **os mesmos templates** deste serviço:
+
+- Cada template tem a **lista de desenho** (`draw`, descrita em `cartao_omr/drawlist.py`). O Python (`card.py`) e o
+  TypeScript (`render.ts`) só a interpretam; nenhum dos dois tem medida própria.
+- O QR é gerado por `qr.ts`, sem dependência nova, e é idêntico ao do `segno` (conferido em 86 vetores: `python tools/gen_qr_golden.py`
+  gera `src/features/cartoes/__tests__/qr-golden.json`).
+- `tools/emitir_ts.mts` roda o mesmo código pelo Node, para testar e para conferir um PDF fora do navegador:
+
+```bash
+node services/cartao-omr/tools/emitir_ts.mts entrada.json saida.pdf   # na raiz do repositório; Node 22.18+ e `npm install`
+```
+
+  `entrada.json`: `{"layout": "sfa", "simuladoId": "<uuid>", "nomeSimulado": "...", "ies": "...", "data": "25/10/2026",
+  "alunos": [{"userId": "<uuid>", "nome": "..."}]}` (ou `"layout": "uniatenas", "copias": 1`).
+- `tests/test_emissao_ts.py` executa esse script e compara o PDF com o do Python (pula se não houver Node ou `node_modules`).
+  Os testes do front: `npx vitest run src/features/cartoes`.
+
+Se mudar o `layout.py`: rode `cartao-omr modelo` (regenera os templates e a lista de desenho) e commite; os testes de
+sincronia falham até isso ser feito.
 
 ## Fixtures sintéticas
 

@@ -1,7 +1,9 @@
-"""Gerador do cartão SFA: desenha o PDF e escreve o template (fonte da verdade).
+"""Gerador do cartão SFA: monta o template (fonte da verdade) e desenha o PDF a partir dele.
 
-O mesmo `Geometry` (layout.py) alimenta o desenho e o JSON, então PDF e template
-não podem divergir. Só preto e tons de cinza; nenhum fundo, logo ou textura.
+`layout.py` guarda as medidas; `drawlist.py` as transforma na lista de desenho (`draw`) que vai dentro
+do template. Este módulo escreve o template e **interpreta essa mesma lista** para gerar o PDF (o
+Academy faz o mesmo em TypeScript), então PDF e template não podem divergir.
+Só preto e tons de cinza; nenhum fundo, logo ou textura.
 """
 from __future__ import annotations
 
@@ -12,20 +14,14 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import segno
-from reportlab.lib.colors import Color
+from reportlab.lib.colors import Color, HexColor
 from reportlab.lib.units import mm
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 from . import layout as L
+from .drawlist import DRAW_VERSION, build_draw
 from .models import MODEL_PERSONALIZADO, MODEL_UNIATENAS, CardSpec, RosterEntry
-
-BLACK = Color(0, 0, 0)
-WHITE = Color(1, 1, 1)
-
-
-def _gray(v: int) -> Color:
-    return Color(v / 255, v / 255, v / 255)
 
 
 # =============================================================== template
@@ -41,7 +37,7 @@ def qr_info(payload: str) -> dict:
     }
 
 
-# Pior caso previsto: simulado_id e user_id em UUID (36 caracteres cada).
+# Pior caso previsto: simulado_id e user_id em UUID.
 _UUID_EXEMPLO = "ffffffff-ffff-4fff-bfff-ffffffffffff"
 
 
@@ -71,6 +67,7 @@ def build_template(layout: str) -> dict:
             "fiducials_mm": "[x, y, w]: x e y são o canto superior esquerdo do quadrado preto; w é o lado",
             "bubbles": "[cx, cy, d]: centro e diâmetro",
             "boxes": "[x0, y0, x1, y1]",
+            "draw": "lista de desenho do cartão (ver cartao_omr/drawlist.py); leitor e emissor só a interpretam",
         },
         "page_mm": [L.PAGE_W, L.PAGE_H],
         "useful_area_mm": list(L.USEFUL),
@@ -105,12 +102,19 @@ def build_template(layout: str) -> dict:
                       L.GRID_X0 + L.GRID_COLUMNS * L.GRID_COL_W,
                       L.GRID_FIRST_CY + (L.GRID_ROWS - 0.5) * L.GRID_ROW_PITCH],
         },
+        "draw_version": DRAW_VERSION,
+        "draw": build_draw(layout),
     }
 
 
+_DRAW_MARK = "__DRAW__"
+
+
 def template_json(template: dict) -> str:
-    """JSON legível: arrays numéricos e bolhas em uma linha cada."""
-    text = json.dumps(template, indent=2, ensure_ascii=False)
+    """JSON legível: arrays numéricos e bolhas em uma linha cada, uma operação de desenho por linha."""
+    draw = template.get("draw")
+    base = {**template, "draw": _DRAW_MARK} if draw is not None else template
+    text = json.dumps(base, indent=2, ensure_ascii=False)
     text = re.sub(
         r"\[\s*(-?\d[^\[\]{}\"]*?)\s*\]",
         lambda m: "[" + re.sub(r"\s+", " ", m.group(1)) + "]",
@@ -121,6 +125,9 @@ def template_json(template: dict) -> str:
         r'{"symbol": "\1", "c": \2}',
         text,
     )
+    if draw is not None:
+        linhas = ",\n".join("    " + json.dumps(op, ensure_ascii=False) for op in draw)
+        text = text.replace(f'"{_DRAW_MARK}"', "[\n" + linhas + "\n  ]")
     return text + "\n"
 
 
@@ -130,7 +137,11 @@ def write_template(layout: str, path: Path) -> Path:
     return path
 
 
-# =============================================================== desenho
+# =============================================================== desenho (interpretador reportlab)
+def _color(hex_: str) -> Color:
+    return HexColor(hex_)
+
+
 class _Page:
     """Canvas com coordenadas em mm, origem no topo-esquerdo."""
 
@@ -146,9 +157,9 @@ class _Page:
     def rect(self, x0, y0, x1, y1, *, fill=None, stroke=None, width_pt=0.5):
         c = self.c
         if fill is not None:
-            c.setFillColor(fill)
+            c.setFillColor(_color(fill))
         if stroke is not None:
-            c.setStrokeColor(stroke)
+            c.setStrokeColor(_color(stroke))
             c.setLineWidth(width_pt)
         c.rect(self.x(x0), self.y(y1), (x1 - x0) * mm, (y1 - y0) * mm,
                stroke=int(stroke is not None), fill=int(fill is not None))
@@ -156,22 +167,22 @@ class _Page:
     def circle(self, cx, cy, d, *, fill=None, stroke=None, width_pt=0.5):
         c = self.c
         if fill is not None:
-            c.setFillColor(fill)
+            c.setFillColor(_color(fill))
         if stroke is not None:
-            c.setStrokeColor(stroke)
+            c.setStrokeColor(_color(stroke))
             c.setLineWidth(width_pt)
         c.circle(self.x(cx), self.y(cy), d / 2 * mm,
                  stroke=int(stroke is not None), fill=int(fill is not None))
 
-    def line(self, x0, y0, x1, y1, *, color=BLACK, width_pt=0.5):
+    def line(self, x0, y0, x1, y1, *, color="#000000", width_pt=0.5):
         c = self.c
-        c.setStrokeColor(color)
+        c.setStrokeColor(_color(color))
         c.setLineWidth(width_pt)
         c.line(self.x(x0), self.y(y0), self.x(x1), self.y(y1))
 
-    def poly(self, pts, *, color=BLACK, width_pt=0.8):
+    def poly(self, pts, *, color="#000000", width_pt=0.8):
         c = self.c
-        c.setStrokeColor(color)
+        c.setStrokeColor(_color(color))
         c.setLineWidth(width_pt)
         c.setLineCap(1)
         c.setLineJoin(1)
@@ -181,9 +192,9 @@ class _Page:
             p.lineTo(self.x(px), self.y(py))
         c.drawPath(p, stroke=1, fill=0)
 
-    def text(self, x, baseline, s, *, font="Helvetica", size=8.0, color=BLACK, align="left"):
+    def text(self, x, baseline, s, *, font="Helvetica", size=8.0, color="#000000", align="left"):
         c = self.c
-        c.setFillColor(color)
+        c.setFillColor(_color(color))
         c.setFont(font, size)
         if align == "left":
             c.drawString(self.x(x), self.y(baseline), s)
@@ -193,13 +204,8 @@ class _Page:
             c.drawCentredString(self.x(x), self.y(baseline), s)
 
 
-def _baseline_offset(size_pt: float) -> float:
-    """mm da linha de base abaixo do centro visual de um texto de capitulares."""
-    return size_pt * 0.3528 * 0.36
-
-
-def _fit(s: str, font: str, size: float, max_w_mm: float, min_size: float) -> tuple[str, float]:
-    """Reduz o corpo até caber; se ainda não couber, corta com reticências."""
+def fit_text(s: str, font: str, size: float, max_w_mm: float, min_size: float) -> tuple[str, float]:
+    """Reduz o corpo (0,25 pt por vez) até caber; se ainda não couber, corta com reticências."""
     while size > min_size and stringWidth(s, font, size) > max_w_mm * mm:
         size -= 0.25
     if stringWidth(s, font, size) <= max_w_mm * mm:
@@ -209,43 +215,28 @@ def _fit(s: str, font: str, size: float, max_w_mm: float, min_size: float) -> tu
     return s.rstrip() + "…", size
 
 
-def _draw_bubble(p: _Page, cx: float, cy: float, d: float, letter: str) -> None:
-    p.circle(cx, cy, d, fill=WHITE, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=L.BUBBLE_STROKE_PT)
-    p.text(cx, cy + _baseline_offset(L.BUBBLE_LETTER_PT), letter, size=L.BUBBLE_LETTER_PT,
-           color=_gray(L.BUBBLE_LETTER_GRAY), align="center")
-
-
-def _draw_fiducials(p: _Page, geo: L.Geometry) -> None:
-    for x, y, w in geo.fiducials.values():
-        p.rect(x, y, x + w, y + w, fill=BLACK)
-
-
-def _draw_header(p: _Page, spec: CardSpec) -> None:
-    title = "CARTÃO-RESPOSTA" + (f" — {spec.nome_simulado}" if spec.nome_simulado else "")
-    title, size = _fit(title, "Helvetica-Bold", 13.0, L.TITLE_BOX[2] - L.TITLE_BOX[0], 8.0)
-    p.text(L.TITLE_BOX[0], 24.6, title, font="Helvetica-Bold", size=size)
-    parts = []
+def slot_values(spec: CardSpec) -> dict[str, str]:
+    """Textos variáveis do cartão. Slot vazio não é desenhado."""
+    titulo = "CARTÃO-RESPOSTA" + (f" — {spec.nome_simulado}" if spec.nome_simulado else "")
+    partes = []
     if spec.ies:
-        parts.append(f"Instituição: {spec.ies}")
+        partes.append(f"Instituição: {spec.ies}")
     if spec.data:
-        parts.append(f"Data: {spec.data}")
-    if parts:
-        sub, sub_size = _fit("  •  ".join(parts), "Helvetica", 8.5, L.TITLE_BOX[2] - L.TITLE_BOX[0], 6.5)
-        p.text(L.TITLE_BOX[0], 28.0, sub, size=sub_size, color=_gray(0x33))
-
-    p.text(L.ALUNO_LABEL_X, 37.6, "ALUNO:", font="Helvetica-Bold", size=11)
-    p.line(L.ALUNO_LINE_X0, L.ALUNO_LINE_Y, L.ALUNO_BOX[2], L.ALUNO_LINE_Y, width_pt=0.5)
-    if spec.model == MODEL_PERSONALIZADO and spec.aluno_nome:
-        nome, nsize = _fit(spec.aluno_nome, "Helvetica", 10.5, L.ALUNO_BOX[2] - L.ALUNO_LINE_X0 - 2, 7.0)
-        p.text(L.ALUNO_LINE_X0 + 1.5, 37.8, nome, size=nsize)
+        partes.append(f"Data: {spec.data}")
+    return {
+        "titulo": titulo,
+        "subtitulo": "  •  ".join(partes),
+        "aluno": spec.aluno_nome if spec.model == MODEL_PERSONALIZADO else "",
+        "label": spec.label,
+    }
 
 
-def _draw_qr(p: _Page, spec: CardSpec) -> None:
-    qr = segno.make(spec.qr_payload, error=L.QR_ERROR, micro=False, boost_error=False)
+def _draw_qr(p: _Page, op: dict, payload: str) -> None:
+    qr = segno.make(payload, error=op["ec"].lower(), micro=False, boost_error=False)
     modules = qr.symbol_size(border=0)[0]
-    mod = (L.QR_BOX[2] - L.QR_BOX[0]) / (modules + 2 * L.QR_QUIET_MODULES)
-    ox = L.QR_BOX[0] + L.QR_QUIET_MODULES * mod
-    oy = L.QR_BOX[1] + L.QR_QUIET_MODULES * mod
+    x0, y0, x1, _ = op["box"]
+    mod = (x1 - x0) / (modules + 2 * op["quiet"])
+    ox, oy = x0 + op["quiet"] * mod, y0 + op["quiet"] * mod
     for r, row in enumerate(qr.matrix):
         c = 0
         while c < modules:
@@ -253,124 +244,66 @@ def _draw_qr(p: _Page, spec: CardSpec) -> None:
                 start = c
                 while c < modules and row[c]:
                     c += 1
-                p.rect(ox + start * mod, oy + r * mod, ox + c * mod, oy + (r + 1) * mod, fill=BLACK)
+                p.rect(ox + start * mod, oy + r * mod, ox + c * mod, oy + (r + 1) * mod, fill=op["color"])
             else:
                 c += 1
-    if spec.label:
-        p.text((L.QR_BOX[0] + L.QR_BOX[2]) / 2, L.QR_LABEL_Y, spec.label, size=6.0,
-               color=_gray(0x40), align="center")
 
 
-def _draw_pessoal(p: _Page) -> None:
-    """Bloco do layout sfa onde ficava a matrícula: lembra que o cartão é nominal (evita troca de cartão)."""
-    from reportlab.lib.utils import simpleSplit
+def _draw_bubbles(p: _Page, op: dict, template: dict) -> None:
+    def one(cx: float, cy: float, d: float, letter: str) -> None:
+        p.circle(cx, cy, d, fill=op["fill"], stroke=op["stroke"], width_pt=op["lw"])
+        p.text(cx, cy + op["letter_dy"], letter, size=op["letter_size"], color=op["letter_color"], align="center")
 
-    f = L.PESSOAL_FRAME
-    p.rect(*f, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
-    p.text(f[0] + 3, L.MAT_TITLE_BASELINE, "CARTÃO PESSOAL", font="Helvetica-Bold", size=10)
-    avisos = [
-        "Confira se o nome acima de ALUNO é o seu.",
-        "Se o nome não for o seu, avise o aplicador antes de marcar qualquer resposta.",
-        "Não troque de cartão com colegas.",
-        "Este cartão é identificado automaticamente: não escreva nem cole nada sobre o código QR.",
-    ]
-    y = 55.0
-    for texto in avisos:
-        linhas = simpleSplit(texto, "Helvetica", 7.5, (f[2] - f[0] - 9.0) * mm)
-        p.text(f[0] + 3, y, "•", size=7.5)
-        for ln in linhas:
-            p.text(f[0] + 6, y, ln, size=7.5)
-            y += 3.7
-        y += 2.2
+    alts = template["alternatives"]
+    for q in sorted(template["questions"], key=int):
+        for a in alts:
+            cx, cy, d = template["questions"][q][a]
+            one(cx, cy, d, a)
+    mat = template.get("matricula")
+    if mat:
+        for col in mat["columns"]:
+            for b in col:
+                cx, cy, d = b["c"]
+                one(cx, cy, d, b["symbol"])
 
 
-def _draw_matricula(p: _Page, geo: L.Geometry) -> None:
-    f = L.MATRICULA_FRAME
-    p.rect(*f, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
-    p.text(f[0] + 3, L.MAT_TITLE_BASELINE, "MATRÍCULA", font="Helvetica-Bold", size=10)
-    for col in geo.matricula_columns:
-        p.rect(*col.box, fill=WHITE, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
-        for b in col.bubbles:
-            _draw_bubble(p, b.cx, b.cy, b.d, b.symbol)
-    for sx, sy in geo.matricula_separators:
-        p.line(sx - 1.2, sy, sx + 1.2, sy, width_pt=1.1)
-
-
-def _example_bubble(p: _Page, cx: float, cy: float, d: float = 4.8) -> None:
-    p.circle(cx, cy, d, fill=WHITE, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=L.BUBBLE_STROKE_PT)
-
-
-def _draw_instrucoes(p: _Page) -> None:
-    from reportlab.lib.utils import simpleSplit
-
-    f = L.INSTRUCOES_FRAME
-    p.rect(*f, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
-    p.text(f[0] + 3, L.MAT_TITLE_BASELINE, "INSTRUÇÕES", font="Helvetica-Bold", size=10)
-    bullets = [
-        "Use caneta esferográfica preta ou azul-escura.",
-        "Preencha a bolha por completo.",
-        "Não rasure, não dobre, não escreva fora dos campos.",
-    ]
-    y = 54.6
-    for text in bullets:
-        lines = simpleSplit(text, "Helvetica", 7.0, (f[2] - f[0] - 8.0) * mm)
-        p.text(f[0] + 3, y, "•", size=7.0)
-        for ln in lines:
-            p.text(f[0] + 6, y, ln, size=7.0)
-            y += 3.4
-        y += 1.8
-    # exemplos
-    row_correct, row_wrong, row_two = 82.0, 92.0, 101.0
-    xs = [124.5, 131.0, 137.5, 144.0]
-    p.text(f[0] + 3, row_correct + 1.0, "CORRETO:", font="Helvetica-Bold", size=7.5)
-    p.circle(xs[0], row_correct, 4.8, fill=BLACK)
-    p.text(f[0] + 3, row_wrong + 1.0, "INCORRETO:", font="Helvetica-Bold", size=7.5)
-    # X
-    _example_bubble(p, xs[0], row_wrong)
-    p.line(xs[0] - 1.4, row_wrong - 1.4, xs[0] + 1.4, row_wrong + 1.4, width_pt=0.8)
-    p.line(xs[0] - 1.4, row_wrong + 1.4, xs[0] + 1.4, row_wrong - 1.4, width_pt=0.8)
-    # ✓
-    _example_bubble(p, xs[1], row_wrong)
-    p.poly([(xs[1] - 1.5, row_wrong + 0.1), (xs[1] - 0.4, row_wrong + 1.3), (xs[1] + 1.6, row_wrong - 1.5)])
-    # ponto
-    _example_bubble(p, xs[2], row_wrong)
-    p.circle(xs[2], row_wrong, 1.1, fill=BLACK)
-    # círculo vazado
-    p.circle(xs[3], row_wrong, 5.0, stroke=BLACK, width_pt=1.6)
-    # duas bolhas
-    p.text(f[0] + 3, row_two + 1.0, "Duas bolhas:", size=6.5, color=_gray(0x33))
-    p.circle(xs[0], row_two, 4.8, fill=BLACK)
-    p.circle(xs[0] + 6.0, row_two, 4.8, fill=BLACK)
-
-
-def _draw_grid(p: _Page, geo: L.Geometry) -> None:
-    for q, alts in geo.questions.items():
-        ax, ay = geo.number_anchors[q]
-        p.text(ax, ay + _baseline_offset(L.NUMBER_PT), str(q), font="Helvetica-Bold",
-               size=L.NUMBER_PT, align="right")
-        for b in alts.values():
-            _draw_bubble(p, b.cx, b.cy, b.d, b.symbol)
-
-
-def _draw_footer(p: _Page) -> None:
-    p.text(L.PAGE_W / 2, L.FOOTER_Y + 0.7, L.FOOTER_TEXT, size=6.0,
-           color=_gray(L.BUBBLE_STROKE_GRAY), align="center")
-
-
-def draw_card(canvas: Canvas, geo: L.Geometry, spec: CardSpec) -> None:
-    if spec.layout != geo.layout:
-        raise ValueError(f"cartão {spec.model} não combina com o layout {geo.layout}")
+def draw_card(canvas: Canvas, template: dict, spec: CardSpec) -> None:
+    """Desenha um cartão interpretando `template["draw"]`."""
+    if spec.layout != template["layout"]:
+        raise ValueError(f"cartão {spec.model} não combina com o layout {template['layout']}")
     p = _Page(canvas)
-    _draw_fiducials(p, geo)
-    _draw_header(p, spec)
-    _draw_qr(p, spec)
-    if geo.matricula_columns:
-        _draw_matricula(p, geo)
-    else:
-        _draw_pessoal(p)
-    _draw_instrucoes(p)
-    _draw_grid(p, geo)
-    _draw_footer(p)
+    slots = slot_values(spec)
+    for op in template["draw"]:
+        kind = op["op"]
+        if kind == "rect":
+            p.rect(op["x0"], op["y0"], op["x1"], op["y1"], fill=op.get("fill"), stroke=op.get("stroke"),
+                   width_pt=op.get("lw", 0.5))
+        elif kind == "circle":
+            p.circle(op["cx"], op["cy"], op["d"], fill=op.get("fill"), stroke=op.get("stroke"),
+                     width_pt=op.get("lw", 0.5))
+        elif kind == "line":
+            p.line(op["x0"], op["y0"], op["x1"], op["y1"], color=op["color"], width_pt=op["lw"])
+        elif kind == "poly":
+            p.poly(op["pts"], color=op["color"], width_pt=op["lw"])
+        elif kind == "text":
+            s, size = op.get("s"), op["size"]
+            if "slot" in op:
+                s = slots[op["slot"]]
+                if not s:
+                    continue
+                if "max_w" in op:
+                    s, size = fit_text(s, op["font"], size, op["max_w"], op["min_size"])
+            p.text(op["x"], op["y"], s, font=op["font"], size=size, color=op["color"],
+                   align=op.get("align", "left"))
+        elif kind == "numbers":
+            for q, x, y in op["items"]:
+                p.text(x, y, str(q), font=op["font"], size=op["size"], color=op["color"], align="right")
+        elif kind == "bubbles":
+            _draw_bubbles(p, op, template)
+        elif kind == "qr":
+            _draw_qr(p, op, spec.qr_payload)
+        else:
+            raise ValueError(f"operação de desenho desconhecida: {kind!r}")
 
 
 def write_cards_pdf(
@@ -385,14 +318,14 @@ def write_cards_pdf(
     layouts = {s.layout for s in specs}
     if len(layouts) != 1:
         raise ValueError("todos os cartões de um PDF precisam ter o mesmo layout")
-    geo = L.build_geometry(layouts.pop())
+    template = build_template(layouts.pop())
     target = str(dest) if isinstance(dest, Path) else dest
     c = Canvas(target, pagesize=(L.PAGE_W * mm, L.PAGE_H * mm), invariant=1, pageCompression=1)
     c.setTitle(title)
     c.setAuthor("SanarFlix Academy")
     c.setCreator("cartao-omr")
     for spec in specs:
-        draw_card(c, geo, spec)
+        draw_card(c, template, spec)
         c.showPage()
     c.save()
     return len(specs)

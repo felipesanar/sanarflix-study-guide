@@ -19,7 +19,9 @@ from cartao_omr.card import (
 from cartao_omr.models import RosterEntry, parse_qr
 from cartao_omr.roster import load_roster_csv
 
-from conftest import render_gray
+from cardcheck import assert_marcadores_e_bolhas, render_gray
+
+
 
 SIM = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
 UID = "7f3a9c21-5b1e-4f0a-9c3d-0123456789ab"
@@ -88,31 +90,7 @@ def test_qr_do_sfa_e_menos_denso_que_o_formato_antigo():
 @pytest.mark.parametrize("layout", L.LAYOUTS)
 def test_marcadores_pretos_e_bolhas_no_lugar_do_template(layout):
     spec = _spec("personalizado" if layout == L.LAYOUT_SFA else "uniatenas")
-    img = render_gray(_pdf([spec]), dpi=300)
-    px = 300 / 25.4
-    tpl = build_template(layout)
-    for nome, (x, y, w) in tpl["fiducials_mm"].items():
-        assert img[round((y + w / 2) * px), round((x + w / 2) * px)] < 30, nome
-        # área branca livre de 4 mm em volta (3 mm para o marcador de orientação, vide PRD)
-        folga = 3.0 if nome == "orient" else 4.0
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            gx = x + w / 2 + dx * (w / 2 + folga - 1.0)
-            gy = y + w / 2 + dy * (w / 2 + folga - 1.0)
-            if nome == "tl" and dx == 1:
-                continue  # ao lado do marcador tl está o de orientação
-            if 0 <= gx <= 210 and 0 <= gy <= 297:
-                assert img[round(gy * px), round(gx * px)] > 240, (nome, dx, dy)
-    bubbles = [tuple(b) for q in tpl["questions"].values() for b in q.values()]
-    if tpl["matricula"]:
-        bubbles += [tuple(b["c"]) for col in tpl["matricula"]["columns"] for b in col]
-    for cx, cy, d in bubbles:
-        r = d / 2
-        ring = [img[round((cy + r * math.sin(a)) * px), round((cx + r * math.cos(a)) * px)]
-                for a in np.linspace(0, 2 * math.pi, 16, endpoint=False)]
-        assert min(ring) < 200, (cx, cy)  # contorno cinza presente
-        a = math.radians(45)
-        inner = img[round((cy + 0.7 * r * math.sin(a)) * px), round((cx + 0.7 * r * math.cos(a)) * px)]
-        assert inner > 235, (cx, cy)  # interior branco
+    assert_marcadores_e_bolhas(render_gray(_pdf([spec]), dpi=300), build_template(layout), 300)
 
 
 def test_sfa_nao_tem_bolhas_de_matricula_e_uniatenas_tem():

@@ -40,6 +40,11 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     include: ["xlsx"],
   },
+  // Workers como módulo ES: o worker de emissão de cartões (src/features/cartoes) usa o jsPDF, que tem
+  // imports dinâmicos, e o formato padrão (iife) não aceita divisão de código.
+  worker: {
+    format: "es",
+  },
   build: {
     cssMinify: true,
     assetsInlineLimit: 4096,

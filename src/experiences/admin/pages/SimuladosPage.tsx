@@ -7,13 +7,15 @@ import { cn } from '@/lib/utils';
 const ProvasTab = lazy(() => import('@/components/admin/simulados/ProvasTab'));
 const LiberacoesTab = lazy(() => import('@/components/admin/simulados/LiberacoesTab'));
 const ImportarRespostasTab = lazy(() => import('@/components/admin/simulados/ImportarRespostasTab'));
+const CartoesTab = lazy(() => import('@/components/admin/simulados/CartoesTab'));
 
-type SimTab = 'provas' | 'liberacoes' | 'importar';
+type SimTab = 'provas' | 'liberacoes' | 'importar' | 'cartoes';
 
 const TABS: Array<{ id: SimTab; label: string }> = [
   { id: 'provas', label: 'Provas' },
   { id: 'liberacoes', label: 'Liberações' },
   { id: 'importar', label: 'Importar respostas' },
+  { id: 'cartoes', label: 'Cartões-resposta' },
 ];
 
 /**
@@ -25,13 +27,14 @@ const TABS: Array<{ id: SimTab; label: string }> = [
 const SimuladosPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const tab: SimTab = tabParam === 'liberacoes' || tabParam === 'importar' ? tabParam : 'provas';
+  const tab: SimTab =
+    tabParam === 'liberacoes' || tabParam === 'importar' || tabParam === 'cartoes' ? tabParam : 'provas';
 
   return (
     <div className="space-y-6">
       <AdminSectionHeader
         title="Simulados"
-        subtitle="Criar e manter provas, liberar tentativas e importar respostas de turmas inteiras."
+        subtitle="Criar e manter provas, liberar tentativas, importar respostas de turmas inteiras e emitir os cartões-resposta."
       />
       <div className="flex gap-1 border-b" role="tablist" aria-label="Sub-seções de Simulados">
         {TABS.map((t) => (
@@ -55,6 +58,7 @@ const SimuladosPage: React.FC = () => {
         {tab === 'provas' && <ProvasTab />}
         {tab === 'liberacoes' && <LiberacoesTab />}
         {tab === 'importar' && <ImportarRespostasTab />}
+        {tab === 'cartoes' && <CartoesTab />}
       </Suspense>
     </div>
   );

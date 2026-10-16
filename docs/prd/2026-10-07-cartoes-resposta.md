@@ -30,6 +30,10 @@
   - **P6 entregue pelo João:** a importação aceita o **ID do aluno** (UUID) ou a Matrícula/RA na 1ª coluna, com cabeçalho `matricula_ra_ou_id`.
   - **P8 auditada** (`handoff/p8-auditoria-user-id.md`): há 2 falhas que precisam de correção antes de imprimir cartões reais (F1 e F2).
   - Texto do quadro CARTÃO PESSOAL: "Confira se o nome acima de ALUNO é o seu."
+- **Revisão 7 (16/10/2026):**
+  - **Fase E concluída (E1 + E2):** a emissão dos cartões roda no navegador, em TypeScript, a partir dos templates, sem serviço externo. Há uma nova aba **Cartões-resposta** em Admin → Simulados.
+  - Os templates agora carregam a **lista de desenho** (`draw`): Python e TypeScript só a interpretam.
+  - QR em TypeScript, sem dependência nova, idêntico ao do `segno` módulo a módulo.
 - **Status:** aprovado para implementação da **V0**. A V1 está só em direção.
 - **Executor previsto:** Claude Code com Sonnet 5.5, **uma fase por sessão**.
 
@@ -54,7 +58,7 @@ A maioria das IES aplica os cartões, escaneia e já manda a planilha. Algumas m
 - **Dúvidas:** vão para revisão humana.
 
 ### 1.1 Operação (decidida com o time em 16/10/2026)
-1. **Emissão:** uma tela dedicada do Academy. O time interno da Sanar seleciona a **IES**, o **simulado** e os **alunos** que farão a prova. O sistema gera os cartões em PDF, para exportar e imprimir. Cada cartão é pessoal.
+1. **Emissão:** uma tela dedicada do Academy (aba **Cartões-resposta**, em Admin → Simulados). O time interno da Sanar seleciona a **IES**, o **simulado** e os **alunos** que farão a prova. O sistema gera os cartões em PDF, para exportar e imprimir. Cada cartão é pessoal.
 2. **Aplicação:** a IES imprime, aplica a prova, escaneia os cartões preenchidos num único PDF e devolve à Sanar.
 3. **Extração:** o João roda o script **localmente** (na V1, na nuvem). O script gera a planilha com os alunos identificados pelo **ID do Academy**.
 4. **Importação:** o João faz o upload na tela atual. Para isso a importação precisa **aceitar o ID do aluno**; o João implementou isso em 16/10 (P6): a 1ª coluna aceita o ID do aluno ou a Matrícula/RA, sem precisar escolher.
@@ -241,12 +245,12 @@ João revisa a aba "Pendências", corrige a aba "Respostas" e importa pela tela 
 **Estrutura:**
 ```
 services/cartao-omr/
-  cartao_omr/      cli.py (typer), layout.py (constantes mm), card.py (gerador PDF + template),
+  cartao_omr/      cli.py (typer), layout.py (constantes mm), drawlist.py (lista de desenho), card.py (template + PDF),
                    models.py (CardSpec, formato e leitura do QR), pipeline/{render,align,qr,omr}.py,
                    identity.py, roster.py (CSV na Fase 0; psycopg só SELECT na Fase 2),
                    export_xlsx.py, config.py
   templates/       sfa_v2.json, uniatenas_v1.json, exemplo_*.pdf
-  tools/           make_fixtures.py, eval_accuracy.py
+  tools/           make_fixtures.py, eval_accuracy.py, gen_qr_golden.py, emitir_ts.mts
   tests/           fixtures/ (sintéticas), test_*.py
   runs/            (gitignored)
   .env.example, pyproject.toml, README.md (instalação no Windows + runbook)
@@ -402,17 +406,17 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
   - relatório salvo no handoff.
 
 ### Fase E — Emissão dos cartões em TypeScript (no Academy)
-- **Decisão (16/10/2026):** testar o porte do gerador para TypeScript, lendo os templates, **no próprio Academy e sem chamar serviço externo**. O PDF é gerado no navegador do operador; nenhum nome ou `user_id` sai do Academy.
-- **Quando:** depois do **go da Fase 1**, para congelar a geometria (a calibração pode pedir ajuste de medidas). Não depende das Fases 2 e 3 e pode andar em paralelo a elas. É trabalho **fora de `services/`**: vale a regra 7 (rodar `npm run test:run`, baseline 385/385 na data de criação) e a regra 1 (o Lovable empurra commits na `main`).
-- **Problema de contrato:** hoje o template traz bolhas, marcadores, QR e blocos, mas **o desenho dos textos e dos quadros está dentro do `card.py`**. Reescrever isso em TS duplicaria medidas e deixaria o PDF divergir do template. **Solução:** o Python passa a exportar também uma **lista de desenho** (`draw`) nos templates: retângulos, círculos, linhas, textos (fonte, tamanho, cor, alinhamento, linha de base) e a caixa do QR. O TypeScript só interpreta essa lista. Mudar o layout vira regenerar JSON, sem tocar no TS.
+**Status: concluída** (tag `cartoes-fase-e`, 16/10/2026). Detalhes no handoff `fase-e.md`.
+- **Decisão (16/10/2026):** o porte do gerador para TypeScript, lendo os templates, **no próprio Academy e sem chamar serviço externo**. O PDF é gerado no navegador do operador; nenhum nome ou `user_id` sai do Academy.
+- **Contrato:** o template traz a **lista de desenho** (`draw`, ver `cartao_omr/drawlist.py`): retângulos, círculos, linhas, textos (com *slots* para título, aluno e rótulo), numeração, bolhas e QR. O Python e o TypeScript **só interpretam** essa lista; nenhum dos dois tem medida própria. Mudar o layout é mudar `layout.py`, rodar `cartao-omr modelo` e commitar os JSON.
 - **Fase E1 — gerador (biblioteca):**
-  - Python: `draw` nos templates (campo novo, compatível), com teste de que reproduz o PDF atual.
-  - TypeScript: módulo que lê `templates/*.json` e gera o PDF com `jspdf` (já no projeto) mais uma biblioteca de QR a escolher (precisa de nível de correção Q e modo alfanumérico). O formato `SFA2` é reimplementado, com **vetores de teste dourados** gerados pelo Python (`models.py`).
-  - **Paridade:** teste que compara o PDF do TS com o do Python (posições de fiduciais, bolhas e QR) e que o `zxing-cpp` lê o QR do PDF gerado em TS com o payload esperado.
-  - Desempenho: turmas grandes (milhares de páginas) geradas em partes, em `Web Worker`, para não travar a tela.
-- **Fase E2 — tela de emissão (UI):** selecionar IES, simulado e alunos; gerar e baixar o PDF (e o do UniAtenas, sem alunos). Lê `users`/`ies`/`simulados_admin` com as permissões do admin logado; **nenhuma gravação**.
-- **Aceite:** testes de paridade e do front verdes; o João imprime um cartão gerado pelo TS e o leitor da Fase 1 o lê.
-- **Portões:** nenhum de banco na E1; E2 só lê com a sessão do admin. Antes da primeira impressão real, a P8 precisa estar fechada.
+  - Python: `card.py` passou a desenhar o PDF **interpretando o `draw`**; o resultado ficou idêntico, pixel a pixel, ao da versão anterior.
+  - TypeScript (`src/features/cartoes/`): `qr.ts` (gerador de QR nível Q, versões 1 a 9, **sem dependência nova**), `payload.ts` (formato `SFA2`), `render.ts` (interpretador com `jspdf`, que já era do projeto), `emitir.ts` (monta os cartões e o PDF), `emitir.worker.ts` e `gerar.ts` (geração em Web Worker, com fallback na thread principal).
+  - **Paridade:** o QR do TypeScript é idêntico ao do `segno` em 86 vetores (versões 1 a 9); o PDF do TypeScript é gerado pelo Node (`tools/emitir_ts.mts`, o mesmo código do navegador) e conferido no suíte Python: QR lido pelo `zxing-cpp` com o payload esperado, QR idêntico ao do Python pixel a pixel, marcadores e bolhas no lugar do template, só preto e cinza, e o leitor da Fase 1 lê o cartão.
+- **Fase E2 — tela de emissão:** aba **Cartões-resposta**. O time escolhe simulado, IES e alunos (turma inteira marcada por padrão, com busca por nome ou matrícula), vê o modelo (pessoal ou UniAtenas, pré-selecionado para as IES do grupo) e baixa o PDF. Só lê (`simulados_admin`, `ies`, `users`, `user_roles`), com a sessão do admin; **nada é gravado**.
+- **Desempenho (medido no navegador):** 700 cartões em 13 s, PDF de 22,7 MB, com a tela sem travar (pausa máxima de 9 ms). A aba em segundo plano não atrasa a geração, porque ela roda no Worker.
+- **Aceite:** testes de paridade e do front verdes (atendido); o João imprime um cartão gerado pelo TypeScript e o leitor lê o scan (**pendente do João**).
+- **Portões:** nenhum de banco. **Antes da primeira impressão real, a P8 precisa estar fechada** (F1 e F2 corrigidas).
 
 ## 9. V1 — direção (não detalhar em fases agora)
 - **Hospedagem, opção preferida (N8N self-hosted, a confirmar):**
@@ -439,7 +443,7 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 | Alunos UniAtenas sem matrícula cadastrada (~15%) | Pendência com recorte do nome. Ação preventiva na seção 13. |
 | **Importação sem aceitar ID** (P6) | Bloqueia o uso ponta a ponta. É dependência do João, fora das fases do script. |
 | `user_id` impresso no QR pode ser lido por quem fotografar o cartão | Verificação dos endpoints e das políticas que aceitam `user_id` (checklist da P8) **antes da primeira impressão**. |
-| O PDF gerado em TS divergir do template | `draw` exportado pelo Python, teste de paridade e QR conferido pelo `zxing-cpp` (Fase E). |
+| O PDF gerado em TS divergir do template | `draw` exportado pelo Python, teste de paridade (QR idêntico ao do Python, marcadores e bolhas no lugar) e QR lido pelo `zxing-cpp` (Fase E). Se o `layout.py` mudar, os testes falham até os templates serem regenerados. |
 | Dados pessoais vazarem pelo Git | `.gitignore` de `runs/` e de PDFs reais; fixtures só sintéticas. |
 | Credencial com poder demais | Papel somente leitura, com colunas mínimas; service role proibida. |
 
@@ -477,5 +481,5 @@ Ao final, siga a regra 8 da seção 4 (testes, commit, tag cartoes-fase-{N}, han
 | P4 | ~~Matrícula com `G`~~ **Encerrada em 16/10:** o `G` era erro de cadastro; o cartão só tem dígitos. | – | – |
 | P5 | **Comunicação do cartão novo:** avisar às IES que o cartão é pessoal (um por aluno) e que o cartão antigo deixa de ser processado automaticamente. | Fase 3 | João / Relacionamento |
 | P6 | ~~Importação por ID do aluno~~ **Entregue em 16/10** pelo João (RPC `admin_lookup_users_by_id_in_ies`, Edge Function e tela). A 1ª coluna aceita UUID ou Matrícula/RA. | – | – |
-| P7 | ~~Como a tela de emissão gera o PDF~~ **Decidida em 16/10:** porte para TypeScript, lendo os templates, sem serviço externo. Segue na **Fase E** (seção 8). A tela em si é trabalho do Academy. | Operação real; não bloqueia as Fases 1 a 3 | João / equipe do Academy |
+| P7 | ~~Como a tela de emissão gera o PDF~~ **Entregue em 16/10:** porte para TypeScript, lendo os templates, sem serviço externo (**Fase E**, seção 8). Falta o João imprimir um cartão gerado ali para o aceite. | – | – |
 | P8 | **Verificação dos endpoints que aceitam `user_id`: auditada em 16/10** (`handoff/p8-auditoria-user-id.md`). Resultado: **F1 (ALTA)** `session-security` derruba as sessões de qualquer UUID sem autenticação; **F2 (MÉDIA)** `gestor-ai-insights` devolve o cache de IA sobre um aluno sem checar papel/IES; F3 (BAIXA) `get_user_roles`/`has_role` revelam papéis a qualquer logado; F4 (fora do tema) `send-study-reminder` é um relé de e-mail aberto. RLS e funções do `anon` estão corretos. **Pendente:** corrigir F1 e F2 (e decidir F3), e conferir storage e `cron.job`. | **Antes de imprimir os primeiros cartões reais** (piloto da Fase 3 e Fase E2) | João / equipe do Academy |
