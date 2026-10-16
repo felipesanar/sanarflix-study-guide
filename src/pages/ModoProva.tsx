@@ -241,7 +241,7 @@ export const ModoProva = () => {
   const questaoAtualData = questoes[questaoAtual];
   const respostaAtual = estado?.respostas[questaoAtualData?.id];
 
-  const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
+  const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D' | 'E') => {
     if (!questaoAtualData || !podeInteragir) return;
 
     setEstado(prevEstado => {
@@ -265,7 +265,7 @@ export const ModoProva = () => {
     });
   }, [questaoAtualData, podeInteragir, storage]);
 
-  const handleEliminarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
+  const handleEliminarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D' | 'E') => {
     if (!questaoAtualData) return;
 
     setEstado(prevEstado => {
@@ -775,7 +775,7 @@ export const ModoProva = () => {
 
             {/* Alternativas */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(['A', 'B', 'C', 'D'] as const).map(letra => (
+              {(['A', 'B', 'C', 'D', 'E'] as const).filter(l => l !== 'E' || !!questaoAtualData?.alternativa_e).map(letra => (
                 <AlternativaProva
                   key={letra}
                   letra={letra}

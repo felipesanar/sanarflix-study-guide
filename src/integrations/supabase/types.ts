@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.12 (cd3cf9e)"
+    PostgrestVersion: "12.2.12"
   }
   public: {
     Tables: {
@@ -866,6 +866,54 @@ export type Database = {
           },
         ]
       }
+      fato_consumo_conteudo_b2b: {
+        Row: {
+          carregado_em: string
+          content_id: string
+          content_name: string | null
+          content_type: string
+          course_id: string | null
+          course_name: string | null
+          event_date: string
+          event_key: string
+          event_timestamp: string
+          module_id: string | null
+          module_name: string | null
+          sanarflix_user_id: string
+          source: string
+        }
+        Insert: {
+          carregado_em?: string
+          content_id: string
+          content_name?: string | null
+          content_type: string
+          course_id?: string | null
+          course_name?: string | null
+          event_date: string
+          event_key: string
+          event_timestamp: string
+          module_id?: string | null
+          module_name?: string | null
+          sanarflix_user_id: string
+          source: string
+        }
+        Update: {
+          carregado_em?: string
+          content_id?: string
+          content_name?: string | null
+          content_type?: string
+          course_id?: string | null
+          course_name?: string | null
+          event_date?: string
+          event_key?: string
+          event_timestamp?: string
+          module_id?: string | null
+          module_name?: string | null
+          sanarflix_user_id?: string
+          source?: string
+        }
+        Relationships: []
+      }
       feature_catalog: {
         Row: {
           active: boolean
@@ -1238,6 +1286,120 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      mentores: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          formacao: string | null
+          foto_url: string | null
+          ies_id: string | null
+          link_agendamento: string | null
+          tipo: string
+          turma_nome: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          formacao?: string | null
+          foto_url?: string | null
+          ies_id?: string | null
+          link_agendamento?: string | null
+          tipo: string
+          turma_nome: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          formacao?: string | null
+          foto_url?: string | null
+          ies_id?: string | null
+          link_agendamento?: string | null
+          tipo?: string
+          turma_nome?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentores_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentoria_vinculos: {
+        Row: {
+          academy_user_id: string | null
+          created_at: string
+          created_by: string | null
+          email_normalizado: string
+          fim: string | null
+          id: string
+          inicio: string
+          mentor_id: string
+          nome: string | null
+          origem: string
+          sanarflix_user_id: string | null
+        }
+        Insert: {
+          academy_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_normalizado: string
+          fim?: string | null
+          id?: string
+          inicio?: string
+          mentor_id: string
+          nome?: string | null
+          origem: string
+          sanarflix_user_id?: string | null
+        }
+        Update: {
+          academy_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_normalizado?: string
+          fim?: string | null
+          id?: string
+          inicio?: string
+          mentor_id?: string
+          nome?: string | null
+          origem?: string
+          sanarflix_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_vinculos_academy_user_id_fkey"
+            columns: ["academy_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentoria_vinculos_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       page_views: {
         Row: {
@@ -2425,6 +2587,7 @@ export type Database = {
         Args: { p_simulado_id: string }
         Returns: Json
       }
+      admin_encerrar_vinculo: { Args: { p_vinculo_id: string }; Returns: Json }
       admin_get_audit_log: {
         Args: {
           p_action?: string
@@ -2470,6 +2633,15 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_importar_vinculos: {
+        Args: {
+          p_dry_run?: boolean
+          p_linhas: Json
+          p_mentor_id: string
+          p_trocar?: boolean
+        }
+        Returns: Json
+      }
       admin_liberar_tentativa: {
         Args: { p_finalizacao_id: string; p_motivo?: string }
         Returns: Json
@@ -2494,6 +2666,7 @@ export type Database = {
           total_rows: number
         }[]
       }
+      admin_list_mentores: { Args: never; Returns: Json }
       admin_log_action: {
         Args: { p_action: string; p_metadata?: Json; p_target_user_id?: string }
         Returns: string
@@ -2572,6 +2745,19 @@ export type Database = {
           p_simulados_contratados: number
           p_vigencia_fim: string
           p_vigencia_inicio: string
+        }
+        Returns: Json
+      }
+      admin_upsert_mentor: {
+        Args: {
+          p_ativo?: boolean
+          p_formacao?: string
+          p_foto_url?: string
+          p_ies_id?: string
+          p_link_agendamento?: string
+          p_tipo: string
+          p_turma_nome: string
+          p_user_id: string
         }
         Returns: Json
       }
@@ -2770,6 +2956,7 @@ export type Database = {
           std_score: number
         }[]
       }
+      get_mentor_contexto: { Args: never; Returns: Json }
       get_progress_hub_summary: { Args: never; Returns: Json }
       get_question_by_subspecialty:
         | {
@@ -2898,6 +3085,7 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_ttl_seconds: number }
         Returns: Json
       }
+      mentor_pode_ver_aluno: { Args: { p_email: string }; Returns: boolean }
       normalize_grande_area: { Args: { raw: string }; Returns: string }
       record_review_attempt_guarded: {
         Args: {
@@ -2932,6 +3120,7 @@ export type Database = {
         | "gestor"
         | "gestor_grupo"
         | "atendimento"
+        | "mentor"
       feedback_category: "bug" | "suggestion" | "feature_request" | "praise"
       feedback_status: "received" | "in_review" | "resolved" | "archived"
       progress_node_type: "aula" | "subtema" | "tema" | "materia"
@@ -3073,7 +3262,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "professor", "gestor", "gestor_grupo", "atendimento"],
+      app_role: [
+        "admin",
+        "professor",
+        "gestor",
+        "gestor_grupo",
+        "atendimento",
+        "mentor",
+      ],
       feedback_category: ["bug", "suggestion", "feature_request", "praise"],
       feedback_status: ["received", "in_review", "resolved", "archived"],
       progress_node_type: ["aula", "subtema", "tema", "materia"],

@@ -40,7 +40,7 @@ export interface QuestaoProvaOficial {
   grandeArea: string | null;
   especialidade: string | null;
   enunciado: string;
-  alternativas: { A: string | null; B: string | null; C: string | null; D: string | null };
+  alternativas: { A: string | null; B: string | null; C: string | null; D: string | null; E?: string | null };
   imagem: string | null;
   imagem2: string | null;
   imagemComentario: string | null;

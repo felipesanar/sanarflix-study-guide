@@ -316,6 +316,7 @@ export default function SimuladoConfigDialog({
         'Alternativa B': 'Ecocardiograma',
         'Alternativa C': 'Cateterismo cardíaco',
         'Alternativa D': 'Ressonância magnética cardíaca',
+        'Alternativa E': 'Tomografia de tórax',
         Gabarito: 'A',
         Comentário: 'A radiografia de tórax é o exame inicial de escolha para avaliar dispneia.',
         'Imagem do Comentário': '',
@@ -456,8 +457,11 @@ export default function SimuladoConfigDialog({
           });
 
           const correta = String(normalizedRow['gabarito'] ?? '').toUpperCase();
-          if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
-            throw new Error(`Questão ${index + 1}: campo "Gabarito" inválido. Deve ser A, B, C ou D. Valor: "${correta}"`);
+          if (!correta || !['A', 'B', 'C', 'D', 'E'].includes(correta)) {
+            throw new Error(`Questão ${index + 1}: campo "Gabarito" inválido. Deve ser A, B, C, D ou E. Valor: "${correta}"`);
+          }
+          if (correta === 'E' && !String(normalizedRow['alternativa e'] ?? '').trim()) {
+            throw new Error(`Questão ${index + 1}: gabarito é "E", mas a coluna "Alternativa E" está vazia.`);
           }
 
           const numeroQuestao = Number(normalizedRow['numero']) || index + 1;
@@ -483,8 +487,8 @@ export default function SimuladoConfigDialog({
             alternativa_b: String(normalizedRow['alternativa b'] ?? ''),
             alternativa_c: String(normalizedRow['alternativa c'] ?? ''),
             alternativa_d: String(normalizedRow['alternativa d'] ?? ''),
-            alternativa_e: null,
-            correta: correta as 'A' | 'B' | 'C' | 'D',
+            alternativa_e: String(normalizedRow['alternativa e'] ?? '').trim() || null,
+            correta: correta as 'A' | 'B' | 'C' | 'D' | 'E',
             comentario: normalizedRow['comentário'] ? String(normalizedRow['comentário']) : null,
             feedback_corretas: null,
             imagem: null,
@@ -736,7 +740,7 @@ export default function SimuladoConfigDialog({
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Colunas obrigatórias: numero, Grande Área, Especialidade, Tema, Enunciado, Alternativa A–D, Gabarito,
+                Colunas obrigatórias: numero, Grande Área, Especialidade, Tema, Enunciado, Alternativa A–E (E opcional), Gabarito,
                 Comentário. Imagens coladas nas colunas de enunciado/comentário são extraídas automaticamente — se
                 alguma não puder ser vinculada a uma questão, você verá um aviso abaixo antes de poder salvar
                 (nenhuma imagem é perdida em silêncio).
