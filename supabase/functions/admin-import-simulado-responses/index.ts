@@ -43,6 +43,7 @@ interface RowResult {
   matricula_ra: string;
   email?: string;
   nome?: string;
+  identificado_por?: 'ra' | 'id';
   status: 'imported' | 'skipped' | 'replaced' | 'failed' | 'preview_ok' | 'preview_warning' | 'preview_error';
   reason?: string;
   details?: Record<string, unknown>;
@@ -632,7 +633,7 @@ function validateRow(
     if (byId) return { matricula_ra, status: 'preview_error', reason: ctx.idNotInIes.has(key) ? 'id_not_in_ies' : 'id_not_found' };
     return { matricula_ra, status: 'preview_error', reason: 'ra_not_found' };
   }
-  const base = { matricula_ra, email: user.email, nome: user.nome, identificado_por: byId ? 'id' : 'ra' };
+  const base = { matricula_ra, email: user.email, nome: user.nome, identificado_por: (byId ? 'id' : 'ra') as 'ra' | 'id' };
   if (user.match_count > 1) {
     return { ...base, status: 'preview_error', reason: 'ra_ambiguous' };
   }

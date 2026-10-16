@@ -155,7 +155,7 @@ export default function ImportarRespostasTab() {
         setTextAsBlankCount(result.textAsBlank);
         setQuestionColumnsCount(total);
         toast.success('Planilha carregada', {
-          description: `${result.rows.length} linha(s) · 1ª coluna usada como Matrícula/RA, demais como questões 1 a ${total}`,
+          description: `${result.rows.length} linha(s) · 1ª coluna usada como Matrícula/RA ou ID do aluno, demais como questões 1 a ${total}`,
         });
       } catch (err) {
         toast.error('Erro ao ler planilha', { description: err instanceof Error ? err.message : String(err) });
@@ -171,8 +171,8 @@ export default function ImportarRespostasTab() {
       toast.error('Simulado sem questões', { description: 'Cadastre as questões antes de gerar o template.' });
       return;
     }
-    const headers = ['matricula_ra', ...Array.from({ length: total }, (_, i) => `Questão ${i + 1}`)];
-    const sample: Record<string, string | number> = { matricula_ra: '2023001234' };
+    const headers = ['matricula_ra_ou_id', ...Array.from({ length: total }, (_, i) => `Questão ${i + 1}`)];
+    const sample: Record<string, string | number> = { matricula_ra_ou_id: '2023001234' };
     for (let i = 1; i <= total; i++) sample[`Questão ${i}`] = ['A', 'B', 'C', 'D', 'E'][i % 5];
 
     const ws = XLSX.utils.json_to_sheet([sample], { header: headers });
@@ -183,7 +183,7 @@ export default function ImportarRespostasTab() {
       ['INSTRUÇÕES'],
       [''],
       [`A planilha deve ter exatamente ${total + 1} colunas, nesta ordem:`],
-      ['1. 1ª coluna: Matrícula/RA do aluno, exatamente como cadastrada no Academy'],
+      ['1. 1ª coluna: Matrícula/RA do aluno (como cadastrada no Academy) ou ID do aluno (código do QR Code do cartão-resposta)'],
       [`2. Colunas seguintes: questões 1 a ${total}, na ordem (o nome do cabeçalho não importa)`],
       ['3. Textos como "BLANK", "EM BRANCO", "X" são gravados como em branco'],
       ['4. A data de finalização é a "Data de finalização padrão" do Passo 1 (ou o momento da importação)'],
