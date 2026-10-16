@@ -49,15 +49,13 @@ MAT_BOX_Y0 = 50.5
 MAT_FIRST_CY = 59.5          # centro da primeira bolha (caixa termina em 56,5)
 MAT_BUBBLE_D = 4.0
 MAT_TITLE_BASELINE = 48.6
-# O PRD pede passo de 5,5 mm, mas caixa de 6 mm + título + 11 bolhas de 4 mm não
-# cabem em y <= 108 com 5,5 mm. Desvio registrado no handoff: 4,5 mm.
-MAT_PITCH = 4.5
+# O PRD pede passo de 5,5 mm, mas caixa de 6 mm + título + 10 bolhas de 4 mm não
+# cabem em y <= 108 com 5,5 mm. Desvio registrado no handoff: 5,0 mm.
+MAT_PITCH = 5.0
 MAT_COL_W = 7.0
 UNI_SEPARATOR_W = 5.0
-UNI_GROUPS = (2, 1, 5)       # NN-X-NNNNN
+UNI_GROUPS = (2, 1, 5)       # NN-X-NNNNN, tudo dígito
 UNI_SEPARATORS_AFTER = (2, 3)
-UNI_MIDDLE_COLUMN = 3        # coluna (1-based) que aceita `G`
-UNI_MIDDLE_SYMBOLS = tuple("0123456789") + ("G",)
 DIGITS = tuple("0123456789")
 
 # ---------------------------------------------------------------- grade de respostas
@@ -154,12 +152,9 @@ def _matricula_columns_uniatenas() -> tuple[list[MatriculaColumn], list[tuple[fl
     cols: list[MatriculaColumn] = []
     seps: list[tuple[float, float]] = []
     sep_cy = MAT_BOX_Y0 + MAT_BOX_H / 2
-    idx = 0
     for g, size in enumerate(UNI_GROUPS):
         for _ in range(size):
-            idx += 1
-            symbols = UNI_MIDDLE_SYMBOLS if idx == UNI_MIDDLE_COLUMN else DIGITS
-            cols.append(_column(x + col_w / 2, MAT_BOX_W, symbols, MAT_PITCH))
+            cols.append(_column(x + col_w / 2, MAT_BOX_W, DIGITS, MAT_PITCH))
             x += col_w
         if g < len(UNI_GROUPS) - 1:
             seps.append((x + UNI_SEPARATOR_W / 2, sep_cy))
@@ -215,4 +210,4 @@ def expected_bubble_counts(layout: str) -> tuple[int, int]:
     """(bolhas de resposta, bolhas de matrícula) esperadas pelo PRD."""
     if layout == LAYOUT_SFA:
         return N_QUESTIONS * len(ALTERNATIVES), 0
-    return N_QUESTIONS * len(ALTERNATIVES), 7 * 10 + 11
+    return N_QUESTIONS * len(ALTERNATIVES), 8 * 10

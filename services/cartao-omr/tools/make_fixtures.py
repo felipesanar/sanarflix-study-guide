@@ -293,10 +293,8 @@ def fill_answers(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> dict
 
 
 def random_matricula(rng: random.Random) -> list[str]:
-    """Matrícula UniAtenas NN-X-NNNNN em 8 colunas; X é dígito ou G."""
-    mid = "G" if rng.random() < 0.45 else str(rng.randrange(10))
-    digits = [str(rng.randrange(10)) for _ in range(7)]
-    return digits[:2] + [mid] + digits[2:]
+    """Matrícula UniAtenas NN-X-NNNNN: 8 dígitos, um por coluna."""
+    return [str(rng.randrange(10)) for _ in range(8)]
 
 
 def matricula_string(cols: list[str | None], separators_after: list[int]) -> str | None:
@@ -310,7 +308,8 @@ def matricula_string(cols: list[str | None], separators_after: list[int]) -> str
     return out
 
 
-def fill_matricula(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> dict | None:
+def fill_matricula(ink: Ink, tpl: dict, prof: Profile, rng: random.Random,
+                   force_defect: str | None = None) -> dict | None:
     """Preenche a matrícula UniAtenas. No layout sfa não há matrícula (identificação só pelo QR)."""
     mat = tpl["matricula"]
     if mat is None:
@@ -320,9 +319,10 @@ def fill_matricula(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> di
     defect = None
     marks: list[str | None] = list(values)
     extra: dict[int, str] = {}
-    if rng.random() < prof.mat_defect_p:
+    sorteou = rng.random() < prof.mat_defect_p
+    if sorteou or force_defect:
         i = rng.randrange(len(cols))
-        defect = rng.choice(["coluna_dupla", "coluna_faltando"])
+        defect = force_defect or rng.choice(["coluna_dupla", "coluna_faltando"])
         if defect == "coluna_dupla":
             symbols = [b["symbol"] for b in cols[i]]
             extra[i] = rng.choice([sym for sym in symbols if sym != values[i]])
@@ -501,7 +501,9 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int) -> dict:
             ink.handwriting(aluno, L.ALUNO_LINE_X0 + 2, L.ALUNO_LINE_Y - 1.2, 6.0, max_w_mm=100)
         else:
             aluno = card.aluno_nome
-        mat = fill_matricula(ink, tpl, prof, rng)
+        forcado = spec.defects.get(idx, "")
+        mat = fill_matricula(ink, tpl, prof, rng,
+                             forcado.removeprefix("matricula_") if forcado.startswith("matricula_") else None)
         answers = fill_answers(ink, tpl, prof, rng)
         qr_damaged = spec.defects.get(idx) == "qr_danificado"
         if qr_damaged:
@@ -522,6 +524,8 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int) -> dict:
         bg = rng.randint(25, 60) if dark else rng.randint(238, 255)
         page_img = warp(comp, geo, dpi, bg)
         defect = spec.defects.get(idx)
+        if defect and defect.startswith("matricula_"):
+            defect = None  # defeito de matrícula fica registrado em `matricula.defect`
         legible = True
         if defect == "marcador_coberto":
             corner = rng.choice(["tl", "tr", "bl", "br"])
@@ -596,7 +600,8 @@ def preset_referencia() -> list[SetSpec]:
         SetSpec("sfa_personalizado_realista", L.LAYOUT_SFA, "personalizado", "realista", 6, blank_after=(1, 3)),
         SetSpec("sfa_dificil", L.LAYOUT_SFA, "personalizado", "dificil", 8,
                 defects={6: "marcador_coberto", 7: "qr_danificado"}),
-        SetSpec("uniatenas_realista", L.LAYOUT_UNIATENAS, "uniatenas", "realista", 6, blank_after=(4,)),
+        SetSpec("uniatenas_realista", L.LAYOUT_UNIATENAS, "uniatenas", "realista", 6, blank_after=(4,),
+                defects={2: "matricula_coluna_dupla", 5: "matricula_coluna_faltando"}),
     ]
 
 

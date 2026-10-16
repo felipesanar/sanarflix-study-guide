@@ -41,7 +41,7 @@ def test_numero_de_bolhas_do_prd():
     sfa = build_template(L.LAYOUT_SFA)
     assert sfa["matricula"] is None and "matricula" not in sfa["crops_mm"]  # só o QR identifica
     uni = build_template(L.LAYOUT_UNIATENAS)
-    assert len(_matricula_bubbles(uni)) == 7 * 10 + 11
+    assert len(_matricula_bubbles(uni)) == 8 * 10
 
 
 @pytest.mark.parametrize("layout", LAYOUTS)
@@ -118,8 +118,7 @@ def test_uniatenas_matricula():
     assert m["format"] == "uniatenas" and m["separators_after"] == [2, 3] and m["n_columns"] == 8
     assert len(m["columns"]) == 8
     for i, col in enumerate(m["columns"], start=1):
-        simbolos = [b["symbol"] for b in col]
-        assert simbolos == (list("0123456789") + ["G"] if i == 3 else list("0123456789")), i
+        assert [b["symbol"] for b in col] == list("0123456789"), i  # só dígitos, sem a letra G
     # colunas 1-2 | 3 | 4-8: o vão entre grupos é maior que o vão dentro do grupo
     xs = [col[0]["c"][0] for col in m["columns"]]
     gaps = [round(b - a, 3) for a, b in zip(xs, xs[1:])]

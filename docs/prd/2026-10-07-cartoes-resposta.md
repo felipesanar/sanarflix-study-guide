@@ -19,6 +19,12 @@
   - QR compacto (`SFA2`), com módulo ≥ 0,7 mm.
   - **Correção:** a importação atual lê **Matrícula/RA por posição**, e não email. O João vai estendê-la para aceitar o **ID do aluno** (seção 1.1 e P6).
   - Alternativa E fora do cartão, em definitivo.
+- **Revisão 5 (16/10/2026):**
+  - Modelos de cartão **aprovados** pelo João (Fase 0 aceita).
+  - **Letra `G` removida do UniAtenas** (era erro de cadastro): a matrícula é só de dígitos, `NN-X-NNNNN`. A P4 está encerrada.
+  - **Emissão dos cartões em TypeScript**, lendo os templates, **sem serviço externo** (P7 decidida). Nova **Fase E**.
+  - **P8** (verificação de endpoints que usam `user_id`) detalhada, com checklist.
+  - O João implementa a importação por ID (P6) em paralelo.
 - **Status:** aprovado para implementação da **V0**. A V1 está só em direção.
 - **Executor previsto:** Claude Code com Sonnet 5.5, **uma fase por sessão**.
 
@@ -186,14 +192,13 @@ As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm,
 ### 5.2.1 Modelo UniAtenas (`uniatenas`)
 - **Formato de matrícula:** `NN-X-NNNNN`.
   - Em produção (13/10/2026), 1.589 usuários seguem `^\d{2}-\d-\d{5}$`, todos em PARACATU, PASSOS, PORTO SEGURO, SETE LAGOAS, SORRISO e VALENÇA.
-  - Outros 5 usuários usam **`G`** na posição do meio: `99-G-99999`.
+  - Outros 5 usuários têm `99-G-99999`. O João confirmou que a letra `G` **é erro de cadastro**: o cartão não tem `G`, e esses 5 cadastros não serão identificados (vão para Pendências até serem corrigidos; P3).
 - **Conjunto de campi:** inferido pelo formato da matrícula. **Ainda falta o João confirmar** que esses 6 são exatamente os campi do grupo (seção 13).
 - **Bloco MATRÍCULA:** **8 colunas**, agrupadas em 2 | 1 | 5.
   - Entre os grupos há um **hífen impresso** em preto, que não é bolha. A caixa de escrita no topo de cada coluna é mantida.
-  - As colunas 1–2 e 4–8 têm bolhas de 0 a 9.
-  - **A coluna 3 tem 11 bolhas: 0 a 9 e `G`.** O bloco fica uma linha mais alto nessa coluna, e o gerador ajusta a altura do bloco e das instruções para continuar dentro de y ≤ 108 mm.
+  - **Todas as 8 colunas têm bolhas de 0 a 9** (80 bolhas), inclusive a 3ª. Não há letras.
 - **Leitura:** a matrícula só é válida com as **8 colunas marcadas**. Ela é montada como `NN-X-NNNNN` e comparada com `matricula_ra` (`trim`, maiúsculas).
-- **Medidas efetivas** (revisão 4): colunas de 7 mm, vão de 5 mm com o hífen impresso, bolhas de 4 mm e passo vertical de **4,5 mm**. O passo de 5,5 mm do rascunho não cabe: caixa de 6 mm + título + 11 bolhas passariam de y = 108 mm.
+- **Medidas efetivas** (revisão 4): colunas de 7 mm, vão de 5 mm com o hífen impresso, bolhas de 4 mm e passo vertical de **5,0 mm**. O passo de 5,5 mm do rascunho não cabe: caixa de 6 mm + título + 10 bolhas passariam de y = 108 mm.
 - **Cobertura:** cerca de 15% dos alunos desses campi **não têm matrícula cadastrada**: PARACATU 97, PASSOS 57, SETE LAGOAS 29, SORRISO 21, PORTO SEGURO 21, VALENÇA 21. Os cartões deles sempre vão para Pendências. Ver seção 13.
 
 ### 5.3 Instruções de digitalização (vão para as IES)
@@ -261,7 +266,7 @@ O template tem campos extras (`layout`, `conventions`, `useful_area_mm`, `qr`, `
 
 No `sfa_v2.json`, `matricula` é `null` (não há matrícula). No `uniatenas_v1.json`, a matrícula fica assim:
 - `"format": "uniatenas"`, `"n_columns": 8`;
-- 8 colunas, sendo que a 3ª tem os símbolos `0`–`9` e `G`;
+- 8 colunas, cada uma com os símbolos `0`–`9`;
 - `"separators_after": [2, 3]`;
 - `crops_mm` ganha `"matricula":[x0,y0,x1,y1]`.
 
@@ -291,7 +296,7 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
    - Os limiares iniciais saem da calibração da Fase 1 e ficam no `config.py`.
 6. **Matrícula (só `uniatenas`):**
    - As 8 colunas são obrigatórias. A string é montada como `NN-X-NNNNN`.
-   - Uma coluna faltando, ou uma coluna `multipla`/`ambigua` (por exemplo `G` marcado junto com um dígito), torna a matrícula `matricula_invalida`.
+   - Uma coluna faltando, ou uma coluna `multipla`/`ambigua` (por exemplo, dois dígitos marcados na mesma coluna), torna a matrícula `matricula_invalida`.
    - O `sfa` não tem matrícula: nada a ler.
 
 ### 7.3 Identificação (determinística)
@@ -330,9 +335,9 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
   - `layout.py` e `card.py`: PDFs do cartão **personalizado** e do **UniAtenas** (seções 5.2 e 5.2.1, fiéis à referência visual), e os templates `sfa_v2.json` e `uniatenas_v1.json`.
   - CLI: `cartao-omr modelo` e `cartao-omr gerar-cartoes` (roster em CSV falso; o banco entra na Fase 2).
   - `models.py`: formato do QR `SFA2` e `parse_qr`.
-  - `tools/make_fixtures.py`: cartões preenchidos e digitalizados sintéticos (caneta preta/azul, marcas fracas, duplas, X, ✓, rasuras, brancos, rotação ±5° e 180°, escala 95–105%, perspectiva, ruído, JPEG, 150/200/300 dpi, páginas em branco, **QR danificado**, marcador coberto), com gabarito em JSON. As do UniAtenas incluem matrículas com `G` na 3ª coluna.
+  - `tools/make_fixtures.py`: cartões preenchidos e digitalizados sintéticos (caneta preta/azul, marcas fracas, duplas, X, ✓, rasuras, brancos, rotação ±5° e 180°, escala 95–105%, perspectiva, ruído, JPEG, 150/200/300 dpi, páginas em branco, **QR danificado**, marcador coberto), com gabarito em JSON. As do UniAtenas incluem matrículas completas e com defeito (coluna dupla, coluna faltando).
   - **Consulta somente leitura** em produção (13/10/2026), que definiu N (colunas da matrícula do `sfa`) em 12. **Ficou sem efeito** na revisão 4, porque o `sfa` não tem mais matrícula. O resultado está no handoff.
-- **Testes:** o template `sfa` tem 400 bolhas de resposta e nenhuma de matrícula; o `uniatenas` tem 400 e 7×10 + 11; sem sobreposição; bolhas, QR e blocos dentro da área útil; o QR é lido de volta pelo `zxing-cpp`; o gabarito das fixtures confere com as imagens.
+- **Testes:** o template `sfa` tem 400 bolhas de resposta e nenhuma de matrícula; o `uniatenas` tem 400 e 8×10; sem sobreposição; bolhas, QR e blocos dentro da área útil; o QR é lido de volta pelo `zxing-cpp`; o gabarito das fixtures confere com as imagens.
 - **Aceite:** testes verdes e o PDF de exemplo aberto e conferido visualmente pelo João.
 - **Portões:** nenhum (só leitura).
 
@@ -365,7 +370,7 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
   - Pastas de execução em `runs/<AAAA-MM-DD_HHMM>_<simulado>/`.
 - **Testes:**
   - identificação: QR válido, QR de outro simulado, `user_id` fora do roster, aluno duplicado, QR personalizado ilegível (vai para Pendências sem aluno);
-  - UniAtenas: `12-3-45678` exata, `12-G-45678`, coluna faltando, `G` marcado junto com um dígito (múltipla), matrícula ausente no roster, matrícula repetida no roster;
+  - UniAtenas: `12-3-45678` exata, coluna faltando, dois dígitos na mesma coluna (múltipla), matrícula ausente no roster (inclui `99-G-99999`, cadastro errado), matrícula repetida no roster;
   - xlsx: a 1ª aba se chama `Respostas`, tem `id_aluno` + uma coluna por questão do simulado (1 + N) e as células de pendência ficam amarelas;
   - **compatibilidade com a importação:** um teste que lê a aba 1 com as mesmas regras de `parseMatrizRespostas` e `isRespostaValida` (`importar-respostas-types.ts`): 1 + N colunas por posição e células só com A–E. Implementar em Python, espelhando aquele arquivo. A leitura da coluna 1 como ID depende da P6.
 - **Aceite:** testes verdes; uma execução ponta a ponta sobre as fixtures, contra um simulado real em modo leitura, gerando um xlsx que o João abre e confere.
@@ -388,6 +393,19 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
   - 100% dos cartões com QR intacto identificados;
   - relatório salvo no handoff.
 
+### Fase E — Emissão dos cartões em TypeScript (no Academy)
+- **Decisão (16/10/2026):** testar o porte do gerador para TypeScript, lendo os templates, **no próprio Academy e sem chamar serviço externo**. O PDF é gerado no navegador do operador; nenhum nome ou `user_id` sai do Academy.
+- **Quando:** depois do **go da Fase 1**, para congelar a geometria (a calibração pode pedir ajuste de medidas). Não depende das Fases 2 e 3 e pode andar em paralelo a elas. É trabalho **fora de `services/`**: vale a regra 7 (rodar `npm run test:run`, baseline 385/385 na data de criação) e a regra 1 (o Lovable empurra commits na `main`).
+- **Problema de contrato:** hoje o template traz bolhas, marcadores, QR e blocos, mas **o desenho dos textos e dos quadros está dentro do `card.py`**. Reescrever isso em TS duplicaria medidas e deixaria o PDF divergir do template. **Solução:** o Python passa a exportar também uma **lista de desenho** (`draw`) nos templates: retângulos, círculos, linhas, textos (fonte, tamanho, cor, alinhamento, linha de base) e a caixa do QR. O TypeScript só interpreta essa lista. Mudar o layout vira regenerar JSON, sem tocar no TS.
+- **Fase E1 — gerador (biblioteca):**
+  - Python: `draw` nos templates (campo novo, compatível), com teste de que reproduz o PDF atual.
+  - TypeScript: módulo que lê `templates/*.json` e gera o PDF com `jspdf` (já no projeto) mais uma biblioteca de QR a escolher (precisa de nível de correção Q e modo alfanumérico). O formato `SFA2` é reimplementado, com **vetores de teste dourados** gerados pelo Python (`models.py`).
+  - **Paridade:** teste que compara o PDF do TS com o do Python (posições de fiduciais, bolhas e QR) e que o `zxing-cpp` lê o QR do PDF gerado em TS com o payload esperado.
+  - Desempenho: turmas grandes (milhares de páginas) geradas em partes, em `Web Worker`, para não travar a tela.
+- **Fase E2 — tela de emissão (UI):** selecionar IES, simulado e alunos; gerar e baixar o PDF (e o do UniAtenas, sem alunos). Lê `users`/`ies`/`simulados_admin` com as permissões do admin logado; **nenhuma gravação**.
+- **Aceite:** testes de paridade e do front verdes; o João imprime um cartão gerado pelo TS e o leitor da Fase 1 o lê.
+- **Portões:** nenhum de banco na E1; E2 só lê com a sessão do admin. Antes da primeira impressão real, a P8 precisa estar fechada.
+
 ## 9. V1 — direção (não detalhar em fases agora)
 - **Hospedagem, opção preferida (N8N self-hosted, a confirmar):**
   - empacotar o `cartao-omr` como **container HTTP** (FastAPI, endpoint `POST /processar` que recebe o PDF e o `simulado_id` e devolve um zip com o xlsx e os recortes), rodando **ao lado do N8N** no mesmo servidor;
@@ -398,10 +416,7 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
   - credencial `cartao_omr_reader` como secret do servidor;
   - pasta do Drive com acesso restrito;
   - regra de retenção, para apagar PDFs e saídas depois de X dias.
-- **Tela de emissão (parte da operação, seção 1.1):** a tela gera o PDF a partir de IES, simulado e alunos. Falta decidir **como** ela gera (P7):
-  - **(a) serviço:** a tela chama o mesmo container do `cartao-omr` (`gerar-cartoes`); uma única fonte da verdade, mas exige o host da V1;
-  - **(b) porte para TypeScript:** reimplementar o desenho no Academy, lendo o `templates/*.json`; roda sem servidor, mas há risco de o PDF divergir do template.
-  - Em qualquer caso, `templates/*.json` e o formato do QR (`SFA2`) são o contrato.
+- **Tela de emissão (parte da operação, seção 1.1):** decidido em 16/10 que ela gera o PDF **em TypeScript, lendo os templates, sem serviço externo** (Fase E). O serviço Python (`gerar-cartoes`) continua útil como referência e para testes de paridade. `templates/*.json` e o formato do QR (`SFA2`) são o contrato.
 - **Evoluções possíveis:** importação automática via `admin-import-simulado-responses` (exige o N8N autenticado como admin); acompanhamento do processamento na tela.
 
 ## 10. Riscos
@@ -415,7 +430,8 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 | UniAtenas fotocopia o cartão (perda de nitidez, escala diferente) | QR sem número de série; os marcadores e a homografia toleram escala; o guia pede impressão direta do PDF sempre que possível. |
 | Alunos UniAtenas sem matrícula cadastrada (~15%) | Pendência com recorte do nome. Ação preventiva na seção 13. |
 | **Importação sem aceitar ID** (P6) | Bloqueia o uso ponta a ponta. É dependência do João, fora das fases do script. |
-| `user_id` impresso no QR pode ser lido por quem fotografar o cartão | Confirmar que nenhum endpoint trata o `user_id` como credencial (P8). |
+| `user_id` impresso no QR pode ser lido por quem fotografar o cartão | Verificação dos endpoints e das políticas que aceitam `user_id` (checklist da P8) **antes da primeira impressão**. |
+| O PDF gerado em TS divergir do template | `draw` exportado pelo Python, teste de paridade e QR conferido pelo `zxing-cpp` (Fase E). |
 | Dados pessoais vazarem pelo Git | `.gitignore` de `runs/` e de PDFs reais; fixtures só sintéticas. |
 | Credencial com poder demais | Papel somente leitura, com colunas mínimas; service role proibida. |
 
@@ -450,8 +466,8 @@ Ao final, siga a regra 8 da seção 4 (testes, commit, tag cartoes-fase-{N}, han
 | P1 | **Hospedagem do N8N:** confirmar se é self-hosted (e quem administra o servidor) ou N8N Cloud. Define a hospedagem da V1 (seção 9). | Só a V1 | João |
 | P2 | **Campi do grupo UniAtenas:** confirmar que são exatamente PARACATU, PASSOS, PORTO SEGURO, SETE LAGOAS, SORRISO e VALENÇA. A lista foi inferida pelo formato da matrícula em 13/10/2026. | Fase 2 (validação de `--layout uniatenas`) | João |
 | P3 | **Matrículas faltantes no UniAtenas:** cerca de 246 alunos desses campi estão sem `matricula_ra`. Pedir a lista às IES via Relacionamento, antes da primeira prova com o cartão novo, e atualizar o cadastro. | Qualidade do piloto UniAtenas | João / Relacionamento |
-| P4 | **Matrícula com `G`:** confirmar com a UniAtenas se `G` é a única letra possível na 3ª posição. | Layout `uniatenas` | João |
+| P4 | ~~Matrícula com `G`~~ **Encerrada em 16/10:** o `G` era erro de cadastro; o cartão só tem dígitos. | – | – |
 | P5 | **Comunicação do cartão novo:** avisar às IES que o cartão é pessoal (um por aluno) e que o cartão antigo deixa de ser processado automaticamente. | Fase 3 | João / Relacionamento |
 | P6 | **Importação por ID do aluno:** estender a tela e a Edge Function (`admin-import-simulado-responses`) para aceitar o `users.id` na coluna 1, além de Matrícula/RA. Hoje só há `admin_lookup_users_by_ra_in_ies`. | Teste de compatibilidade da Fase 2 e Fase 3 (uso ponta a ponta) | João |
-| P7 | **Tela de emissão dos cartões no Academy** e como ela gera o PDF (serviço com o `cartao-omr` ou porte para TypeScript, seção 9). | Operação real; não bloqueia as Fases 1 a 3 | João / equipe do Academy |
-| P8 | **`user_id` no QR:** confirmar que nenhum endpoint do app trata o `user_id` como credencial. | Antes de imprimir os primeiros cartões | João |
+| P7 | ~~Como a tela de emissão gera o PDF~~ **Decidida em 16/10:** porte para TypeScript, lendo os templates, sem serviço externo. Segue na **Fase E** (seção 8). A tela em si é trabalho do Academy. | Operação real; não bloqueia as Fases 1 a 3 | João / equipe do Academy |
+| P8 | **Verificação dos endpoints que aceitam `user_id`.** O QR coloca o `user_id` em papel, que qualquer pessoa pode fotografar; isso só é seguro se o `user_id` **nunca** funcionar como credencial. Checklist: (1) **Edge Functions** em `supabase/functions/` que recebem `user_id` no corpo ou na query sem comparar com o usuário autenticado (há 20+ funções que o citam, por exemplo `get-progress-hub`, `save-push-subscription`, `generate-user-link`, `auth-login`); (2) **RPCs** `SECURITY DEFINER` com parâmetro `p_user_id` que não validam `auth.uid()`; (3) **políticas de RLS** que dependam de o chamador conhecer o UUID; (4) **endpoints anônimos** (sem JWT) que devolvam dados ou ações por `user_id`; (5) links gerados por `generate-user-link`. Resultado esperado: lista de achados, cada um corrigido ou aceito por escrito. | **Antes de imprimir os primeiros cartões reais** (piloto da Fase 3 e Fase E2) | João (posso fazer a leitura do código e do banco, só leitura, se ele pedir) |

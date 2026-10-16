@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -166,11 +167,11 @@ def test_variedade_do_conjunto_de_referencia():
     assert all(p["matricula"] is None for p in cartoes if p["model"] == "personalizado")
 
 
-def test_fixtures_uniatenas_tem_matricula_com_g():
+def test_fixtures_uniatenas_tem_matricula_so_com_digitos():
     gab, _ = _load("uniatenas_realista")
     validas = [p["matricula"]["value"] for p in gab["pages"] if p["kind"] == "cartao" and p["matricula"]["value"]]
-    assert any(v[3] == "G" for v in validas), validas
-    assert all(len(v) == 10 and v[2] == "-" and v[4] == "-" for v in validas)
+    assert validas
+    assert all(re.fullmatch(r"\d{2}-\d-\d{5}", v) for v in validas), validas
 
 
 def test_fixtures_sfa_identificam_o_aluno_so_pelo_qr():
