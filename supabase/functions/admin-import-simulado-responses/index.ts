@@ -157,12 +157,14 @@ Deno.serve(async (req) => {
     }
     const expectedNumeros = Array.from(byNumero.keys()).sort((a, b) => a - b);
 
-    // --- Resolver Matrícula/RA -> user_id (escopo: IES do simulado) ---
-    const raKeys = payload.rows.map((r) => normRa(r.matricula_ra)).filter(Boolean);
-    const uniqueRas = Array.from(new Set(raKeys));
+    // --- Resolver identificador (Matrícula/RA ou ID do aluno) -> user_id (escopo: IES do simulado) ---
+    const allKeys = payload.rows.map((r) => normRa(r.matricula_ra)).filter(Boolean);
+    const uniqueRas = Array.from(new Set(allKeys.filter((k) => !isUuid(k))));
+    const uniqueIds = Array.from(new Set(allKeys.filter((k) => isUuid(k))));
 
     type UserRow = { ra: string; user_id: string; nome: string; email: string; semestre: number | null; match_count: number };
     const userByRa = new Map<string, UserRow>();
+    const idNotInIes = new Set<string>();
     if (uniqueRas.length > 0) {
       const { data: users, error: usersErr } = await supabaseAdmin.rpc(
         'admin_lookup_users_by_ra_in_ies',
@@ -173,9 +175,33 @@ Deno.serve(async (req) => {
         if (!userByRa.has(u.ra)) userByRa.set(u.ra, u);
       }
     }
+    const iesSet = new Set<string>((simulado.ies_ids ?? []) as string[]);
+    for (let i = 0; i < uniqueIds.length; i += 500) {
+      const { data: us, error: idErr } = await supabaseAdmin
+        .from('users')
+        .select('id, nome, email, semestre, id_ies')
+        .in('id', uniqueIds.slice(i, i + 500));
+      if (idErr) return jsonResponse({ error: 'lookup_users_failed', details: idErr.message }, 500);
+      for (const u of us ?? []) {
+        const k = String(u.id).toLowerCase();
+        if (!u.id_ies || !iesSet.has(u.id_ies)) { idNotInIes.add(k); continue; }
+        userByRa.set(k, { ra: k, user_id: u.id, nome: u.nome, email: u.email, semestre: u.semestre, match_count: 1 });
+      }
+    }
 
+    // Duplicidade: mesmo identificador repetido OU mesmo aluno por ID e por RA
     const raCount = new Map<string, number>();
-    for (const e of raKeys) raCount.set(e, (raCount.get(e) ?? 0) + 1);
+    const userIdCount = new Map<string, number>();
+    for (const e of allKeys) {
+      raCount.set(e, (raCount.get(e) ?? 0) + 1);
+      const uid = userByRa.get(e)?.user_id;
+      if (uid) userIdCount.set(uid, (userIdCount.get(uid) ?? 0) + 1);
+    }
+    for (const e of allKeys) {
+      const uid = userByRa.get(e)?.user_id;
+      if (uid && (userIdCount.get(uid) ?? 0) > 1) raCount.set(e, Math.max(2, raCount.get(e) ?? 0));
+    }
+    const ctx = { idNotInIes };
 
     // Conta células com marcação múltipla por linha (para o aviso do dry-run)
     const countMulti = (row: InputRow) => {
