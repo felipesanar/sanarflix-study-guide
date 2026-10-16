@@ -1,4 +1,4 @@
-# Cartões-resposta — mapa do projeto (estado em 16/10/2026)
+# Cartões-resposta — mapa do projeto (estado em 16/10/2026, depois da reorganização das pastas)
 
 Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada coisa, o que está pronto e por onde continuar.**
 
@@ -17,21 +17,26 @@ O time da Sanar emite **cartões-resposta em PDF** (um por aluno, com o ID do al
 
 ## 3. Onde está cada coisa
 
-### 3.1 Três lugares
-| Lugar | Caminho | O que é |
+### 3.1 Todas as pastas ficam em `C:\Users\joao.nader\work`
+Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cada pasta tem **uma branch aberta**. O arquivo `C:\Users\joao.nader\work\LEIA-ME.txt` resume isso e tem os comandos.
+
+| Pasta | Branch aberta | Para quê |
 |---|---|---|
-| **A. GitHub** (`origin`) | `github.com/felipesanar/sanarflix-study-guide` | A cópia oficial e compartilhada. A `main` é o que o Lovable publica. |
-| **B. Pasta do projeto (worktree)** | `C:\Users\joao.nader\work\sanarflix-cartoes` | **Onde mora o trabalho dos cartões.** Branch `feat/cartoes-resposta`. Fora do OneDrive. |
-| **C. Pasta do OneDrive** | `...\OneDrive - Editora Sanar S.A\Documentos\Academy Project\sanarflix-study-guide` | O clone "original". Hoje está parado na branch `fix/session-security-auth`, com a correção F1 **sem commit** dentro. |
+| `sanarflix-principal` | `main` | Repositório central, **parado na `main`**. Não se edita; serve para criar pastas novas e consultar. |
+| **`sanarflix-cartoes`** | `feat/cartoes-resposta` | **Projeto dos cartões.** As Fases 2 e 3 acontecem aqui. |
+| `sanarflix-fix-f1-session-security` | `fix/session-security-auth` | Correção F1. |
+| `sanarflix-fix-f2-gestor-ai` | `fix/gestor-ai-insights-authz-antes-do-cache` | Correção F2. |
 
-> B e C são o **mesmo repositório** (`.git` único, que fica em C). Commits e tags feitos em B aparecem em C e vice-versa; só os arquivos abertos mudam.
+**Regra de ouro: uma tarefa = uma pasta = uma sessão do Claude.** Abra o Claude **na pasta da tarefa**. O Claude guarda memória e contexto por pasta, e foi abrir várias sessões na mesma pasta que embaralhou as branches. Para uma tarefa nova: `.\nova-tarefa.ps1 -Nome <nome> -Branch <branch>` (na pasta `work`); para fechar: `.\encerrar-tarefa.ps1 -Nome <nome>`.
 
-### 3.2 Branches
-| Branch | O que tem | Está no GitHub? |
+**Não use** a pasta antiga do OneDrive (`...\Academy Project\sanarflix-study-guide`): é uma cópia de segurança, que pode ser apagada depois dos pushes.
+
+### 3.2 Onde cada branch está publicada
+| Branch | O que tem | No GitHub? |
 |---|---|---|
 | `main` | O produto publicado (Lovable). Nada dos cartões entrou aqui ainda. | sim |
-| **`feat/cartoes-resposta`** | **Todo o projeto dos cartões**: PRD, serviço Python, leitor, emissão em TypeScript, tela. 14 commits à frente da `main`. | **parcial:** o GitHub tem até a **Fase 1**. A **Fase E** e as **tags** só existem no seu computador. |
-| `fix/session-security-auth` | Correção **F1**. | **não** (e ainda nem foi commitada) |
+| **`feat/cartoes-resposta`** | **Todo o projeto dos cartões**: PRD, serviço Python, leitor, emissão em TypeScript, tela. | **parcial:** o GitHub tem até a **Fase 1**. A **Fase E**, os documentos novos e **todas as tags** só existem no seu computador. |
+| `fix/session-security-auth` | Correção **F1** (1 commit). | **não** |
 | `fix/gestor-ai-insights-authz-antes-do-cache` | Correção **F2** (1 commit). | **não** |
 
 ## 4. O que está pronto
@@ -60,25 +65,24 @@ Contexto: o QR do cartão leva o ID do aluno. Qualquer pessoa pode fotografar um
 
 | # | Gravidade | Problema (em uma frase) | Conserto |
 |---|---|---|---|
-| **F1** | **Alta** | `session-security`: qualquer pessoa com um ID derruba todas as sessões desse usuário, sem login. | **Escrito e testado (21 testes)**, mas **sem commit**, na pasta C, branch `fix/session-security-auth`. Não publicado. |
+| **F1** | **Alta** | `session-security`: qualquer pessoa com um ID derruba todas as sessões desse usuário, sem login. | **Escrito, testado (21 testes) e commitado** (`a445c712`) na branch `fix/session-security-auth`. Não publicado. |
 | **F2** | Média | `gestor-ai-insights`: devolve o texto de IA sobre um aluno a qualquer usuário logado, antes de checar se é gestor da IES. | **Escrito, testado (22 testes) e commitado** (`7ae97889`) na branch `fix/gestor-ai-insights-authz-antes-do-cache`. Não publicado. |
 | F3 | Baixa | `get_user_roles`/`has_role` mostram o papel de qualquer ID a quem está logado. | **Sem conserto.** Recomendação: aceitar por escrito. |
 | F4 | Média (fora do tema) | `send-study-reminder` é um relé de e-mail aberto. | **Nada feito.** |
 | F5 | Baixa | `check-and-send-reminders` e `notify-performance-released` podem ser disparadas por qualquer um. | **Nada feito.** |
 | F6 | Higiene | O papel `anon` tem privilégio total nas tabelas (o RLS é que protege). | **Nada feito.** |
 
-> **"Pronto" para F1 e F2 quer dizer código e testes prontos, não em produção.** Falta, para cada uma: commit (F1), publicar a branch, abrir o pull request, mesclar na `main` e a função ser publicada no Supabase.
+> **"Pronto" para F1 e F2 quer dizer código, testes e commit prontos, não em produção.** Falta, para cada uma: publicar a branch (`git push -u origin <branch>`), abrir o pull request, mesclar na `main` e a função ser publicada no Supabase.
 
 ## 7. Onde continuar (recomendação)
-1. **Trabalho dos cartões** (Fase 2 em diante): sempre na **pasta B** (`C:\Users\joao.nader\work\sanarflix-cartoes`), branch `feat/cartoes-resposta`.
-2. **Correções da P8** (F1, F2, ...): cada uma em **sua própria pasta**, uma branch por correção, e **nunca na pasta C**. A pasta C deve voltar a ficar parada na `main`, só para consulta.
+1. **Trabalho dos cartões** (Fase 2 em diante): na pasta `sanarflix-cartoes`.
+2. **Correções da P8** (F1, F2, F4...): cada uma na **sua pasta** (`nova-tarefa.ps1`), nunca na `sanarflix-principal`.
 3. **Ordem sugerida:**
-   1. Publicar o que já existe (`git push origin feat/cartoes-resposta` e `git push origin --tags`).
-   2. Fechar F1 e F2 (commit, push, pull request, mesclar, publicar a função). É o que libera imprimir cartões reais.
+   1. Publicar o que já existe: de qualquer pasta, `git push origin feat/cartoes-resposta`, `git push origin --tags`, `git push -u origin fix/session-security-auth` e `git push -u origin fix/gestor-ai-insights-authz-antes-do-cache`.
+   2. Fechar F1 e F2 (pull request, mesclar, publicar a função). É o que libera imprimir cartões reais.
    3. Aceite físico da Fase E.
    4. Fase 2.
    5. Fase 3 (piloto).
-4. **Médio prazo:** tirar o clone principal de dentro do OneDrive. A sincronização do OneDrive já bloqueou a limpeza de pastas do `.git` ("Permission denied") e pode corromper o repositório.
 
 ## 8. Como retomar uma sessão
 ```bash
