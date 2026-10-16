@@ -43,6 +43,7 @@ interface RowResult {
   matricula_ra: string;
   email?: string;
   nome?: string;
+  identificado_por?: 'ra' | 'id';
   status: 'imported' | 'skipped' | 'replaced' | 'failed' | 'preview_ok' | 'preview_warning' | 'preview_error';
   reason?: string;
   details?: Record<string, unknown>;
@@ -157,12 +158,14 @@ Deno.serve(async (req) => {
     }
     const expectedNumeros = Array.from(byNumero.keys()).sort((a, b) => a - b);
 
-    // --- Resolver Matrícula/RA -> user_id (escopo: IES do simulado) ---
-    const raKeys = payload.rows.map((r) => normRa(r.matricula_ra)).filter(Boolean);
-    const uniqueRas = Array.from(new Set(raKeys));
+    // --- Resolver identificador (Matrícula/RA ou ID do aluno) -> user_id (escopo: IES do simulado) ---
+    const allKeys = payload.rows.map((r) => normRa(r.matricula_ra)).filter(Boolean);
+    const uniqueRas = Array.from(new Set(allKeys.filter((k) => !isUuid(k))));
+    const uniqueIds = Array.from(new Set(allKeys.filter((k) => isUuid(k))));
 
     type UserRow = { ra: string; user_id: string; nome: string; email: string; semestre: number | null; match_count: number };
     const userByRa = new Map<string, UserRow>();
+    const idNotInIes = new Set<string>();
     if (uniqueRas.length > 0) {
       const { data: users, error: usersErr } = await supabaseAdmin.rpc(
         'admin_lookup_users_by_ra_in_ies',
@@ -173,9 +176,33 @@ Deno.serve(async (req) => {
         if (!userByRa.has(u.ra)) userByRa.set(u.ra, u);
       }
     }
+    const iesSet = new Set<string>((simulado.ies_ids ?? []) as string[]);
+    for (let i = 0; i < uniqueIds.length; i += 500) {
+      const { data: us, error: idErr } = await supabaseAdmin
+        .from('users')
+        .select('id, nome, email, semestre, id_ies')
+        .in('id', uniqueIds.slice(i, i + 500));
+      if (idErr) return jsonResponse({ error: 'lookup_users_failed', details: idErr.message }, 500);
+      for (const u of us ?? []) {
+        const k = String(u.id).toLowerCase();
+        if (!u.id_ies || !iesSet.has(u.id_ies)) { idNotInIes.add(k); continue; }
+        userByRa.set(k, { ra: k, user_id: u.id, nome: u.nome, email: u.email, semestre: u.semestre, match_count: 1 });
+      }
+    }
 
+    // Duplicidade: mesmo identificador repetido OU mesmo aluno por ID e por RA
     const raCount = new Map<string, number>();
-    for (const e of raKeys) raCount.set(e, (raCount.get(e) ?? 0) + 1);
+    const userIdCount = new Map<string, number>();
+    for (const e of allKeys) {
+      raCount.set(e, (raCount.get(e) ?? 0) + 1);
+      const uid = userByRa.get(e)?.user_id;
+      if (uid) userIdCount.set(uid, (userIdCount.get(uid) ?? 0) + 1);
+    }
+    for (const e of allKeys) {
+      const uid = userByRa.get(e)?.user_id;
+      if (uid && (userIdCount.get(uid) ?? 0) > 1) raCount.set(e, Math.max(2, raCount.get(e) ?? 0));
+    }
+    const ctx = { idNotInIes };
 
     // Conta células com marcação múltipla por linha (para o aviso do dry-run)
     const countMulti = (row: InputRow) => {
@@ -192,7 +219,7 @@ Deno.serve(async (req) => {
       let multiCells = 0, multiRows = 0;
       for (const row of payload.rows) {
         const key = normRa(row.matricula_ra);
-        const validation = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount);
+        const validation = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount, ctx);
         const mc = countMulti(row);
         if (mc > 0 && validation.status !== 'preview_error') {
           multiCells += mc; multiRows++;
@@ -297,7 +324,7 @@ Deno.serve(async (req) => {
 
     for (const row of payload.rows) {
       const key = normRa(row.matricula_ra);
-      const v = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount);
+      const v = validateRow(row, key, byNumero, expectedNumeros, userByRa, raCount, ctx);
       if (v.status === 'preview_error') {
         const userId = userByRa.get(key)?.user_id ?? '00000000-0000-0000-0000-000000000000';
         invalidFailures.push({ user_id: userId, reason: v.reason ?? 'validation_failed' });
@@ -546,6 +573,11 @@ function validatePayload(p: RequestPayload): string[] {
   return errs;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isUuid(v: string): boolean {
+  return UUID_REGEX.test(v.trim());
+}
+
 function normRa(raw: unknown): string {
   return String(raw ?? '').trim().toLowerCase();
 }
@@ -586,19 +618,22 @@ function validateRow(
   expectedNumeros: number[],
   userByRa: Map<string, { user_id: string; nome: string; email: string; match_count: number }>,
   raCount: Map<string, number>,
+  ctx: { idNotInIes: Set<string> } = { idNotInIes: new Set() },
 ): RowResult {
   const matricula_ra = String(row.matricula_ra ?? '').trim();
   if (!key) {
     return { matricula_ra, status: 'preview_error', reason: 'ra_missing' };
   }
+  const byId = isUuid(key);
   if ((raCount.get(key) ?? 0) > 1) {
-    return { matricula_ra, status: 'preview_error', reason: 'duplicate_ra_in_file' };
+    return { matricula_ra, status: 'preview_error', reason: byId ? 'duplicate_student_in_file' : 'duplicate_ra_in_file' };
   }
   const user = userByRa.get(key);
   if (!user) {
+    if (byId) return { matricula_ra, status: 'preview_error', reason: ctx.idNotInIes.has(key) ? 'id_not_in_ies' : 'id_not_found' };
     return { matricula_ra, status: 'preview_error', reason: 'ra_not_found' };
   }
-  const base = { matricula_ra, email: user.email, nome: user.nome };
+  const base = { matricula_ra, email: user.email, nome: user.nome, identificado_por: (byId ? 'id' : 'ra') as 'ra' | 'id' };
   if (user.match_count > 1) {
     return { ...base, status: 'preview_error', reason: 'ra_ambiguous' };
   }

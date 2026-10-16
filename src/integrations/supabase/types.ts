@@ -426,6 +426,307 @@ export type Database = {
           },
         ]
       }
+      b2c_alternativas: {
+        Row: {
+          correta: boolean
+          id: string
+          label: string
+          questao_id: string
+          texto: string | null
+        }
+        Insert: {
+          correta?: boolean
+          id: string
+          label: string
+          questao_id: string
+          texto?: string | null
+        }
+        Update: {
+          correta?: boolean
+          id?: string
+          label?: string
+          questao_id?: string
+          texto?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2c_alternativas_questao_id_fkey"
+            columns: ["questao_id"]
+            isOneToOne: false
+            referencedRelation: "b2c_questoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2c_alunos: {
+        Row: {
+          alvos: Json
+          corte_mais_dificil: number | null
+          email: string
+          especialidade_id: string | null
+          especialidade_nome: string | null
+          nome: string | null
+          segment: string | null
+          sincronizado_em: string
+        }
+        Insert: {
+          alvos?: Json
+          corte_mais_dificil?: number | null
+          email: string
+          especialidade_id?: string | null
+          especialidade_nome?: string | null
+          nome?: string | null
+          segment?: string | null
+          sincronizado_em?: string
+        }
+        Update: {
+          alvos?: Json
+          corte_mais_dificil?: number | null
+          email?: string
+          especialidade_id?: string | null
+          especialidade_nome?: string | null
+          nome?: string | null
+          segment?: string | null
+          sincronizado_em?: string
+        }
+        Relationships: []
+      }
+      b2c_area_mapa: {
+        Row: {
+          area_origem: string
+          especialidade: string | null
+          grande_area: string
+        }
+        Insert: {
+          area_origem: string
+          especialidade?: string | null
+          grande_area: string
+        }
+        Update: {
+          area_origem?: string
+          especialidade?: string | null
+          grande_area?: string
+        }
+        Relationships: []
+      }
+      b2c_questoes: {
+        Row: {
+          correta_label: string | null
+          dificuldade: string | null
+          enunciado: string | null
+          explicacao: string | null
+          explicacao_imagem_url: string | null
+          grande_area: string | null
+          id: string
+          imagem_url: string | null
+          imagem_url_2: string | null
+          numero: number
+          simulado_id: string
+          tema: string | null
+        }
+        Insert: {
+          correta_label?: string | null
+          dificuldade?: string | null
+          enunciado?: string | null
+          explicacao?: string | null
+          explicacao_imagem_url?: string | null
+          grande_area?: string | null
+          id: string
+          imagem_url?: string | null
+          imagem_url_2?: string | null
+          numero: number
+          simulado_id: string
+          tema?: string | null
+        }
+        Update: {
+          correta_label?: string | null
+          dificuldade?: string | null
+          enunciado?: string | null
+          explicacao?: string | null
+          explicacao_imagem_url?: string | null
+          grande_area?: string | null
+          id?: string
+          imagem_url?: string | null
+          imagem_url_2?: string | null
+          numero?: number
+          simulado_id?: string
+          tema?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2c_questoes_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "b2c_simulados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2c_respostas: {
+        Row: {
+          correta: boolean | null
+          marcada_label: string | null
+          questao_id: string
+          respondida: boolean
+          tentativa_id: string
+        }
+        Insert: {
+          correta?: boolean | null
+          marcada_label?: string | null
+          questao_id: string
+          respondida: boolean
+          tentativa_id: string
+        }
+        Update: {
+          correta?: boolean | null
+          marcada_label?: string | null
+          questao_id?: string
+          respondida?: boolean
+          tentativa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2c_respostas_questao_id_fkey"
+            columns: ["questao_id"]
+            isOneToOne: false
+            referencedRelation: "b2c_questoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b2c_respostas_tentativa_id_fkey"
+            columns: ["tentativa_id"]
+            isOneToOne: false
+            referencedRelation: "b2c_tentativas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2c_simulados: {
+        Row: {
+          id: string
+          janela_fim: string | null
+          janela_inicio: string | null
+          questoes: number | null
+          resultado_liberado_em: string | null
+          sequence_number: number
+          sincronizado_em: string
+          status: string | null
+          titulo: string
+        }
+        Insert: {
+          id: string
+          janela_fim?: string | null
+          janela_inicio?: string | null
+          questoes?: number | null
+          resultado_liberado_em?: string | null
+          sequence_number: number
+          sincronizado_em?: string
+          status?: string | null
+          titulo: string
+        }
+        Update: {
+          id?: string
+          janela_fim?: string | null
+          janela_inicio?: string | null
+          questoes?: number | null
+          resultado_liberado_em?: string | null
+          sequence_number?: number
+          sincronizado_em?: string
+          status?: string | null
+          titulo?: string
+        }
+        Relationships: []
+      }
+      b2c_sync_execucoes: {
+        Row: {
+          alunos: number | null
+          erro: string | null
+          id: number
+          iniciado_em: string
+          respostas: number | null
+          tentativas: number | null
+          terminado_em: string | null
+        }
+        Insert: {
+          alunos?: number | null
+          erro?: string | null
+          id?: number
+          iniciado_em?: string
+          respostas?: number | null
+          tentativas?: number | null
+          terminado_em?: string | null
+        }
+        Update: {
+          alunos?: number | null
+          erro?: string | null
+          id?: number
+          iniciado_em?: string
+          respostas?: number | null
+          tentativas?: number | null
+          terminado_em?: string | null
+        }
+        Relationships: []
+      }
+      b2c_tentativas: {
+        Row: {
+          acerto_pct: number
+          acertos: number | null
+          dentro_janela: boolean | null
+          email: string
+          finalizada_em: string
+          id: string
+          modalidade: string | null
+          participantes: number | null
+          percentil: number | null
+          posicao: number | null
+          respondidas: number | null
+          simulado_id: string
+        }
+        Insert: {
+          acerto_pct: number
+          acertos?: number | null
+          dentro_janela?: boolean | null
+          email: string
+          finalizada_em: string
+          id: string
+          modalidade?: string | null
+          participantes?: number | null
+          percentil?: number | null
+          posicao?: number | null
+          respondidas?: number | null
+          simulado_id: string
+        }
+        Update: {
+          acerto_pct?: number
+          acertos?: number | null
+          dentro_janela?: boolean | null
+          email?: string
+          finalizada_em?: string
+          id?: string
+          modalidade?: string | null
+          participantes?: number | null
+          percentil?: number | null
+          posicao?: number | null
+          respondidas?: number | null
+          simulado_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2c_tentativas_email_fkey"
+            columns: ["email"]
+            isOneToOne: false
+            referencedRelation: "b2c_alunos"
+            referencedColumns: ["email"]
+          },
+          {
+            foreignKeyName: "b2c_tentativas_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "b2c_simulados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_arrangements: {
         Row: {
           created_at: string
@@ -1344,6 +1645,262 @@ export type Database = {
           },
         ]
       }
+      mentoria_agenda_liberacoes: {
+        Row: {
+          aluno_email: string
+          desde: string
+          desligado_em: string | null
+          id: string
+          ligado: boolean
+          mensagem: string
+          mentor_id: string
+        }
+        Insert: {
+          aluno_email: string
+          desde?: string
+          desligado_em?: string | null
+          id?: string
+          ligado?: boolean
+          mensagem: string
+          mentor_id: string
+        }
+        Update: {
+          aluno_email?: string
+          desde?: string
+          desligado_em?: string | null
+          id?: string
+          ligado?: boolean
+          mensagem?: string
+          mentor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_agenda_liberacoes_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mentoria_eventos: {
+        Row: {
+          aluno_email: string | null
+          criado_em: string
+          id: string
+          intervencao_id: string | null
+          mentor_id: string
+          payload: Json
+          tipo: string
+        }
+        Insert: {
+          aluno_email?: string | null
+          criado_em?: string
+          id?: string
+          intervencao_id?: string | null
+          mentor_id: string
+          payload?: Json
+          tipo: string
+        }
+        Update: {
+          aluno_email?: string | null
+          criado_em?: string
+          id?: string
+          intervencao_id?: string | null
+          mentor_id?: string
+          payload?: Json
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_eventos_intervencao_id_fkey"
+            columns: ["intervencao_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_intervencoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentoria_eventos_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mentoria_intervencao_alunos: {
+        Row: {
+          aluno_email: string
+          intervencao_id: string
+        }
+        Insert: {
+          aluno_email: string
+          intervencao_id: string
+        }
+        Update: {
+          aluno_email?: string
+          intervencao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_intervencao_alunos_intervencao_id_fkey"
+            columns: ["intervencao_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_intervencoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentoria_intervencao_comentarios: {
+        Row: {
+          autor_id: string | null
+          criado_em: string
+          id: string
+          intervencao_id: string
+          texto: string
+        }
+        Insert: {
+          autor_id?: string | null
+          criado_em?: string
+          id?: string
+          intervencao_id: string
+          texto: string
+        }
+        Update: {
+          autor_id?: string | null
+          criado_em?: string
+          id?: string
+          intervencao_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_intervencao_comentarios_intervencao_id_fkey"
+            columns: ["intervencao_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_intervencoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentoria_intervencoes: {
+        Row: {
+          alvo: string
+          atualizado_em: string
+          concluido_em: string | null
+          criado_em: string
+          id: string
+          mentor_id: string
+          nota: string | null
+          origem: string
+          origem_ref: Json | null
+          status: string
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          alvo: string
+          atualizado_em?: string
+          concluido_em?: string | null
+          criado_em?: string
+          id?: string
+          mentor_id: string
+          nota?: string | null
+          origem: string
+          origem_ref?: Json | null
+          status?: string
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          alvo?: string
+          atualizado_em?: string
+          concluido_em?: string | null
+          criado_em?: string
+          id?: string
+          mentor_id?: string
+          nota?: string | null
+          origem?: string
+          origem_ref?: Json | null
+          status?: string
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_intervencoes_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mentoria_sessoes: {
+        Row: {
+          aluno_email: string | null
+          created_at: string
+          created_by: string | null
+          duracao_min: number
+          gravacao_url: string | null
+          id: string
+          inicio: string
+          meet_link: string | null
+          mentor_id: string | null
+          origem: string
+          realizada_em: string | null
+          status: string
+          tema: string | null
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          aluno_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          duracao_min?: number
+          gravacao_url?: string | null
+          id?: string
+          inicio: string
+          meet_link?: string | null
+          mentor_id?: string | null
+          origem?: string
+          realizada_em?: string | null
+          status?: string
+          tema?: string | null
+          tipo: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          aluno_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          duracao_min?: number
+          gravacao_url?: string | null
+          id?: string
+          inicio?: string
+          meet_link?: string | null
+          mentor_id?: string | null
+          origem?: string
+          realizada_em?: string | null
+          status?: string
+          tema?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_sessoes_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       mentoria_vinculos: {
         Row: {
           academy_user_id: string | null
@@ -1394,6 +1951,91 @@ export type Database = {
           },
           {
             foreignKeyName: "mentoria_vinculos_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mural_destinatarios: {
+        Row: {
+          aluno_email: string
+          post_id: string
+        }
+        Insert: {
+          aluno_email: string
+          post_id: string
+        }
+        Update: {
+          aluno_email?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mural_destinatarios_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "mural_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mural_posts: {
+        Row: {
+          anexo_nome: string | null
+          anexo_path: string | null
+          created_at: string
+          id: string
+          link_titulo: string | null
+          link_url: string | null
+          mensagem: string
+          mentor_id: string
+          origem: string
+          publicado_em: string | null
+          publico: string
+          status: string
+          tag: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          anexo_nome?: string | null
+          anexo_path?: string | null
+          created_at?: string
+          id?: string
+          link_titulo?: string | null
+          link_url?: string | null
+          mensagem: string
+          mentor_id: string
+          origem?: string
+          publicado_em?: string | null
+          publico: string
+          status?: string
+          tag: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          anexo_nome?: string | null
+          anexo_path?: string | null
+          created_at?: string
+          id?: string
+          link_titulo?: string | null
+          link_url?: string | null
+          mensagem?: string
+          mentor_id?: string
+          origem?: string
+          publicado_em?: string | null
+          publico?: string
+          status?: string
+          tag?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mural_posts_mentor_id_fkey"
             columns: ["mentor_id"]
             isOneToOne: false
             referencedRelation: "mentores"
@@ -2762,6 +3404,17 @@ export type Database = {
         Returns: Json
       }
       ai_cache_cleanup: { Args: never; Returns: number }
+      api_mentoria_me: { Args: { p_email: string }; Returns: Json }
+      api_mentoria_mural: {
+        Args: { p_aba: string; p_cursor: string; p_email: string }
+        Returns: Json
+      }
+      api_mentoria_sessoes: {
+        Args: { p_email: string; p_quando: string }
+        Returns: Json
+      }
+      b2c_sync_correcoes_pendentes: { Args: never; Returns: boolean }
+      b2c_sync_sou_servico: { Args: never; Returns: boolean }
       complete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
@@ -3085,7 +3738,101 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_ttl_seconds: number }
         Returns: Json
       }
+      mentor_agenda_desligar: { Args: { p_emails: string[] }; Returns: Json }
+      mentor_agenda_liberar: {
+        Args: { p_emails: string[]; p_mensagem: string }
+        Returns: Json
+      }
+      mentor_aluno: { Args: { p_email: string }; Returns: Json }
+      mentor_aluno_conteudos: { Args: { p_email: string }; Returns: Json }
+      mentor_aluno_notas: { Args: { p_email: string }; Returns: Json }
+      mentor_ativo_id: { Args: never; Returns: string }
+      mentor_definir_link_agendamento: {
+        Args: { p_url: string }
+        Returns: Json
+      }
+      mentor_desempenho_turma: {
+        Args: { p_simulados?: string[] }
+        Returns: Json
+      }
+      mentor_detalhamento: { Args: { p_simulados: string[] }; Returns: Json }
+      mentor_exige_alunos: {
+        Args: { p_emails: string[]; p_mentor: string }
+        Returns: string[]
+      }
+      mentor_intervencao_atualizar: {
+        Args: {
+          p_id: string
+          p_nota: string
+          p_status: string
+          p_titulo: string
+        }
+        Returns: Json
+      }
+      mentor_intervencao_comentar: {
+        Args: { p_id: string; p_texto: string }
+        Returns: Json
+      }
+      mentor_intervencao_criar: {
+        Args: {
+          p_alunos: string[]
+          p_alvo: string
+          p_nota: string
+          p_tipo: string
+          p_titulo: string
+        }
+        Returns: Json
+      }
+      mentor_intervencoes_listar: {
+        Args: { p_ate: string; p_de: string }
+        Returns: Json
+      }
+      mentor_mural_listar: {
+        Args: { p_aluno_email?: string; p_tag?: string }
+        Returns: Json
+      }
+      mentor_mural_salvar: {
+        Args: {
+          p_anexo_nome: string
+          p_anexo_path: string
+          p_destinatarios: string[]
+          p_id: string
+          p_link_titulo: string
+          p_link_url: string
+          p_mensagem: string
+          p_publicar: boolean
+          p_publico: string
+          p_registrar_intervencao: boolean
+          p_tag: string
+          p_titulo: string
+        }
+        Returns: Json
+      }
       mentor_pode_ver_aluno: { Args: { p_email: string }; Returns: boolean }
+      mentor_questao: {
+        Args: { p_questao_id: string; p_simulados?: string[] }
+        Returns: Json
+      }
+      mentor_sessao_marcar_feita: {
+        Args: { p_gravacao_url: string; p_id: string }
+        Returns: Json
+      }
+      mentor_sessao_salvar: {
+        Args: {
+          p_aluno_email: string
+          p_duracao_min: number
+          p_id: string
+          p_inicio: string
+          p_meet_link: string
+          p_tema: string
+          p_tipo: string
+          p_titulo: string
+        }
+        Returns: Json
+      }
+      mentor_sessoes_listar: { Args: { p_quando: string }; Returns: Json }
+      mentor_tags: { Args: never; Returns: Json }
+      mentor_turma: { Args: never; Returns: Json }
       normalize_grande_area: { Args: { raw: string }; Returns: string }
       record_review_attempt_guarded: {
         Args: {
