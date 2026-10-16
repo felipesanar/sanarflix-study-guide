@@ -269,7 +269,7 @@ def _draw_pessoal(p: _Page) -> None:
     p.rect(*f, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
     p.text(f[0] + 3, L.MAT_TITLE_BASELINE, "CARTÃO PESSOAL", font="Helvetica-Bold", size=10)
     avisos = [
-        "Confira se o nome ao lado de ALUNO é o seu.",
+        "Confira se o nome acima de ALUNO é o seu.",
         "Se o nome não for o seu, avise o aplicador antes de marcar qualquer resposta.",
         "Não troque de cartão com colegas.",
         "Este cartão é identificado automaticamente: não escreva nem cole nada sobre o código QR.",

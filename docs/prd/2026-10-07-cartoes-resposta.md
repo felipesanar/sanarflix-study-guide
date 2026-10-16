@@ -25,6 +25,11 @@
   - **Emissão dos cartões em TypeScript**, lendo os templates, **sem serviço externo** (P7 decidida). Nova **Fase E**.
   - **P8** (verificação de endpoints que usam `user_id`) detalhada, com checklist.
   - O João implementa a importação por ID (P6) em paralelo.
+- **Revisão 6 (16/10/2026):**
+  - **Fase 1 concluída (go):** o pipeline de leitura passa em todos os critérios nas fixtures. Ressalva: as fixtures não discriminam os limiares (ver a Fase 1 na seção 8).
+  - **P6 entregue pelo João:** a importação aceita o **ID do aluno** (UUID) ou a Matrícula/RA na 1ª coluna, com cabeçalho `matricula_ra_ou_id`.
+  - **P8 auditada** (`handoff/p8-auditoria-user-id.md`): há 2 falhas que precisam de correção antes de imprimir cartões reais (F1 e F2).
+  - Texto do quadro CARTÃO PESSOAL: "Confira se o nome acima de ALUNO é o seu."
 - **Status:** aprovado para implementação da **V0**. A V1 está só em direção.
 - **Executor previsto:** Claude Code com Sonnet 5.5, **uma fase por sessão**.
 
@@ -52,10 +57,10 @@ A maioria das IES aplica os cartões, escaneia e já manda a planilha. Algumas m
 1. **Emissão:** uma tela dedicada do Academy. O time interno da Sanar seleciona a **IES**, o **simulado** e os **alunos** que farão a prova. O sistema gera os cartões em PDF, para exportar e imprimir. Cada cartão é pessoal.
 2. **Aplicação:** a IES imprime, aplica a prova, escaneia os cartões preenchidos num único PDF e devolve à Sanar.
 3. **Extração:** o João roda o script **localmente** (na V1, na nuvem). O script gera a planilha com os alunos identificados pelo **ID do Academy**.
-4. **Importação:** o João faz o upload na tela atual. Para isso a importação precisa **aceitar o ID do aluno**; o João vai implementar isso (pendência P6).
+4. **Importação:** o João faz o upload na tela atual. Para isso a importação precisa **aceitar o ID do aluno**; o João implementou isso em 16/10 (P6): a 1ª coluna aceita o ID do aluno ou a Matrícula/RA, sem precisar escolher.
 5. Aluno sem cartão (extravio, chegou depois) recebe um cartão pessoal emitido na hora pela mesma tela. **Não há cartão genérico.** "Respondentes que não estavam na lista" não é um problema, confirmado pelo time.
 
-Fora do script e deste PRD (trabalho do Academy): a **tela de emissão** (P7) e a **importação por ID** (P6).
+Fora do script e deste PRD (trabalho do Academy): a **tela de emissão** (P7) e a **importação por ID** (P6, já entregue).
 
 ## 2. V0 × V1
 
@@ -164,7 +169,7 @@ As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm,
     - com o payload compacto, o QR do `sfa` é versão 4 (módulo de 0,73 mm) e o do UniAtenas é versão 1 (1,03 mm).
     - Abaixo do QR, o código legível em texto de 6 pt: os 8 primeiros caracteres do `user_id`, em maiúsculas (no UniAtenas, `UNIATENAS`).
   - **Bloco esquerdo** (x de 20 a 92, y de 44 a 108):
-    - **`sfa`:** quadro **CARTÃO PESSOAL** com avisos: conferir se o nome ao lado de ALUNO é o seu, avisar o aplicador se não for, não trocar de cartão e não escrever nem colar nada sobre o QR. Sem bolhas.
+    - **`sfa`:** quadro **CARTÃO PESSOAL** com avisos: conferir se o nome acima de ALUNO é o seu, avisar o aplicador se não for, não trocar de cartão e não escrever nem colar nada sobre o QR. Sem bolhas.
     - **`uniatenas`:** quadro MATRÍCULA em bolhas, conforme a seção 5.2.1.
   - **Instruções** (x de 98 a 150, y de 44 a 108):
     - "Use caneta esferográfica preta ou azul-escura."
@@ -309,14 +314,14 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
 A ordem das abas importa: a tela de importação lê **só a primeira**, **por posição**.
 
 1. **`Respostas`** (primeira aba, no formato da importação):
-   - **Colunas:** exatamente `1 + N`, em que N é o `total_questoes` do simulado. A coluna 1 é o **`id_aluno`** (o `users.id`, UUID); as colunas 2 a N+1 são `Questão 1` … `Questão N`, em ordem. A linha 1 é o cabeçalho; a importação não lê mais colunas nem colunas fora de ordem.
+   - **Colunas:** exatamente `1 + N`, em que N é o `total_questoes` do simulado. A coluna 1 é o **`matricula_ra_ou_id`** (o `users.id`, UUID); as colunas 2 a N+1 são `Questão 1` … `Questão N`, em ordem. A linha 1 é o cabeçalho; a importação não lê mais colunas nem colunas fora de ordem.
    - **Linhas:** uma por aluno identificado e não duplicado. O valor é `A`–`D` ou vazio.
    - **Questões `multipla`/`ambigua`:** a célula fica vazia, com **fundo amarelo** e um comentário (`múltipla` ou `ambígua`, página N). O João decide e preenche.
-   - **Dependência (P6):** hoje a coluna 1 só aceita Matrícula/RA. Enquanto o João não entregar a importação por ID, o dry-run recusa esta planilha.
+   - **Importação por ID (P6, entregue em 16/10):** a coluna 1 aceita o UUID do aluno (comparado sem diferenciar maiúsculas e ignorando espaços) ou a Matrícula/RA; o aluno precisa pertencer a uma IES do simulado e não pode repetir na planilha (nem por ID e RA ao mesmo tempo). O cabeçalho da coluna 1 é o do modelo da tela, `matricula_ra_ou_id`.
 2. **`Pendências`**: uma linha por problema, com as colunas `pagina | tipo | questao | detalhe | recorte`.
    - **tipos:** `aluno_nao_identificado`, `aluno_duplicado`, `aluno_fora_do_roster`, `matricula_invalida`, `qr_ilegivel`, `multipla`, `ambigua`, `pagina_ilegivel`, `simulado_divergente`.
    - O `recorte` é o caminho relativo do PNG em `recortes/`.
-3. **`Não identificados`**: as páginas sem aluno, com as respostas completas e a coluna `id_aluno` vazia. Depois de identificar o aluno pelo recorte do nome, o João preenche o ID e move a linha para `Respostas`.
+3. **`Não identificados`**: as páginas sem aluno, com as respostas completas e a coluna `matricula_ra_ou_id` vazia. Depois de identificar o aluno pelo recorte do nome, o João preenche o ID e move a linha para `Respostas`.
 4. **`Resumo`**:
    - simulado, IES, data e hora da execução;
    - total de páginas, em branco, ilegíveis, identificadas e não identificadas;
@@ -342,16 +347,19 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 - **Portões:** nenhum (só leitura).
 
 ### Fase 1 — Pipeline de leitura (go/no-go)
+**Status: concluída, GO** (tag `cartoes-fase-1`, 16/10/2026). Detalhes no handoff `fase-1.md`.
 - **Entregáveis:**
-  - `pipeline/render.py`, `align.py`, `qr.py` e `omr.py`, conforme a seção 7.2. São funções puras, sem banco. O `qr.py` usa `models.parse_qr`.
-  - `tools/eval_accuracy.py`: roda o pipeline sobre as fixtures e mede o acerto por bolha, o acerto da matrícula, a leitura do QR, as páginas ilegíveis e a matriz de confusão das classes (marcada/branco/múltipla/ambígua).
-  - Calibração de `T_ALTO`, `T_BAIXO` e `GAP_MIN`, registrada no `config.py` e no handoff.
+  - `pipeline/render.py`, `align.py`, `qr.py`, `omr.py` e `page.py`, conforme a seção 7.2. São funções puras, sem banco. O `qr.py` usa `models.parse_qr`. A orientação (0°, 90°, 180°, 270°) é resolvida pela homografia, sem girar a imagem.
+  - `tools/eval_accuracy.py`: roda o pipeline sobre as fixtures e mede o acerto por bolha, o acerto da matrícula, a leitura do QR, as páginas ilegíveis e a matriz de confusão (marcada/branco/múltipla/ambígua). Com `--calibrar`, varre os limiares.
+  - Limiares em `config.py`: `T_ALTO` 0,50, `T_BAIXO` 0,20, `GAP_MIN` 0,30, `T_INK` 0,55 e círculo de medição de 70% do diâmetro.
 - **Aceite (nas fixtures):**
   - acerto por bolha ≥ **99,8%**;
   - **0** `multipla` lida como letra;
   - matrícula correta ≥ **99,5%** (só UniAtenas);
   - QR lido ≥ **99%** nas páginas com QR intacto; as páginas com `qr_danificado` das fixtures viram `qr_ilegivel`, nunca um aluno errado;
   - páginas ilegíveis ≤ **0,5%** com rotação de até ±5°.
+- **Resultado:** todos os critérios atendidos em 245 páginas (21 mil questões estritas): 100% de acerto por bolha, 0 múltipla lida como letra, 0 letra errada nas marcas não estritas, matrícula 79/79, QR 236/236, 0 ilegíveis legítimas, erro de alinhamento médio de 0,09 mm. O mesmo vale num conjunto de **estresse** (100 e 150 dpi, ruído, JPEG de qualidade 25 a 45, marcas mais leves).
+- **Ressalva importante:** as fixtures separam demais as classes (toda marca "marcada" pontua ≥ 0,61; todo branco ≤ 0,08), então **qualquer** `T_ALTO` de 0,20 a 0,60 e `T_BAIXO` de 0,10 a 0,48 acerta 100%. O aceite prova que o pipeline funciona e que degradação de imagem não o derruba, mas **não prova** os limiares. Quem confirma é o piloto com cartões reais (Fase 3), onde a zona cinzenta (marca leve, rasura, caneta falhando) aparece de verdade.
 - **No-go:** se o aceite não for atingido depois da calibração, parar e reportar com números e exemplos. Não seguir para a Fase 2.
 
 ### Fase 2 — Identificação, roster e planilha de saída
@@ -371,8 +379,8 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 - **Testes:**
   - identificação: QR válido, QR de outro simulado, `user_id` fora do roster, aluno duplicado, QR personalizado ilegível (vai para Pendências sem aluno);
   - UniAtenas: `12-3-45678` exata, coluna faltando, dois dígitos na mesma coluna (múltipla), matrícula ausente no roster (inclui `99-G-99999`, cadastro errado), matrícula repetida no roster;
-  - xlsx: a 1ª aba se chama `Respostas`, tem `id_aluno` + uma coluna por questão do simulado (1 + N) e as células de pendência ficam amarelas;
-  - **compatibilidade com a importação:** um teste que lê a aba 1 com as mesmas regras de `parseMatrizRespostas` e `isRespostaValida` (`importar-respostas-types.ts`): 1 + N colunas por posição e células só com A–E. Implementar em Python, espelhando aquele arquivo. A leitura da coluna 1 como ID depende da P6.
+  - xlsx: a 1ª aba se chama `Respostas`, tem `matricula_ra_ou_id` + uma coluna por questão do simulado (1 + N) e as células de pendência ficam amarelas;
+  - **compatibilidade com a importação:** um teste que lê a aba 1 com as mesmas regras de `parseMatrizRespostas` e `isRespostaValida` (`importar-respostas-types.ts`): 1 + N colunas por posição e células só com A–E. Implementar em Python, espelhando aquele arquivo. A coluna 1 é lida como ID (P6 entregue).
 - **Aceite:** testes verdes; uma execução ponta a ponta sobre as fixtures, contra um simulado real em modo leitura, gerando um xlsx que o João abre e confere.
 
 ### Fase 3 — Piloto real e runbook
@@ -468,6 +476,6 @@ Ao final, siga a regra 8 da seção 4 (testes, commit, tag cartoes-fase-{N}, han
 | P3 | **Matrículas faltantes no UniAtenas:** cerca de 246 alunos desses campi estão sem `matricula_ra`. Pedir a lista às IES via Relacionamento, antes da primeira prova com o cartão novo, e atualizar o cadastro. | Qualidade do piloto UniAtenas | João / Relacionamento |
 | P4 | ~~Matrícula com `G`~~ **Encerrada em 16/10:** o `G` era erro de cadastro; o cartão só tem dígitos. | – | – |
 | P5 | **Comunicação do cartão novo:** avisar às IES que o cartão é pessoal (um por aluno) e que o cartão antigo deixa de ser processado automaticamente. | Fase 3 | João / Relacionamento |
-| P6 | **Importação por ID do aluno:** estender a tela e a Edge Function (`admin-import-simulado-responses`) para aceitar o `users.id` na coluna 1, além de Matrícula/RA. Hoje só há `admin_lookup_users_by_ra_in_ies`. | Teste de compatibilidade da Fase 2 e Fase 3 (uso ponta a ponta) | João |
+| P6 | ~~Importação por ID do aluno~~ **Entregue em 16/10** pelo João (RPC `admin_lookup_users_by_id_in_ies`, Edge Function e tela). A 1ª coluna aceita UUID ou Matrícula/RA. | – | – |
 | P7 | ~~Como a tela de emissão gera o PDF~~ **Decidida em 16/10:** porte para TypeScript, lendo os templates, sem serviço externo. Segue na **Fase E** (seção 8). A tela em si é trabalho do Academy. | Operação real; não bloqueia as Fases 1 a 3 | João / equipe do Academy |
-| P8 | **Verificação dos endpoints que aceitam `user_id`.** O QR coloca o `user_id` em papel, que qualquer pessoa pode fotografar; isso só é seguro se o `user_id` **nunca** funcionar como credencial. Checklist: (1) **Edge Functions** em `supabase/functions/` que recebem `user_id` no corpo ou na query sem comparar com o usuário autenticado (há 20+ funções que o citam, por exemplo `get-progress-hub`, `save-push-subscription`, `generate-user-link`, `auth-login`); (2) **RPCs** `SECURITY DEFINER` com parâmetro `p_user_id` que não validam `auth.uid()`; (3) **políticas de RLS** que dependam de o chamador conhecer o UUID; (4) **endpoints anônimos** (sem JWT) que devolvam dados ou ações por `user_id`; (5) links gerados por `generate-user-link`. Resultado esperado: lista de achados, cada um corrigido ou aceito por escrito. | **Antes de imprimir os primeiros cartões reais** (piloto da Fase 3 e Fase E2) | João (posso fazer a leitura do código e do banco, só leitura, se ele pedir) |
+| P8 | **Verificação dos endpoints que aceitam `user_id`: auditada em 16/10** (`handoff/p8-auditoria-user-id.md`). Resultado: **F1 (ALTA)** `session-security` derruba as sessões de qualquer UUID sem autenticação; **F2 (MÉDIA)** `gestor-ai-insights` devolve o cache de IA sobre um aluno sem checar papel/IES; F3 (BAIXA) `get_user_roles`/`has_role` revelam papéis a qualquer logado; F4 (fora do tema) `send-study-reminder` é um relé de e-mail aberto. RLS e funções do `anon` estão corretos. **Pendente:** corrigir F1 e F2 (e decidir F3), e conferir storage e `cron.job`. | **Antes de imprimir os primeiros cartões reais** (piloto da Fase 3 e Fase E2) | João / equipe do Academy |

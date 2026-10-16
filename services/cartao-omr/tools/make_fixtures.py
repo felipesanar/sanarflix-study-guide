@@ -78,9 +78,20 @@ class Profile:
     jpeg: tuple[int, int] = (55, 70)
     mat_defect_p: float = 0.0
     specks: tuple[int, int] = (3, 12)
+    cov_min: float = 0.65            # cobertura mínima de uma marca "marcada" (0,65 a 1,0 por padrão)
 
 
 PROFILES = {
+    # Estresse: resolução baixa, borrão e JPEG pesados, marcas mais leves. Não é critério de aceite;
+    # serve para ver onde o leitor começa a errar e se erra de forma segura (ambígua, nunca letra errada).
+    "estresse": Profile(
+        "estresse",
+        {"marcada": 0.70, "branco": 0.05, "sujeira": 0.04, "multipla": 0.05, "fraca": 0.05, "x": 0.03,
+         "visto": 0.02, "ponto": 0.02, "circulo": 0.01, "rasurada": 0.03},
+        rot_deg=5.0, scale=(0.95, 1.05), shift_mm=4.0, persp_mm=1.5, dpis=(100, 150),
+        flip180_p=0.3, dark_bg_p=0.4, color_p=0.5, noise=(5.0, 9.0), blur=(1.2, 2.0), jpeg=(25, 45),
+        mat_defect_p=0.2, specks=(20, 70), cov_min=0.45,
+    ),
     "limpo": Profile(
         "limpo", {"marcada": 0.88, "branco": 0.08, "multipla": 0.04},
         rot_deg=1.5, scale=(0.99, 1.01), shift_mm=2.0, persp_mm=0.0, dpis=(200,), color_p=0.25,
@@ -256,12 +267,12 @@ def fill_answers(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> dict
         info = {"kind": kind, "truth": "branco", "strict": True, "tolerated": []}
         cx, cy, d = bubbles[letter]
         if kind == "marcada":
-            ink.blob(cx, cy, d, rng.uniform(0.65, 1.0))
+            ink.blob(cx, cy, d, rng.uniform(prof.cov_min, 1.0))
             info.update(truth="marcada", letter=letter)
         elif kind == "multipla":
             second = rng.choice(others)
-            ink.blob(cx, cy, d, rng.uniform(0.65, 1.0))
-            ink.blob(*bubbles[second][:3], rng.uniform(0.65, 1.0))
+            ink.blob(cx, cy, d, rng.uniform(prof.cov_min, 1.0))
+            ink.blob(*bubbles[second][:3], rng.uniform(prof.cov_min, 1.0))
             info.update(truth="multipla", letters=sorted([letter, second]))
         elif kind == "sujeira":
             ink.speck(cx, cy)
@@ -285,7 +296,8 @@ def fill_answers(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> dict
             second = rng.choice(others)
             ink.blob(cx, cy, d, rng.uniform(0.8, 1.0))
             ink.blob(*bubbles[second][:3], rng.uniform(0.3, 0.55))
-            info.update(truth="ambigua", strict=False, tolerated=["multipla"], letters=sorted([letter, second]))
+            info.update(truth="ambigua", strict=False, tolerated=["multipla"], letter=letter,
+                        letters=sorted([letter, second]))
         out[q] = info
     for q, bubbles in tpl["questions"].items():
         out[q]["cov"] = [round(ink.coverage(*bubbles[a]), 2) for a in alts]
@@ -618,7 +630,16 @@ def preset_completo() -> list[SetSpec]:
     ]
 
 
-PRESETS = {"referencia": preset_referencia, "completo": preset_completo}
+def preset_estresse() -> list[SetSpec]:
+    """Robustez (não versionar): condições piores que as do aceite."""
+    return [
+        SetSpec("estresse_sfa", L.LAYOUT_SFA, "personalizado", "estresse", 40, blank_after=(9,),
+                defects={7: "qr_danificado"}),
+        SetSpec("estresse_uniatenas", L.LAYOUT_UNIATENAS, "uniatenas", "estresse", 24),
+    ]
+
+
+PRESETS = {"referencia": preset_referencia, "completo": preset_completo, "estresse": preset_estresse}
 
 
 def write_roster_csv(path: Path, n: int, seed: int) -> None:

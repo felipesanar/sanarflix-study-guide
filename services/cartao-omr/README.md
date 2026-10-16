@@ -3,8 +3,9 @@
 Correção automática de cartões-resposta do SanarFlix Academy (PDF digitalizado → planilha de importação).
 **V0, local, sem LLM.** Especificação completa em `docs/prd/2026-10-07-cartoes-resposta.md` (revisão 4).
 
-> **Estado: Fase 0.** Existem o gerador do cartão, os templates e as fixtures sintéticas.
-> O leitor (`processar`) entra nas Fases 1 e 2; o runbook completo, na Fase 3.
+> **Estado: Fase 1.** Existem o gerador do cartão, os templates, as fixtures sintéticas e o pipeline de leitura
+> de uma página (`cartao_omr/pipeline/`). O comando `processar` (banco, identificação e planilha) entra na Fase 2;
+> o runbook completo, na Fase 3.
 
 ## Como a operação funciona
 
@@ -55,6 +56,39 @@ Sem instalar o script, use `.venv\Scripts\python.exe -m cartao_omr <comando>`.
 - A saída padrão de `gerar-cartoes` é `runs/cartoes_<simulado>/`, que está no `.gitignore`.
   PDFs com nomes de alunos reais **nunca** entram no Git.
 - Impressão: só frente, escala 100% (sem "ajustar à página"), A4, papel de 75 a 90 g/m².
+
+## Pipeline de leitura (Fase 1)
+
+`cartao_omr/pipeline/` são funções puras, sem banco e sem arquivos:
+
+| Módulo | O que faz |
+|---|---|
+| `render.py` | página do PDF → imagem em cinza (200 dpi); detecta página em branco |
+| `align.py` | acha os 4 marcadores de canto e o de orientação, calcula a homografia mm → pixel (qualquer rotação: 0°, 90°, 180°, 270°) e retifica a página |
+| `qr.py` | lê o QR (`zxing-cpp`) e interpreta com `models.parse_qr` |
+| `omr.py` | mede a tinta em cada bolha e classifica: `marcada`, `branco`, `multipla` ou `ambigua`; lê a matrícula do UniAtenas |
+| `page.py` | `read_page(gray)` junta tudo e devolve um `PageResult` (status `ok`, `pagina_em_branco` ou `pagina_ilegivel`) |
+
+```python
+from cartao_omr.pipeline.page import read_page
+from cartao_omr.pipeline.render import open_pdf, render_page
+
+doc = open_pdf("cartoes.pdf")
+res = read_page(render_page(doc, 0))
+res.user_id, res.qr_ilegivel, res.answers[1].kind, res.answers[1].value
+```
+
+Limiares em `cartao_omr/config.py` (`ReadConfig`). Para medir e calibrar:
+
+```bash
+python tools/eval_accuracy.py                                   # fixtures versionadas
+python tools/make_fixtures.py --preset completo --saida runs/fixtures_grandes
+python tools/eval_accuracy.py runs/fixtures_grandes --calibrar  # busca T_ALTO / T_BAIXO / GAP_MIN
+python tools/make_fixtures.py --preset estresse --saida runs/fixtures_estresse   # resolução baixa, ruído, JPEG pesado
+```
+
+O avaliador imprime a matriz de confusão, os critérios de aceite e exemplos dos erros. Questões "não estritas"
+(marca fraca, X, ✓, ponto, círculo, rasura) podem sair como `ambigua`, mas **nunca** como uma letra errada.
 
 ## Como o cartão é definido
 

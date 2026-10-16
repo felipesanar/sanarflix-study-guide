@@ -27,7 +27,7 @@ dev = ["pytest", "pillow"]
 cartao-omr = "cartao_omr.cli:app"
 
 [tool.setuptools]
-packages = ["cartao_omr"]
+packages = ["cartao_omr", "cartao_omr.pipeline"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
