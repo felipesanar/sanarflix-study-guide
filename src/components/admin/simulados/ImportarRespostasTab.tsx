@@ -14,6 +14,7 @@ import {
   CHUNK_SIZE,
   DRY_RUN_CHUNK_SIZE,
   normRa,
+  isUuid,
   parseMatrizRespostas,
   REASON_LABEL,
   type FinalReport,
