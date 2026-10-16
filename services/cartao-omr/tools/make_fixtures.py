@@ -32,6 +32,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pymupdf
+import zxingcpp
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -39,7 +40,6 @@ sys.path.insert(0, str(ROOT))
 from cartao_omr import layout as L  # noqa: E402
 from cartao_omr.card import (  # noqa: E402
     build_template,
-    specs_genericos,
     specs_personalizados,
     specs_uniatenas,
     write_cards_pdf,
@@ -216,6 +216,16 @@ class Ink:
         cv2.putText(layer, text, (int(x_mm * k), int(baseline_mm * k)), font, scale, 255, thick, cv2.LINE_AA)
         self.a = np.maximum(self.a, layer.astype(np.float32) / 255.0)
 
+    def cover_box(self, x0: float, y0: float, x1: float, y1: float, strength: float = 0.95) -> None:
+        """Mancha irregular de tinta/sujeira cobrindo uma caixa (usada para danificar o QR)."""
+        k, rng = self.k, self.rng
+        pts = [(x0, y0), ((x0 + x1) / 2, y0 - 1), (x1, y0), (x1 + 1, (y0 + y1) / 2), (x1, y1),
+               ((x0 + x1) / 2, y1 + 1), (x0, y1), (x0 - 1, (y0 + y1) / 2)]
+        poly = np.array([[(x + rng.gauss(0, 0.4)) * k, (y + rng.gauss(0, 0.4)) * k] for x, y in pts], np.int32)
+        layer = np.zeros_like(self.a, dtype=np.uint8)
+        cv2.fillPoly(layer, [poly], 255)
+        self.a = np.maximum(self.a, layer.astype(np.float32) / 255.0 * strength)
+
     def coverage(self, cx: float, cy: float, d: float) -> float:
         """Fração do disco da bolha coberta por tinta (alpha > 0,5)."""
         k, r = self.k, d / 2 * self.k
@@ -282,75 +292,58 @@ def fill_answers(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> dict
     return out
 
 
-def random_matricula(rng: random.Random, layout: str, n_cols: int) -> list[str | None]:
-    if layout == L.LAYOUT_UNIATENAS:
-        mid = "G" if rng.random() < 0.45 else str(rng.randrange(10))
-        digits = [str(rng.randrange(10)) for _ in range(7)]
-        return digits[:2] + [mid] + digits[2:]
-    n = rng.randint(6, min(11, n_cols))
-    digs = [str(rng.randrange(10)) for _ in range(n)]
-    if rng.random() < 0.25:
-        digs[0] = "0"
-    return digs + [None] * (n_cols - n)
+def random_matricula(rng: random.Random) -> list[str]:
+    """Matrícula UniAtenas NN-X-NNNNN em 8 colunas; X é dígito ou G."""
+    mid = "G" if rng.random() < 0.45 else str(rng.randrange(10))
+    digits = [str(rng.randrange(10)) for _ in range(7)]
+    return digits[:2] + [mid] + digits[2:]
 
 
-def matricula_string(cols: list[str | None], layout: str, separators_after: list[int]) -> str | None:
-    if layout == L.LAYOUT_UNIATENAS:
-        if any(c is None for c in cols):
-            return None
-        s = ""
-        for i, c in enumerate(cols, start=1):
-            s += c
-            if i in separators_after:
-                s += "-"
-        return s
-    return "".join(c for c in cols if c is not None)
+def matricula_string(cols: list[str | None], separators_after: list[int]) -> str | None:
+    if any(c is None for c in cols):
+        return None
+    out = ""
+    for i, c in enumerate(cols, start=1):
+        out += c
+        if i in separators_after:
+            out += "-"
+    return out
 
 
-def fill_matricula(ink: Ink, tpl: dict, layout: str, prof: Profile, rng: random.Random,
-                   fill: bool) -> dict:
+def fill_matricula(ink: Ink, tpl: dict, prof: Profile, rng: random.Random) -> dict | None:
+    """Preenche a matrícula UniAtenas. No layout sfa não há matrícula (identificação só pelo QR)."""
     mat = tpl["matricula"]
+    if mat is None:
+        return None
     cols = mat["columns"]
-    n = len(cols)
-    if not fill:
-        return {"value": None, "status": "em_branco", "columns": [None] * n, "defect": None}
-    values = random_matricula(rng, layout, n)
+    values = random_matricula(rng)
     defect = None
-    marks = list(values)
+    marks: list[str | None] = list(values)
     extra: dict[int, str] = {}
     if rng.random() < prof.mat_defect_p:
-        i = rng.randrange(n)
-        if layout == L.LAYOUT_UNIATENAS:
-            defect = rng.choice(["coluna_dupla", "coluna_faltando"])
-        else:
-            defect = rng.choice(["coluna_dupla", "coluna_vazia_no_meio"])
-            used = [j for j, v in enumerate(values) if v is not None]
-            i = rng.choice(used[:-1] if len(used) > 1 else used)
+        i = rng.randrange(len(cols))
+        defect = rng.choice(["coluna_dupla", "coluna_faltando"])
         if defect == "coluna_dupla":
             symbols = [b["symbol"] for b in cols[i]]
-            extra[i] = rng.choice([s for s in symbols if s != values[i]])
+            extra[i] = rng.choice([sym for sym in symbols if sym != values[i]])
         else:
             marks[i] = None
+    boxes = [c.box for c in L.build_geometry(L.LAYOUT_UNIATENAS).matricula_columns]
     for i, col in enumerate(cols):
         sym_to_c = {b["symbol"]: b["c"] for b in col}
         for sym in filter(None, [marks[i], extra.get(i)]):
             ink.blob(*sym_to_c[sym], rng.uniform(0.7, 1.0))
         if marks[i] is not None:  # dígito escrito à mão na caixa (a máquina ignora)
-            bx0, by0, bx1, by1 = mat_box(tpl, i)
+            bx0, by0, bx1, by1 = boxes[i]
             ink.handwriting(marks[i], bx0 + 1.0, by1 - 1.0, 3.6, max_w_mm=(bx1 - bx0) - 1.0)
     valid = defect is None
     return {
-        "value": matricula_string(values, layout, mat["separators_after"]) if valid else None,
-        "intended": matricula_string(values, layout, mat["separators_after"]),
+        "value": matricula_string(values, mat["separators_after"]) if valid else None,
+        "intended": matricula_string(values, mat["separators_after"]),
         "status": "ok" if valid else "invalida",
         "columns": values,
         "defect": defect,
     }
-
-
-def mat_box(tpl: dict, i: int) -> tuple[float, float, float, float]:
-    geo = L.build_geometry(tpl["layout"], tpl["matricula"]["n_columns"] if tpl["layout"] == L.LAYOUT_SFA else None)
-    return geo.matricula_columns[i].box
 
 
 # ============================================================ digitalização
@@ -460,13 +453,12 @@ def jpeg_page(img_rgb: np.ndarray, gray: bool, quality: int) -> bytes:
 class SetSpec:
     name: str
     layout: str            # sfa | uniatenas
-    model: str             # personalizado | generico | uniatenas
+    model: str             # personalizado | uniatenas
     profile: str
     pages: int             # cartões (sem contar as páginas em branco)
     dpi: tuple[int, ...] | None = None
     blank_after: tuple[int, ...] = ()       # índices (1-based) de cartões seguidos de uma página em branco
     defects: dict[int, str] = field(default_factory=dict)  # índice do cartão -> defeito
-    fill_reserve_p: float = 0.5             # personalizado: chance de a matrícula de reserva vir preenchida
 
 
 def fake_roster(rng: random.Random, n: int, sim_key: str) -> list[RosterEntry]:
@@ -477,7 +469,7 @@ def fake_roster(rng: random.Random, n: int, sim_key: str) -> list[RosterEntry]:
     return out
 
 
-def build_set(spec: SetSpec, out_dir: Path, seed: int, n_matricula_cols: int | None = None) -> dict:
+def build_set(spec: SetSpec, out_dir: Path, seed: int) -> dict:
     rng = random.Random(f"{seed}/{spec.name}")
     np_rng = np.random.default_rng([seed, *spec.name.encode()])
     prof = PROFILES[spec.profile]
@@ -487,14 +479,12 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int, n_matricula_cols: int | N
     if spec.model == "personalizado":
         roster = fake_roster(rng, spec.pages, spec.name)
         cards = specs_personalizados(roster, sim_id, nome_sim, ies, "25/10/2026")
-    elif spec.model == "generico":
-        cards = specs_genericos(spec.pages, sim_id, nome_sim, ies, "25/10/2026")
     else:
         cards = specs_uniatenas(spec.pages, sim_id, nome_sim, ies, "25/10/2026")
     buf = io.BytesIO()
-    write_cards_pdf(buf, cards, n_matricula_cols)
+    write_cards_pdf(buf, cards)
     card_pdf = buf.getvalue()
-    tpl = build_template(spec.layout, n_matricula_cols)
+    tpl = build_template(spec.layout)
     dpis = spec.dpi or prof.dpis
 
     out_pdf = pymupdf.open()
@@ -506,14 +496,17 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int, n_matricula_cols: int | N
         ink = Ink(h, w, dpi, rng)
         # nome manuscrito (genérico e UniAtenas) e matrícula
         aluno = None
-        if spec.model != "personalizado":
+        if spec.model == "uniatenas":
             aluno = f"{ascii_only(rng.choice(PRIMEIROS))} {rng.choice(SOBRENOMES)} {idx:03d}"
             ink.handwriting(aluno, L.ALUNO_LINE_X0 + 2, L.ALUNO_LINE_Y - 1.2, 6.0, max_w_mm=100)
         else:
             aluno = card.aluno_nome
-        fill_mat = spec.model != "personalizado" or rng.random() < spec.fill_reserve_p
-        mat = fill_matricula(ink, tpl, spec.layout, prof, rng, fill_mat)
+        mat = fill_matricula(ink, tpl, prof, rng)
         answers = fill_answers(ink, tpl, prof, rng)
+        qr_damaged = spec.defects.get(idx) == "qr_danificado"
+        if qr_damaged:
+            qx0, qy0, qx1, qy1 = tpl["qr_box_mm"]
+            ink.cover_box(qx0 - 1, qy0 + 2, qx0 + 21, qy1 - 3)
 
         # compõe tinta na página
         pen_blue = rng.random() < 0.5
@@ -539,6 +532,9 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int, n_matricula_cols: int | N
             legible = False
             defect = f"marcador_coberto:{corner}"
         page_img, deg = degrade(page_img, prof, dpi, rng, np_rng)
+        lido = [r.text for r in zxingcpp.read_barcodes(cv2.cvtColor(page_img, cv2.COLOR_RGB2GRAY))]
+        if qr_damaged and lido == [card.qr_payload]:
+            raise RuntimeError(f"{spec.name} pág. {idx}: o QR deveria estar ilegível mas foi lido")
         gray = rng.random() >= prof.color_p
         quality = rng.randint(*prof.jpeg)
         jpg = jpeg_page(page_img, gray, quality)
@@ -547,7 +543,8 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int, n_matricula_cols: int | N
         mm_to_px = (np.diag([k, k, 1.0]) @ geo["H_mm"]).tolist()
         pages_info.append({
             "page": len(out_pdf), "kind": "cartao", "legible": legible, "defect": defect,
-            "model": spec.model, "qr": card.qr_payload, "user_id": card.user_id or None,
+            "model": spec.model, "qr": card.qr_payload, "qr_legivel": not qr_damaged,
+            "user_id": card.user_id or None,
             "aluno": aluno, "matricula": mat, "answers": answers,
             "scan": {
                 "dpi": dpi, "size_px": [page_img.shape[1], page_img.shape[0]],
@@ -566,7 +563,7 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int, n_matricula_cols: int | N
     meta = {
         "generator": "tools/make_fixtures.py", "generator_version": GENERATOR_VERSION, "seed": seed,
         "file": pdf_path.name, "layout": spec.layout, "template": tpl["template_version"],
-        "n_matricula_cols": tpl["matricula"]["n_columns"], "simulado_id": sim_id,
+        "simulado_id": sim_id,
         "profile": spec.profile, "pages": pages_info,
     }
     (out_dir / f"{spec.name}.gabarito.json").write_text(
@@ -596,8 +593,9 @@ def preset_referencia() -> list[SetSpec]:
     """Conjunto pequeno, versionado em tests/fixtures (alguns MB)."""
     return [
         SetSpec("sfa_personalizado_limpo", L.LAYOUT_SFA, "personalizado", "limpo", 4, dpi=(200,), blank_after=(2,)),
-        SetSpec("sfa_generico_realista", L.LAYOUT_SFA, "generico", "realista", 4, blank_after=(1, 3)),
-        SetSpec("sfa_dificil", L.LAYOUT_SFA, "generico", "dificil", 7, defects={6: "marcador_coberto"}),
+        SetSpec("sfa_personalizado_realista", L.LAYOUT_SFA, "personalizado", "realista", 6, blank_after=(1, 3)),
+        SetSpec("sfa_dificil", L.LAYOUT_SFA, "personalizado", "dificil", 8,
+                defects={6: "marcador_coberto", 7: "qr_danificado"}),
         SetSpec("uniatenas_realista", L.LAYOUT_UNIATENAS, "uniatenas", "realista", 6, blank_after=(4,)),
     ]
 
@@ -606,8 +604,9 @@ def preset_completo() -> list[SetSpec]:
     """Conjunto grande (não versionar): para medir acerto com significância estatística."""
     return [
         SetSpec("sfa_personalizado_limpo", L.LAYOUT_SFA, "personalizado", "limpo", 40, blank_after=(5, 20)),
-        SetSpec("sfa_generico_realista", L.LAYOUT_SFA, "generico", "realista", 40, blank_after=(7, 30)),
-        SetSpec("sfa_dificil", L.LAYOUT_SFA, "generico", "dificil", 40, defects={13: "marcador_coberto", 31: "marcador_coberto"}),
+        SetSpec("sfa_personalizado_realista", L.LAYOUT_SFA, "personalizado", "realista", 60, blank_after=(7, 30)),
+        SetSpec("sfa_dificil", L.LAYOUT_SFA, "personalizado", "dificil", 50,
+                defects={13: "marcador_coberto", 31: "marcador_coberto", 20: "qr_danificado", 41: "qr_danificado"}),
         SetSpec("uniatenas_limpo", L.LAYOUT_UNIATENAS, "uniatenas", "limpo", 20),
         SetSpec("uniatenas_realista", L.LAYOUT_UNIATENAS, "uniatenas", "realista", 40, blank_after=(10,)),
         SetSpec("uniatenas_dificil", L.LAYOUT_UNIATENAS, "uniatenas", "dificil", 30),
@@ -631,12 +630,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--preset", choices=list(PRESETS), default="referencia")
     ap.add_argument("--saida", type=Path, default=FIXTURES_DIR)
     ap.add_argument("--seed", type=int, default=2026)
-    ap.add_argument("--matricula-colunas", type=int, default=L.SFA_MATRICULA_COLUNAS)
     args = ap.parse_args(argv)
     total = 0
     for spec in PRESETS[args.preset]():
-        n = args.matricula_colunas if spec.layout == L.LAYOUT_SFA else None
-        meta = build_set(spec, args.saida, args.seed, n)
+        meta = build_set(spec, args.saida, args.seed)
         total += len(meta["pages"])
         size = (args.saida / meta["file"]).stat().st_size / 1e6
         print(f"{spec.name}: {len(meta['pages'])} páginas, {size:.2f} MB")

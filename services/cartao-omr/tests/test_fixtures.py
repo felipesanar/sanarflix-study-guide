@@ -11,13 +11,14 @@ import zxingcpp
 
 from cartao_omr import layout as L
 from cartao_omr.card import build_template
+from cartao_omr.models import parse_qr
 
 from conftest import ROOT
 
 import tools.make_fixtures as mf
 
 FIXTURES = ROOT / "tests" / "fixtures"
-SETS = ["sfa_personalizado_limpo", "sfa_generico_realista", "sfa_dificil", "uniatenas_realista"]
+SETS = ["sfa_personalizado_limpo", "sfa_personalizado_realista", "sfa_dificil", "uniatenas_realista"]
 
 
 def _load(name: str) -> tuple[dict, pymupdf.Document]:
@@ -49,7 +50,7 @@ def test_pdf_e_gabarito_batem(name):
     gab, doc = _load(name)
     assert len(doc) == len(gab["pages"])
     assert [p["page"] for p in gab["pages"]] == list(range(1, len(doc) + 1))
-    tpl = build_template(gab["layout"], gab["n_matricula_cols"] if gab["layout"] == L.LAYOUT_SFA else None)
+    tpl = build_template(gab["layout"])
     assert tpl["template_version"] == gab["template"]
     for p in gab["pages"]:
         if p["kind"] != "cartao":
@@ -65,7 +66,7 @@ def test_pdf_e_gabarito_batem(name):
 @pytest.mark.parametrize("name", SETS)
 def test_marcadores_estao_onde_o_gabarito_diz(name):
     gab, doc = _load(name)
-    tpl = build_template(gab["layout"], gab["n_matricula_cols"] if gab["layout"] == L.LAYOUT_SFA else None)
+    tpl = build_template(gab["layout"])
     for p in gab["pages"]:
         if p["kind"] != "cartao":
             continue
@@ -89,7 +90,7 @@ def test_marcadores_estao_onde_o_gabarito_diz(name):
 def test_tinta_do_gabarito_esta_na_imagem(name):
     """Bolhas 'marcada' são bem mais escuras que as vazias da mesma página."""
     gab, doc = _load(name)
-    tpl = build_template(gab["layout"], gab["n_matricula_cols"] if gab["layout"] == L.LAYOUT_SFA else None)
+    tpl = build_template(gab["layout"])
     for p in gab["pages"]:
         if p["kind"] != "cartao" or not p["legible"]:
             continue
@@ -117,7 +118,18 @@ def test_qr_das_paginas_legiveis_e_lido(name):
     for p in gab["pages"]:
         if p["kind"] != "cartao" or not p["legible"]:
             continue
-        assert [r.text for r in zxingcpp.read_barcodes(_gray(doc, p))] == [p["qr"]], p["page"]
+        lidos = [r.text for r in zxingcpp.read_barcodes(_gray(doc, p))]
+        assert (lidos == [p["qr"]]) == p["qr_legivel"], (p["page"], lidos)
+        if lidos:
+            assert parse_qr(lidos[0]) is not None
+
+
+def test_ha_pagina_com_qr_danificado_e_ele_nao_le():
+    gab, doc = _load("sfa_dificil")
+    danificadas = [p for p in gab["pages"] if p["kind"] == "cartao" and not p["qr_legivel"]]
+    assert danificadas and all(p["defect"] == "qr_danificado" and p["legible"] for p in danificadas)
+    for p in danificadas:
+        assert zxingcpp.read_barcodes(_gray(doc, p)) == []
 
 
 @pytest.mark.parametrize("name", SETS)
@@ -147,11 +159,11 @@ def test_variedade_do_conjunto_de_referencia():
     assert any(not p["legible"] for p in cartoes)
     kinds = {a["kind"] for p in cartoes for a in p["answers"].values()}
     assert {"marcada", "branco", "multipla", "fraca", "x", "visto", "ponto", "circulo", "rasurada", "sujeira"} <= kinds
-    assert {p["model"] for p in cartoes} == {"personalizado", "generico", "uniatenas"}
-    # matrículas: preenchidas, em branco (reserva do personalizado) e com defeito
-    mats = [p["matricula"] for p in cartoes]
+    assert {p["model"] for p in cartoes} == {"personalizado", "uniatenas"}
+    # matrícula só existe no UniAtenas, com e sem defeito
+    mats = [p["matricula"] for p in cartoes if p["model"] == "uniatenas"]
     assert any(m["status"] == "ok" for m in mats) and any(m["status"] == "invalida" for m in mats)
-    assert any(m["status"] == "em_branco" for m in mats)
+    assert all(p["matricula"] is None for p in cartoes if p["model"] == "personalizado")
 
 
 def test_fixtures_uniatenas_tem_matricula_com_g():
@@ -161,15 +173,14 @@ def test_fixtures_uniatenas_tem_matricula_com_g():
     assert all(len(v) == 10 and v[2] == "-" and v[4] == "-" for v in validas)
 
 
-def test_fixtures_sfa_tem_matricula_com_zero_a_esquerda_e_colunas_em_branco():
-    mats = []
-    for name in ["sfa_personalizado_limpo", "sfa_generico_realista", "sfa_dificil"]:
+def test_fixtures_sfa_identificam_o_aluno_so_pelo_qr():
+    for name in ["sfa_personalizado_limpo", "sfa_personalizado_realista", "sfa_dificil"]:
         gab, _ = _load(name)
-        mats += [p["matricula"] for p in gab["pages"] if p["kind"] == "cartao"]
-    valores = [m["value"] for m in mats if m["value"]]
-    assert valores and all(v.isdigit() for v in valores)
-    assert any(v.startswith("0") for v in valores)
-    assert any(m["columns"] and m["columns"][-1] is None for m in mats)  # colunas em branco à direita
+        for p in gab["pages"]:
+            if p["kind"] != "cartao":
+                continue
+            assert p["matricula"] is None
+            assert parse_qr(p["qr"]).user_id == p["user_id"]
 
 
 def test_gabarito_nao_traz_dados_reais():
@@ -198,4 +209,5 @@ def test_gerador_personalizado_usa_qr_e_nome_do_roster(tmp_path):
     spec = mf.SetSpec("mini_p", L.LAYOUT_SFA, "personalizado", "limpo", 2, dpi=(150,))
     meta = mf.build_set(spec, tmp_path, seed=5)
     for p in meta["pages"]:
-        assert p["qr"] == f"SFA1|sfa|{meta['simulado_id']}|U|{p['user_id']}"
+        qr = parse_qr(p["qr"])
+        assert qr.user_id == p["user_id"] and qr.sim8 == meta["simulado_id"].replace("-", "")[:8].upper()

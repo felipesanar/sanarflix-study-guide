@@ -18,13 +18,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 from . import layout as L
-from .models import (
-    MODEL_GENERICO,
-    MODEL_PERSONALIZADO,
-    MODEL_UNIATENAS,
-    CardSpec,
-    RosterEntry,
-)
+from .models import MODEL_PERSONALIZADO, MODEL_UNIATENAS, CardSpec, RosterEntry
 
 BLACK = Color(0, 0, 0)
 WHITE = Color(1, 1, 1)
@@ -48,11 +42,11 @@ def qr_info(payload: str) -> dict:
 
 
 # Pior caso previsto: simulado_id e user_id em UUID (36 caracteres cada).
-_UUID_EXEMPLO = "00000000-0000-4000-8000-000000000000"
+_UUID_EXEMPLO = "ffffffff-ffff-4fff-bfff-ffffffffffff"
 
 
-def build_template(layout: str, n_matricula_cols: int | None = None) -> dict:
-    geo = L.build_geometry(layout, n_matricula_cols)
+def build_template(layout: str) -> dict:
+    geo = L.build_geometry(layout)
     fid = {k: [L._r(x), L._r(y), L._r(w)] for k, (x, y, w) in geo.fiducials.items()}
     questions = {
         str(q): {alt: b.as_list() for alt, b in alts.items()}
@@ -62,6 +56,7 @@ def build_template(layout: str, n_matricula_cols: int | None = None) -> dict:
         [{"symbol": b.symbol, "c": b.as_list()} for b in col.bubbles]
         for col in geo.matricula_columns
     ]
+    tem_matricula = layout == L.LAYOUT_UNIATENAS
     worst = CardSpec(
         model=MODEL_PERSONALIZADO if layout == L.LAYOUT_SFA else MODEL_UNIATENAS,
         simulado_id=_UUID_EXEMPLO,
@@ -84,24 +79,27 @@ def build_template(layout: str, n_matricula_cols: int | None = None) -> dict:
         "qr": {
             "error_level": L.QR_ERROR.upper(),
             "quiet_modules": L.QR_QUIET_MODULES,
+            "payload_format": "SFA2:S:<SIM8>:<UID32> (sfa) | SFA2:A:<SIM8> (uniatenas); maiúsculas, hex sem hífens",
+            "example": worst.qr_payload,
             "worst_case": qr_info(worst.qr_payload),
         },
         "alternatives": list(L.ALTERNATIVES),
         "questions": questions,
+        # Só o UniAtenas tem matrícula em bolhas; no sfa a identificação é só pelo QR.
         "matricula": {
-            "format": "digits" if layout == L.LAYOUT_SFA else "uniatenas",
-            "n_columns": geo.n_matricula_cols,
+            "format": "uniatenas",
+            "n_columns": len(columns),
             "columns": columns,
             "separators_after": list(geo.matricula_separators_after),
-        },
+        } if tem_matricula else None,
         "crops_mm": {
             "nome": list(L.ALUNO_BOX[:3]) + [L.ALUNO_BOX[3] + 1.0],
-            "matricula": list(L.MATRICULA_FRAME),
+            **({"matricula": list(L.MATRICULA_FRAME)} if tem_matricula else {}),
         },
         "blocks_mm": {
             "titulo": list(L.TITLE_BOX),
             "aluno": list(L.ALUNO_BOX),
-            "matricula": list(L.MATRICULA_FRAME),
+            ("matricula" if tem_matricula else "pessoal"): list(L.MATRICULA_FRAME),
             "instrucoes": list(L.INSTRUCOES_FRAME),
             "grade": [L.GRID_X0, L.GRID_FIRST_CY - L.GRID_ROW_PITCH / 2,
                       L.GRID_X0 + L.GRID_COLUMNS * L.GRID_COL_W,
@@ -126,9 +124,9 @@ def template_json(template: dict) -> str:
     return text + "\n"
 
 
-def write_template(layout: str, path: Path, n_matricula_cols: int | None = None) -> Path:
+def write_template(layout: str, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(template_json(build_template(layout, n_matricula_cols)), encoding="utf-8")
+    path.write_text(template_json(build_template(layout)), encoding="utf-8")
     return path
 
 
@@ -263,6 +261,29 @@ def _draw_qr(p: _Page, spec: CardSpec) -> None:
                color=_gray(0x40), align="center")
 
 
+def _draw_pessoal(p: _Page) -> None:
+    """Bloco do layout sfa onde ficava a matrícula: lembra que o cartão é nominal (evita troca de cartão)."""
+    from reportlab.lib.utils import simpleSplit
+
+    f = L.PESSOAL_FRAME
+    p.rect(*f, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
+    p.text(f[0] + 3, L.MAT_TITLE_BASELINE, "CARTÃO PESSOAL", font="Helvetica-Bold", size=10)
+    avisos = [
+        "Confira se o nome ao lado de ALUNO é o seu.",
+        "Se o nome não for o seu, avise o aplicador antes de marcar qualquer resposta.",
+        "Não troque de cartão com colegas.",
+        "Este cartão é identificado automaticamente: não escreva nem cole nada sobre o código QR.",
+    ]
+    y = 55.0
+    for texto in avisos:
+        linhas = simpleSplit(texto, "Helvetica", 7.5, (f[2] - f[0] - 9.0) * mm)
+        p.text(f[0] + 3, y, "•", size=7.5)
+        for ln in linhas:
+            p.text(f[0] + 6, y, ln, size=7.5)
+            y += 3.7
+        y += 2.2
+
+
 def _draw_matricula(p: _Page, geo: L.Geometry) -> None:
     f = L.MATRICULA_FRAME
     p.rect(*f, stroke=_gray(L.BUBBLE_STROKE_GRAY), width_pt=0.5)
@@ -343,7 +364,10 @@ def draw_card(canvas: Canvas, geo: L.Geometry, spec: CardSpec) -> None:
     _draw_fiducials(p, geo)
     _draw_header(p, spec)
     _draw_qr(p, spec)
-    _draw_matricula(p, geo)
+    if geo.matricula_columns:
+        _draw_matricula(p, geo)
+    else:
+        _draw_pessoal(p)
     _draw_instrucoes(p)
     _draw_grid(p, geo)
     _draw_footer(p)
@@ -352,7 +376,6 @@ def draw_card(canvas: Canvas, geo: L.Geometry, spec: CardSpec) -> None:
 def write_cards_pdf(
     dest: Path | io.BufferedIOBase,
     specs: Iterable[CardSpec],
-    n_matricula_cols: int | None = None,
     title: str = "Cartões-resposta SFA",
 ) -> int:
     """Escreve um PDF A4 com uma página por cartão. Devolve o nº de páginas."""
@@ -362,7 +385,7 @@ def write_cards_pdf(
     layouts = {s.layout for s in specs}
     if len(layouts) != 1:
         raise ValueError("todos os cartões de um PDF precisam ter o mesmo layout")
-    geo = L.build_geometry(layouts.pop(), n_matricula_cols)
+    geo = L.build_geometry(layouts.pop())
     target = str(dest) if isinstance(dest, Path) else dest
     c = Canvas(target, pagesize=(L.PAGE_W * mm, L.PAGE_H * mm), invariant=1, pageCompression=1)
     c.setTitle(title)
@@ -392,19 +415,9 @@ def specs_personalizados(
             data=data,
             aluno_nome=r.nome,
             user_id=r.user_id,
-            label=r.user_id[:8],
+            label=r.user_id.replace("-", "")[:8].upper(),
         )
         for r in roster
-    ]
-
-
-def specs_genericos(
-    quantidade: int, simulado_id: str, nome_simulado: str = "", ies: str = "", data: str = ""
-) -> list[CardSpec]:
-    return [
-        CardSpec(model=MODEL_GENERICO, simulado_id=simulado_id, nome_simulado=nome_simulado,
-                 ies=ies, data=data, label=f"G-{i:04d}")
-        for i in range(1, quantidade + 1)
     ]
 
 
@@ -418,15 +431,15 @@ def specs_uniatenas(
     ]
 
 
-def build_example_pdf(layout: str, dest: Path, n_matricula_cols: int | None = None) -> int:
+def build_example_pdf(layout: str, dest: Path) -> int:
     """PDF de exemplo (dados fictícios) usado na conferência visual."""
-    sim = "00000000-0000-4000-8000-0000000000aa"
+    sim = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
     nome = "SIMULADO ENAMED 2026"
     if layout == L.LAYOUT_SFA:
         specs = specs_personalizados(
-            [RosterEntry("7f3a9c21-0000-4000-8000-000000000001", "Maria Exemplo da Silva")],
+            [RosterEntry("7f3a9c21-5b1e-4f0a-9c3d-0123456789ab", "Maria Exemplo da Silva")],
             sim, nome, "Faculdade Exemplo", "25/10/2026",
-        ) + specs_genericos(1, sim, nome, "Faculdade Exemplo", "25/10/2026")
+        )
     else:
         specs = specs_uniatenas(1, sim, nome, "UniAtenas", "25/10/2026")
-    return write_cards_pdf(dest, specs, n_matricula_cols, title=f"Exemplo — cartão {layout}")
+    return write_cards_pdf(dest, specs, title=f"Exemplo — cartão {layout}")

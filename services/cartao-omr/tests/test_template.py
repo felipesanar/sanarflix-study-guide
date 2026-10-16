@@ -11,7 +11,7 @@ from cartao_omr import layout as L
 from cartao_omr.card import build_template, template_json
 from cartao_omr.config import TEMPLATES_DIR
 
-CASES = [(L.LAYOUT_SFA, None), (L.LAYOUT_SFA, 8), (L.LAYOUT_SFA, 14), (L.LAYOUT_UNIATENAS, None)]
+LAYOUTS = [L.LAYOUT_SFA, L.LAYOUT_UNIATENAS]
 
 
 def _answer_bubbles(tpl):
@@ -19,13 +19,19 @@ def _answer_bubbles(tpl):
 
 
 def _matricula_bubbles(tpl):
+    if not tpl["matricula"]:
+        return []
     return [tuple(b["c"]) for col in tpl["matricula"]["columns"] for b in col]
 
 
-@pytest.mark.parametrize("layout,n", CASES)
-def test_contagem_de_bolhas(layout, n):
-    tpl = build_template(layout, n)
-    esperado_resp, esperado_mat = L.expected_bubble_counts(layout, n)
+def _left_block(tpl):
+    return tpl["blocks_mm"]["matricula" if tpl["matricula"] else "pessoal"]
+
+
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_contagem_de_bolhas(layout):
+    tpl = build_template(layout)
+    esperado_resp, esperado_mat = L.expected_bubble_counts(layout)
     assert len(tpl["questions"]) == 100
     assert len(_answer_bubbles(tpl)) == esperado_resp == 400
     assert len(_matricula_bubbles(tpl)) == esperado_mat
@@ -33,23 +39,23 @@ def test_contagem_de_bolhas(layout, n):
 
 def test_numero_de_bolhas_do_prd():
     sfa = build_template(L.LAYOUT_SFA)
-    assert len(_matricula_bubbles(sfa)) == sfa["matricula"]["n_columns"] * 10 == 120
+    assert sfa["matricula"] is None and "matricula" not in sfa["crops_mm"]  # só o QR identifica
     uni = build_template(L.LAYOUT_UNIATENAS)
     assert len(_matricula_bubbles(uni)) == 7 * 10 + 11
 
 
-@pytest.mark.parametrize("layout,n", CASES)
-def test_sem_sobreposicao_entre_bolhas(layout, n):
-    tpl = build_template(layout, n)
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_sem_sobreposicao_entre_bolhas(layout):
+    tpl = build_template(layout)
     bubbles = _answer_bubbles(tpl) + _matricula_bubbles(tpl)
     for (x1, y1, d1), (x2, y2, d2) in itertools.combinations(bubbles, 2):
         dist = math.hypot(x1 - x2, y1 - y2)
         assert dist >= (d1 + d2) / 2 + 0.4, f"bolhas coladas: {(x1, y1)} e {(x2, y2)}"
 
 
-@pytest.mark.parametrize("layout,n", CASES)
-def test_tudo_dentro_da_area_util(layout, n):
-    tpl = build_template(layout, n)
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_tudo_dentro_da_area_util(layout):
+    tpl = build_template(layout)
     x0, y0, x1, y1 = tpl["useful_area_mm"]
     for cx, cy, d in _answer_bubbles(tpl) + _matricula_bubbles(tpl):
         assert x0 <= cx - d / 2 and cx + d / 2 <= x1
@@ -60,10 +66,10 @@ def test_tudo_dentro_da_area_util(layout, n):
         assert x0 <= bx0 and bx1 <= x1 and y0 <= by0 and by1 <= y1, nome
 
 
-@pytest.mark.parametrize("layout,n", CASES)
-def test_bloco_superior_termina_em_108mm_e_bolhas_cabem_no_quadro(layout, n):
-    tpl = build_template(layout, n)
-    fx0, fy0, fx1, fy1 = tpl["blocks_mm"]["matricula"]
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_bloco_superior_termina_em_108mm(layout):
+    tpl = build_template(layout)
+    fx0, fy0, fx1, fy1 = _left_block(tpl)
     assert fy1 <= 108.0
     for cx, cy, d in _matricula_bubbles(tpl):
         assert fx0 + 0.5 <= cx - d / 2 and cx + d / 2 <= fx1 - 0.5
@@ -72,10 +78,10 @@ def test_bloco_superior_termina_em_108mm_e_bolhas_cabem_no_quadro(layout, n):
     assert min(cy - d / 2 for _, cy, d in _answer_bubbles(tpl)) >= 115.0
 
 
-@pytest.mark.parametrize("layout,n", CASES)
-def test_quadro_da_matricula_nao_invade_instrucoes_nem_qr(layout, n):
-    tpl = build_template(layout, n)
-    assert tpl["blocks_mm"]["matricula"][2] < tpl["blocks_mm"]["instrucoes"][0]
+@pytest.mark.parametrize("layout", LAYOUTS)
+def test_blocos_nao_invadem_instrucoes_nem_qr(layout):
+    tpl = build_template(layout)
+    assert _left_block(tpl)[2] < tpl["blocks_mm"]["instrucoes"][0]
     assert tpl["blocks_mm"]["instrucoes"][2] < tpl["qr_box_mm"][0]
 
 
@@ -98,59 +104,53 @@ def test_grade_conforme_prd():
     assert round(q["26"]["A"][0] - q["1"]["A"][0], 3) == 42.5
     assert q["26"]["A"][1] == q["1"]["A"][1] and q["100"]["D"][1] == q["25"]["D"][1]
     # >= 4 mm livres entre colunas
-    ultimo_da_col1 = q["1"]["D"][0] + 4.5 / 2
-    inicio_col2 = 20 + 42.5
-    assert inicio_col2 - ultimo_da_col1 >= 4.0
+    assert (20 + 42.5) - (q["1"]["D"][0] + 4.5 / 2) >= 4.0
+    assert set(q["1"]) == {"A", "B", "C", "D"}  # sem alternativa E
+
+
+def test_grade_e_igual_nos_dois_layouts():
+    assert build_template(L.LAYOUT_SFA)["questions"] == build_template(L.LAYOUT_UNIATENAS)["questions"]
 
 
 def test_uniatenas_matricula():
     tpl = build_template(L.LAYOUT_UNIATENAS)
     m = tpl["matricula"]
-    assert m["format"] == "uniatenas" and m["separators_after"] == [2, 3]
+    assert m["format"] == "uniatenas" and m["separators_after"] == [2, 3] and m["n_columns"] == 8
     assert len(m["columns"]) == 8
     for i, col in enumerate(m["columns"], start=1):
         simbolos = [b["symbol"] for b in col]
         assert simbolos == (list("0123456789") + ["G"] if i == 3 else list("0123456789")), i
-    # as colunas 1-2 | 3 | 4-8: o vão entre grupos é maior que o vão dentro do grupo
+    # colunas 1-2 | 3 | 4-8: o vão entre grupos é maior que o vão dentro do grupo
     xs = [col[0]["c"][0] for col in m["columns"]]
     gaps = [round(b - a, 3) for a, b in zip(xs, xs[1:])]
     assert gaps[0] == gaps[3] == 7.0 and gaps[1] == gaps[2] == 12.0
 
 
-def test_matricula_sfa_e_digitos():
-    m = build_template(L.LAYOUT_SFA)["matricula"]
-    assert m["format"] == "digits" and m["separators_after"] == []
-    assert all([b["symbol"] for b in col] == list("0123456789") for col in m["columns"])
-
-
-def test_sfa_rejeita_colunas_demais():
-    with pytest.raises(ValueError):
-        build_template(L.LAYOUT_SFA, L.SFA_MATRICULA_COLUNAS_MAX + 1)
-    with pytest.raises(ValueError):
-        build_template(L.LAYOUT_SFA, 0)
-
-
 def test_chaves_do_contrato_7_1():
-    tpl = build_template(L.LAYOUT_SFA)
-    for chave in ["template_version", "page_mm", "fiducials_mm", "qr_box_mm", "alternatives",
-                  "questions", "matricula", "crops_mm"]:
-        assert chave in tpl
-    assert tpl["template_version"] == "sfa_v1" and tpl["page_mm"] == [210, 297]
-    assert set(tpl["crops_mm"]) == {"nome", "matricula"}
-    assert set(tpl["questions"]["1"]) == {"A", "B", "C", "D"}
-    assert build_template(L.LAYOUT_UNIATENAS)["template_version"] == "uniatenas_v1"
+    for layout, versao in [(L.LAYOUT_SFA, "sfa_v2"), (L.LAYOUT_UNIATENAS, "uniatenas_v1")]:
+        tpl = build_template(layout)
+        for chave in ["template_version", "page_mm", "fiducials_mm", "qr_box_mm", "alternatives",
+                      "questions", "matricula", "crops_mm"]:
+            assert chave in tpl
+        assert tpl["template_version"] == versao and tpl["page_mm"] == [210, 297]
+        assert "nome" in tpl["crops_mm"]
 
 
 def test_qr_do_pior_caso_tem_modulo_legivel():
-    for lay in L.LAYOUTS:
-        info = build_template(lay)["qr"]["worst_case"]
-        assert info["module_mm"] >= 0.5, info
+    sfa = build_template(L.LAYOUT_SFA)["qr"]["worst_case"]
+    assert sfa["version"] == 4 and sfa["module_mm"] >= 0.7, sfa
+    uni = build_template(L.LAYOUT_UNIATENAS)["qr"]["worst_case"]
+    assert uni["module_mm"] >= 1.0, uni
 
 
-@pytest.mark.parametrize("layout", L.LAYOUTS)
+@pytest.mark.parametrize("layout", LAYOUTS)
 def test_template_no_disco_esta_sincronizado(layout):
     """Se layout.py mudar, rode `cartao-omr modelo` e commite os templates."""
     path = TEMPLATES_DIR / f"{L.TEMPLATE_VERSION[layout]}.json"
     assert path.exists(), f"{path} não existe; rode `cartao-omr modelo`"
     assert path.read_text(encoding="utf-8") == template_json(build_template(layout))
     json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_nao_ha_template_antigo_com_matricula_no_sfa():
+    assert not (TEMPLATES_DIR / "sfa_v1.json").exists()

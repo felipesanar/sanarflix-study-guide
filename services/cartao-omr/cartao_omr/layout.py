@@ -12,12 +12,7 @@ LAYOUT_SFA = "sfa"
 LAYOUT_UNIATENAS = "uniatenas"
 LAYOUTS = (LAYOUT_SFA, LAYOUT_UNIATENAS)
 
-TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v1", LAYOUT_UNIATENAS: "uniatenas_v1"}
-
-# Número de colunas da matrícula do layout `sfa`. Placeholder do PRD (N = 12);
-# o valor definitivo sai da consulta da Fase 0 (ver handoff).
-SFA_MATRICULA_COLUNAS = 12
-SFA_MATRICULA_COLUNAS_MAX = 14
+TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v2", LAYOUT_UNIATENAS: "uniatenas_v1"}
 
 # ---------------------------------------------------------------- página
 PAGE_W = 210.0
@@ -42,21 +37,22 @@ QR_QUIET_MODULES = 4
 QR_LABEL_Y = 52.6  # linha de base do código legível sob o QR (6 pt)
 
 # ---------------------------------------------------------------- blocos
+# Bloco esquerdo: matrícula em bolhas (uniatenas) ou aviso "cartão pessoal" (sfa).
 MATRICULA_FRAME = (20.0, 44.0, 92.0, 108.0)
+PESSOAL_FRAME = MATRICULA_FRAME
 INSTRUCOES_FRAME = (98.0, 44.0, 150.0, 108.0)
 
-# ---------------------------------------------------------------- matrícula
+# ---------------------------------------------------------------- matrícula (só uniatenas)
 MAT_BOX_W = 5.0
 MAT_BOX_H = 6.0
 MAT_BOX_Y0 = 50.5
 MAT_FIRST_CY = 59.5          # centro da primeira bolha (caixa termina em 56,5)
 MAT_BUBBLE_D = 4.0
 MAT_TITLE_BASELINE = 48.6
-# O PRD pede passo de 5,5 mm, mas 10 bolhas de 4 mm + caixa de 6 mm + título não
-# cabem em y <= 108 com 5,5 mm (e o UniAtenas tem 11 bolhas). Desvio registrado
-# no handoff: 5,0 mm no `sfa` e 4,5 mm no `uniatenas`.
-MAT_PITCH = {LAYOUT_SFA: 5.0, LAYOUT_UNIATENAS: 4.5}
-MAT_COL_W = {LAYOUT_SFA: 6.0, LAYOUT_UNIATENAS: 7.0}
+# O PRD pede passo de 5,5 mm, mas caixa de 6 mm + título + 11 bolhas de 4 mm não
+# cabem em y <= 108 com 5,5 mm. Desvio registrado no handoff: 4,5 mm.
+MAT_PITCH = 4.5
+MAT_COL_W = 7.0
 UNI_SEPARATOR_W = 5.0
 UNI_GROUPS = (2, 1, 5)       # NN-X-NNNNN
 UNI_SEPARATORS_AFTER = (2, 3)
@@ -119,9 +115,8 @@ class MatriculaColumn:
 @dataclass(frozen=True)
 class Geometry:
     layout: str
-    n_matricula_cols: int
     fiducials: dict[str, tuple[float, float, float]]  # nome -> (x, y, w), x/y = canto sup. esq.
-    matricula_columns: tuple[MatriculaColumn, ...]
+    matricula_columns: tuple[MatriculaColumn, ...]  # vazio no layout sfa
     matricula_separators: tuple[tuple[float, float], ...]  # (cx, cy) de cada hífen impresso
     matricula_separators_after: tuple[int, ...]
     questions: dict[int, dict[str, Bubble]]
@@ -150,24 +145,10 @@ def fiducials() -> dict[str, tuple[float, float, float]]:
     }
 
 
-def _matricula_columns_sfa(n: int) -> tuple[list[MatriculaColumn], list[tuple[float, float]]]:
-    if not 1 <= n <= SFA_MATRICULA_COLUNAS_MAX:
-        raise ValueError(f"colunas de matrícula deve estar entre 1 e {SFA_MATRICULA_COLUNAS_MAX}, veio {n}")
-    frame_w = MATRICULA_FRAME[2] - MATRICULA_FRAME[0]
-    col_w = min(MAT_COL_W[LAYOUT_SFA], frame_w / n)
-    box_w = min(MAT_BOX_W, col_w - 1.0)
-    left = MATRICULA_FRAME[0] + (frame_w - n * col_w) / 2
-    cols = []
-    for i in range(n):
-        cx = left + (i + 0.5) * col_w
-        cols.append(_column(cx, box_w, DIGITS, MAT_PITCH[LAYOUT_SFA]))
-    return cols, []
-
-
 def _matricula_columns_uniatenas() -> tuple[list[MatriculaColumn], list[tuple[float, float]]]:
     frame_w = MATRICULA_FRAME[2] - MATRICULA_FRAME[0]
     n_cols = sum(UNI_GROUPS)
-    col_w = MAT_COL_W[LAYOUT_UNIATENAS]
+    col_w = MAT_COL_W
     total = n_cols * col_w + (len(UNI_GROUPS) - 1) * UNI_SEPARATOR_W
     x = MATRICULA_FRAME[0] + (frame_w - total) / 2
     cols: list[MatriculaColumn] = []
@@ -178,7 +159,7 @@ def _matricula_columns_uniatenas() -> tuple[list[MatriculaColumn], list[tuple[fl
         for _ in range(size):
             idx += 1
             symbols = UNI_MIDDLE_SYMBOLS if idx == UNI_MIDDLE_COLUMN else DIGITS
-            cols.append(_column(x + col_w / 2, MAT_BOX_W, symbols, MAT_PITCH[LAYOUT_UNIATENAS]))
+            cols.append(_column(x + col_w / 2, MAT_BOX_W, symbols, MAT_PITCH))
             x += col_w
         if g < len(UNI_GROUPS) - 1:
             seps.append((x + UNI_SEPARATOR_W / 2, sep_cy))
@@ -210,21 +191,17 @@ def question_geometry() -> tuple[dict[int, dict[str, Bubble]], dict[int, tuple[f
     return questions, anchors
 
 
-def build_geometry(layout: str, n_matricula_cols: int | None = None) -> Geometry:
+def build_geometry(layout: str) -> Geometry:
     if layout not in LAYOUTS:
         raise ValueError(f"layout desconhecido: {layout!r}")
     if layout == LAYOUT_SFA:
-        n = SFA_MATRICULA_COLUNAS if n_matricula_cols is None else n_matricula_cols
-        cols, seps = _matricula_columns_sfa(n)
-        after: tuple[int, ...] = ()
+        cols, seps, after = [], [], ()
     else:
         cols, seps = _matricula_columns_uniatenas()
-        n = len(cols)
         after = UNI_SEPARATORS_AFTER
     questions, anchors = question_geometry()
     return Geometry(
         layout=layout,
-        n_matricula_cols=n,
         fiducials=fiducials(),
         matricula_columns=tuple(cols),
         matricula_separators=tuple(seps),
@@ -234,9 +211,8 @@ def build_geometry(layout: str, n_matricula_cols: int | None = None) -> Geometry
     )
 
 
-def expected_bubble_counts(layout: str, n_matricula_cols: int | None = None) -> tuple[int, int]:
+def expected_bubble_counts(layout: str) -> tuple[int, int]:
     """(bolhas de resposta, bolhas de matrícula) esperadas pelo PRD."""
     if layout == LAYOUT_SFA:
-        n = SFA_MATRICULA_COLUNAS if n_matricula_cols is None else n_matricula_cols
-        return N_QUESTIONS * len(ALTERNATIVES), n * 10
+        return N_QUESTIONS * len(ALTERNATIVES), 0
     return N_QUESTIONS * len(ALTERNATIVES), 7 * 10 + 11

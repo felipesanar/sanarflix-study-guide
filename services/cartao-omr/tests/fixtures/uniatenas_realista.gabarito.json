@@ -5,7 +5,6 @@
  "file": "uniatenas_realista.pdf",
  "layout": "uniatenas",
  "template": "uniatenas_v1",
- "n_matricula_cols": 8,
  "simulado_id": "f7fdfb9b-418d-5d65-a88c-f33a34ae9e22",
  "profile": "realista",
  "pages": [
@@ -15,7 +14,8 @@
    "legible": true,
    "defect": null,
    "model": "uniatenas",
-   "qr": "SFA1|uniatenas|f7fdfb9b-418d-5d65-a88c-f33a34ae9e22|G",
+   "qr": "SFA2:A:F7FDFB9B",
+   "qr_legivel": true,
    "user_id": null,
    "aluno": "Elisa Teste 001",
    "matricula": {
@@ -1439,7 +1439,8 @@
    "legible": true,
    "defect": null,
    "model": "uniatenas",
-   "qr": "SFA1|uniatenas|f7fdfb9b-418d-5d65-a88c-f33a34ae9e22|G",
+   "qr": "SFA2:A:F7FDFB9B",
+   "qr_legivel": true,
    "user_id": null,
    "aluno": "Elisa Modelo 002",
    "matricula": {
@@ -2858,7 +2859,8 @@
    "legible": true,
    "defect": null,
    "model": "uniatenas",
-   "qr": "SFA1|uniatenas|f7fdfb9b-418d-5d65-a88c-f33a34ae9e22|G",
+   "qr": "SFA2:A:F7FDFB9B",
+   "qr_legivel": true,
    "user_id": null,
    "aluno": "Hugo Fictício 003",
    "matricula": {
@@ -4321,7 +4323,8 @@
    "legible": true,
    "defect": null,
    "model": "uniatenas",
-   "qr": "SFA1|uniatenas|f7fdfb9b-418d-5d65-a88c-f33a34ae9e22|G",
+   "qr": "SFA2:A:F7FDFB9B",
+   "qr_legivel": true,
    "user_id": null,
    "aluno": "Larissa Amostra 004",
    "matricula": {
@@ -5749,7 +5752,8 @@
    "legible": true,
    "defect": null,
    "model": "uniatenas",
-   "qr": "SFA1|uniatenas|f7fdfb9b-418d-5d65-a88c-f33a34ae9e22|G",
+   "qr": "SFA2:A:F7FDFB9B",
+   "qr_legivel": true,
    "user_id": null,
    "aluno": "Larissa Fictício 005",
    "matricula": {
@@ -7190,7 +7194,8 @@
    "legible": true,
    "defect": null,
    "model": "uniatenas",
-   "qr": "SFA1|uniatenas|f7fdfb9b-418d-5d65-a88c-f33a34ae9e22|G",
+   "qr": "SFA2:A:F7FDFB9B",
+   "qr_legivel": true,
    "user_id": null,
    "aluno": "Elisa Exemplo 006",
    "matricula": {

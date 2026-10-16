@@ -10,7 +10,6 @@ from . import __version__
 from . import layout as L
 from .card import (
     build_example_pdf,
-    specs_genericos,
     specs_personalizados,
     specs_uniatenas,
     write_cards_pdf,
@@ -50,35 +49,30 @@ def modelo(
     layout: Optional[str] = typer.Option(
         None, "--layout", help="sfa ou uniatenas. Sem a opção, gera os dois."),
     saida: Path = typer.Option(TEMPLATES_DIR, "--saida", help="Pasta de saída."),
-    matricula_colunas: int = typer.Option(
-        L.SFA_MATRICULA_COLUNAS, "--matricula-colunas", help="Colunas da matrícula no layout sfa."),
 ) -> None:
     """Gera o template JSON e um PDF de exemplo (dados fictícios) de cada layout."""
     layouts = [_check_layout(layout)] if layout else list(L.LAYOUTS)
     for lay in layouts:
-        n = matricula_colunas if lay == L.LAYOUT_SFA else None
-        tpl = write_template(lay, saida / f"{L.TEMPLATE_VERSION[lay]}.json", n)
+        tpl = write_template(lay, saida / f"{L.TEMPLATE_VERSION[lay]}.json")
         pdf = saida / f"exemplo_{lay}.pdf"
-        pages = build_example_pdf(lay, pdf, n)
+        pages = build_example_pdf(lay, pdf)
         typer.echo(f"{lay}: {tpl}  |  {pdf} ({pages} pág.)")
 
 
 @app.command("gerar-cartoes")
 def gerar_cartoes(
-    simulado: str = typer.Option(..., "--simulado", help="ID do simulado (vai no QR)."),
+    simulado: str = typer.Option(..., "--simulado", help="ID (UUID) do simulado; vai no QR."),
     modelo_cartao: str = typer.Option("sfa", "--modelo", help="sfa (padrão) ou uniatenas."),
     roster: Optional[Path] = typer.Option(
-        None, "--roster", help="CSV falso user_id,nome[,ies]. Na Fase 2 vem do banco."),
-    genericos: int = typer.Option(30, "--genericos", min=0, help="Cartões genéricos no fim do PDF (sfa)."),
+        None, "--roster",
+        help="CSV user_id,nome[,ies] com os alunos que farão a prova (sfa). Na emissão pelo Academy vem da tela."),
     copias: int = typer.Option(1, "--copias", min=1, help="Cópias do cartão UniAtenas."),
     nome_simulado: str = typer.Option("", "--nome-simulado", help="Texto do título."),
     ies: str = typer.Option("", "--ies", help="Nome da IES no cabeçalho."),
     data: str = typer.Option("", "--data", help="Data da prova, ex.: 25/10/2026."),
-    matricula_colunas: int = typer.Option(
-        L.SFA_MATRICULA_COLUNAS, "--matricula-colunas", help="Colunas da matrícula no layout sfa."),
     saida: Optional[Path] = typer.Option(None, "--saida", help="PDF de saída (padrão: runs/cartoes_<simulado>/)."),
 ) -> None:
-    """Gera um PDF para impressão: personalizados + genéricos (sfa) ou o cartão UniAtenas."""
+    """Gera o PDF para impressão: um cartão por aluno do roster (sfa) ou o cartão UniAtenas."""
     if modelo_cartao not in (L.LAYOUT_SFA, L.LAYOUT_UNIATENAS):
         raise typer.BadParameter("use sfa ou uniatenas", param_hint="--modelo")
     try:
@@ -86,20 +80,15 @@ def gerar_cartoes(
             if roster:
                 raise typer.BadParameter("o cartão UniAtenas não é personalizado", param_hint="--roster")
             specs = specs_uniatenas(copias, simulado, nome_simulado, ies or "UniAtenas", data)
-            n_cols = None
         else:
-            specs = []
-            if roster:
-                specs += specs_personalizados(load_roster_csv(roster), simulado, nome_simulado, ies, data)
-            else:
-                typer.echo("Sem --roster: gerando só cartões genéricos.", err=True)
-            specs += specs_genericos(genericos, simulado, nome_simulado, ies, data)
-            n_cols = matricula_colunas
+            if not roster:
+                raise typer.BadParameter("o cartão sfa é pessoal: informe os alunos com --roster", param_hint="--roster")
+            specs = specs_personalizados(load_roster_csv(roster), simulado, nome_simulado, ies, data)
         if not specs:
-            raise typer.BadParameter("nada a gerar (roster vazio e --genericos 0)")
+            raise typer.BadParameter("o roster está vazio", param_hint="--roster")
         dest = saida or RUNS_DIR / f"cartoes_{simulado}" / f"cartoes_{modelo_cartao}_{simulado}.pdf"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        pages = write_cards_pdf(dest, specs, n_cols, title=f"Cartões — simulado {simulado}")
+        pages = write_cards_pdf(dest, specs, title=f"Cartões — simulado {simulado}")
     except ValueError as exc:
         typer.echo(f"Erro: {exc}", err=True)
         raise typer.Exit(2) from exc
