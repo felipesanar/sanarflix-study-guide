@@ -85,20 +85,4 @@
 6. Para a Fase 3: simulado de teste e voluntários com gabarito conhecido, escaneados em 200 e 300 dpi.
 
 ## 9. Prompt de início da Fase 2
-```
-Você vai executar a Fase 2 — Identificação, roster e planilha de saída do PRD de correção de cartões-resposta do SanarFlix Academy (V0, sem LLM).
-
-Repo: sanarflix-study-guide (pasta "Academy Project"). Branch: feat/cartoes-resposta. Nunca commitar/pushar na main.
-Comece com `git branch --show-current` e `git fetch origin && git merge origin/main` (regra 1 da seção 4). Se outro checkout estiver usando a branch, use um worktree próprio.
-Supabase de produção: gvqvrmkizemwsasmupmo (confirme o ref antes de qualquer chamada).
-
-Leia, nesta ordem, antes de qualquer ação:
-1. docs/prd/2026-10-07-cartoes-resposta.md (revisão 7) — seções 1.1, 3, 4, 5, 7 e a Fase 2 na seção 8.
-2. docs/prd/cartoes-resposta-handoff/fase-1.md (seções 3 e 8) e fase-e.md (seções 4 e 7).
-
-Estado atual: tag cartoes-fase-e. Existem services/cartao-omr/ com o gerador de cartões (layout.py, drawlist.py, card.py, models.py, cli.py), os templates sfa_v2.json e uniatenas_v1.json (agora com a lista de desenho `draw`), o pipeline de leitura de uma página (cartao_omr/pipeline/; `read_page` devolve um PageResult), tools/eval_accuracy.py, e 140 testes Python verdes. No front, src/features/cartoes/ e a aba Admin → Simulados → Cartões-resposta emitem os cartões em TypeScript (192 testes). Limiares do OMR: T_ALTO 0,50, T_BAIXO 0,20, GAP_MIN 0,30 (as fixtures não discriminam limiares; só o piloto da Fase 3 confirma). A importação do Academy já aceita o UUID do aluno ou a Matrícula/RA na 1ª coluna (cabeçalho `matricula_ra_ou_id`). O papel `cartao_omr_reader` ainda NÃO existe: é o portão de produção desta fase.
-Atenção nesta fase: o portão do papel `cartao_omr_reader` exige aprovação explícita do João (migration aditiva, GRANT SELECT mínimo em simulados_admin(id,nome,ies_ids), questoes_simulado(simulado_id,numero_questao,ordem), users(id,nome,id_ies,matricula_ra) e ies(id,nome); senha informada pelo João fora do Git; validar pela information_schema; lembrar do ACL padrão, que dá privilégio total a anon/authenticated em tabela nova). Se a ferramenta for barrada pelo modo automático, avise o João e não contorne com execute_sql. A planilha tem 1 + N colunas por posição: coluna 1 = UUID do aluno, depois Questão 1…N. Há 35 falhas antigas de testes do Portal do Gestor na main (fora do escopo). A P8 tem 2 correções pendentes no código do Academy (F1 e F2): não bloqueiam esta fase, mas bloqueiam a impressão de cartões reais.
-
-Execute só a Fase 2. Peça aprovação explícita antes de qualquer ação em produção.
-Ao final, siga a regra 8 da seção 4 (testes, commit, tag cartoes-fase-2, handoff, prompt da fase seguinte, próximos passos meus/do João).
-```
+Está em `prompt-fase-2.md` (mesma pasta), junto com a instrução de onde abrir a sessão. O mapa geral do projeto está em `LEIA-ME.md`.
