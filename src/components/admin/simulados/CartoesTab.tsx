@@ -29,6 +29,7 @@ import {
   ROTULO_EXCLUSAO,
   EmissaoCancelada,
   classificarAlunos,
+  csvDaEmissao,
   csvDosExcluidos,
   formatarDataBR,
   montarSpecs,
@@ -63,6 +64,8 @@ interface Resultado {
   url: string;
   arquivo: string;
   paginas: number;
+  /** CSV (matrícula;nome) do que foi emitido; só no cartão pessoal. É a `--lista` do script de leitura. */
+  lista: string | null;
 }
 
 export default function CartoesTab() {
@@ -229,7 +232,11 @@ export default function CartoesTab() {
       );
       const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
       const arquivo = nomeDoArquivo(ies.nome, simulado.nome);
-      setResultado({ url, arquivo, paginas: specs.length });
+      const lista =
+        layout === 'sfa'
+          ? csvDaEmissao(specs.map((s) => ({ nome: s.alunoNome ?? '', matricula: s.matricula ?? '' })))
+          : null;
+      setResultado({ url, arquivo, paginas: specs.length, lista });
       baixar(url, arquivo);
       toast.success('Cartões gerados', { description: `${specs.length} cartão(ões) em ${arquivo}` });
     } catch (err) {
@@ -251,9 +258,7 @@ export default function CartoesTab() {
 
   const baixarCsvExcluidos = () => {
     const csv = csvDosExcluidos(excluidos.map((e) => ({ aluno: e.aluno, motivo: e.motivo })));
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    baixar(url, nomeDoArquivo(ies?.nome ?? '', 'alunos sem cartao').replace(/^cartoes_/, '').replace(/\.pdf$/, '.csv'));
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    baixarTexto(csv, nomeDoArquivo(ies?.nome ?? '', 'alunos sem cartao').replace(/^cartoes_/, '').replace(/\.pdf$/, '.csv'));
   };
 
   // ---------------------------------------------------------------- tela
@@ -467,6 +472,12 @@ export default function CartoesTab() {
                 {`Baixar de novo (${resultado.paginas} cartões)`}
               </Button>
             )}
+            {resultado && !gerando && resultado.lista && (
+              <Button variant="outline" onClick={() => baixarTexto(resultado.lista!, resultado.arquivo.replace(/^cartoes_/, 'lista_').replace(/\.pdf$/, '.csv'))}>
+                <Download className="mr-2 h-4 w-4" />
+                Baixar lista da emissão (CSV)
+              </Button>
+            )}
           </div>
           {gerando && progresso && (
             <div className="space-y-1" role="status" aria-live="polite">
@@ -486,6 +497,12 @@ export default function CartoesTab() {
       )}
     </div>
   );
+}
+
+function baixarTexto(csv: string, arquivo: string): void {
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  baixar(url, arquivo);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function baixar(url: string, arquivo: string): void {

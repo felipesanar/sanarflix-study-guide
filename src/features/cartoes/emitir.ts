@@ -155,6 +155,12 @@ export function csvDosExcluidos(excluidos: ClassificacaoAlunos<{ nome: string; m
   return '\ufeff' + linhas.map((l) => l.map(celulaCsv).join(';')).join('\r\n') + '\r\n';
 }
 
+/** CSV (`;`, BOM) com as matrículas emitidas: é a `--lista` do `cartao-omr processar`. */
+export function csvDaEmissao(alunos: Array<{ nome: string; matricula: string }>): string {
+  const linhas = [['matricula', 'nome'], ...ordenarAlunos(alunos).map((a) => [normalizarMatricula(a.matricula), a.nome])];
+  return '\ufeff' + linhas.map((l) => l.map(celulaCsv).join(';')).join('\r\n') + '\r\n';
+}
+
 const cederFio = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** Gera o PDF (uma página por cartão). Todos os cartões precisam ser do mesmo layout do template. */

@@ -36,6 +36,7 @@ class PageResult:
     alignment: Alignment | None = None
     answers: dict[int, omr.Cell] = field(default_factory=dict)
     matricula: omr.MatriculaRead | None = None
+    rect: np.ndarray | None = None                # página retificada (só com keep_rect=True), para os recortes
 
     @property
     def matricula_qr(self) -> str | None:
@@ -51,7 +52,7 @@ class PageResult:
 
 
 def read_page(gray: np.ndarray, cfg: ReadConfig = DEFAULT_CONFIG, layout_hint: str | None = None,
-              dpi: int | None = None) -> PageResult:
+              dpi: int | None = None, keep_rect: bool = False) -> PageResult:
     """Lê uma página já renderizada em cinza (200 dpi por padrão)."""
     d = dpi or cfg.render_dpi
     # o alinhamento usa só os marcadores, iguais nos dois layouts
@@ -67,7 +68,8 @@ def read_page(gray: np.ndarray, cfg: ReadConfig = DEFAULT_CONFIG, layout_hint: s
     rect = rectify(gray, al, base_tpl, cfg, d)
     qr = read_qr(rect, gray, base_tpl, d)
     layout = qr.data.layout if qr.data else layout_hint
-    res = PageResult(OK, layout=layout, qr=qr, qr_ilegivel=qr.data is None, alignment=al)
+    res = PageResult(OK, layout=layout, qr=qr, qr_ilegivel=qr.data is None, alignment=al,
+                     rect=rect if keep_rect else None)
     flat = omr.flatten(rect, d)
     res.answers = omr.read_answers(rect, base_tpl, d, cfg, flat)  # a grade é igual nos dois layouts
     if layout == LAYOUT_UNIATENAS:

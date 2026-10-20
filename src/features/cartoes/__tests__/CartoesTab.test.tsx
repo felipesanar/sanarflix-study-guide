@@ -205,6 +205,20 @@ describe('CartoesTab', () => {
     expect(screen.getByRole('button', { name: /Gerar PDF \(0 cartões\)/ })).toBeDisabled();
   });
 
+  it('depois de gerar, baixa a lista da emissão para o script de leitura', async () => {
+    prepararSimulado([IES_A], [{ ...ALUNOS[0]!, matricula: ' ab-1 ' }, ALUNOS[2]!]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Maria Exemplo da Silva');
+    expect(screen.queryByRole('button', { name: /Baixar lista da emissão/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF/ }));
+    const botao = await screen.findByRole('button', { name: /Baixar lista da emissão/ });
+    fireEvent.click(botao);
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    expect(new TextDecoder().decode(bytes.slice(3))).toBe('matricula;nome\r\n20240003;Álvaro Falso\r\nAB-1;Maria Exemplo da Silva\r\n');
+  });
+
   it('o PDF sai com a matrícula normalizada de cada aluno marcado', async () => {
     prepararSimulado([IES_A], [{ ...ALUNOS[0]!, matricula: ' ab-1 ' }]);
     render(<CartoesTab />);

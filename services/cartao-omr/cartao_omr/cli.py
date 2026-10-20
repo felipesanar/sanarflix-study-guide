@@ -1,4 +1,4 @@
-"""Linha de comando `cartao-omr` (Fase 0: `modelo` e `gerar-cartoes`)."""
+"""Linha de comando `cartao-omr`: `modelo`, `gerar-cartoes` e `processar` (PDF escaneado -> planilha)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,12 +16,15 @@ from .card import (
     write_template,
 )
 from .config import RUNS_DIR, TEMPLATES_DIR
+from .export_xlsx import escrever_planilha, escrever_relatorio, resumo
+from .layout import N_QUESTIONS
+from .processar import ler_lista_emissao, processar_pdf
 from .roster import load_roster_csv
 
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
-    help="Cartões-resposta do SanarFlix Academy: gerador, template e (nas próximas fases) leitor.",
+    help="Cartões-resposta do SanarFlix Academy: gerador, template e leitor (PDF escaneado -> planilha).",
 )
 
 
@@ -93,6 +96,44 @@ def gerar_cartoes(
         typer.echo(f"Erro: {exc}", err=True)
         raise typer.Exit(2) from exc
     typer.echo(f"{pages} cartão(ões) em {dest}")
+
+
+def _progresso(feitas: int, total: int) -> None:
+    if feitas % 25 == 0 or feitas == total:
+        typer.echo(f"página {feitas}/{total}")
+
+
+@app.command("processar")
+def processar(
+    pdf: Path = typer.Argument(..., exists=True, dir_okay=False, help="PDF escaneado com os cartões preenchidos."),
+    simulado: str = typer.Option(..., "--simulado", help="ID (UUID) do simulado; confere o QR de cada cartão."),
+    questoes: int = typer.Option(
+        N_QUESTIONS, "--questoes", min=1, max=N_QUESTIONS,
+        help="Total de questões do simulado: a planilha tem exatamente 1 + N colunas (a importação exige)."),
+    lista: Optional[Path] = typer.Option(
+        None, "--lista", help="CSV da emissão (coluna matricula): aponta cartões fora da lista e alunos sem cartão."),
+    layout: Optional[str] = typer.Option(
+        None, "--layout", help="Layout a assumir quando o QR não for lido (uniatenas lê a matrícula em bolhas)."),
+    saida: Optional[Path] = typer.Option(None, "--saida", help="Pasta de saída (padrão: runs/processar_<simulado>/)."),
+) -> None:
+    """Lê o PDF e gera respostas_<simulado>.xlsx, recortes das dúvidas e relatorio.json. Só lê arquivos: sem banco."""
+    if layout is not None:
+        _check_layout(layout)
+    dest = saida or RUNS_DIR / f"processar_{simulado}"
+    try:
+        esperados = ler_lista_emissao(lista) if lista else None
+        res = processar_pdf(pdf, simulado, dest, questoes, esperados, layout_hint=layout,
+                            progresso=_progresso)
+        xlsx = escrever_planilha(res, dest / f"respostas_{simulado}.xlsx")
+        escrever_relatorio(res, dest / "relatorio.json")
+    except ValueError as exc:
+        typer.echo(f"Erro: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    r = resumo(res)
+    typer.echo(f"{r['paginas']} página(s): {r['identificadas']} identificada(s), {r['nao_identificadas']} não identificada(s), "
+               f"{r['em_branco']} em branco, {r['ilegiveis']} ilegível(is), {r['simulado_divergente']} de outro simulado; "
+               f"{r['pendencias']} pendência(s).")
+    typer.echo(f"Planilha: {xlsx}")
 
 
 if __name__ == "__main__":
