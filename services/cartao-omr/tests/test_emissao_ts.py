@@ -48,10 +48,10 @@ NODE = _node()
 pytestmark = pytest.mark.skipif(NODE is None, reason="precisa de Node 22.18+ e node_modules na raiz do repositório")
 
 ALUNOS = [
-    {"userId": "7f3a9c21-5b1e-4f0a-9c3d-0123456789ab", "nome": "Maria Exemplo da Silva"},
-    {"userId": "AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE", "nome": "Çãtia Ñandú Öztürk"},
-    {"userId": "11111111-2222-4333-8444-555555555555", "nome": LONGO},
-    {"userId": "22222222-3333-4444-8555-666666666666", "nome": "Álvaro Falso"},
+    {"matricula": "2023001234", "nome": "Maria Exemplo da Silva"},
+    {"matricula": "ab-12.3/x", "nome": "Çãtia Ñandú Öztürk"},
+    {"matricula": "A1B2C3D4E5F6G7H8I9J0K1L2", "nome": LONGO},
+    {"matricula": "99-G-12345", "nome": "Álvaro Falso"},
 ]
 
 
@@ -76,8 +76,8 @@ def _sfa_entrada(alunos=ALUNOS):
 
 
 def _sfa_py(alunos=ALUNOS):
-    ordenados = sorted(alunos, key=lambda a: (_sort_key(a["nome"]), a["userId"]))
-    roster = [RosterEntry(a["userId"], a["nome"]) for a in ordenados]
+    ordenados = sorted(alunos, key=lambda a: (_sort_key(a["nome"]), a["matricula"].strip().upper()))
+    roster = [RosterEntry(a["matricula"], a["nome"]) for a in ordenados]
     return specs_personalizados(roster, SIM, "SIMULADO ENAMED 2026", "Faculdade Exemplo", "25/10/2026")
 
 
@@ -109,7 +109,7 @@ def test_qr_de_cada_pagina_e_o_payload_do_python(sfa):
     for i, spec in enumerate(specs):
         lidos = zxingcpp.read_barcodes(render_gray(pdf, i, 200))
         assert [r.text for r in lidos] == [spec.qr_payload], i
-        assert parse_qr(lidos[0].text).user_id == spec.user_id.lower()
+        assert parse_qr(lidos[0].text).matricula == spec.matricula_normalizada
 
 
 def test_qr_do_typescript_e_igual_ao_do_python_pixel_a_pixel(sfa):
@@ -162,6 +162,15 @@ def test_nomes_longos_nao_invadem_o_qr(sfa):
     assert [r.text for r in zxingcpp.read_barcodes(img)] == [specs[i].qr_payload]
 
 
+def test_nome_e_matricula_impressos_no_pdf_do_typescript(sfa):
+    pdf, _, specs = sfa
+    doc = pymupdf.open(stream=pdf, filetype="pdf")
+    for i, spec in enumerate(specs):
+        texto = doc[i].get_text()
+        assert "MATRÍCULA" in texto and spec.matricula_normalizada in texto, i
+        assert "CARTÃO PESSOAL" not in texto
+
+
 def test_ordem_dos_alunos_ignora_acentos(sfa):
     _, _, specs = sfa
     assert [s.aluno_nome for s in specs][:2] == ["Álvaro Falso", "Çãtia Ñandú Öztürk"]
@@ -176,7 +185,8 @@ def test_leitor_da_fase_1_le_o_cartao_gerado_no_typescript(sfa, tmp_path):
     for i, spec in enumerate(specs):
         res = read_page(render_page(doc, i))
         assert res.status == OK, res.reason
-        assert res.user_id == spec.user_id.lower() and not res.qr_ilegivel
+        assert res.matricula_qr == spec.matricula_normalizada and not res.qr_ilegivel
+        assert res.identificacao == spec.matricula_normalizada
         assert res.alignment.rms_mm < 0.3
         assert all(c.kind == omr.BRANCO for c in res.answers.values())  # cartão em branco: nada marcado
 
@@ -186,14 +196,16 @@ def test_leitor_le_o_cartao_uniatenas_do_typescript(uni, tmp_path):
     path = tmp_path / "ts_uni.pdf"
     path.write_bytes(pdf)
     res = read_page(render_page(open_pdf(path), 0))
-    assert res.status == OK and res.layout == "uniatenas" and res.user_id is None
+    assert res.status == OK and res.layout == "uniatenas" and res.matricula_qr is None
     assert res.matricula is not None and not res.matricula.valid  # matrícula em branco => inválida
 
 
 # ------------------------------------------------------------------ erros
 @pytest.mark.parametrize("mudanca", [
     {"simuladoId": "sim-1"},
-    {"alunos": [{"userId": "123", "nome": "Fulano"}]},
+    {"alunos": [{"matricula": "12 34", "nome": "Fulano"}]},
+    {"alunos": [{"matricula": "", "nome": "Fulano"}]},
+    {"alunos": [{"matricula": "1", "nome": "A"}, {"matricula": " 1 ", "nome": "B"}]},
     {"alunos": []},
 ])
 def test_entradas_invalidas_param_com_erro(tmp_path, mudanca):
@@ -207,7 +219,7 @@ def test_entradas_invalidas_param_com_erro(tmp_path, mudanca):
 
 def test_gerar_700_cartoes_em_tempo_razoavel(tmp_path):
     """Uma turma grande (UNIFIP tem ~700 matrículas) precisa gerar sem travar."""
-    alunos = [{"userId": f"{i:08x}-0000-4000-8000-000000000000", "nome": f"Aluno Sintético {i:04d}"} for i in range(700)]
+    alunos = [{"matricula": f"20230{i:05d}", "nome": f"Aluno Sintético {i:04d}"} for i in range(700)]
     pdf, stats = run_ts(tmp_path, _sfa_entrada(alunos))
     assert stats["paginas"] == 700
     assert stats["ms"] < 120_000, stats  # medida em 16/10/2026 no Windows: ver o handoff da Fase E

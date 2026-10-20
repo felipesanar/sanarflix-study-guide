@@ -38,8 +38,16 @@ class PageResult:
     matricula: omr.MatriculaRead | None = None
 
     @property
-    def user_id(self) -> str | None:
-        return self.qr.data.user_id if self.qr and self.qr.data else None
+    def matricula_qr(self) -> str | None:
+        """Matrícula impressa no QR do cartão pessoal (None no UniAtenas ou se o QR não foi lido)."""
+        return self.qr.data.matricula if self.qr and self.qr.data else None
+
+    @property
+    def identificacao(self) -> str | None:
+        """Chave do aluno para a planilha: matrícula do QR (sfa) ou das bolhas (UniAtenas, se válida)."""
+        if self.layout == LAYOUT_UNIATENAS:
+            return self.matricula.value if self.matricula and self.matricula.valid else None
+        return self.matricula_qr
 
 
 def read_page(gray: np.ndarray, cfg: ReadConfig = DEFAULT_CONFIG, layout_hint: str | None = None,

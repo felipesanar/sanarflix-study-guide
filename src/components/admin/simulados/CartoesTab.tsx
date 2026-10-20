@@ -2,11 +2,12 @@
  * Sub-aba "Cartões-resposta": emite os cartões em PDF de um simulado para uma IES (PRD, seção 1.1).
  *
  * O time escolhe simulado, IES e alunos; o PDF é gerado aqui, no navegador, a partir dos templates de
- * `services/cartao-omr/templates`. Nenhum dado de aluno sai do Academy. O leitor (script local) devolve as
- * respostas pelo ID do aluno que vai no QR do cartão.
+ * `services/cartao-omr/templates`. Nenhum dado de aluno sai do Academy. Cada cartão traz o nome e a matrícula do
+ * aluno impressos (a matrícula também no QR): o leitor devolve as respostas pela matrícula, a mesma da importação.
+ * Aluno sem matrícula utilizável (vazia, fora do formato ou repetida) não recebe cartão: fica numa lista à parte.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Loader2, Printer, Search } from 'lucide-react';
+import { Download, Loader2, Printer, Search, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,10 +26,14 @@ import {
   type SimuladoCartao,
 } from '@/features/cartoes/api';
 import {
+  ROTULO_EXCLUSAO,
   EmissaoCancelada,
+  classificarAlunos,
+  csvDosExcluidos,
   formatarDataBR,
   montarSpecs,
   nomeDoArquivo,
+  type MotivoExclusao,
   type ProgressoEmissao,
 } from '@/features/cartoes/emitir';
 import { gerarPdfSegundoPlano } from '@/features/cartoes/gerar';
@@ -47,6 +52,11 @@ function mensagemDeErro(err: unknown): string {
 
 function normalizar(s: string): string {
   return s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+interface AlunoExcluido {
+  aluno: AlunoOpt;
+  motivo: MotivoExclusao;
 }
 
 interface Resultado {
@@ -68,6 +78,7 @@ export default function CartoesTab() {
   const [data, setData] = useState('');
 
   const [alunos, setAlunos] = useState<AlunoOpt[]>([]);
+  const [excluidos, setExcluidos] = useState<AlunoExcluido[]>([]);
   const [carregandoAlunos, setCarregandoAlunos] = useState(false);
   const [erroAlunos, setErroAlunos] = useState<string | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -103,6 +114,7 @@ export default function CartoesTab() {
     setIesId('');
     setIesLista([]);
     setAlunos([]);
+    setExcluidos([]);
     setSelecionados(new Set());
     setResultado(null);
     if (!simulado) return;
@@ -127,9 +139,10 @@ export default function CartoesTab() {
     setCarregandoAlunos(true);
     setErroAlunos(null);
     try {
-      const lista = await listarAlunosDaIes(supabase, id);
-      setAlunos(lista);
-      setSelecionados(new Set(lista.map((a) => a.userId))); // padrão: a turma inteira
+      const { aptos, excluidos: fora } = classificarAlunos(await listarAlunosDaIes(supabase, id));
+      setAlunos(aptos);
+      setExcluidos(fora);
+      setSelecionados(new Set(aptos.map((a) => a.userId))); // padrão: todos os que podem receber cartão
     } catch (err) {
       Logger.error('[Cartoes] listarAlunosDaIes:', err);
       setErroAlunos(mensagemDeErro(err));
@@ -141,6 +154,7 @@ export default function CartoesTab() {
   useEffect(() => {
     setResultado(null);
     setAlunos([]);
+    setExcluidos([]);
     setSelecionados(new Set());
     if (!ies) return;
     const grupo = ehIesUniatenas(ies.nome);
@@ -151,7 +165,7 @@ export default function CartoesTab() {
   const aoTrocarLayout = (novo: LayoutCartao) => {
     setLayout(novo);
     setResultado(null);
-    if (novo === 'sfa' && ies && !alunos.length && !carregandoAlunos) void carregarAlunos(ies.id);
+    if (novo === 'sfa' && ies && !alunos.length && !excluidos.length && !carregandoAlunos) void carregarAlunos(ies.id);
   };
 
   // ---------------------------------------------------------------- lista de alunos
@@ -200,7 +214,11 @@ export default function CartoesTab() {
         ies: ies.nome,
         data: formatarDataBR(data),
         ...(layout === 'sfa'
-          ? { alunos: alunos.filter((a) => selecionados.has(a.userId)).map((a) => ({ userId: a.userId, nome: a.nome })) }
+          ? {
+              alunos: alunos
+                .filter((a) => selecionados.has(a.userId))
+                .map((a) => ({ matricula: a.matricula ?? '', nome: a.nome })),
+            }
           : { copias }),
       });
       const pdf = await gerarPdfSegundoPlano(
@@ -231,6 +249,13 @@ export default function CartoesTab() {
     if (resultado) URL.revokeObjectURL(resultado.url);
   }, [resultado]);
 
+  const baixarCsvExcluidos = () => {
+    const csv = csvDosExcluidos(excluidos.map((e) => ({ aluno: e.aluno, motivo: e.motivo })));
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    baixar(url, nomeDoArquivo(ies?.nome ?? '', 'alunos sem cartao').replace(/^cartoes_/, '').replace(/\.pdf$/, '.csv'));
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   // ---------------------------------------------------------------- tela
   if (erroSimulados) {
     return <AdminError message={erroSimulados} title="Falha ao carregar simulados" onRetry={carregarSimulados} />;
@@ -240,9 +265,9 @@ export default function CartoesTab() {
     <div className="space-y-6">
       <div className="space-y-4 rounded-xl border bg-card p-4">
         <p className="text-sm text-muted-foreground">
-          Gera os cartões-resposta em PDF para imprimir. Cada cartão traz o nome do aluno e um QR com o ID dele no
-          Academy, para o script de leitura devolver as respostas já identificadas. O PDF é montado neste
-          navegador: nenhum dado dos alunos é enviado para fora.
+          Gera os cartões-resposta em PDF para imprimir. Cada cartão traz o nome e a matrícula do aluno (a matrícula
+          também vai num QR), para o script de leitura devolver as respostas já identificadas e prontas para a
+          importação. O PDF é montado neste navegador: nenhum dado dos alunos é enviado para fora.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="space-y-1.5">
@@ -293,7 +318,7 @@ export default function CartoesTab() {
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
               <label className="flex items-center gap-2 text-sm">
                 <input type="radio" name="cartoes-layout" checked={layout === 'sfa'} onChange={() => aoTrocarLayout('sfa')} />
-                Pessoal: um cartão por aluno, com nome e QR
+                Pessoal: um cartão por aluno, com nome e matrícula impressos
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -341,8 +366,13 @@ export default function CartoesTab() {
             <AdminLoading rows={6} />
           ) : erroAlunos ? (
             <AdminError message={erroAlunos} title="Falha ao carregar os alunos" onRetry={() => void carregarAlunos(ies.id)} />
-          ) : !alunos.length ? (
+          ) : !alunos.length && !excluidos.length ? (
             <AdminEmpty title="Nenhum aluno nesta IES" description="Só alunos (sem papel de equipe) aparecem aqui." />
+          ) : !alunos.length ? (
+            <AdminEmpty
+              title="Nenhum aluno com matrícula utilizável nesta IES"
+              description="Corrija o cadastro dos alunos listados abaixo para poder emitir os cartões."
+            />
           ) : (
             <div className="space-y-3 rounded-xl border bg-card p-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -380,7 +410,7 @@ export default function CartoesTab() {
                         aria-label={`Cartão para ${a.nome}`}
                       />
                       <span className="flex-1 truncate">{a.nome}</span>
-                      <span className="font-mono text-xs text-muted-foreground">{a.matricula ?? 'sem matrícula'}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{a.matricula}</span>
                     </label>
                   </li>
                 ))}
@@ -388,6 +418,34 @@ export default function CartoesTab() {
               </ul>
             </div>
           )}
+        </div>
+      )}
+
+      {ies && layout === 'sfa' && !carregandoAlunos && excluidos.length > 0 && (
+        <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
+          <div className="flex flex-wrap items-center gap-3">
+            <TriangleAlert className="h-4 w-4 text-amber-600" aria-hidden />
+            <p className="text-sm font-medium" role="status">
+              {`${excluidos.length} ${excluidos.length === 1 ? 'aluno fica' : 'alunos ficam'} fora do PDF`}
+            </p>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={baixarCsvExcluidos}>
+              <Download className="mr-2 h-4 w-4" />
+              Baixar CSV
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O cartão leva a matrícula do cadastro, e a importação casa as respostas por ela. Sem matrícula utilizável o
+            aluno não recebe cartão: corrija o cadastro e gere de novo.
+          </p>
+          <ul className="max-h-60 divide-y overflow-auto rounded-lg border bg-background" aria-label="Alunos fora do PDF">
+            {excluidos.map(({ aluno, motivo }) => (
+              <li key={aluno.userId} className="flex items-center gap-3 px-3 py-2 text-sm">
+                <span className="flex-1 truncate">{aluno.nome}</span>
+                <span className="font-mono text-xs text-muted-foreground">{aluno.matricula ?? '—'}</span>
+                <span className="text-xs text-muted-foreground">{ROTULO_EXCLUSAO[motivo]}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -422,7 +480,7 @@ export default function CartoesTab() {
           )}
           <p className="text-xs text-muted-foreground">
             Imprima só na frente, em A4, na escala 100% (sem “ajustar à página”), papel de 75 a 90 g/m². Entregue
-            cada cartão ao aluno cujo nome está impresso nele.
+            cada cartão ao aluno cujo nome e matrícula estão impressos nele.
           </p>
         </div>
       )}

@@ -1,16 +1,18 @@
 /**
  * Emissão dos cartões-resposta: monta um PDF A4 (uma página por cartão) no navegador, a partir do
- * template. Nada sai do Academy: nem nome, nem user_id, nem o PDF.
+ * template. Nada sai do Academy: nem nome, nem matrícula, nem o PDF.
  *
- * Mesmas regras do `cartao-omr gerar-cartoes`: um cartão personalizado por aluno, ordenado por nome sem
- * considerar acentos; o cartão UniAtenas é um só, sem nome, repetido `copias` vezes.
+ * Mesmas regras do `cartao-omr gerar-cartoes`: um cartão personalizado por aluno (nome e matrícula impressos,
+ * matrícula também no QR), ordenado por nome sem considerar acentos; o cartão UniAtenas é um só, sem nome, repetido `copias` vezes.
  */
-import { buildPayload, rotuloDoCartao } from './payload.ts';
+import { buildPayload, normalizarMatricula, problemaDaMatricula, rotuloDoCartao } from './payload.ts';
+import type { ProblemaMatricula } from './payload.ts';
 import { drawCard } from './render.ts';
 import type { CardSpec, CardTemplate, LayoutCartao } from './types.ts';
 
 export interface AlunoEmissao {
-  userId: string;
+  /** Matrícula/RA do cadastro; vai impressa no cartão e no QR (a importação casa por ela). */
+  matricula: string;
   nome: string;
   /** Nome da IES do aluno, se for diferente da do cabeçalho. */
   ies?: string;
@@ -53,13 +55,15 @@ function chaveDeOrdem(nome: string): string {
   return nome.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-/** Ordena por nome sem considerar acentos; desempata pelo user_id (igual ao `roster.py`). */
-export function ordenarAlunos<T extends { nome: string; userId: string }>(alunos: T[]): T[] {
+/** Ordena por nome sem considerar acentos; desempata pela matrícula (igual ao `roster.py`). */
+export function ordenarAlunos<T extends { nome: string; matricula: string }>(alunos: T[]): T[] {
   return [...alunos].sort((a, b) => {
     const ka = chaveDeOrdem(a.nome);
     const kb = chaveDeOrdem(b.nome);
     if (ka !== kb) return ka < kb ? -1 : 1;
-    return a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0;
+    const ma = normalizarMatricula(a.matricula);
+    const mb = normalizarMatricula(b.matricula);
+    return ma < mb ? -1 : ma > mb ? 1 : 0;
   });
 }
 
@@ -75,7 +79,7 @@ export function formatarDataBR(data: string | Date | null | undefined): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : data;
 }
 
-/** Monta o conteúdo variável de cada cartão (e valida os UUID, que viram o QR). */
+/** Monta o conteúdo variável de cada cartão (e valida a matrícula, que vira o QR). */
 export function montarSpecs(op: OpcoesEmissao): CardSpec[] {
   const base = { simuladoId: op.simuladoId, nomeSimulado: op.nomeSimulado ?? '', data: op.data ?? '' };
   if (op.layout === 'uniatenas') {
@@ -87,18 +91,68 @@ export function montarSpecs(op: OpcoesEmissao): CardSpec[] {
     return Array.from({ length: copias }, () => ({ ...spec }));
   }
   if (!op.alunos?.length) throw new Error('o cartão sfa é pessoal: informe os alunos');
+  const vistas = new Set<string>();
   return ordenarAlunos(op.alunos).map((a) => {
+    const mat = normalizarMatricula(a.matricula);
+    if (vistas.has(mat)) throw new Error(`matrícula repetida na lista de alunos: ${mat}`);
+    vistas.add(mat);
     const spec: CardSpec = {
       model: 'personalizado',
       ...base,
       ies: a.ies || op.ies || '',
       alunoNome: a.nome,
-      userId: a.userId,
-      label: rotuloDoCartao('personalizado', a.userId),
+      matricula: mat,
+      label: rotuloDoCartao('personalizado', mat),
     };
-    buildPayload(spec); // falha cedo se algum id não for UUID
+    buildPayload(spec); // falha cedo se alguma matrícula não puder ser impressa
     return spec;
   });
+}
+
+export type MotivoExclusao = ProblemaMatricula | 'duplicada';
+
+export interface ClassificacaoAlunos<T> {
+  /** Podem receber cartão: matrícula presente, no formato aceito e única na IES. */
+  aptos: T[];
+  /** Ficam fora do PDF, com o motivo (o cadastro precisa ser corrigido). */
+  excluidos: Array<{ aluno: T; motivo: MotivoExclusao }>;
+}
+
+/**
+ * Separa quem pode receber cartão. Matrícula repetida (mesmo valor normalizado em 2+ alunos, como os
+ * `99-G-99999` do UniAtenas) exclui **todos** os envolvidos: o cartão não diria de quem é a resposta.
+ */
+export function classificarAlunos<T extends { matricula: string | null }>(alunos: T[]): ClassificacaoAlunos<T> {
+  const contagem = new Map<string, number>();
+  for (const a of alunos) {
+    const m = normalizarMatricula(a.matricula);
+    if (m) contagem.set(m, (contagem.get(m) ?? 0) + 1);
+  }
+  const aptos: T[] = [];
+  const excluidos: ClassificacaoAlunos<T>['excluidos'] = [];
+  for (const a of alunos) {
+    const problema = problemaDaMatricula(a.matricula);
+    if (problema) excluidos.push({ aluno: a, motivo: problema });
+    else if ((contagem.get(normalizarMatricula(a.matricula)) ?? 0) > 1) excluidos.push({ aluno: a, motivo: 'duplicada' });
+    else aptos.push(a);
+  }
+  return { aptos, excluidos };
+}
+
+export const ROTULO_EXCLUSAO: Record<MotivoExclusao, string> = {
+  sem_matricula: 'sem matrícula cadastrada',
+  formato_nao_suportado: 'matrícula fora do formato aceito (A–Z, 0–9, . / -, até 24 caracteres)',
+  duplicada: 'matrícula repetida no cadastro da IES',
+};
+
+function celulaCsv(valor: string): string {
+  return /[";\n\r]/.test(valor) ? `"${valor.replace(/"/g, '""')}"` : valor;
+}
+
+/** CSV (`;`, UTF-8 com BOM, abre direto no Excel) dos alunos que ficaram fora, para o cadastro ser corrigido. */
+export function csvDosExcluidos(excluidos: ClassificacaoAlunos<{ nome: string; matricula: string | null }>['excluidos']): string {
+  const linhas = [['nome', 'matricula', 'motivo'], ...excluidos.map((e) => [e.aluno.nome, e.aluno.matricula ?? '', ROTULO_EXCLUSAO[e.motivo]])];
+  return '\ufeff' + linhas.map((l) => l.map(celulaCsv).join(';')).join('\r\n') + '\r\n';
 }
 
 const cederFio = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));

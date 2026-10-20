@@ -25,6 +25,7 @@ from cartao_omr.models import CardSpec, sim8  # noqa: E402
 
 OUT = ROOT.parent.parent / "src" / "features" / "cartoes" / "__tests__" / "qr-golden.json"
 ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 $%*+-./:"
+MATRICULA_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./-"
 
 
 def matrix(text: str) -> tuple[int, list[str]]:
@@ -39,16 +40,19 @@ def build() -> dict:
     payloads = []
     for i in range(40):
         sim = str(uuid.UUID(int=rnd.getrandbits(128), version=4))
-        uid = str(uuid.UUID(int=rnd.getrandbits(128), version=4))
-        s = CardSpec(model="personalizado", simulado_id=sim, user_id=uid if i % 2 else uid.upper())
+        # matrículas de 1 a 24 caracteres; metade em minúsculas e com espaços nas pontas (a normalização iguala)
+        n = 1 + (i * 23) // 39
+        mat = "".join(rnd.choice(MATRICULA_CHARS) for _ in range(n))
+        entrada = f" {mat.lower()} " if i % 2 else mat
+        s = CardSpec(model="personalizado", simulado_id=sim, matricula=entrada)
         textos.append(s.qr_payload)
-        payloads.append({"model": "personalizado", "simulado_id": sim, "user_id": s.user_id,
+        payloads.append({"model": "personalizado", "simulado_id": sim, "matricula": entrada,
                          "sim8": sim8(sim), "payload": s.qr_payload})
     for _ in range(10):
         sim = str(uuid.UUID(int=rnd.getrandbits(128), version=4))
         s = CardSpec(model="uniatenas", simulado_id=sim)
         textos.append(s.qr_payload)
-        payloads.append({"model": "uniatenas", "simulado_id": sim, "user_id": None,
+        payloads.append({"model": "uniatenas", "simulado_id": sim, "matricula": None,
                          "sim8": sim8(sim), "payload": s.qr_payload})
     # alfanumérico de vários tamanhos (versões 1 a 8), sempre com letra para não virar modo numérico
     for n in list(range(1, 12)) + [20, 27, 34, 40, 48, 60, 77, 90, 104, 118, 140, 170]:

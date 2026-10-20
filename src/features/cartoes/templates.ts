@@ -2,7 +2,7 @@
  * Templates do cartão (fonte da verdade: `services/cartao-omr/templates/*.json`, gerados pelo
  * `cartao-omr modelo`). O Academy os importa direto de lá: não há cópia para dessincronizar.
  */
-import sfa from '../../../services/cartao-omr/templates/sfa_v2.json';
+import sfa from '../../../services/cartao-omr/templates/sfa_v3.json';
 import uniatenas from '../../../services/cartao-omr/templates/uniatenas_v1.json';
 import type { CardTemplate, LayoutCartao } from './types.ts';
 

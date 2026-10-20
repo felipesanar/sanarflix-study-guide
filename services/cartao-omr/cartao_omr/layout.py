@@ -12,7 +12,7 @@ LAYOUT_SFA = "sfa"
 LAYOUT_UNIATENAS = "uniatenas"
 LAYOUTS = (LAYOUT_SFA, LAYOUT_UNIATENAS)
 
-TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v2", LAYOUT_UNIATENAS: "uniatenas_v1"}
+TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v3", LAYOUT_UNIATENAS: "uniatenas_v1"}
 
 # ---------------------------------------------------------------- página
 PAGE_W = 210.0
@@ -37,9 +37,15 @@ QR_QUIET_MODULES = 4
 QR_LABEL_Y = 52.6  # linha de base do código legível sob o QR (6 pt)
 
 # ---------------------------------------------------------------- blocos
-# Bloco esquerdo: matrícula em bolhas (uniatenas) ou aviso "cartão pessoal" (sfa).
+# Bloco esquerdo: matrícula em bolhas (uniatenas) ou matrícula impressa + avisos (sfa).
 MATRICULA_FRAME = (20.0, 44.0, 92.0, 108.0)
 PESSOAL_FRAME = MATRICULA_FRAME
+# sfa: matrícula impressa em destaque (linha de base), filete e início dos avisos
+PESSOAL_MATRICULA_BASELINE = 58.0
+PESSOAL_AVISOS_RULE_Y = 61.0
+PESSOAL_AVISOS_Y0 = 67.0
+# recorte da matrícula impressa (Pendências do leitor)
+PESSOAL_MATRICULA_CROP = (20.0, 50.0, 92.0, 61.0)
 INSTRUCOES_FRAME = (98.0, 44.0, 150.0, 108.0)
 
 # ---------------------------------------------------------------- matrícula (só uniatenas)

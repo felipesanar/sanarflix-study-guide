@@ -21,7 +21,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 from . import layout as L
 from .drawlist import DRAW_VERSION, build_draw
-from .models import MODEL_PERSONALIZADO, MODEL_UNIATENAS, CardSpec, RosterEntry
+from .models import MODEL_PERSONALIZADO, MODEL_UNIATENAS, CardSpec, RosterEntry, normalize_matricula
 
 
 # =============================================================== template
@@ -37,8 +37,15 @@ def qr_info(payload: str) -> dict:
     }
 
 
-# Pior caso previsto: simulado_id e user_id em UUID.
+# Pior caso previsto: simulado_id em UUID e matrícula de 24 caracteres.
 _UUID_EXEMPLO = "ffffffff-ffff-4fff-bfff-ffffffffffff"
+_MATRICULA_EXEMPLO = "A" * 24
+
+
+PAYLOAD_FORMAT = {
+    L.LAYOUT_SFA: "SFA2:M:<SIM8>:<MATRICULA>; maiúsculas, matrícula [A-Z0-9./-] de 1 a 24 caracteres",
+    L.LAYOUT_UNIATENAS: "SFA2:A:<SIM8>; maiúsculas, hex sem hífens",
+}
 
 
 def build_template(layout: str) -> dict:
@@ -56,7 +63,7 @@ def build_template(layout: str) -> dict:
     worst = CardSpec(
         model=MODEL_PERSONALIZADO if layout == L.LAYOUT_SFA else MODEL_UNIATENAS,
         simulado_id=_UUID_EXEMPLO,
-        user_id=_UUID_EXEMPLO,
+        matricula=_MATRICULA_EXEMPLO,
     )
     return {
         "template_version": L.TEMPLATE_VERSION[layout],
@@ -76,7 +83,7 @@ def build_template(layout: str) -> dict:
         "qr": {
             "error_level": L.QR_ERROR.upper(),
             "quiet_modules": L.QR_QUIET_MODULES,
-            "payload_format": "SFA2:S:<SIM8>:<UID32> (sfa) | SFA2:A:<SIM8> (uniatenas); maiúsculas, hex sem hífens",
+            "payload_format": PAYLOAD_FORMAT[layout],
             "example": worst.qr_payload,
             "worst_case": qr_info(worst.qr_payload),
         },
@@ -91,7 +98,8 @@ def build_template(layout: str) -> dict:
         } if tem_matricula else None,
         "crops_mm": {
             "nome": list(L.ALUNO_BOX[:3]) + [L.ALUNO_BOX[3] + 1.0],
-            **({"matricula": list(L.MATRICULA_FRAME)} if tem_matricula else {}),
+            **({"matricula": list(L.MATRICULA_FRAME)} if tem_matricula
+               else {"matricula_impressa": list(L.PESSOAL_MATRICULA_CROP)}),
         },
         "blocks_mm": {
             "titulo": list(L.TITLE_BOX),
@@ -102,7 +110,7 @@ def build_template(layout: str) -> dict:
                       L.GRID_X0 + L.GRID_COLUMNS * L.GRID_COL_W,
                       L.GRID_FIRST_CY + (L.GRID_ROWS - 0.5) * L.GRID_ROW_PITCH],
         },
-        "draw_version": DRAW_VERSION,
+        "draw_version": DRAW_VERSION[layout],
         "draw": build_draw(layout),
     }
 
@@ -227,6 +235,7 @@ def slot_values(spec: CardSpec) -> dict[str, str]:
         "titulo": titulo,
         "subtitulo": "  •  ".join(partes),
         "aluno": spec.aluno_nome if spec.model == MODEL_PERSONALIZADO else "",
+        "matricula": spec.matricula_normalizada if spec.model == MODEL_PERSONALIZADO else "",
         "label": spec.label,
     }
 
@@ -347,8 +356,8 @@ def specs_personalizados(
             ies=r.ies or ies,
             data=data,
             aluno_nome=r.nome,
-            user_id=r.user_id,
-            label=r.user_id.replace("-", "")[:8].upper(),
+            matricula=normalize_matricula(r.matricula),
+            label=normalize_matricula(r.matricula),
         )
         for r in roster
     ]
@@ -370,7 +379,7 @@ def build_example_pdf(layout: str, dest: Path) -> int:
     nome = "SIMULADO ENAMED 2026"
     if layout == L.LAYOUT_SFA:
         specs = specs_personalizados(
-            [RosterEntry("7f3a9c21-5b1e-4f0a-9c3d-0123456789ab", "Maria Exemplo da Silva")],
+            [RosterEntry("2023001234", "Maria Exemplo da Silva")],
             sim, nome, "Faculdade Exemplo", "25/10/2026",
         )
     else:

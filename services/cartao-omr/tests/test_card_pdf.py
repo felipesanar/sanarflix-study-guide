@@ -24,7 +24,7 @@ from cardcheck import assert_marcadores_e_bolhas, render_gray
 
 
 SIM = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
-UID = "7f3a9c21-5b1e-4f0a-9c3d-0123456789ab"
+MAT = "2023001234"
 DPI = 200
 PX = DPI / 25.4
 MODELOS = ["personalizado", "uniatenas"]
@@ -38,7 +38,7 @@ def _pdf(specs) -> bytes:
 
 def _spec(modelo: str):
     if modelo == "personalizado":
-        return specs_personalizados([RosterEntry(UID, "Maria Exemplo da Silva")], SIM,
+        return specs_personalizados([RosterEntry(MAT, "Maria Exemplo da Silva")], SIM,
                                     "SIMULADO TESTE", "IES X", "25/10/2026")[0]
     return specs_uniatenas(1, SIM, "SIMULADO TESTE")[0]
 
@@ -65,26 +65,26 @@ def test_qr_continua_legivel_em_resolucao_baixa(modelo, dpi):
     assert [r.text for r in zxingcpp.read_barcodes(img)] == [spec.qr_payload]
 
 
-def test_qr_lido_devolve_o_user_id_do_aluno():
+def test_qr_lido_devolve_a_matricula_do_aluno():
     spec = _spec("personalizado")
     texto = zxingcpp.read_barcodes(render_gray(_pdf([spec]), dpi=DPI))[0].text
-    assert parse_qr(texto).user_id == UID
+    assert parse_qr(texto).matricula == MAT
 
 
 def test_cada_cartao_personalizado_tem_o_proprio_qr():
-    roster = [RosterEntry(f"{i:08d}-0000-4000-8000-000000000000", f"Aluno {i}") for i in range(3)]
+    roster = [RosterEntry(f"20230{i:05d}", f"Aluno {i}") for i in range(3)]
     specs = specs_personalizados(roster, SIM)
     pdf = _pdf(specs)
     assert len(pymupdf.open(stream=pdf, filetype="pdf")) == 3
     lidos = [zxingcpp.read_barcodes(render_gray(pdf, i, DPI))[0].text for i in range(3)]
     assert lidos == [s.qr_payload for s in specs]
-    assert [parse_qr(t).user_id for t in lidos] == [r.user_id for r in roster]
+    assert [parse_qr(t).matricula for t in lidos] == [r.matricula for r in roster]
 
 
-def test_qr_do_sfa_e_menos_denso_que_o_formato_antigo():
-    """Regressão: o payload compacto precisa manter módulo >= 0,7 mm (o antigo dava 0,566 mm)."""
+def test_qr_do_sfa_no_pior_caso_mantem_modulo_de_0_7_mm():
+    """Matrícula de 24 caracteres: versão 3, módulo >= 0,7 mm (melhor que os 0,73 mm do QR com user_id)."""
     info = build_template(L.LAYOUT_SFA)["qr"]["worst_case"]
-    assert info["module_mm"] >= 0.7
+    assert info["version"] <= 4 and info["module_mm"] >= 0.7
 
 
 @pytest.mark.parametrize("layout", L.LAYOUTS)
@@ -93,11 +93,27 @@ def test_marcadores_pretos_e_bolhas_no_lugar_do_template(layout):
     assert_marcadores_e_bolhas(render_gray(_pdf([spec]), dpi=300), build_template(layout), 300)
 
 
-def test_sfa_nao_tem_bolhas_de_matricula_e_uniatenas_tem():
+def test_sfa_traz_a_matricula_impressa_e_uniatenas_as_bolhas():
     sfa = pymupdf.open(stream=_pdf([_spec("personalizado")]), filetype="pdf")[0].get_text()
     uni = pymupdf.open(stream=_pdf([_spec("uniatenas")]), filetype="pdf")[0].get_text()
-    assert "MATRÍCULA" not in sfa and "CARTÃO PESSOAL" in sfa
-    assert "MATRÍCULA" in uni and "CARTÃO PESSOAL" not in uni
+    assert "MATRÍCULA" in sfa and MAT in sfa and "CARTÃO PESSOAL" not in sfa
+    assert "MATRÍCULA" in uni and MAT not in uni
+    assert build_template(L.LAYOUT_SFA)["matricula"] is None  # sem bolhas no sfa
+    assert build_template(L.LAYOUT_UNIATENAS)["matricula"]['n_columns'] == 8
+
+
+def test_matricula_impressa_em_destaque_e_nao_estoura_o_quadro():
+    mat = "A1B2C3D4E5F6G7H8I9J0K1L2"  # 24 caracteres, o máximo
+    spec = specs_personalizados([RosterEntry(mat, "Fulano")], SIM)[0]
+    page = pymupdf.open(stream=_pdf([spec]), filetype="pdf")[0]
+    spans = [s for b in page.get_text("dict")["blocks"] for ln in b.get("lines", []) for s in ln["spans"]
+             if s["text"] == mat and s["size"] > 7]  # o rótulo de 6 pt sob o QR repete a matrícula
+    assert len(spans) == 1
+    x0, _, x1, _ = spans[0]["bbox"]
+    f = L.PESSOAL_FRAME
+    to_mm = 25.4 / 72
+    assert x0 * to_mm >= f[0] and x1 * to_mm <= f[2] - 2
+    assert spans[0]["size"] >= 9
 
 
 @pytest.mark.parametrize("modelo", MODELOS)
@@ -119,7 +135,7 @@ def test_pdf_e_a4_e_deterministico():
 
 def test_nomes_e_titulos_longos_nao_estouram():
     longo = "Fulano de Tal Beltrano Ciclano Sicrano da Silva Pereira de Albuquerque Cavalcanti " * 2
-    spec = specs_personalizados([RosterEntry(UID, longo)], SIM, "SIMULADO " * 30, "IES " * 40, "01/01/2026")[0]
+    spec = specs_personalizados([RosterEntry(MAT, longo)], SIM, "SIMULADO " * 30, "IES " * 40, "01/01/2026")[0]
     img = render_gray(_pdf([spec]), dpi=DPI)
     # nada escrito entre o fim da linha do aluno (150 mm) e o QR (158 mm)
     faixa = img[round(20 * PX):round(40 * PX), round(151 * PX):round(157 * PX)]
@@ -128,9 +144,9 @@ def test_nomes_e_titulos_longos_nao_estouram():
 
 
 def test_nome_com_acentos_aparece_no_pdf():
-    spec = specs_personalizados([RosterEntry(UID, "Çãtia Ñandú Öztürk")], SIM, "SIMULADO")[0]
+    spec = specs_personalizados([RosterEntry(MAT, "Çãtia Ñandú Öztürk")], SIM, "SIMULADO")[0]
     texto = pymupdf.open(stream=_pdf([spec]), filetype="pdf")[0].get_text()
-    assert "Çãtia" in texto and "CARTÃO-RESPOSTA" in texto and "CARTÃO PESSOAL" in texto
+    assert "Çãtia" in texto and "CARTÃO-RESPOSTA" in texto and "MATRÍCULA" in texto
 
 
 def test_pdf_so_aceita_um_layout():
@@ -154,3 +170,17 @@ def test_roster_csv_invalido(tmp_path):
     dup.write_text("user_id,nome\n1,A\n1,B\n", encoding="utf-8")
     with pytest.raises(ValueError):
         load_roster_csv(dup)
+
+
+def test_roster_csv_recusa_matricula_fora_do_formato(tmp_path):
+    for mat in ("", "12 34", "12#34"):
+        ruim = tmp_path / "f.csv"
+        ruim.write_text(f"matricula,nome\n{mat},A\n", encoding="utf-8")
+        with pytest.raises(ValueError):
+            load_roster_csv(ruim)
+
+
+def test_roster_csv_normaliza_a_matricula(tmp_path):
+    ok = tmp_path / "n.csv"
+    ok.write_text("matricula,nome\n  ab-1 ,Fulano\n", encoding="utf-8")
+    assert load_roster_csv(ok)[0].matricula == "AB-1"

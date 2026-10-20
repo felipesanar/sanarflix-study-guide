@@ -123,7 +123,7 @@ def test_pagina_girada_em_multiplos_de_90_graus_le_igual(lidas, giros):
     img = np.rot90(_page_img("sfa_personalizado_limpo", 1), giros).copy()
     res = read_page(img)
     assert res.status == OK
-    assert res.user_id == base.user_id
+    assert res.matricula_qr == base.matricula_qr
     assert {q: c.value for q, c in res.answers.items()} == {q: c.value for q, c in base.answers.items()}
 
 
@@ -179,7 +179,7 @@ def test_qr_danificado_continua_sendo_lido_o_resto(lidas):
     danificadas = [(k, r) for k, (g, r) in lidas.items() if g["kind"] == "cartao" and not g["qr_legivel"] and g["legible"]]
     assert danificadas
     for _, r in danificadas:
-        assert r.status == OK and r.user_id is None and len(r.answers) == 100
+        assert r.status == OK and r.matricula_qr is None and len(r.answers) == 100
 
 
 def test_qr_de_outro_formato_e_ignorado():

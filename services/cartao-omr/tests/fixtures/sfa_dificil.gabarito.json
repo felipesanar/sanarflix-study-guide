@@ -4,7 +4,7 @@
  "seed": 2026,
  "file": "sfa_dificil.pdf",
  "layout": "sfa",
- "template": "sfa_v2",
+ "template": "sfa_v3",
  "simulado_id": "3fbb4d5e-46f1-5de2-b9ae-d934759077b2",
  "profile": "dificil",
  "pages": [
@@ -14,9 +14,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:57802DE532E75D70BC5756B1B182B802",
+   "qr": "SFA2:M:3FBB4D5E:2023001000",
    "qr_legivel": true,
-   "user_id": "57802de5-32e7-5d70-bc57-56b1b182b802",
+   "matricula_qr": "2023001000",
    "aluno": "Tiago Modelo 001",
    "matricula": null,
    "answers": {
@@ -603,6 +603,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "A",
       "C"
@@ -1231,6 +1232,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "C",
       "D"
@@ -1445,9 +1447,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:7A362269A81C555E8D24B07F385D77CF",
+   "qr": "SFA2:M:3FBB4D5E:2023001001",
    "qr_legivel": true,
-   "user_id": "7a362269-a81c-555e-8d24-b07f385d77cf",
+   "matricula_qr": "2023001001",
    "aluno": "João Sintético 002",
    "matricula": null,
    "answers": {
@@ -1922,6 +1924,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "D"
@@ -2018,6 +2021,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "D"
@@ -2036,6 +2040,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "A",
       "D"
@@ -2080,6 +2085,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "A",
       "B"
@@ -2427,6 +2433,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -2513,6 +2520,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -2892,9 +2900,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:54E4641BDD38516C9560F940FE042B43",
+   "qr": "SFA2:M:3FBB4D5E:2023001002",
    "qr_legivel": true,
-   "user_id": "54e4641b-dd38-516c-9560-f940fe042b43",
+   "matricula_qr": "2023001002",
    "aluno": "Úrsula Fictício 003",
    "matricula": null,
    "answers": {
@@ -3361,6 +3369,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "C",
       "D"
@@ -3462,6 +3471,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "D"
@@ -3733,6 +3743,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -4317,9 +4328,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:4F216CB710DB5393B221700316CFD235",
+   "qr": "SFA2:M:3FBB4D5E:AB-0004.X",
    "qr_legivel": true,
-   "user_id": "4f216cb7-10db-5393-b221-700316cfd235",
+   "matricula_qr": "AB-0004.X",
    "aluno": "Natália Fictício 004",
    "matricula": null,
    "answers": {
@@ -5152,6 +5163,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -5492,6 +5504,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "C",
       "D"
@@ -5734,9 +5747,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:1AEB318234DB57AFABC00ADB71609CB4",
+   "qr": "SFA2:M:3FBB4D5E:2023001004",
    "qr_legivel": true,
-   "user_id": "1aeb3182-34db-57af-abc0-0adb71609cb4",
+   "matricula_qr": "2023001004",
    "aluno": "Gabriela Sintético 005",
    "matricula": null,
    "answers": {
@@ -6118,6 +6131,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -6271,6 +6285,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "D"
@@ -6315,6 +6330,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -7163,9 +7179,9 @@
    "legible": false,
    "defect": "marcador_coberto:tr",
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:1B79EB4F823050E6952A646CA406EE9D",
+   "qr": "SFA2:M:3FBB4D5E:2023001005",
    "qr_legivel": true,
-   "user_id": "1b79eb4f-8230-50e6-952a-646ca406ee9d",
+   "matricula_qr": "2023001005",
    "aluno": "Bruno Fictício 006",
    "matricula": null,
    "answers": {
@@ -7362,6 +7378,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -7631,6 +7648,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "D"
@@ -7677,6 +7695,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -8185,6 +8204,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -8608,9 +8628,9 @@
    "legible": true,
    "defect": "qr_danificado",
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:BE7EF023EF4B54FFAB18068F5E67F26E",
+   "qr": "SFA2:M:3FBB4D5E:2023001006",
    "qr_legivel": false,
-   "user_id": "be7ef023-ef4b-54ff-ab18-068f5e67f26e",
+   "matricula_qr": "2023001006",
    "aluno": "Fábio Fictício 007",
    "matricula": null,
    "answers": {
@@ -8676,6 +8696,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -9209,6 +9230,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "C",
       "D"
@@ -9400,6 +9422,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "B",
       "D"
@@ -9431,6 +9454,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -9559,6 +9583,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "A",
       "C"
@@ -9590,6 +9615,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "A",
       "C"
@@ -9690,6 +9716,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "D"
@@ -9983,6 +10010,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"
@@ -10067,9 +10095,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:3FBB4D5E:7B12BA79B75F5B3088E3616CBC4096B6",
+   "qr": "SFA2:M:3FBB4D5E:2023001007",
    "qr_legivel": true,
-   "user_id": "7b12ba79-b75f-5b30-88e3-616cbc4096b6",
+   "matricula_qr": "2023001007",
    "aluno": "Sílvia Sintético 008",
    "matricula": null,
    "answers": {
@@ -10119,6 +10147,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -10524,6 +10553,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -11110,6 +11140,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"

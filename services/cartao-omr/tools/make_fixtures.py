@@ -1,6 +1,6 @@
 """Gera fixtures sintéticas: cartões preenchidos à mão e "digitalizados", com gabarito em JSON.
 
-Tudo é fictício (nomes falsos, UUIDs derivados de uma semente). Nada aqui toca banco ou dado real.
+Tudo é fictício (nomes e matrículas falsos, UUIDs de simulado derivados de uma semente). Nada aqui toca banco ou dado real.
 
 Uso (com o venv ativo, dentro de services/cartao-omr):
     python tools/make_fixtures.py                       # conjunto de referência -> tests/fixtures/
@@ -477,7 +477,9 @@ def fake_roster(rng: random.Random, n: int, sim_key: str) -> list[RosterEntry]:
     out = []
     for i in range(n):
         nome = f"{rng.choice(PRIMEIROS)} {rng.choice(SOBRENOMES)} {i + 1:03d}"
-        out.append(RosterEntry(str(uuid.uuid5(uuid.NAMESPACE_URL, f"fixture/{sim_key}/{i}")), nome))
+        # matrículas fictícias; algumas com letra e pontuação, para exercitar o alfabeto do QR
+        mat = f"AB-{i + 1:04d}.X" if i % 7 == 3 else f"{2023001000 + i}"
+        out.append(RosterEntry(mat, nome))
     return out
 
 
@@ -560,7 +562,7 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int) -> dict:
         pages_info.append({
             "page": len(out_pdf), "kind": "cartao", "legible": legible, "defect": defect,
             "model": spec.model, "qr": card.qr_payload, "qr_legivel": not qr_damaged,
-            "user_id": card.user_id or None,
+            "matricula_qr": card.matricula_normalizada or None,
             "aluno": aluno, "matricula": mat, "answers": answers,
             "scan": {
                 "dpi": dpi, "size_px": [page_img.shape[1], page_img.shape[0]],
@@ -646,9 +648,9 @@ def write_roster_csv(path: Path, n: int, seed: int) -> None:
     roster = fake_roster(random.Random(f"{seed}/roster"), n, "roster")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         wr = csv.writer(fh)
-        wr.writerow(["user_id", "nome"])
+        wr.writerow(["matricula", "nome"])
         for r in roster:
-            wr.writerow([r.user_id, r.nome])
+            wr.writerow([r.matricula, r.nome])
 
 
 def main(argv: list[str] | None = None) -> int:

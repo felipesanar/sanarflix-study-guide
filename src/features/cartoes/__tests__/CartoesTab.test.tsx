@@ -19,9 +19,13 @@ const IES_A = { id: '11111111-1111-4111-8111-111111111111', nome: 'Faculdade Exe
 const IES_UA = { id: '22222222-2222-4222-8222-222222222222', nome: 'VALENÇA' };
 const ALUNOS = [
   { userId: '7f3a9c21-5b1e-4f0a-9c3d-0123456789ab', nome: 'Maria Exemplo da Silva', matricula: '20240001' },
-  { userId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', nome: 'Çãtia Ñandú Öztürk', matricula: null },
+  { userId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', nome: 'Çãtia Ñandú Öztürk', matricula: '20240002' },
   { userId: '22222222-3333-4444-8555-666666666666', nome: 'Álvaro Falso', matricula: '20240003' },
 ];
+const SEM_MATRICULA = { userId: '33333333-4444-4555-8666-777777777777', nome: 'Beltrano Sem RA', matricula: null };
+const REPETIDA_1 = { userId: '44444444-5555-4666-8777-888888888888', nome: 'Cadastro Errado Um', matricula: '99-G-99999' };
+const REPETIDA_2 = { userId: '55555555-6666-4777-8888-999999999999', nome: 'Cadastro Errado Dois', matricula: '99-G-99999' };
+const COM_ESPACO = { userId: '66666666-7777-4888-8999-aaaaaaaaaaaa', nome: 'Matrícula Com Espaço', matricula: '12 34' };
 
 function prepararSimulado(ies: Array<{ id: string; nome: string }>, alunos = ALUNOS) {
   api.listarSimulados.mockResolvedValue([
@@ -159,14 +163,55 @@ describe('CartoesTab', () => {
     expect(await screen.findByLabelText('Simulado')).toBeInTheDocument();
   });
 
-  it('um id de aluno inválido falha com mensagem e não baixa nada', async () => {
-    prepararSimulado([IES_A], [{ userId: 'nao-e-uuid', nome: 'Fulano', matricula: null }]);
+  it('alunos sem matrícula utilizável ficam fora da lista e do PDF, com o motivo', async () => {
+    prepararSimulado([IES_A], [...ALUNOS, SEM_MATRICULA, REPETIDA_1, REPETIDA_2, COM_ESPACO]);
     render(<CartoesTab />);
     await escolherSimulado();
-    await screen.findByText('Fulano');
+    await screen.findByText('Maria Exemplo da Silva');
+    expect(screen.getByText('3 de 3 selecionados')).toBeInTheDocument();
+    expect(screen.getByText('4 alunos ficam fora do PDF')).toBeInTheDocument();
+    const fora = within(screen.getByLabelText('Alunos fora do PDF'));
+    expect(fora.getByText('Beltrano Sem RA')).toBeInTheDocument();
+    expect(fora.getByText('sem matrícula cadastrada')).toBeInTheDocument();
+    expect(fora.getAllByText('matrícula repetida no cadastro da IES')).toHaveLength(2);
+    expect(fora.getByText(/fora do formato aceito/)).toBeInTheDocument();
+    // sem caixa de seleção para eles, e a lista de selecionáveis só traz os aptos
+    expect(screen.queryByLabelText('Cartão para Beltrano Sem RA')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(3 cartões\)/ })).toBeEnabled();
+  });
+
+  it('o CSV dos excluídos traz nome, matrícula e motivo', async () => {
+    prepararSimulado([IES_A], [...ALUNOS, SEM_MATRICULA, COM_ESPACO]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('2 alunos ficam fora do PDF');
+    fireEvent.click(screen.getByRole('button', { name: /Baixar CSV/ }));
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    expect(blob.type).toContain('text/csv');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]); // BOM, para o Excel abrir em UTF-8
+    const texto = new TextDecoder().decode(bytes.slice(3));
+    expect(texto.startsWith('nome;matricula;motivo\r\n')).toBe(true);
+    expect(texto).toContain('Beltrano Sem RA;;sem matrícula cadastrada');
+    expect(texto).toContain('Matrícula Com Espaço;12 34;');
+  });
+
+  it('IES em que ninguém tem matrícula utilizável: explica e não deixa gerar', async () => {
+    prepararSimulado([IES_A], [SEM_MATRICULA, REPETIDA_1, REPETIDA_2]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    expect(await screen.findByText('Nenhum aluno com matrícula utilizável nesta IES')).toBeInTheDocument();
+    expect(screen.getByText('3 alunos ficam fora do PDF')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(0 cartões\)/ })).toBeDisabled();
+  });
+
+  it('o PDF sai com a matrícula normalizada de cada aluno marcado', async () => {
+    prepararSimulado([IES_A], [{ ...ALUNOS[0]!, matricula: ' ab-1 ' }]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Maria Exemplo da Silva');
     fireEvent.click(screen.getByRole('button', { name: /Gerar PDF/ }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
-    expect(toast.error.mock.calls[0]![1]).toMatchObject({ description: expect.stringMatching(/UUID/) });
-    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

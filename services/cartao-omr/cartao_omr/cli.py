@@ -65,7 +65,7 @@ def gerar_cartoes(
     modelo_cartao: str = typer.Option("sfa", "--modelo", help="sfa (padrão) ou uniatenas."),
     roster: Optional[Path] = typer.Option(
         None, "--roster",
-        help="CSV user_id,nome[,ies] com os alunos que farão a prova (sfa). Na emissão pelo Academy vem da tela."),
+        help="CSV matricula,nome[,ies] com os alunos que farão a prova (sfa). Na emissão pelo Academy vem da tela."),
     copias: int = typer.Option(1, "--copias", min=1, help="Cópias do cartão UniAtenas."),
     nome_simulado: str = typer.Option("", "--nome-simulado", help="Texto do título."),
     ies: str = typer.Option("", "--ies", help="Nome da IES no cabeçalho."),

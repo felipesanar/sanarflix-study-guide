@@ -126,7 +126,7 @@ def test_uniatenas_matricula():
 
 
 def test_chaves_do_contrato_7_1():
-    for layout, versao in [(L.LAYOUT_SFA, "sfa_v2"), (L.LAYOUT_UNIATENAS, "uniatenas_v1")]:
+    for layout, versao in [(L.LAYOUT_SFA, "sfa_v3"), (L.LAYOUT_UNIATENAS, "uniatenas_v1")]:
         tpl = build_template(layout)
         for chave in ["template_version", "page_mm", "fiducials_mm", "qr_box_mm", "alternatives",
                       "questions", "matricula", "crops_mm"]:
@@ -137,7 +137,7 @@ def test_chaves_do_contrato_7_1():
 
 def test_qr_do_pior_caso_tem_modulo_legivel():
     sfa = build_template(L.LAYOUT_SFA)["qr"]["worst_case"]
-    assert sfa["version"] == 4 and sfa["module_mm"] >= 0.7, sfa
+    assert sfa["version"] == 3 and sfa["module_mm"] >= 0.75, sfa
     uni = build_template(L.LAYOUT_UNIATENAS)["qr"]["worst_case"]
     assert uni["module_mm"] >= 1.0, uni
 

@@ -5,6 +5,7 @@ import {
   formatarDataBR,
   gerarPdf,
   montarSpecs,
+  classificarAlunos,
   nomeDoArquivo,
   ordenarAlunos,
 } from '../emitir.ts';
@@ -13,9 +14,9 @@ import { TEMPLATES, ehIesUniatenas } from '../templates.ts';
 
 const SIM = '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc';
 const ALUNOS = [
-  { userId: '7f3a9c21-5b1e-4f0a-9c3d-0123456789ab', nome: 'Maria Exemplo da Silva' },
-  { userId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', nome: 'Çãtia Ñandú Öztürk' },
-  { userId: '22222222-3333-4444-8555-666666666666', nome: 'Álvaro Falso' },
+  { matricula: '2023001234', nome: 'Maria Exemplo da Silva' },
+  { matricula: 'ab-12.3/x', nome: 'Çãtia Ñandú Öztürk' },
+  { matricula: '99-G-12345', nome: 'Álvaro Falso' },
 ];
 
 function paginas(buf: ArrayBuffer): number {
@@ -28,7 +29,7 @@ describe('templates', () => {
     for (const layout of ['sfa', 'uniatenas'] as const) {
       const t = TEMPLATES[layout];
       expect(t.layout).toBe(layout);
-      expect(t.draw_version).toBe(1);
+      expect(t.draw_version).toBe(layout === 'sfa' ? 2 : 1);
       expect(t.draw.length).toBeGreaterThan(30);
       expect(t.draw.some((op) => op.op === 'qr')).toBe(true);
       expect(t.draw.some((op) => op.op === 'bubbles')).toBe(true);
@@ -43,7 +44,7 @@ describe('templates', () => {
     for (const t of Object.values(TEMPLATES)) {
       for (const op of t.draw) {
         expect(ops.has(op.op)).toBe(true);
-        if ('font' in op) expect(['Helvetica', 'Helvetica-Bold']).toContain(op.font);
+        if ('font' in op) expect(['Helvetica', 'Helvetica-Bold', 'Courier-Bold']).toContain(op.font);
       }
     }
   });
@@ -57,13 +58,13 @@ describe('templates', () => {
 });
 
 describe('ordem e formatação', () => {
-  it('ordena por nome sem considerar acentos e desempata pelo id', () => {
+  it('ordena por nome sem considerar acentos e desempata pela matrícula', () => {
     expect(ordenarAlunos(ALUNOS).map((a) => a.nome)).toEqual(['Álvaro Falso', 'Çãtia Ñandú Öztürk', 'Maria Exemplo da Silva']);
     const iguais = [
-      { userId: 'b', nome: 'Ana' },
-      { userId: 'a', nome: 'ana' },
+      { matricula: 'b', nome: 'Ana' },
+      { matricula: 'a', nome: 'ana' },
     ];
-    expect(ordenarAlunos(iguais).map((a) => a.userId)).toEqual(['a', 'b']);
+    expect(ordenarAlunos(iguais).map((a) => a.matricula)).toEqual(['a', 'b']);
   });
 
   it('formata a data para dd/mm/aaaa', () => {
@@ -85,7 +86,9 @@ describe('montarSpecs', () => {
     const specs = montarSpecs({ layout: 'sfa', simuladoId: SIM, nomeSimulado: 'S', ies: 'IES X', data: '01/01/2026', alunos: ALUNOS });
     expect(specs.map((s) => s.alunoNome)).toEqual(['Álvaro Falso', 'Çãtia Ñandú Öztürk', 'Maria Exemplo da Silva']);
     expect(specs.every((s) => s.model === 'personalizado' && s.ies === 'IES X')).toBe(true);
-    expect(specs[0]!.label).toBe('22222222');
+    expect(specs[0]!.label).toBe('99-G-12345');
+    // a matrícula é normalizada (trim e maiúsculas) e é a mesma do QR
+    expect(specs.map((s) => s.matricula)).toEqual(['99-G-12345', 'AB-12.3/X', '2023001234']);
   });
 
   it('a IES do aluno vale mais que a do cabeçalho', () => {
@@ -103,7 +106,10 @@ describe('montarSpecs', () => {
     [{ layout: 'sfa', simuladoId: SIM }, /informe os alunos/],
     [{ layout: 'sfa', simuladoId: SIM, alunos: [] }, /informe os alunos/],
     [{ layout: 'sfa', simuladoId: 'sim-1', alunos: ALUNOS }, /UUID/],
-    [{ layout: 'sfa', simuladoId: SIM, alunos: [{ userId: '123', nome: 'X' }] }, /UUID/],
+    [{ layout: 'sfa', simuladoId: SIM, alunos: [{ matricula: '', nome: 'X' }] }, /sem_matricula/],
+    [{ layout: 'sfa', simuladoId: SIM, alunos: [{ matricula: '12 34', nome: 'X' }] }, /formato_nao_suportado/],
+    [{ layout: 'sfa', simuladoId: SIM, alunos: [{ matricula: 'A'.repeat(25), nome: 'X' }] }, /formato_nao_suportado/],
+    [{ layout: 'sfa', simuladoId: SIM, alunos: [{ matricula: '1', nome: 'X' }, { matricula: ' 1 ', nome: 'Y' }] }, /repetida/],
     [{ layout: 'uniatenas', simuladoId: SIM, alunos: ALUNOS }, /não é personalizado/],
     [{ layout: 'uniatenas', simuladoId: SIM, copias: 0 }, /copias/],
   ] as const)('recusa entrada inválida %#', (entrada, erro) => {
@@ -111,11 +117,43 @@ describe('montarSpecs', () => {
   });
 });
 
+describe('classificarAlunos', () => {
+  it('separa quem pode receber cartão e dá o motivo de quem não pode', () => {
+    const lista = [
+      { nome: 'A', matricula: '2023001' },
+      { nome: 'B', matricula: null },
+      { nome: 'C', matricula: '   ' },
+      { nome: 'D', matricula: '12 34' },
+      { nome: 'E', matricula: 'x'.repeat(30) },
+      { nome: 'F', matricula: '99-G-99999' },
+      { nome: 'G', matricula: ' 99-g-99999 ' },
+      { nome: 'H', matricula: 'ab.12' },
+    ];
+    const r = classificarAlunos(lista);
+    expect(r.aptos.map((a) => a.nome)).toEqual(['A', 'H']);
+    expect(r.excluidos.map((e) => [e.aluno.nome, e.motivo])).toEqual([
+      ['B', 'sem_matricula'],
+      ['C', 'sem_matricula'],
+      ['D', 'formato_nao_suportado'],
+      ['E', 'formato_nao_suportado'],
+      ['F', 'duplicada'],
+      ['G', 'duplicada'],
+    ]);
+  });
+
+  it('lista vazia e lista toda boa', () => {
+    expect(classificarAlunos([])).toEqual({ aptos: [], excluidos: [] });
+    expect(classificarAlunos(ALUNOS).excluidos).toEqual([]);
+  });
+});
+
 describe('render', () => {
-  it('slots: título, subtítulo, aluno e rótulo', () => {
-    const v = slotValues({ model: 'personalizado', simuladoId: SIM, nomeSimulado: 'ENAMED', ies: 'IES X', data: '25/10/2026', alunoNome: 'Maria', label: 'ABC' });
-    expect(v).toEqual({ titulo: 'CARTÃO-RESPOSTA — ENAMED', subtitulo: 'Instituição: IES X  •  Data: 25/10/2026', aluno: 'Maria', label: 'ABC' });
-    expect(slotValues({ model: 'uniatenas', simuladoId: SIM, alunoNome: 'ignorado' }).aluno).toBe('');
+  it('slots: título, subtítulo, aluno, matrícula e rótulo', () => {
+    const v = slotValues({ model: 'personalizado', simuladoId: SIM, nomeSimulado: 'ENAMED', ies: 'IES X', data: '25/10/2026', alunoNome: 'Maria', matricula: ' ab-1 ', label: 'ABC' });
+    expect(v).toEqual({ titulo: 'CARTÃO-RESPOSTA — ENAMED', subtitulo: 'Instituição: IES X  •  Data: 25/10/2026', aluno: 'Maria', matricula: 'AB-1', label: 'ABC' });
+    const uni = slotValues({ model: 'uniatenas', simuladoId: SIM, alunoNome: 'ignorado', matricula: 'ignorada' });
+    expect(uni.aluno).toBe('');
+    expect(uni.matricula).toBe('');
     expect(slotValues({ model: 'uniatenas', simuladoId: SIM }).titulo).toBe('CARTÃO-RESPOSTA');
   });
 

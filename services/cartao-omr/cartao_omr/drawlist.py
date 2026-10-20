@@ -17,7 +17,7 @@ Cores em `#rrggbb`. Operações, na ordem de desenho:
                                                                       `matricula.columns` do template)
   qr       {box: [x0, y0, x1, y1], quiet, ec, color}           (conteúdo = payload do cartão)
 
-SLOTS: `titulo`, `subtitulo`, `aluno`, `label`. O texto é encolhido de 0,25 pt em 0,25 pt até caber em
+SLOTS: `titulo`, `subtitulo`, `aluno`, `matricula`, `label`. O texto é encolhido de 0,25 pt em 0,25 pt até caber em
 `max_w` (mm) ou chegar a `min_size`; se ainda não couber, é cortado com reticências. Slot vazio não desenha.
 """
 from __future__ import annotations
@@ -34,9 +34,10 @@ GRAY_LETTER = "#a6a6a6"
 GRAY_TEXT = "#333333"
 GRAY_LABEL = "#404040"
 
-DRAW_VERSION = 1
+# Por layout: o sfa_v3 usa o slot `matricula` e a fonte Courier-Bold (versão 2); o UniAtenas segue na 1.
+DRAW_VERSION = {"sfa": 2, "uniatenas": 1}
 
-SLOTS = ("titulo", "subtitulo", "aluno", "label")
+SLOTS = ("titulo", "subtitulo", "aluno", "matricula", "label")
 
 
 def _r(v: float) -> float:
@@ -115,19 +116,22 @@ def _header() -> list[dict]:
 
 
 def _pessoal() -> list[dict]:
-    """Bloco do layout sfa onde ficaria a matrícula: lembra que o cartão é nominal (evita troca)."""
+    """Bloco do layout sfa: matrícula impressa (a mesma do QR) e avisos de que o cartão é nominal."""
     f = L.PESSOAL_FRAME
+    mat_w = f[2] - f[0] - 6.0
     ops = [
         _rect(f, stroke=GRAY_STROKE, lw=0.5),
-        _text(f[0] + 3, L.MAT_TITLE_BASELINE, "CARTÃO PESSOAL", "Helvetica-Bold", 10.0),
+        _text(f[0] + 3, L.MAT_TITLE_BASELINE, "MATRÍCULA", "Helvetica-Bold", 10.0),
+        _slot("matricula", f[0] + 3, L.PESSOAL_MATRICULA_BASELINE, "Courier-Bold", 16.0, BLACK, mat_w, 9.0),
+        _line(f[0] + 3, L.PESSOAL_AVISOS_RULE_Y, f[2] - 3, L.PESSOAL_AVISOS_RULE_Y, GRAY_STROKE, 0.5),
     ]
     avisos = [
-        "Confira se o nome acima de ALUNO é o seu.",
-        "Se o nome não for o seu, avise o aplicador antes de marcar qualquer resposta.",
+        "Confira se o nome (ALUNO) e a matrícula impressos neste cartão são os seus.",
+        "Se não forem os seus, avise o aplicador antes de marcar qualquer resposta.",
         "Não troque de cartão com colegas.",
-        "Este cartão é identificado automaticamente: não escreva nem cole nada sobre o código QR.",
+        "Este cartão é identificado automaticamente pelo código QR: não escreva nem cole nada sobre ele.",
     ]
-    y = 55.0
+    y = L.PESSOAL_AVISOS_Y0
     for texto in avisos:
         linhas = _wrap(texto, f[2] - f[0] - 9.0, "Helvetica", 7.5)
         ops.append(_text(f[0] + 3, y, "•", "Helvetica", 7.5))

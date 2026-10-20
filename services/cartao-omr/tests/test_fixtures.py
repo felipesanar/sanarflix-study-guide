@@ -174,14 +174,14 @@ def test_fixtures_uniatenas_tem_matricula_so_com_digitos():
     assert all(re.fullmatch(r"\d{2}-\d-\d{5}", v) for v in validas), validas
 
 
-def test_fixtures_sfa_identificam_o_aluno_so_pelo_qr():
+def test_fixtures_sfa_identificam_o_aluno_pela_matricula_do_qr():
     for name in ["sfa_personalizado_limpo", "sfa_personalizado_realista", "sfa_dificil"]:
         gab, _ = _load(name)
         for p in gab["pages"]:
             if p["kind"] != "cartao":
                 continue
             assert p["matricula"] is None
-            assert parse_qr(p["qr"]).user_id == p["user_id"]
+            assert parse_qr(p["qr"]).matricula == p["matricula_qr"]
 
 
 def test_gabarito_nao_traz_dados_reais():
@@ -211,4 +211,4 @@ def test_gerador_personalizado_usa_qr_e_nome_do_roster(tmp_path):
     meta = mf.build_set(spec, tmp_path, seed=5)
     for p in meta["pages"]:
         qr = parse_qr(p["qr"])
-        assert qr.user_id == p["user_id"] and qr.sim8 == meta["simulado_id"].replace("-", "")[:8].upper()
+        assert qr.matricula == p["matricula_qr"] and qr.sim8 == meta["simulado_id"].replace("-", "")[:8].upper()

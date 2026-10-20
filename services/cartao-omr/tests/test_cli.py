@@ -14,7 +14,7 @@ SIM = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
 def test_modelo_gera_templates_e_pdfs(tmp_path):
     r = runner.invoke(app, ["modelo", "--saida", str(tmp_path)])
     assert r.exit_code == 0, r.output
-    for nome in ["sfa_v2.json", "uniatenas_v1.json", "exemplo_sfa.pdf", "exemplo_uniatenas.pdf"]:
+    for nome in ["sfa_v3.json", "uniatenas_v1.json", "exemplo_sfa.pdf", "exemplo_uniatenas.pdf"]:
         assert (tmp_path / nome).exists()
     assert len(pymupdf.open(tmp_path / "exemplo_sfa.pdf")) == 1
     assert len(pymupdf.open(tmp_path / "exemplo_uniatenas.pdf")) == 1
@@ -24,7 +24,7 @@ def test_modelo_com_layout(tmp_path):
     r = runner.invoke(app, ["modelo", "--layout", "sfa", "--saida", str(tmp_path)])
     assert r.exit_code == 0, r.output
     assert not (tmp_path / "uniatenas_v1.json").exists()
-    assert json.loads((tmp_path / "sfa_v2.json").read_text(encoding="utf-8"))["matricula"] is None
+    assert json.loads((tmp_path / "sfa_v3.json").read_text(encoding="utf-8"))["matricula"] is None
 
 
 def test_modelo_layout_invalido(tmp_path):
@@ -69,7 +69,7 @@ def test_gerar_cartoes_erros(tmp_path, fake_roster_csv):
     assert runner.invoke(app, base + ["--simulado", SIM, "--modelo", "uniatenas",
                                       "--roster", str(fake_roster_csv)]).exit_code != 0
     assert runner.invoke(app, base + ["--simulado", SIM, "--modelo", "foo"]).exit_code != 0
-    # roster com user_id que não é UUID
+    # roster com matrícula fora do formato (espaço)
     ruim = tmp_path / "ruim.csv"
-    ruim.write_text("user_id,nome\n123,Fulano\n", encoding="utf-8")
+    ruim.write_text("matricula,nome\n12 34,Fulano\n", encoding="utf-8")
     assert runner.invoke(app, base + ["--simulado", SIM, "--roster", str(ruim)]).exit_code == 2

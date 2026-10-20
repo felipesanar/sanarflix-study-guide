@@ -1,7 +1,7 @@
 """Roster dos alunos.
 
-Fase 0: só leitura de um CSV falso (`user_id,nome[,ies]`) para testes.
-A ligação com o banco (psycopg, só SELECT) entra na Fase 2.
+Só leitura de um CSV (`matricula,nome[,ies]`), para testes e para o `gerar-cartoes` por linha de comando.
+Na emissão pelo Academy a lista vem da tela. Não há ligação com o banco (decisão de 20/10/2026).
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import csv
 import unicodedata
 from pathlib import Path
 
-from .models import RosterEntry
+from .models import RosterEntry, matricula_problem, normalize_matricula
 
 
 def _sort_key(nome: str) -> str:
@@ -22,18 +22,20 @@ def load_roster_csv(path: Path) -> list[RosterEntry]:
     with open(path, newline="", encoding="utf-8-sig") as fh:
         reader = csv.DictReader(fh)
         cols = {c.strip().lower() for c in (reader.fieldnames or [])}
-        if not {"user_id", "nome"} <= cols:
-            raise ValueError("o CSV do roster precisa ter as colunas user_id e nome")
+        if not {"matricula", "nome"} <= cols:
+            raise ValueError("o CSV do roster precisa ter as colunas matricula e nome")
         entries: list[RosterEntry] = []
         seen: set[str] = set()
         for n, raw in enumerate(reader, start=2):
             row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw.items()}
-            uid, nome = row["user_id"], row["nome"]
-            if not uid or not nome:
-                raise ValueError(f"linha {n}: user_id e nome são obrigatórios")
-            if uid in seen:
-                raise ValueError(f"linha {n}: user_id repetido ({uid})")
-            seen.add(uid)
-            entries.append(RosterEntry(uid, nome, row.get("ies", "")))
-    entries.sort(key=lambda e: (_sort_key(e.nome), e.user_id))
+            mat, nome = normalize_matricula(row["matricula"]), row["nome"]
+            if not mat or not nome:
+                raise ValueError(f"linha {n}: matricula e nome são obrigatórios")
+            if matricula_problem(mat):
+                raise ValueError(f"linha {n}: matrícula fora do formato aceito ({mat})")
+            if mat in seen:
+                raise ValueError(f"linha {n}: matrícula repetida ({mat})")
+            seen.add(mat)
+            entries.append(RosterEntry(mat, nome, row.get("ies", "")))
+    entries.sort(key=lambda e: (_sort_key(e.nome), e.matricula))
     return entries

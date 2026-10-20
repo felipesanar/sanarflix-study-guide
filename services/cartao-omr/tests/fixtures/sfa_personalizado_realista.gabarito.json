@@ -4,7 +4,7 @@
  "seed": 2026,
  "file": "sfa_personalizado_realista.pdf",
  "layout": "sfa",
- "template": "sfa_v2",
+ "template": "sfa_v3",
  "simulado_id": "5ddeab4a-99e3-5602-9a0b-5c4f2a024a89",
  "profile": "realista",
  "pages": [
@@ -14,9 +14,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:5DDEAB4A:B0837B2B44275652A5E0284513E56585",
+   "qr": "SFA2:M:5DDEAB4A:2023001000",
    "qr_legivel": true,
-   "user_id": "b0837b2b-4427-5652-a5e0-284513e56585",
+   "matricula_qr": "2023001000",
    "aluno": "João Teste 001",
    "matricula": null,
    "answers": {
@@ -570,6 +570,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "D"
@@ -640,6 +641,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -1444,9 +1446,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:5DDEAB4A:2E9DA82939EE5FD3AFA0FD63273D74B4",
+   "qr": "SFA2:M:5DDEAB4A:2023001001",
    "qr_legivel": true,
-   "user_id": "2e9da829-39ee-5fd3-afa0-fd63273d74b4",
+   "matricula_qr": "2023001001",
    "aluno": "Carla Sintético 002",
    "matricula": null,
    "answers": {
@@ -1818,6 +1820,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"
@@ -1877,6 +1880,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "C",
       "D"
@@ -1991,6 +1995,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "D"
@@ -2340,6 +2345,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "D"
@@ -2619,6 +2625,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"
@@ -2874,9 +2881,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:5DDEAB4A:72D1E6D4EFE4510A8BBEBDD8B0C29241",
+   "qr": "SFA2:M:5DDEAB4A:2023001002",
    "qr_legivel": true,
-   "user_id": "72d1e6d4-efe4-510a-8bbe-bdd8b0c29241",
+   "matricula_qr": "2023001002",
    "aluno": "Carla Sintético 003",
    "matricula": null,
    "answers": {
@@ -3302,6 +3309,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -3548,6 +3556,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "A",
       "C"
@@ -3749,6 +3758,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"
@@ -4005,6 +4015,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -4316,9 +4327,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:5DDEAB4A:EA3417068D7D5BB1910E5AC9A43C787F",
+   "qr": "SFA2:M:5DDEAB4A:AB-0004.X",
    "qr_legivel": true,
-   "user_id": "ea341706-8d7d-5bb1-910e-5ac9a43c787f",
+   "matricula_qr": "AB-0004.X",
    "aluno": "Tiago Amostra 004",
    "matricula": null,
    "answers": {
@@ -4646,6 +4657,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -4677,6 +4689,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -4747,6 +4760,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"
@@ -4918,6 +4932,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "D"
@@ -5019,6 +5034,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "B",
       "D"
@@ -5118,6 +5134,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -5757,9 +5774,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:5DDEAB4A:D9241BC4F632557C8A42CE8563A5BC51",
+   "qr": "SFA2:M:5DDEAB4A:2023001004",
    "qr_legivel": true,
-   "user_id": "d9241bc4-f632-557c-8a42-ce8563a5bc51",
+   "matricula_qr": "2023001004",
    "aluno": "Elisa Exemplo 005",
    "matricula": null,
    "answers": {
@@ -6373,6 +6390,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "D",
      "letters": [
       "B",
       "D"
@@ -6483,6 +6501,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -6513,6 +6532,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "C"
@@ -6845,6 +6865,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "B",
      "letters": [
       "B",
       "C"
@@ -7185,9 +7206,9 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:S:5DDEAB4A:AEA38762E21850B09C028E204DA4AD07",
+   "qr": "SFA2:M:5DDEAB4A:2023001005",
    "qr_legivel": true,
-   "user_id": "aea38762-e218-50b0-9c02-8e204da4ad07",
+   "matricula_qr": "2023001005",
    "aluno": "Bruno Sintético 006",
    "matricula": null,
    "answers": {
@@ -7368,6 +7389,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "A",
      "letters": [
       "A",
       "B"
@@ -7467,6 +7489,7 @@
      "tolerated": [
       "multipla"
      ],
+     "letter": "C",
      "letters": [
       "C",
       "D"

@@ -4,8 +4,8 @@ import { gerarPdfSegundoPlano } from '../gerar.ts';
 
 const SIM = '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc';
 const ALUNOS = [
-  { userId: '7f3a9c21-5b1e-4f0a-9c3d-0123456789ab', nome: 'Maria Exemplo da Silva' },
-  { userId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', nome: 'Ana Teste' },
+  { matricula: '2023001234', nome: 'Maria Exemplo da Silva' },
+  { matricula: '2023001235', nome: 'Ana Teste' },
 ];
 const specs = () => montarSpecs({ layout: 'sfa', simuladoId: SIM, ies: 'IES', alunos: ALUNOS });
 

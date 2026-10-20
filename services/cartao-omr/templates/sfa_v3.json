@@ -1,5 +1,5 @@
 {
-  "template_version": "sfa_v2",
+  "template_version": "sfa_v3",
   "layout": "sfa",
   "conventions": {
     "units": "mm",
@@ -22,12 +22,12 @@
   "qr": {
     "error_level": "Q",
     "quiet_modules": 4,
-    "payload_format": "SFA2:S:<SIM8>:<UID32> (sfa) | SFA2:A:<SIM8> (uniatenas); maiúsculas, hex sem hífens",
-    "example": "SFA2:S:FFFFFFFF:FFFFFFFFFFFF4FFFBFFFFFFFFFFFFFFF",
+    "payload_format": "SFA2:M:<SIM8>:<MATRICULA>; maiúsculas, matrícula [A-Z0-9./-] de 1 a 24 caracteres",
+    "example": "SFA2:M:FFFFFFFF:AAAAAAAAAAAAAAAAAAAAAAAA",
     "worst_case": {
-      "version": 4,
-      "modules": 33,
-      "module_mm": 0.7317
+      "version": 3,
+      "modules": 29,
+      "module_mm": 0.8108
     }
   },
   "alternatives": [
@@ -640,7 +640,8 @@
   },
   "matricula": null,
   "crops_mm": {
-    "nome": [20.0, 30.0, 150.0, 41.0]
+    "nome": [20.0, 30.0, 150.0, 41.0],
+    "matricula_impressa": [20.0, 50.0, 92.0, 61.0]
   },
   "blocks_mm": {
     "titulo": [20.0, 20.0, 150.0, 28.0],
@@ -649,7 +650,7 @@
     "instrucoes": [98.0, 44.0, 150.0, 108.0],
     "grade": [20.0, 116.0, 190.0, 276.0]
   },
-  "draw_version": 1,
+  "draw_version": 2,
   "draw": [
     {"op": "rect", "x0": 8.0, "y0": 8.0, "x1": 15.0, "y1": 15.0, "fill": "#000000"},
     {"op": "rect", "x0": 195.0, "y0": 8.0, "x1": 202.0, "y1": 15.0, "fill": "#000000"},
@@ -664,17 +665,20 @@
     {"op": "qr", "box": [158.0, 20.0, 188.0, 50.0], "quiet": 4, "ec": "Q", "color": "#000000"},
     {"op": "text", "slot": "label", "x": 173.0, "y": 52.6, "font": "Helvetica", "size": 6.0, "color": "#404040", "align": "center"},
     {"op": "rect", "x0": 20.0, "y0": 44.0, "x1": 92.0, "y1": 108.0, "stroke": "#7f7f7f", "lw": 0.5},
-    {"op": "text", "x": 23.0, "y": 48.6, "s": "CARTÃO PESSOAL", "font": "Helvetica-Bold", "size": 10.0, "color": "#000000"},
-    {"op": "text", "x": 23.0, "y": 55.0, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 55.0, "s": "Confira se o nome acima de ALUNO é o seu.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 23.0, "y": 60.9, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 60.9, "s": "Se o nome não for o seu, avise o aplicador antes de", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 64.6, "s": "marcar qualquer resposta.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 23.0, "y": 70.5, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 70.5, "s": "Não troque de cartão com colegas.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 23.0, "y": 76.4, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 76.4, "s": "Este cartão é identificado automaticamente: não", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 80.1, "s": "escreva nem cole nada sobre o código QR.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 23.0, "y": 48.6, "s": "MATRÍCULA", "font": "Helvetica-Bold", "size": 10.0, "color": "#000000"},
+    {"op": "text", "slot": "matricula", "x": 23.0, "y": 58.0, "font": "Courier-Bold", "size": 16.0, "color": "#000000", "max_w": 66.0, "min_size": 9.0},
+    {"op": "line", "x0": 23.0, "y0": 61.0, "x1": 89.0, "y1": 61.0, "color": "#7f7f7f", "lw": 0.5},
+    {"op": "text", "x": 23.0, "y": 67.0, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 67.0, "s": "Confira se o nome (ALUNO) e a matrícula impressos", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 70.7, "s": "neste cartão são os seus.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 23.0, "y": 76.6, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 76.6, "s": "Se não forem os seus, avise o aplicador antes de", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 80.3, "s": "marcar qualquer resposta.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 23.0, "y": 86.2, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 86.2, "s": "Não troque de cartão com colegas.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 23.0, "y": 92.1, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 92.1, "s": "Este cartão é identificado automaticamente pelo", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 95.8, "s": "código QR: não escreva nem cole nada sobre ele.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
     {"op": "rect", "x0": 98.0, "y0": 44.0, "x1": 150.0, "y1": 108.0, "stroke": "#7f7f7f", "lw": 0.5},
     {"op": "text", "x": 101.0, "y": 48.6, "s": "INSTRUÇÕES", "font": "Helvetica-Bold", "size": 10.0, "color": "#000000"},
     {"op": "text", "x": 101.0, "y": 54.6, "s": "•", "font": "Helvetica", "size": 7.0, "color": "#000000"},

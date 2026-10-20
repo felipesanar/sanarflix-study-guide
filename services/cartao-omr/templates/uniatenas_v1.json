@@ -22,7 +22,7 @@
   "qr": {
     "error_level": "Q",
     "quiet_modules": 4,
-    "payload_format": "SFA2:S:<SIM8>:<UID32> (sfa) | SFA2:A:<SIM8> (uniatenas); maiúsculas, hex sem hífens",
+    "payload_format": "SFA2:A:<SIM8>; maiúsculas, hex sem hífens",
     "example": "SFA2:A:FFFFFFFF",
     "worst_case": {
       "version": 1,

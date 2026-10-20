@@ -6,17 +6,18 @@
  * rodar no Vite, no Vitest e direto no Node (`services/cartao-omr/tools/emitir_ts.mts`).
  */
 import type { jsPDF } from 'jspdf';
-import { buildPayload } from './payload.ts';
+import { buildPayload, normalizarMatricula } from './payload.ts';
 import { encodeQr } from './qr.ts';
 import type { CardSpec, CardTemplate, DrawOp } from './types.ts';
 
 const PT_MM = 25.4 / 72;
 
-type Slot = 'titulo' | 'subtitulo' | 'aluno' | 'label';
+type Slot = 'titulo' | 'subtitulo' | 'aluno' | 'matricula' | 'label';
 
 function fonte(nome: string): [string, 'normal' | 'bold'] {
   if (nome === 'Helvetica') return ['helvetica', 'normal'];
   if (nome === 'Helvetica-Bold') return ['helvetica', 'bold'];
+  if (nome === 'Courier-Bold') return ['courier', 'bold'];
   throw new Error(`fonte desconhecida no template: ${nome}`);
 }
 
@@ -36,6 +37,7 @@ export function slotValues(spec: CardSpec): Record<Slot, string> {
     titulo: 'CARTÃO-RESPOSTA' + (spec.nomeSimulado ? ` — ${spec.nomeSimulado}` : ''),
     subtitulo: partes.join('  •  '),
     aluno: spec.model === 'personalizado' ? (spec.alunoNome ?? '') : '',
+    matricula: spec.model === 'personalizado' ? normalizarMatricula(spec.matricula) : '',
     label: spec.label ?? '',
   };
 }
