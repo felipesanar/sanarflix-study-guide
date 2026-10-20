@@ -1,6 +1,25 @@
-# Cartões-resposta — mapa do projeto (estado em 16/10/2026, depois da reorganização das pastas)
+# Cartões-resposta — mapa do projeto (estado em 16/10/2026; atualizado em 20/10/2026 com a decisão abaixo)
 
 Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada coisa, o que está pronto e por onde continuar.**
+
+> ## ⚠ DECISÃO DE 20/10/2026 — leia antes do resto (ela substitui o que estiver em conflito abaixo)
+> - Os cartões **não identificam mais o aluno pelo ID (`user_id`) em QR**. Cada cartão deve trazer **o nome e a matrícula do aluno já impressos**. Exceção: o grupo **UniAtenas segue como hoje** (cartão único, sem personalização; o aluno preenche seus dados).
+> - **Descartados como bloqueio do projeto:** as correções **F1** (`session-security`) e **F2** (`gestor-ai-insights`), a auditoria **P8** e os achados **F1 a F6**. A importação por ID (P6) já está na `main` e fica como está.
+> - **As branches de F1 e F2 foram apagadas** (só existiam no computador) e as pastas, fechadas. O código está em backup: `C:\Users\joao.nader\work\_backup\` (bundle `sanarflix-2026-10-20.bundle` e patches `patches-f1`, `patches-f2`).
+> - O **PRD rev. 7 está DESATUALIZADO** em tudo que toca ID/QR/`user_id` (cartão pessoal por QR, P6, P8, Fase 2 por `user_id`). Não o use para desenhar o cartão novo.
+> - O **cartão novo** (nome + matrícula impressos, como a máquina identifica o aluno, alunos sem matrícula, tela de emissão e planilha) é trabalho de **outra sessão**. Nada disso foi desenhado aqui.
+> - **Perguntas em aberto** para essa sessão: (1) como a máquina identifica o aluno se nome e matrícula estão só impressos (QR com a matrícula, sem o `user_id`; código de barras; OCR determinístico, já que o projeto proíbe LLM); (2) o que fazer com alunos sem matrícula cadastrada (`matricula_ra` vazia em várias IES; no UniAtenas ~15% sem matrícula e 5 cadastros `99-G-99999`); (3) UniAtenas: o pedido falou em "nome e email", mas o cartão atual tem matrícula em bolhas + nome manuscrito, sem email; (4) o que reaproveitar da emissão em TypeScript e do leitor, e o que mudar na planilha.
+>
+> ### Backlog de segurança do Academy (fora do projeto dos cartões; o João decide quando fazer)
+> Deixaram de bloquear os cartões, mas **continuam sendo falhas reais do Academy**, independentes deles. Detalhes em `p8-auditoria-user-id.md`.
+> | # | Gravidade | Problema | Situação |
+> |---|---|---|---|
+> | F1 | Alta | `session-security`: qualquer pessoa com um `user_id` derruba as sessões desse usuário, sem login. | Conserto existia (`a445c712`, 21 testes); só no backup (patch em `_backup\patches-f1`). |
+> | F2 | Média | `gestor-ai-insights`: devolve texto de IA sobre um aluno antes de checar se quem pede é gestor da IES. | Conserto existia (`7ae97889`, 22 testes); só no backup (patch em `_backup\patches-f2`). |
+> | F4 | Média | `send-study-reminder` é um relé de e-mail aberto. | Nada feito. |
+> | F5 | Baixa | `check-and-send-reminders` e `notify-performance-released` podem ser disparadas por qualquer um. | Nada feito. |
+>
+> (F3 e F6 também constam na auditoria, como baixa e higiene, sem conserto.)
 
 ## 1. O projeto em três linhas
 O time da Sanar emite **cartões-resposta em PDF** (um por aluno, com o ID do aluno em QR). A IES imprime, aplica a prova e devolve o scan. Um **script local** lê o scan e gera a planilha de respostas, que o admin importa no Academy. Especificação completa: `docs/prd/2026-10-07-cartoes-resposta.md`.
@@ -24,8 +43,8 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 |---|---|---|
 | `sanarflix-principal` | `main` | Repositório central, **parado na `main`**. Não se edita; serve para criar pastas novas e consultar. |
 | **`sanarflix-cartoes`** | `feat/cartoes-resposta` | **Projeto dos cartões.** As Fases 2 e 3 acontecem aqui. |
-| `sanarflix-fix-f1-session-security` | `fix/session-security-auth` | Correção F1. |
-| `sanarflix-fix-f2-gestor-ai` | `fix/gestor-ai-insights-authz-antes-do-cache` | Correção F2. |
+| ~~`sanarflix-fix-f1-session-security`~~ | ~~`fix/session-security-auth`~~ | **Fechada em 20/10/2026** (descartada; backup em `work\_backup`). |
+| ~~`sanarflix-fix-f2-gestor-ai`~~ | ~~`fix/gestor-ai-insights-authz-antes-do-cache`~~ | **Fechada em 20/10/2026** (descartada; backup em `work\_backup`). |
 
 **Regra de ouro: uma tarefa = uma pasta = uma sessão do Claude.** Abra o Claude **na pasta da tarefa**. O Claude guarda memória e contexto por pasta, e foi abrir várias sessões na mesma pasta que embaralhou as branches. Para uma tarefa nova: `.\nova-tarefa.ps1 -Nome <nome> -Branch <branch>` (na pasta `work`); para fechar: `.\encerrar-tarefa.ps1 -Nome <nome>`.
 
@@ -35,9 +54,9 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | Branch | O que tem | No GitHub? |
 |---|---|---|
 | `main` | O produto publicado (Lovable). Nada dos cartões entrou aqui ainda. | sim |
-| **`feat/cartoes-resposta`** | **Todo o projeto dos cartões**: PRD, serviço Python, leitor, emissão em TypeScript, tela. | **parcial:** o GitHub tem até a **Fase 1**. A **Fase E**, os documentos novos e **todas as tags** só existem no seu computador. |
-| `fix/session-security-auth` | Correção **F1** (1 commit). | **não** |
-| `fix/gestor-ai-insights-authz-antes-do-cache` | Correção **F2** (1 commit). | **não** |
+| **`feat/cartoes-resposta`** | **Todo o projeto dos cartões**: PRD, serviço Python, leitor, emissão em TypeScript, tela. | **sim**, até `b83f79e4` (conferido em 20/10/2026). As tags `cartoes-fase-0`, `-0.1`, `-0.2`, `-1` e `-e` também estão no GitHub (publicadas em 20/10/2026). |
+| ~~`fix/session-security-auth`~~ | Correção **F1**. | **apagada** (nunca foi publicada; backup em `work\_backup`) |
+| ~~`fix/gestor-ai-insights-authz-antes-do-cache`~~ | Correção **F2**. | **apagada** (nunca foi publicada; backup em `work\_backup`) |
 
 ## 4. O que está pronto
 | Etapa | Estado | Tag |
@@ -47,6 +66,8 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | **Fase E** (emissão em TypeScript + tela) | **Pronta** no código e nos testes. Falta o **aceite físico** (imprimir e escanear). | `cartoes-fase-e` |
 | **Fase 2** (ligar ao banco, identificar o aluno, gerar a planilha) | **Não começou.** Começa por um portão de produção (criar o papel `cartao_omr_reader`), que precisa da sua aprovação. | – |
 | **Fase 3** (piloto real e manual de uso) | **Não começou.** Precisa de cartões impressos e preenchidos por voluntários. | – |
+
+> **Atenção (20/10/2026):** as seções 5 a 7 abaixo descrevem o plano **anterior** à decisão de 20/10 (cartão pessoal por QR com `user_id`). Mantidas só como histórico: **P5, P6, P8, F1 a F6 e a "Fase 2 por `user_id`" não valem mais como bloqueio ou como plano.** Vale a decisão do topo deste arquivo.
 
 ## 5. Pendências P1 a P8
 | # | O que é | Estado | Quem |

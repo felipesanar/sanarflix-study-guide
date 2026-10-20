@@ -34,6 +34,11 @@
   - **Fase E concluída (E1 + E2):** a emissão dos cartões roda no navegador, em TypeScript, a partir dos templates, sem serviço externo. Há uma nova aba **Cartões-resposta** em Admin → Simulados.
   - Os templates agora carregam a **lista de desenho** (`draw`): Python e TypeScript só a interpretam.
   - QR em TypeScript, sem dependência nova, idêntico ao do `segno` módulo a módulo.
+- **Decisão de 20/10/2026 (sem nova revisão do texto; o PRD abaixo NÃO foi reescrito):**
+  - **Este PRD (rev. 7) está DESATUALIZADO em tudo que toca ID/QR/`user_id`**: cartão pessoal com QR do `user_id`, P6, P8 e a Fase 2 por `user_id`.
+  - O cartão novo traz **nome e matrícula impressos, sem ID/QR**; no grupo **UniAtenas** segue como hoje (cartão único, aluno preenche).
+  - **F1, F2, P8 e os achados F1 a F6 foram descartados como bloqueio.** Ficam registrados como backlog de segurança do Academy em `cartoes-resposta-handoff/LEIA-ME.md`.
+  - O desenho do cartão novo é trabalho de outra sessão. Perguntas em aberto no mesmo `LEIA-ME.md`.
 - **Status:** aprovado para implementação da **V0**. A V1 está só em direção.
 - **Executor previsto:** Claude Code com Sonnet 5.5, **uma fase por sessão**.
 
