@@ -34,11 +34,13 @@
   - **Fase E concluída (E1 + E2):** a emissão dos cartões roda no navegador, em TypeScript, a partir dos templates, sem serviço externo. Há uma nova aba **Cartões-resposta** em Admin → Simulados.
   - Os templates agora carregam a **lista de desenho** (`draw`): Python e TypeScript só a interpretam.
   - QR em TypeScript, sem dependência nova, idêntico ao do `segno` módulo a módulo.
-- **Decisão de 20/10/2026 (sem nova revisão do texto; o PRD abaixo NÃO foi reescrito):**
-  - **Este PRD (rev. 7) está DESATUALIZADO em tudo que toca ID/QR/`user_id`**: cartão pessoal com QR do `user_id`, P6, P8 e a Fase 2 por `user_id`.
-  - O cartão novo traz **nome e matrícula impressos, sem ID/QR**; no grupo **UniAtenas** segue como hoje (cartão único, aluno preenche).
-  - **F1, F2, P8 e os achados F1 a F6 foram descartados como bloqueio.** Ficam registrados como backlog de segurança do Academy em `cartoes-resposta-handoff/LEIA-ME.md`.
-  - O desenho do cartão novo é trabalho de outra sessão. Perguntas em aberto no mesmo `LEIA-ME.md`.
+- **Revisão 8 (20/10/2026): cartão com nome e matrícula impressos.** Decisão do João em 20/10/2026, que **substitui** o `user_id` em QR (as seções abaixo foram atualizadas; o que sobrou de `user_id` está marcado como histórico):
+  - O cartão pessoal (`sfa`, template `sfa_v3`) traz **nome e matrícula impressos** e a **matrícula também no QR** (`SFA2:M:<SIM8>:<MATRICULA>`). O tipo `S` (com `user_id`) deixou de existir.
+  - **UniAtenas segue como hoje** (cartão único, `uniatenas_v1`, QR `SFA2:A`, matrícula em bolhas e nome manuscrito); o PDF não mudou.
+  - **Aluno sem matrícula utilizável não recebe cartão:** a tela lista quem ficou de fora (sem matrícula, formato fora do aceito, repetida) e baixa um CSV para corrigir o cadastro.
+  - **Fase 2 sem banco:** o leitor só lê o PDF; a coluna 1 da planilha é a matrícula (a mesma que a importação casa com `users.matricula_ra`). Sem papel `cartao_omr_reader`, sem `psycopg`, sem credencial. Quem confere se a matrícula existe é o dry-run da importação.
+  - **F1, F2, P8 e os achados F1 a F6 deixaram de bloquear** o projeto; viraram backlog de segurança do Academy (`cartoes-resposta-handoff/LEIA-ME.md`).
+  - Código e testes: handoff `cartoes-resposta-handoff/fase-matricula.md`.
 - **Status:** aprovado para implementação da **V0**. A V1 está só em direção.
 - **Executor previsto:** Claude Code com Sonnet 5.5, **uma fase por sessão**.
 
@@ -59,14 +61,14 @@ A maioria das IES aplica os cartões, escaneia e já manda a planilha. Algumas m
 
 **Princípio:** **nenhuma LLM.** Como nós desenhamos o cartão, tudo nele é legível por visão computacional determinística:
 - **Bolhas:** lidas por OMR.
-- **Identificação do aluno:** por **QR code** com o `user_id` (no UniAtenas, por **matrícula em bolhas**).
+- **Identificação do aluno:** por **QR code** com a **matrícula** impressa no cartão (no UniAtenas, por **matrícula em bolhas**).
 - **Dúvidas:** vão para revisão humana.
 
 ### 1.1 Operação (decidida com o time em 16/10/2026)
-1. **Emissão:** uma tela dedicada do Academy (aba **Cartões-resposta**, em Admin → Simulados). O time interno da Sanar seleciona a **IES**, o **simulado** e os **alunos** que farão a prova. O sistema gera os cartões em PDF, para exportar e imprimir. Cada cartão é pessoal.
+1. **Emissão:** uma tela dedicada do Academy (aba **Cartões-resposta**, em Admin → Simulados). O time interno da Sanar seleciona a **IES**, o **simulado** e os **alunos** que farão a prova. O sistema gera os cartões em PDF, para exportar e imprimir. Cada cartão é pessoal, com o nome e a matrícula do aluno impressos.
 2. **Aplicação:** a IES imprime, aplica a prova, escaneia os cartões preenchidos num único PDF e devolve à Sanar.
-3. **Extração:** o João roda o script **localmente** (na V1, na nuvem). O script gera a planilha com os alunos identificados pelo **ID do Academy**.
-4. **Importação:** o João faz o upload na tela atual. Para isso a importação precisa **aceitar o ID do aluno**; o João implementou isso em 16/10 (P6): a 1ª coluna aceita o ID do aluno ou a Matrícula/RA, sem precisar escolher.
+3. **Extração:** o João roda o script **localmente** (na V1, na nuvem). O script gera a planilha com os alunos identificados pela **matrícula** (a mesma da importação).
+4. **Importação:** o João faz o upload na tela atual. A 1ª coluna aceita Matrícula/RA (e, desde 16/10, também o ID do aluno, P6); o script usa a matrícula, então a importação não muda.
 5. Aluno sem cartão (extravio, chegou depois) recebe um cartão pessoal emitido na hora pela mesma tela. **Não há cartão genérico.** "Respondentes que não estavam na lista" não é um problema, confirmado pelo time.
 
 Fora do script e deste PRD (trabalho do Academy): a **tela de emissão** (P7) e a **importação por ID** (P6, já entregue).
@@ -78,7 +80,7 @@ Fora do script e deste PRD (trabalho do Academy): a **tela de emissão** (P7) e 
 | Onde roda | Máquina do João (Windows), por linha de comando | N8N self-hosted da empresa (a confirmar) ou, se não der, outro host |
 | Entrada | PDF recebido do Relacionamento por Slack ou Notion | Pasta do Google Drive monitorada pelo N8N |
 | Saída | `.xlsx` (Respostas + Pendências) + recortes das dúvidas, numa pasta local | O mesmo `.xlsx` devolvido numa pasta do Drive, com aviso no Slack |
-| Importação | Manual, pela tela atual (com ID do aluno, P6) | Manual (automatizar fica para depois) |
+| Importação | Manual, pela tela atual (pela matrícula) | Manual (automatizar fica para depois) |
 | Custo novo | Zero | Zero, se usar o N8N existente |
 | Banco | Somente leitura | Somente leitura |
 
@@ -104,12 +106,10 @@ Fora do script e deste PRD (trabalho do Academy): a **tela de emissão** (P7) e 
 2. **Uma fase por sessão.** Não adiantar outra fase. O que pertencer a outra fase vai para "Notas para a próxima fase", no handoff.
 3. **Sem LLM.** Não adicionar dependência, chamada ou chave de qualquer provedor de LLM.
 4. **Supabase de produção** (ref `gvqvrmkizemwsasmupmo`). Confirmar o ref antes de qualquer chamada.
-   - O script **só lê** as tabelas `simulados_admin`, `questoes_simulado`, `users` e `ies`.
-   - **Credencial:** um papel Postgres de **somente leitura** dedicado, `cartao_omr_reader`, com `SELECT` apenas nas colunas necessárias. Ele é criado na Fase 2, com **aprovação explícita do João** (portão de produção).
-   - A string de conexão fica em `services/cartao-omr/.env`, que **nunca** é commitado: incluir no `.gitignore` e criar um `.env.example` sem segredos.
-   - **Proibido** usar a service role key no script.
+   - **Rev. 8: o script não acessa o banco.** O papel `cartao_omr_reader`, a string de conexão e o `.env` deixaram de existir. A tela de emissão só lê (com a sessão do admin) e o leitor só lê arquivos.
+   - **Proibido** usar a service role key em qualquer script.
 5. **Dados pessoais.** PDFs, PNGs e xlsx reais de alunos **nunca** entram no Git. O `.gitignore` cobre `services/cartao-omr/runs/` e `*.pdf` fora de `templates/` e `tests/fixtures/`. As fixtures são sempre sintéticas, com nomes falsos.
-6. **Windows primeiro.** A V0 roda na máquina do João (Windows 11). Toda dependência precisa ter wheel para Windows: `pymupdf`, `opencv-python-headless`, `numpy`, `zxing-cpp`, `segno`, `reportlab`, `openpyxl`, `psycopg[binary]`, `rapidfuzz`, `typer` e `pytest`. **Evitar `pyzbar`**, que depende de DLL externa.
+6. **Windows primeiro.** A V0 roda na máquina do João (Windows 11). Toda dependência precisa ter wheel para Windows: `pymupdf`, `opencv-python-headless`, `numpy`, `zxing-cpp`, `segno`, `reportlab`, `openpyxl`, `typer` e `pytest`. **Evitar `pyzbar`**, que depende de DLL externa.
 7. **Testes:**
    - O worker tem a própria suíte `pytest`, que precisa estar verde ao fim de cada fase.
    - A suíte do front (`npm run test:run`, baseline 385/385) só é rodada se a fase tocar fora de `services/`.
@@ -125,14 +125,14 @@ Fora do script e deste PRD (trabalho do Academy): a **tela de emissão** (P7) e 
 ## 5. O cartão SFA (novo modelo)
 Nós geramos o cartão **por código**, com `reportlab` + `segno`. O **gerador é a fonte da verdade**:
 - ele produz o PDF para impressão;
-- ele produz os templates `templates/sfa_v2.json` e `templates/uniatenas_v1.json`, com as coordenadas exatas que o leitor usa.
+- ele produz os templates `templates/sfa_v3.json` (era `sfa_v2`, rev. 8) e `templates/uniatenas_v1.json`, com as coordenadas exatas que o leitor usa.
 
 Imagens feitas por IA ou por designers servem **só de referência visual**. Não se mede posição em imagem.
 
 **Referência visual aprovada pelo time (13/10/2026):** `docs/prd/Modelo Cartão Resposta.png`. O gerador deve reproduzir essa aparência:
 - marcadores de canto e marcador de orientação;
 - cabeçalho com "ALUNO:" e QR à direita;
-- bloco à esquerda (no `sfa`, em vez do MATRÍCULA da referência, o quadro CARTÃO PESSOAL; no UniAtenas, o MATRÍCULA) e INSTRUÇÕES à direita;
+- bloco à esquerda (no `sfa`, o quadro MATRÍCULA com a matrícula **impressa**; no UniAtenas, o MATRÍCULA em bolhas) e INSTRUÇÕES à direita;
 - grade de 4 × 25 questões;
 - rodapé.
 
@@ -143,20 +143,23 @@ Os dois modelos têm o mesmo layout geral. Mudam o bloco esquerdo e o QR.
 
 | Modelo (`layout`) | Quando | Identificação | QR |
 |---|---|---|---|
-| **Personalizado** (`sfa`) | **Todas as provas**, exceto UniAtenas. Um cartão por aluno, emitido pela tela do Academy. | Nome impresso após "ALUNO:" + QR com o `user_id`. Não há matrícula em bolhas. | `SFA2:S:<SIM8>:<UID32>` |
+| **Personalizado** (`sfa`) | **Todas as provas**, exceto UniAtenas. Um cartão por aluno, emitido pela tela do Academy. | Nome impresso após "ALUNO:", matrícula impressa em destaque e no QR. Não há matrícula em bolhas. | `SFA2:M:<SIM8>:<MATRICULA>` |
 | **UniAtenas** (`uniatenas`) | Todas as provas do grupo UniAtenas. Sem personalização: o mesmo PDF é impresso para todos. | Matrícula em bolhas `NN-X-NNNNN` (5.2.1) + nome manuscrito | `SFA2:A:<SIM8>` |
 
 **Formato do QR** (texto em maiúsculas, para o QR usar o modo alfanumérico, mais compacto):
 - `SIM8`: 8 primeiros caracteres hexadecimais do `simulado_id` (UUID), usado só para detectar cartão de outro simulado.
-- `UID32`: `user_id` sem hífens.
+- `MATRICULA`: `matricula_ra` do cadastro, em maiúsculas e sem espaços nas pontas; só `A-Z`, `0-9`, `.`, `/` e `-`, de 1 a 24 caracteres (alfabeto do modo alfanumérico do QR). É o último campo do texto.
 - Prefixo `SFA2`. O prefixo `SFA1` das revisões anteriores não existe mais.
+- O tipo antigo `S` (com `user_id`) **foi removido** na rev. 8 e nenhum cartão real foi impresso com ele.
 - O QR do UniAtenas **não tem número de série**. Se a IES fotocopiar um único cartão, nada quebra.
 
-**Por que `user_id`:** `users.matricula_ra` está vazia ou quase vazia em várias IES (UEA, Claretiano, USCS, FAI e outras) e cada IES segue um formato (o Integrado tem letras). O `user_id` é interno, único e existe para todo aluno cadastrado. Ele só funciona **pré-impresso**: o aluno não consegue preenchê-lo à mão.
+**Por que a matrícula (rev. 8):** a importação do Academy já casa a 1ª coluna com `users.matricula_ra` dentro das IES do simulado; usar a mesma chave elimina a consulta ao banco no leitor e o `user_id` impresso. A matrícula não é segredo (está impressa no cartão), então o QR não expõe nada novo. O custo: **só recebe cartão quem tem matrícula utilizável** (ver abaixo).
 
-**Troca de cartão entre alunos** é o risco novo do cartão pessoal: as respostas iriam para a pessoa errada sem aviso. Mitigações: nome impresso em destaque, o quadro **CARTÃO PESSOAL** pedindo que o aluno confira o nome e a distribuição pela IES em ordem alfabética (o PDF já sai ordenado por nome).
+**Quem fica sem cartão:** a tela de emissão separa os alunos da IES em aptos e excluídos. São excluídos, e listados com o motivo e um CSV para corrigir o cadastro: **sem matrícula** (vazia); **formato não suportado** (fora de `[A-Z0-9./-]` ou com mais de 24 caracteres, inclusive com espaço no meio); **duplicada** (mesma matrícula normalizada em 2+ alunos da IES, como os 5 `99-G-99999`: todos os envolvidos saem, pois o cartão não diria de quem é). Sem matrícula cadastrada a importação também não casaria, então não há perda em recusar. Não há cartão genérico nem fallback com ID.
 
-**QR ilegível** (dobra, mancha, rasgo): a página vai para Pendências, com o recorte do nome impresso, e o João atribui o aluno. Não há matrícula de reserva no `sfa`.
+**Troca de cartão entre alunos** é o risco novo do cartão pessoal: as respostas iriam para a pessoa errada sem aviso. Mitigações: nome e matrícula impressos em destaque, avisos no quadro MATRÍCULA pedindo que o aluno confira os dois e a distribuição pela IES em ordem alfabética (o PDF já sai ordenado por nome).
+
+**QR ilegível** (dobra, mancha, rasgo): a página vai para Pendências com o recorte do **nome e da matrícula impressos** (`recortes/`), e o João atribui o aluno. A correção de erro nível Q recupera até ~25% do QR. Não há segunda leitura automática (OCR foi descartado: confunde 0/O e 1/I e quebra com rasura).
 
 ### 5.2 Especificação física (A4 retrato, 210 × 297 mm)
 As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm, desde que **todas** as coordenadas reais estejam no template.
@@ -175,10 +178,10 @@ As medidas são as do layout de referência. O gerador pode ajustar até ±1 mm,
   - **QR code** (x de 158 a 188, y de 20 a 50):
     - 30 × 30 mm já com a zona de silêncio (4 módulos brancos);
     - correção de erro nível **Q**;
-    - com o payload compacto, o QR do `sfa` é versão 4 (módulo de 0,73 mm) e o do UniAtenas é versão 1 (1,03 mm).
-    - Abaixo do QR, o código legível em texto de 6 pt: os 8 primeiros caracteres do `user_id`, em maiúsculas (no UniAtenas, `UNIATENAS`).
+    - com o payload compacto, o QR do `sfa` é, no pior caso (matrícula de 24 caracteres), versão 3 (módulo ≥ 0,75 mm) e o do UniAtenas é versão 1 (1,03 mm).
+    - Abaixo do QR, o código legível em texto de 6 pt: a matrícula, em maiúsculas (no UniAtenas, `UNIATENAS`).
   - **Bloco esquerdo** (x de 20 a 92, y de 44 a 108):
-    - **`sfa`:** quadro **CARTÃO PESSOAL** com avisos: conferir se o nome acima de ALUNO é o seu, avisar o aplicador se não for, não trocar de cartão e não escrever nem colar nada sobre o QR. Sem bolhas.
+    - **`sfa`:** quadro **MATRÍCULA** com a matrícula **impressa** (Courier-Bold, 16 pt, encolhe até 9 pt) e os avisos: conferir se o nome (ALUNO) e a matrícula são os seus, avisar o aplicador se não forem, não trocar de cartão e não escrever nem colar nada sobre o QR. Sem bolhas.
     - **`uniatenas`:** quadro MATRÍCULA em bolhas, conforme a seção 5.2.1.
   - **Instruções** (x de 98 a 150, y de 44 a 108):
     - "Use caneta esferográfica preta ou azul-escura."
@@ -230,11 +233,11 @@ IES escaneia os cartões preenchidos  →  PDF  →  João
 cartao-omr processar <pdf> --simulado <id> [--saida <pasta>]
         │
         ├─ lê do Supabase (papel somente leitura): simulado, questões, alunos das IES
-        ├─ por página: render → marcadores → homografia → QR (user_id) → OMR das respostas
+        ├─ por página: render → marcadores → homografia → QR (matrícula) → OMR das respostas
         │             (UniAtenas: + matrícula em bolhas)
-        ├─ identificação: QR → user_id │ UniAtenas: matrícula → user_id │ senão pendência
+        ├─ identificação: QR → matrícula │ UniAtenas: matrícula em bolhas │ senão pendência
         └─ escreve runs/<data>_<simulado>/
-              respostas_<simulado>.xlsx   (aba 1 "Respostas" no formato da importação, com o ID do aluno)
+              respostas_<simulado>.xlsx   (aba 1 "Respostas" no formato da importação, com a matrícula do aluno)
               recortes/pagina_<n>.png      (só páginas com pendência)
               relatorio.json
         ▼
@@ -242,9 +245,9 @@ João revisa a aba "Pendências", corrige a aba "Respostas" e importa pela tela 
 ```
 
 **Comandos:**
-- `cartao-omr gerar-cartoes --simulado <id> --roster <csv>`: um PDF com um cartão pessoal por aluno, ordenado por nome. Na V0 o roster é um CSV `user_id,nome[,ies]`; na emissão pelo Academy ele vem da tela (P7).
+- `cartao-omr gerar-cartoes --simulado <id> --roster <csv>`: um PDF com um cartão pessoal por aluno, ordenado por nome. Na V0 o roster é um CSV `matricula,nome[,ies]`; na emissão pelo Academy ele vem da tela (P7).
 - `cartao-omr gerar-cartoes --simulado <id> --modelo uniatenas [--copias 1]`: o PDF do UniAtenas, sem nome.
-- `cartao-omr modelo [--layout sfa|uniatenas]`: PDF de exemplo e template do layout (`templates/sfa_v2.json`, `templates/uniatenas_v1.json`).
+- `cartao-omr modelo [--layout sfa|uniatenas]`: PDF de exemplo e template do layout (`templates/sfa_v3.json`, `templates/uniatenas_v1.json`).
 - `cartao-omr processar`: **detecta o layout e o simulado pelo QR**. Se o QR não for lido, usa `--layout` (obrigatório quando o simulado tiver IES do grupo UniAtenas).
 
 **Estrutura:**
@@ -252,9 +255,9 @@ João revisa a aba "Pendências", corrige a aba "Respostas" e importa pela tela 
 services/cartao-omr/
   cartao_omr/      cli.py (typer), layout.py (constantes mm), drawlist.py (lista de desenho), card.py (template + PDF),
                    models.py (CardSpec, formato e leitura do QR), pipeline/{render,align,qr,omr}.py,
-                   identity.py, roster.py (CSV na Fase 0; psycopg só SELECT na Fase 2),
+                   processar.py, export_xlsx.py, roster.py (só CSV; sem banco, rev. 8),
                    export_xlsx.py, config.py
-  templates/       sfa_v2.json, uniatenas_v1.json, exemplo_*.pdf
+  templates/       sfa_v3.json, uniatenas_v1.json, exemplo_*.pdf
   tools/           make_fixtures.py, eval_accuracy.py, gen_qr_golden.py, emitir_ts.mts
   tests/           fixtures/ (sintéticas), test_*.py
   runs/            (gitignored)
@@ -263,10 +266,10 @@ services/cartao-omr/
 
 ## 7. Contratos
 
-### 7.1 Template `templates/sfa_v2.json`
+### 7.1 Template `templates/sfa_v3.json`
 ```json
 {
-  "template_version": "sfa_v2",
+  "template_version": "sfa_v3",
   "page_mm": [210, 297],
   "fiducials_mm": {"tl":[x,y,w], "tr":[...], "bl":[...], "br":[...], "orient":[x,y,w]},
   "qr_box_mm": [x0,y0,x1,y1],
@@ -278,7 +281,7 @@ services/cartao-omr/
 ```
 O template tem campos extras (`layout`, `conventions`, `useful_area_mm`, `qr`, `blocks_mm`). Em `fiducials_mm`, `[x, y, w]` é o **canto superior esquerdo** do quadrado e o lado.
 
-No `sfa_v2.json`, `matricula` é `null` (não há matrícula). No `uniatenas_v1.json`, a matrícula fica assim:
+No `sfa_v3.json`, `matricula` é `null` (não há matrícula em bolhas; a impressa é só texto e tem o recorte `crops_mm.matricula_impressa`). No `uniatenas_v1.json`, a matrícula fica assim:
 - `"format": "uniatenas"`, `"n_columns": 8`;
 - 8 colunas, cada uma com os símbolos `0`–`9`;
 - `"separators_after": [2, 3]`;
@@ -296,7 +299,7 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
 3. **Homografia:** usar os 4 centros dos marcadores e a posição deles no template. `align_score` é o erro de reprojeção em mm. Se passar de 1,5 mm, a página vira `pagina_ilegivel`.
 4. **QR:**
    - Ler com `zxing-cpp` no recorte retificado da área do QR, com fallback para a página inteira.
-   - Interpretar com `models.parse_qr`: prefixo `SFA2`, tipo (`S` personalizado ou `A` UniAtenas), `SIM8` e, no tipo `S`, o `user_id`. Comparar o `SIM8` com o de `--simulado`; se for outro, a página vira `simulado_divergente` e não é lida.
+   - Interpretar com `models.parse_qr`: prefixo `SFA2`, tipo (`M` personalizado ou `A` UniAtenas), `SIM8` e, no tipo `M`, a matrícula. Comparar o `SIM8` com o de `--simulado`; se for outro, a página vira `simulado_divergente` e não é lida.
    - O tipo do QR escolhe o template. O alinhamento pelos marcadores é igual nos dois layouts.
    - Se o QR não for lido mas os marcadores forem: no `sfa`, a página é lida normalmente, vira `qr_ilegivel` e fica **sem aluno** (revisão humana pelo recorte do nome impresso); no UniAtenas, usa `--layout uniatenas` e a identificação segue pela matrícula.
 5. **OMR (respostas e matrícula):**
@@ -314,23 +317,23 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
    - O `sfa` não tem matrícula: nada a ler.
 
 ### 7.3 Identificação (determinística)
-1. **QR personalizado (`S`):** o `user_id` do QR precisa estar entre os alunos das IES do simulado. Se não estiver, a página vira `aluno_fora_do_roster`.
-2. **QR ilegível no `sfa`:** a página vira `qr_ilegivel` + `aluno_nao_identificado`. Não há matrícula de reserva; o João atribui o aluno pelo recorte do nome impresso.
-3. **UniAtenas (`A`):** comparar a string `NN-X-NNNNN` com `upper(trim(matricula_ra))`. Não remover zeros, porque o formato é posicional. O candidato tem que ser único; zero candidatos ou mais de um viram `aluno_nao_identificado`. Não usar aproximação: matrícula em bolha não tem "erro de leitura de letra", e aproximar arriscaria trocar alunos. O resultado é convertido em `user_id`.
+1. **QR personalizado (`M`):** a matrícula do QR é a identificação (maiúsculas, sem conferir com o banco). Se a emissão deixou uma lista (`--lista`), matrícula fora dela vira o aviso `fora_da_lista`; matrícula da lista sem cartão devolvido aparece no Resumo. Quem valida contra o cadastro é o dry-run da importação.
+2. **QR ilegível:** a página vira `qr_ilegivel` e vai para a aba "Não identificados", com as respostas; o João atribui o aluno pelo recorte do nome e da matrícula impressos. Com `--layout uniatenas` a identificação segue pelas bolhas.
+3. **UniAtenas (`A`):** comparar a string `NN-X-NNNNN` com `upper(trim(matricula_ra))`. Não remover zeros, porque o formato é posicional. Não usar aproximação: matrícula em bolha não tem "erro de leitura de letra", e aproximar arriscaria trocar alunos. **Rev. 8:** a matrícula lida vai direto para a coluna 1; a existência e a unicidade no cadastro são conferidas pelo dry-run da importação.
 4. **Duplicidade:** o mesmo aluno em mais de uma página vira `aluno_duplicado` em **todas** essas páginas.
 
 ### 7.4 Saída: `respostas_<simulado>.xlsx`
 A ordem das abas importa: a tela de importação lê **só a primeira**, **por posição**.
 
 1. **`Respostas`** (primeira aba, no formato da importação):
-   - **Colunas:** exatamente `1 + N`, em que N é o `total_questoes` do simulado. A coluna 1 é o **`matricula_ra_ou_id`** (o `users.id`, UUID); as colunas 2 a N+1 são `Questão 1` … `Questão N`, em ordem. A linha 1 é o cabeçalho; a importação não lê mais colunas nem colunas fora de ordem.
+   - **Colunas:** exatamente `1 + N`, em que N é o `total_questoes` do simulado. A coluna 1 é o **`matricula_ra_ou_id`** (a matrícula lida do cartão, gravada como texto para preservar zeros e letras); as colunas 2 a N+1 são `Questão 1` … `Questão N`, em ordem. A linha 1 é o cabeçalho; a importação não lê mais colunas nem colunas fora de ordem.
    - **Linhas:** uma por aluno identificado e não duplicado. O valor é `A`–`D` ou vazio.
    - **Questões `multipla`/`ambigua`:** a célula fica vazia, com **fundo amarelo** e um comentário (`múltipla` ou `ambígua`, página N). O João decide e preenche.
-   - **Importação por ID (P6, entregue em 16/10):** a coluna 1 aceita o UUID do aluno (comparado sem diferenciar maiúsculas e ignorando espaços) ou a Matrícula/RA; o aluno precisa pertencer a uma IES do simulado e não pode repetir na planilha (nem por ID e RA ao mesmo tempo). O cabeçalho da coluna 1 é o do modelo da tela, `matricula_ra_ou_id`.
+   - **Importação (P6, entregue em 16/10):** a coluna 1 aceita a Matrícula/RA e também o UUID do aluno (comparado sem diferenciar maiúsculas e ignorando espaços) ou a Matrícula/RA; o aluno precisa pertencer a uma IES do simulado e não pode repetir na planilha (nem por ID e RA ao mesmo tempo). O cabeçalho da coluna 1 é o do modelo da tela, `matricula_ra_ou_id`.
 2. **`Pendências`**: uma linha por problema, com as colunas `pagina | tipo | questao | detalhe | recorte`.
-   - **tipos:** `aluno_nao_identificado`, `aluno_duplicado`, `aluno_fora_do_roster`, `matricula_invalida`, `qr_ilegivel`, `multipla`, `ambigua`, `pagina_ilegivel`, `simulado_divergente`.
+   - **tipos (rev. 8):** `qr_ilegivel`, `matricula_invalida` (UniAtenas), `aluno_duplicado` (mesma matrícula em 2+ páginas: nenhuma vai para `Respostas`), `multipla`, `ambigua`, `pagina_ilegivel`, `simulado_divergente`, `resposta_alem_do_simulado` (marca depois da questão N, com `--questoes N`) e `fora_da_lista`. Saíram `aluno_nao_identificado` e `aluno_fora_do_roster`.
    - O `recorte` é o caminho relativo do PNG em `recortes/`.
-3. **`Não identificados`**: as páginas sem aluno, com as respostas completas e a coluna `matricula_ra_ou_id` vazia. Depois de identificar o aluno pelo recorte do nome, o João preenche o ID e move a linha para `Respostas`.
+3. **`Não identificados`**: as páginas sem aluno, com as respostas completas e a coluna `matricula_ra_ou_id` vazia. Depois de identificar o aluno pelo recorte do nome e da matrícula, o João preenche a matrícula e move a linha para `Respostas`.
 4. **`Resumo`**:
    - simulado, IES, data e hora da execução;
    - total de páginas, em branco, ilegíveis, identificadas e não identificadas;
@@ -371,26 +374,16 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 - **Ressalva importante:** as fixtures separam demais as classes (toda marca "marcada" pontua ≥ 0,61; todo branco ≤ 0,08), então **qualquer** `T_ALTO` de 0,20 a 0,60 e `T_BAIXO` de 0,10 a 0,48 acerta 100%. O aceite prova que o pipeline funciona e que degradação de imagem não o derruba, mas **não prova** os limiares. Quem confirma é o piloto com cartões reais (Fase 3), onde a zona cinzenta (marca leve, rasura, caneta falhando) aparece de verdade.
 - **No-go:** se o aceite não for atingido depois da calibração, parar e reportar com números e exemplos. Não seguir para a Fase 2.
 
-### Fase 2 — Identificação, roster e planilha de saída
-- **Portão de produção:** com aprovação explícita do João, criar o papel `cartao_omr_reader` por migration aditiva em `supabase/migrations/<ts>_cartao_omr_reader.sql`:
-  - `LOGIN`, senha forte informada pelo João fora do Git;
-  - `GRANT SELECT` só em `simulados_admin(id, nome, ies_ids)`, `questoes_simulado(simulado_id, numero_questao, ordem)`, `users(id, nome, id_ies, matricula_ra)` e `ies(id, nome)`;
-  - nenhum outro privilégio.
-
-  Validar os grants pela `information_schema` depois de aplicar. Se a ferramenta for barrada pelo modo automático, avisar o João; **não contornar** com `execute_sql`.
-- **Entregáveis:**
-  - `roster.py`: conexão `psycopg` pela string do `.env`, só `SELECT`. Carrega uma vez o simulado, as questões e o roster das IES.
-  - `identity.py`: implementa a seção 7.3.
-  - `export_xlsx.py` (`openpyxl`): implementa a seção 7.4 (abas, cores e comentários), mais os recortes e o `relatorio.json`.
-  - CLI `cartao-omr processar` completo.
-  - `gerar-cartoes` passa a usar o roster do banco.
-  - Pastas de execução em `runs/<AAAA-MM-DD_HHMM>_<simulado>/`.
-- **Testes:**
-  - identificação: QR válido, QR de outro simulado, `user_id` fora do roster, aluno duplicado, QR personalizado ilegível (vai para Pendências sem aluno);
-  - UniAtenas: `12-3-45678` exata, coluna faltando, dois dígitos na mesma coluna (múltipla), matrícula ausente no roster (inclui `99-G-99999`, cadastro errado), matrícula repetida no roster;
-  - xlsx: a 1ª aba se chama `Respostas`, tem `matricula_ra_ou_id` + uma coluna por questão do simulado (1 + N) e as células de pendência ficam amarelas;
-  - **compatibilidade com a importação:** um teste que lê a aba 1 com as mesmas regras de `parseMatrizRespostas` e `isRespostaValida` (`importar-respostas-types.ts`): 1 + N colunas por posição e células só com A–E. Implementar em Python, espelhando aquele arquivo. A coluna 1 é lida como ID (P6 entregue).
-- **Aceite:** testes verdes; uma execução ponta a ponta sobre as fixtures, contra um simulado real em modo leitura, gerando um xlsx que o João abre e confere.
+### Fase 2 — Identificação e planilha de saída (rev. 8: sem banco)
+**Status: concluída no código** (handoff `fase-matricula.md`). Falta o aceite físico e o piloto da Fase 3.
+- **Mudança da rev. 8:** a identificação é a matrícula do cartão; **não há portão de produção**. O plano antigo (papel `cartao_omr_reader`, `psycopg`, roster do banco, `user_id`) foi descartado.
+- **Entregues:**
+  - `processar.py`: lê o PDF página a página, identifica pela matrícula (QR no `sfa`, bolhas no UniAtenas), marca duplicados e confere a `--lista` da emissão (opcional).
+  - `export_xlsx.py` (`openpyxl`): seção 7.4 (abas, cores e comentários), mais `recortes/` e `relatorio.json`.
+  - CLI `cartao-omr processar <pdf> --simulado <id> [--questoes N] [--lista csv] [--layout uniatenas] [--saida pasta]`.
+  - A tela de emissão baixa a **lista da emissão** (`matricula;nome`), que é a `--lista`.
+- **Testes:** identificação (QR válido, de outro simulado, ilegível, duplicado), UniAtenas (matrícula válida e inválida), planilha no formato da importação com um **espelho Python de `parseMatrizRespostas`** (1 + N colunas, A–E, sem repetição), dúvida em amarelo com comentário, `--questoes` menor que 100, `--lista`, CLI ponta a ponta.
+- **Aceite:** testes verdes (atendido); o João abre o xlsx de uma execução real e roda o dry-run da importação (**pendente**, Fase 3).
 
 ### Fase 3 — Piloto real e runbook
 - **Insumos do João:**
@@ -412,16 +405,17 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 
 ### Fase E — Emissão dos cartões em TypeScript (no Academy)
 **Status: concluída** (tag `cartoes-fase-e`, 16/10/2026). Detalhes no handoff `fase-e.md`.
-- **Decisão (16/10/2026):** o porte do gerador para TypeScript, lendo os templates, **no próprio Academy e sem chamar serviço externo**. O PDF é gerado no navegador do operador; nenhum nome ou `user_id` sai do Academy.
+- **Decisão (16/10/2026):** o porte do gerador para TypeScript, lendo os templates, **no próprio Academy e sem chamar serviço externo**. O PDF é gerado no navegador do operador; nenhum nome ou matrícula sai do Academy.
 - **Contrato:** o template traz a **lista de desenho** (`draw`, ver `cartao_omr/drawlist.py`): retângulos, círculos, linhas, textos (com *slots* para título, aluno e rótulo), numeração, bolhas e QR. O Python e o TypeScript **só interpretam** essa lista; nenhum dos dois tem medida própria. Mudar o layout é mudar `layout.py`, rodar `cartao-omr modelo` e commitar os JSON.
 - **Fase E1 — gerador (biblioteca):**
   - Python: `card.py` passou a desenhar o PDF **interpretando o `draw`**; o resultado ficou idêntico, pixel a pixel, ao da versão anterior.
   - TypeScript (`src/features/cartoes/`): `qr.ts` (gerador de QR nível Q, versões 1 a 9, **sem dependência nova**), `payload.ts` (formato `SFA2`), `render.ts` (interpretador com `jspdf`, que já era do projeto), `emitir.ts` (monta os cartões e o PDF), `emitir.worker.ts` e `gerar.ts` (geração em Web Worker, com fallback na thread principal).
   - **Paridade:** o QR do TypeScript é idêntico ao do `segno` em 86 vetores (versões 1 a 9); o PDF do TypeScript é gerado pelo Node (`tools/emitir_ts.mts`, o mesmo código do navegador) e conferido no suíte Python: QR lido pelo `zxing-cpp` com o payload esperado, QR idêntico ao do Python pixel a pixel, marcadores e bolhas no lugar do template, só preto e cinza, e o leitor da Fase 1 lê o cartão.
+- **Rev. 8 sobre a Fase E:** o QR ficou `SFA2:M`, o template `sfa_v3` (slot `matricula`, fonte Courier-Bold, `draw_version` 2 só no `sfa`) e a tela ganhou a classificação de alunos (aptos × excluídos), o CSV dos excluídos e a lista da emissão.
 - **Fase E2 — tela de emissão:** aba **Cartões-resposta**. O time escolhe simulado, IES e alunos (turma inteira marcada por padrão, com busca por nome ou matrícula), vê o modelo (pessoal ou UniAtenas, pré-selecionado para as IES do grupo) e baixa o PDF. Só lê (`simulados_admin`, `ies`, `users`, `user_roles`), com a sessão do admin; **nada é gravado**.
 - **Desempenho (medido no navegador):** 700 cartões em 13 s, PDF de 22,7 MB, com a tela sem travar (pausa máxima de 9 ms). A aba em segundo plano não atrasa a geração, porque ela roda no Worker.
 - **Aceite:** testes de paridade e do front verdes (atendido); o João imprime um cartão gerado pelo TypeScript e o leitor lê o scan (**pendente do João**).
-- **Portões:** nenhum de banco. **Antes da primeira impressão real, a P8 precisa estar fechada** (F1 e F2 corrigidas).
+- **Portões:** nenhum de banco. (Rev. 8: a P8 deixou de bloquear a impressão; ver LEIA-ME.)
 
 ## 9. V1 — direção (não detalhar em fases agora)
 - **Hospedagem, opção preferida (N8N self-hosted, a confirmar):**
@@ -430,7 +424,6 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
   - configurar o N8N com dados binários em disco (`filesystem`) e tempo limite adequado para PDFs grandes.
 - **Alternativa,** se o N8N não for self-hosted: o mesmo container em outro host. A decisão de custo fica para a V1.
 - **Segurança:**
-  - credencial `cartao_omr_reader` como secret do servidor;
   - pasta do Drive com acesso restrito;
   - regra de retenção, para apagar PDFs e saídas depois de X dias.
 - **Tela de emissão (parte da operação, seção 1.1):** decidido em 16/10 que ela gera o PDF **em TypeScript, lendo os templates, sem serviço externo** (Fase E). O serviço Python (`gerar-cartoes`) continua útil como referência e para testes de paridade. `templates/*.json` e o formato do QR (`SFA2`) são o contrato.
@@ -440,14 +433,14 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 | Risco | Mitigação |
 |---|---|
 | A IES imprime fora de escala ou em frente e verso | O guia da Fase 3; os marcadores e a homografia toleram escala; página ilegível vai para Pendências. |
-| **Troca de cartão** entre alunos (as respostas vão para a pessoa errada sem aviso) | Nome impresso em destaque, quadro CARTÃO PESSOAL, distribuição em ordem alfabética. Não há detecção automática. |
+| **Troca de cartão** entre alunos (as respostas vão para a pessoa errada sem aviso) | Nome e matrícula impressos em destaque, avisos no quadro MATRÍCULA, distribuição em ordem alfabética. Não há detecção automática. |
 | QR danificado ou fotocopiado | Módulo ≥ 0,7 mm, correção Q, instrução de não escrever sobre o QR; página vai para Pendências com o recorte do nome. |
 | Aluno sem cartão (extravio, chegou depois) | Emitir um cartão pessoal na hora pela tela do Academy. |
 | A IES continua usando o cartão antigo | Fora da V0: esses cartões seguem o processo manual. Relacionamento comunica o novo modelo. |
 | UniAtenas fotocopia o cartão (perda de nitidez, escala diferente) | QR sem número de série; os marcadores e a homografia toleram escala; o guia pede impressão direta do PDF sempre que possível. |
 | Alunos UniAtenas sem matrícula cadastrada (~15%) | Pendência com recorte do nome. Ação preventiva na seção 13. |
 | **Importação sem aceitar ID** (P6) | Bloqueia o uso ponta a ponta. É dependência do João, fora das fases do script. |
-| `user_id` impresso no QR pode ser lido por quem fotografar o cartão | Verificação dos endpoints e das políticas que aceitam `user_id` (checklist da P8) **antes da primeira impressão**. |
+| ~~`user_id` impresso no QR~~ **Superado na rev. 8:** o QR leva a matrícula, que já está impressa no cartão. A auditoria da P8 virou backlog de segurança do Academy. | – |
 | O PDF gerado em TS divergir do template | `draw` exportado pelo Python, teste de paridade (QR idêntico ao do Python, marcadores e bolhas no lugar) e QR lido pelo `zxing-cpp` (Fase E). Se o `layout.py` mudar, os testes falham até os templates serem regenerados. |
 | Dados pessoais vazarem pelo Git | `.gitignore` de `runs/` e de PDFs reais; fixtures só sintéticas. |
 | Credencial com poder demais | Papel somente leitura, com colunas mínimas; service role proibida. |
@@ -487,4 +480,4 @@ Ao final, siga a regra 8 da seção 4 (testes, commit, tag cartoes-fase-{N}, han
 | P5 | **Comunicação do cartão novo:** avisar às IES que o cartão é pessoal (um por aluno) e que o cartão antigo deixa de ser processado automaticamente. | Fase 3 | João / Relacionamento |
 | P6 | ~~Importação por ID do aluno~~ **Entregue em 16/10** pelo João (RPC `admin_lookup_users_by_id_in_ies`, Edge Function e tela). A 1ª coluna aceita UUID ou Matrícula/RA. | – | – |
 | P7 | ~~Como a tela de emissão gera o PDF~~ **Entregue em 16/10:** porte para TypeScript, lendo os templates, sem serviço externo (**Fase E**, seção 8). Falta o João imprimir um cartão gerado ali para o aceite. | – | – |
-| P8 | **Verificação dos endpoints que aceitam `user_id`: auditada em 16/10** (`handoff/p8-auditoria-user-id.md`). Resultado: **F1 (ALTA)** `session-security` derruba as sessões de qualquer UUID sem autenticação; **F2 (MÉDIA)** `gestor-ai-insights` devolve o cache de IA sobre um aluno sem checar papel/IES; F3 (BAIXA) `get_user_roles`/`has_role` revelam papéis a qualquer logado; F4 (fora do tema) `send-study-reminder` é um relé de e-mail aberto. RLS e funções do `anon` estão corretos. **Pendente:** corrigir F1 e F2 (e decidir F3), e conferir storage e `cron.job`. | **Antes de imprimir os primeiros cartões reais** (piloto da Fase 3 e Fase E2) | João / equipe do Academy |
+| P8 | ~~**Rev. 8: deixou de bloquear**~~ (backlog de segurança do Academy). **Verificação dos endpoints que aceitam `user_id`: auditada em 16/10** (`handoff/p8-auditoria-user-id.md`). Resultado: **F1 (ALTA)** `session-security` derruba as sessões de qualquer UUID sem autenticação; **F2 (MÉDIA)** `gestor-ai-insights` devolve o cache de IA sobre um aluno sem checar papel/IES; F3 (BAIXA) `get_user_roles`/`has_role` revelam papéis a qualquer logado; F4 (fora do tema) `send-study-reminder` é um relé de e-mail aberto. RLS e funções do `anon` estão corretos. **Pendente:** corrigir F1 e F2 (e decidir F3), e conferir storage e `cron.job`. | **Antes de imprimir os primeiros cartões reais** (piloto da Fase 3 e Fase E2) | João / equipe do Academy |

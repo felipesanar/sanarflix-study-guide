@@ -1,18 +1,18 @@
 # cartao-omr
 
 Correção automática de cartões-resposta do SanarFlix Academy (PDF digitalizado → planilha de importação).
-**V0, local, sem LLM.** Especificação completa em `docs/prd/2026-10-07-cartoes-resposta.md` (revisão 4).
+**V0, local, sem LLM.** Especificação completa em `docs/prd/2026-10-07-cartoes-resposta.md` (revisão 8).
 
-> **Estado: Fases 0, 1 e E.** Existem o gerador do cartão, os templates, as fixtures sintéticas, o pipeline de leitura
-> de uma página (`cartao_omr/pipeline/`) e a emissão dos cartões no Academy, em TypeScript. O comando `processar` (banco, identificação e planilha) entra na Fase 2;
-> o runbook completo, na Fase 3.
+> **Estado: Fases 0, 1, 2 e E (rev. 8).** Existem o gerador do cartão, os templates, as fixtures sintéticas, o pipeline de leitura
+> de uma página (`cartao_omr/pipeline/`), a emissão dos cartões no Academy, em TypeScript, e o comando `processar` (PDF -> planilha, sem banco).
+> Falta o aceite físico (imprimir e escanear) e o piloto; o runbook completo entra na Fase 3.
 
 ## Como a operação funciona
 
 1. Uma tela do Academy (a construir) emite os cartões: o time seleciona a IES, o simulado e os alunos. O PDF sai pronto para imprimir.
-2. **Cada cartão é pessoal**: traz o nome do aluno e um QR com o `user_id` dele. Não há cartão genérico.
+2. **Cada cartão é pessoal**: traz o **nome e a matrícula** do aluno impressos e a matrícula também num QR. Não há cartão genérico. Aluno sem matrícula utilizável no cadastro (vazia, fora do formato ou repetida) não recebe cartão: a tela lista quem ficou de fora e baixa um CSV.
 3. A IES aplica a prova, escaneia os cartões preenchidos num PDF e devolve.
-4. O script lê o PDF localmente e gera a planilha de respostas, com os alunos identificados pelo ID no Academy. A importação aceita o ID (a cargo do João).
+4. O script (`cartao-omr processar`) lê o PDF localmente, **sem banco**, e gera a planilha de respostas com a matrícula na coluna 1: é a chave que a importação do Academy já casa com `users.matricula_ra`.
 
 Exceção: o grupo **UniAtenas** usa um cartão único, sem personalização, em que o aluno marca a matrícula em bolhas (`NN-X-NNNNN`).
 
@@ -35,7 +35,7 @@ Teste:
 .venv\Scripts\python.exe -m pytest
 ```
 
-## Comandos (Fase 0)
+## Comandos
 
 ```bash
 # Template JSON + PDF de exemplo dos dois layouts (padrão: templates/)
@@ -48,11 +48,18 @@ cartao-omr gerar-cartoes --simulado <uuid-do-simulado> --roster roster.csv \
 
 # Cartão UniAtenas (o mesmo PDF serve para todos os alunos)
 cartao-omr gerar-cartoes --simulado <uuid-do-simulado> --modelo uniatenas --copias 1
+
+# PDF escaneado -> respostas_<simulado>.xlsx (+ recortes/ e relatorio.json), sem banco
+cartao-omr processar scan.pdf --simulado <uuid-do-simulado> --questoes 100 \
+    --lista lista_da_emissao.csv          # opcional: baixada na tela de emissão
+cartao-omr processar scan.pdf --simulado <uuid> --layout uniatenas   # se o QR do UniAtenas não for lido
 ```
 
 Sem instalar o script, use `.venv\Scripts\python.exe -m cartao_omr <comando>`.
 
-- `--simulado` e os `user_id` do `roster.csv` (`user_id,nome`, opcional `ies`) precisam ser UUIDs. **Nesta fase o roster é um CSV falso**; a tela do Academy e o banco entram depois.
+- `--simulado` precisa ser um UUID. O `roster.csv` é `matricula,nome` (opcional `ies`); a matrícula usa só `A-Z`, `0-9`, `.`, `/` e `-` (até 24 caracteres) e não pode se repetir. Na emissão pelo Academy a lista vem da tela.
+- `processar`: `--questoes N` é o total de questões do simulado (a planilha tem exatamente `1 + N` colunas, como a importação exige; marcas depois da questão N viram pendência). Saída padrão em `runs/processar_<simulado>/`.
+  Abas do xlsx: `Respostas` (a única que a importação lê), `Pendências`, `Não identificados`, `Resumo`. Dúvidas (`multipla`/`ambigua`) ficam em branco, amarelas e com comentário. A coluna 1 é texto (preserva zeros e letras).
 - A saída padrão de `gerar-cartoes` é `runs/cartoes_<simulado>/`, que está no `.gitignore`.
   PDFs com nomes de alunos reais **nunca** entram no Git.
 - Impressão: só frente, escala 100% (sem "ajustar à página"), A4, papel de 75 a 90 g/m².
@@ -67,7 +74,9 @@ Sem instalar o script, use `.venv\Scripts\python.exe -m cartao_omr <comando>`.
 | `align.py` | acha os 4 marcadores de canto e o de orientação, calcula a homografia mm → pixel (qualquer rotação: 0°, 90°, 180°, 270°) e retifica a página |
 | `qr.py` | lê o QR (`zxing-cpp`) e interpreta com `models.parse_qr` |
 | `omr.py` | mede a tinta em cada bolha e classifica: `marcada`, `branco`, `multipla` ou `ambigua`; lê a matrícula do UniAtenas |
-| `page.py` | `read_page(gray)` junta tudo e devolve um `PageResult` (status `ok`, `pagina_em_branco` ou `pagina_ilegivel`) |
+| `page.py` | `read_page(gray)` junta tudo e devolve um `PageResult` (status `ok`, `pagina_em_branco` ou `pagina_ilegivel`); `identificacao` é a matrícula do QR (sfa) ou das bolhas (UniAtenas) |
+
+`cartao_omr/processar.py` usa essas funções para ler o PDF inteiro, e `export_xlsx.py` escreve a planilha.
 
 ```python
 from cartao_omr.pipeline.page import read_page
@@ -75,7 +84,7 @@ from cartao_omr.pipeline.render import open_pdf, render_page
 
 doc = open_pdf("cartoes.pdf")
 res = read_page(render_page(doc, 0))
-res.user_id, res.qr_ilegivel, res.answers[1].kind, res.answers[1].value
+res.identificacao, res.matricula_qr, res.qr_ilegivel, res.answers[1].kind, res.answers[1].value
 ```
 
 Limiares em `cartao_omr/config.py` (`ReadConfig`). Para medir e calibrar:
@@ -93,21 +102,21 @@ O avaliador imprime a matriz de confusão, os critérios de aceite e exemplos do
 ## Como o cartão é definido
 
 `cartao_omr/layout.py` guarda todas as medidas (mm). `card.py` desenha o PDF e escreve
-`templates/sfa_v2.json` e `templates/uniatenas_v1.json` **a partir da mesma geometria**, então PDF e template não divergem.
+`templates/sfa_v3.json` e `templates/uniatenas_v1.json` **a partir da mesma geometria**, então PDF e template não divergem.
 O template é a única fonte de coordenadas do leitor. Se mudar o `layout.py`, rode `cartao-omr modelo` e commite os templates
 (um teste falha se o JSON do disco estiver desatualizado).
 
 Convenções do template: mm, origem no canto superior esquerdo, y para baixo; marcadores `[x, y, w]` (canto superior esquerdo e lado);
-bolhas `[cx, cy, d]` (centro e diâmetro). No `sfa_v2`, `matricula` é `null`.
+bolhas `[cx, cy, d]` (centro e diâmetro). No `sfa_v3`, `matricula` (bolhas) é `null`; a matrícula impressa é texto, com recorte em `crops_mm.matricula_impressa`.
 
 **QR** (formato `SFA2`, maiúsculas, modo alfanumérico):
 
 | Cartão | Conteúdo | Versão / módulo |
 |---|---|---|
-| personalizado (`sfa`) | `SFA2:S:<SIM8>:<UID32>` | 4 / 0,73 mm |
+| personalizado (`sfa`) | `SFA2:M:<SIM8>:<MATRICULA>` | 3 (pior caso, 24 caracteres) / 0,75 mm |
 | UniAtenas | `SFA2:A:<SIM8>` | 1 / 1,03 mm |
 
-`SIM8` são os 8 primeiros hex do `simulado_id`; `UID32` é o `user_id` sem hífens. `cartao_omr.models.parse_qr` faz a leitura inversa.
+`SIM8` são os 8 primeiros hex do `simulado_id`; `MATRICULA` é a `matricula_ra` normalizada (`trim`, maiúsculas), o último campo. O tipo antigo `SFA2:S` (com `user_id`) não existe mais. `cartao_omr.models.parse_qr` faz a leitura inversa.
 
 ## Emissão dos cartões no Academy (TypeScript)
 
@@ -125,7 +134,7 @@ node services/cartao-omr/tools/emitir_ts.mts entrada.json saida.pdf   # na raiz 
 ```
 
   `entrada.json`: `{"layout": "sfa", "simuladoId": "<uuid>", "nomeSimulado": "...", "ies": "...", "data": "25/10/2026",
-  "alunos": [{"userId": "<uuid>", "nome": "..."}]}` (ou `"layout": "uniatenas", "copias": 1`).
+  "alunos": [{"matricula": "2023001234", "nome": "..."}]}` (ou `"layout": "uniatenas", "copias": 1`).
 - `tests/test_emissao_ts.py` executa esse script e compara o PDF com o do Python (pula se não houver Node ou `node_modules`).
   Os testes do front: `npx vitest run src/features/cartoes`.
 
@@ -143,9 +152,8 @@ Simula caneta preta e azul (cobertura de 65 a 100%), marcas fracas, duplas, rasu
 matrícula e nome manuscritos (UniAtenas), QR danificado, marcador coberto, rotação (±5° e 180°), escala (95 a 105%), translação,
 perspectiva leve, ruído, desfoque, JPEG, 150/200/300 dpi, fundo claro ou escuro e páginas em branco intercaladas.
 Cada PDF vem com um `.gabarito.json` (descrição dos campos no topo de `tools/make_fixtures.py`).
-Tudo é fictício: nomes falsos e UUIDs derivados da semente (`--seed`).
+Tudo é fictício: nomes e matrículas falsos e UUIDs de simulado derivados da semente (`--seed`).
 
 ## Segredos
 
-A string de conexão do papel somente leitura (Fase 2) fica em `.env`, que **nunca** é commitado.
-Copie `.env.example` para `.env`. A service role key é proibida neste serviço.
+Este serviço **não acessa o banco** (rev. 8): não há `.env`, papel de leitura nem credencial. A service role key é proibida.

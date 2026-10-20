@@ -1,14 +1,14 @@
-# Cartões-resposta — mapa do projeto (estado em 16/10/2026; atualizado em 20/10/2026 com a decisão abaixo)
+# Cartões-resposta — mapa do projeto (estado em 20/10/2026, PRD rev. 8)
 
 Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada coisa, o que está pronto e por onde continuar.**
 
-> ## ⚠ DECISÃO DE 20/10/2026 — leia antes do resto (ela substitui o que estiver em conflito abaixo)
-> - Os cartões **não identificam mais o aluno pelo ID (`user_id`) em QR**. Cada cartão deve trazer **o nome e a matrícula do aluno já impressos**. Exceção: o grupo **UniAtenas segue como hoje** (cartão único, sem personalização; o aluno preenche seus dados).
-> - **Descartados como bloqueio do projeto:** as correções **F1** (`session-security`) e **F2** (`gestor-ai-insights`), a auditoria **P8** e os achados **F1 a F6**. A importação por ID (P6) já está na `main` e fica como está.
-> - **As branches de F1 e F2 foram apagadas** (só existiam no computador) e as pastas, fechadas. O código está em backup: `C:\Users\joao.nader\work\_backup\` (bundle `sanarflix-2026-10-20.bundle` e patches `patches-f1`, `patches-f2`).
-> - O **PRD rev. 7 está DESATUALIZADO** em tudo que toca ID/QR/`user_id` (cartão pessoal por QR, P6, P8, Fase 2 por `user_id`). Não o use para desenhar o cartão novo.
-> - O **cartão novo** (nome + matrícula impressos, como a máquina identifica o aluno, alunos sem matrícula, tela de emissão e planilha) é trabalho de **outra sessão**. Nada disso foi desenhado aqui.
-> - **Perguntas em aberto** para essa sessão: (1) como a máquina identifica o aluno se nome e matrícula estão só impressos (QR com a matrícula, sem o `user_id`; código de barras; OCR determinístico, já que o projeto proíbe LLM); (2) o que fazer com alunos sem matrícula cadastrada (`matricula_ra` vazia em várias IES; no UniAtenas ~15% sem matrícula e 5 cadastros `99-G-99999`); (3) UniAtenas: o pedido falou em "nome e email", mas o cartão atual tem matrícula em bolhas + nome manuscrito, sem email; (4) o que reaproveitar da emissão em TypeScript e do leitor, e o que mudar na planilha.
+> ## ✅ DECISÃO DE 20/10/2026 — implementada (PRD rev. 8; handoff `fase-matricula.md`)
+> - O cartão **não identifica mais o aluno pelo `user_id`**. Cada cartão traz **nome e matrícula impressos**, e a matrícula vai também no QR (`SFA2:M:<SIM8>:<MATRICULA>`). **UniAtenas segue como hoje** (cartão único; matrícula em bolhas; nome manuscrito; sem e-mail).
+> - **Aluno sem matrícula utilizável não recebe cartão** (vazia, fora de `[A-Z0-9./-]`/24 caracteres, ou repetida no cadastro da IES): a tela lista quem ficou de fora e baixa um CSV para o cadastro ser corrigido.
+> - **Fase 2 sem banco:** `cartao-omr processar <pdf> --simulado <id> [--questoes N] [--lista csv]` gera o xlsx com a matrícula na coluna 1. Não há papel `cartao_omr_reader`, `psycopg` nem `.env`.
+> - **Descartados como bloqueio:** F1, F2, P8 e os achados F1 a F6 (importação por ID, P6, segue na `main`). As branches de F1 e F2 foram apagadas; o código está em `C:\Users\joao.nader\work\_backup\` (bundle `sanarflix-2026-10-20.bundle` e patches `patches-f1`, `patches-f2`).
+> - O PRD foi atualizado na **rev. 8**. As seções 5 a 7 deste arquivo abaixo são **histórico** do plano com `user_id`.
+> - **Falta:** aceite físico (imprimir e escanear), conferir a tela com login real e o piloto (Fase 3).
 >
 > ### Backlog de segurança do Academy (fora do projeto dos cartões; o João decide quando fazer)
 > Deixaram de bloquear os cartões, mas **continuam sendo falhas reais do Academy**, independentes deles. Detalhes em `p8-auditoria-user-id.md`.
@@ -22,7 +22,7 @@ Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada c
 > (F3 e F6 também constam na auditoria, como baixa e higiene, sem conserto.)
 
 ## 1. O projeto em três linhas
-O time da Sanar emite **cartões-resposta em PDF** (um por aluno, com o ID do aluno em QR). A IES imprime, aplica a prova e devolve o scan. Um **script local** lê o scan e gera a planilha de respostas, que o admin importa no Academy. Especificação completa: `docs/prd/2026-10-07-cartoes-resposta.md`.
+O time da Sanar emite **cartões-resposta em PDF** (um por aluno, com nome e matrícula impressos e a matrícula em QR). A IES imprime, aplica a prova e devolve o scan. Um **script local** lê o scan e gera a planilha de respostas (matrícula na coluna 1), que o admin importa no Academy. Especificação completa: `docs/prd/2026-10-07-cartoes-resposta.md`.
 
 ## 2. Vocabulário (as siglas que se misturaram)
 | Sigla | O que é | Onde fica a lista |
@@ -42,7 +42,8 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | Pasta | Branch aberta | Para quê |
 |---|---|---|
 | `sanarflix-principal` | `main` | Repositório central, **parado na `main`**. Não se edita; serve para criar pastas novas e consultar. |
-| **`sanarflix-cartoes`** | `feat/cartoes-resposta` | **Projeto dos cartões.** As Fases 2 e 3 acontecem aqui. |
+| `sanarflix-cartoes` | `feat/cartoes-resposta` | Linha de base dos cartões (tag `cartoes-baseline-2026-10-20`). |
+| **`sanarflix-cartoes-matricula`** | `feat/cartoes-matricula` | **Cartão com nome e matrícula impressos** (rev. 8): é onde o projeto continua (aceite físico, Fase 3). |
 | ~~`sanarflix-fix-f1-session-security`~~ | ~~`fix/session-security-auth`~~ | **Fechada em 20/10/2026** (descartada; backup em `work\_backup`). |
 | ~~`sanarflix-fix-f2-gestor-ai`~~ | ~~`fix/gestor-ai-insights-authz-antes-do-cache`~~ | **Fechada em 20/10/2026** (descartada; backup em `work\_backup`). |
 
@@ -64,10 +65,11 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | **Fase 0** (cartão, templates, fixtures) | **Pronta** e aprovada por você | `cartoes-fase-0.2` |
 | **Fase 1** (leitor de uma página) | **Pronta** (GO). Nas fixtures sintéticas acerta 100%, mas elas não provam os limiares: o piloto real confirma. | `cartoes-fase-1` |
 | **Fase E** (emissão em TypeScript + tela) | **Pronta** no código e nos testes. Falta o **aceite físico** (imprimir e escanear). | `cartoes-fase-e` |
-| **Fase 2** (ligar ao banco, identificar o aluno, gerar a planilha) | **Não começou.** Começa por um portão de produção (criar o papel `cartao_omr_reader`), que precisa da sua aprovação. | – |
+| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (182 + 208). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
+| **Fase 2** (identificar o aluno e gerar a planilha) | **Pronta** no código, **sem banco** (`cartao-omr processar`). Falta rodar no material real. | `cartoes-matricula` |
 | **Fase 3** (piloto real e manual de uso) | **Não começou.** Precisa de cartões impressos e preenchidos por voluntários. | – |
 
-> **Atenção (20/10/2026):** as seções 5 a 7 abaixo descrevem o plano **anterior** à decisão de 20/10 (cartão pessoal por QR com `user_id`). Mantidas só como histórico: **P5, P6, P8, F1 a F6 e a "Fase 2 por `user_id`" não valem mais como bloqueio ou como plano.** Vale a decisão do topo deste arquivo.
+> **Atenção (20/10/2026):** as seções 5 a 7 abaixo descrevem o plano **anterior** à decisão de 20/10 (cartão pessoal por QR com `user_id`). Mantidas só como histórico: **P6, P8, F1 a F6 e a "Fase 2 por `user_id`" não valem mais como bloqueio ou como plano.** Seguem valendo P2, P3 e P5. Vale a decisão do topo deste arquivo.
 
 ## 5. Pendências P1 a P8
 | # | O que é | Estado | Quem |
@@ -107,16 +109,17 @@ Contexto: o QR do cartão leva o ID do aluno. Qualquer pessoa pode fotografar um
 
 ## 8. Como retomar uma sessão
 ```bash
-cd C:\Users\joao.nader\work\sanarflix-cartoes
-git branch --show-current          # tem que ser feat/cartoes-resposta
+cd C:\Users\joao.nader\work\sanarflix-cartoes-matricula
+git branch --show-current          # tem que ser feat/cartoes-matricula
 git fetch origin && git merge origin/main
-cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 140 testes
-cd ..\.. && npx vitest run src/features/cartoes                # 192 testes
+cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 182 testes
+cd ..\.. && npx vitest run src/features/cartoes                # 208 testes
 ```
-O prompt pronto para a Fase 2 está em `prompt-fase-2.md` (mesma pasta deste arquivo).
+O `prompt-fase-2.md` está **obsoleto** (era o plano com banco e `user_id`); não o use.
 
 ## 9. Documentos
-- `docs/prd/2026-10-07-cartoes-resposta.md`: especificação (revisão 7).
-- `fase-0.md`, `fase-1.md`, `fase-e.md`: o que cada fase entregou, desvios e notas.
+- `docs/prd/2026-10-07-cartoes-resposta.md`: especificação (**revisão 8**, 20/10/2026).
+- `fase-0.md`, `fase-1.md`, `fase-e.md`: o que cada fase entregou, desvios e notas (escritos antes da rev. 8: o que falam de `user_id` está superado).
+- **`fase-matricula.md`: cartão com matrícula impressa e `processar` (o mais recente; comece por ele).**
 - `p8-auditoria-user-id.md`: a auditoria de segurança completa.
-- `prompt-fase-2.md`: prompt para iniciar a próxima sessão.
+- `prompt-fase-2.md`: **obsoleto** (plano antigo com banco e `user_id`).

@@ -15,8 +15,6 @@ dependencies = [
   "segno",
   "reportlab",
   "openpyxl",
-  "psycopg[binary]",
-  "rapidfuzz",
   "typer",
 ]
 

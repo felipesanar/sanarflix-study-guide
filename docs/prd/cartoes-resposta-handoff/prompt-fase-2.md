@@ -1,3 +1,5 @@
+> **⚠ OBSOLETO (20/10/2026).** Este prompt é do plano antigo da Fase 2 (papel `cartao_omr_reader`, banco, `user_id`). A decisão de 20/10 o substituiu: a Fase 2 foi feita **sem banco**, pela matrícula do cartão. Veja `fase-matricula.md` e o PRD rev. 8. Não use o texto abaixo.
+
 # Prompt para iniciar a Fase 2 em uma nova sessão
 
 Copie o bloco abaixo como primeira mensagem da sessão. **Abra a sessão (o Claude) na pasta `C:\Users\joao.nader\work\sanarflix-cartoes`** e em nenhuma outra: uma tarefa = uma pasta = uma sessão. Veja `C:\Users\joao.nader\work\LEIA-ME.txt`.
