@@ -1,14 +1,14 @@
-# Cartões-resposta — mapa do projeto (estado em 20/10/2026, PRD rev. 8)
+# Cartões-resposta — mapa do projeto (estado em 21/10/2026, PRD rev. 9)
 
 Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada coisa, o que está pronto e por onde continuar.**
 
 > ## ✅ DECISÃO DE 20/10/2026 — implementada (PRD rev. 8; handoff `fase-matricula.md`)
 > - O cartão **não identifica mais o aluno pelo `user_id`**. Cada cartão traz **nome e matrícula impressos**, e a matrícula vai também no QR (`SFA2:M:<SIM8>:<MATRICULA>`). **UniAtenas segue como hoje** (cartão único; matrícula em bolhas; nome manuscrito; sem e-mail).
-> - **Aluno sem matrícula utilizável não recebe cartão** (vazia, fora de `[A-Z0-9./-]`/24 caracteres, ou repetida no cadastro da IES): a tela lista quem ficou de fora e baixa um CSV para o cadastro ser corrigido.
+> - **Aluno sem matrícula utilizável (vazia, fora de `[A-Z0-9./-]`/24 caracteres ou repetida) recebe o cartão do plano B, identificado pelo e-mail** (QR `SFA2:E`, campo MATRÍCULA em branco para escrever; template `sfa_v4`, rev. 9 do PRD, 21/10). Só fica sem cartão quem também não tem e-mail utilizável: a tela lista e baixa um CSV.
 > - **Fase 2 sem banco:** `cartao-omr processar <pdf> --simulado <id> [--questoes N] [--lista csv]` gera o xlsx com a matrícula na coluna 1. Não há papel `cartao_omr_reader`, `psycopg` nem `.env`.
 > - **Descartados como bloqueio:** F1, F2, P8 e os achados F1 a F6 (importação por ID, P6, segue na `main`). As branches de F1 e F2 foram apagadas; o código está em `C:\Users\joao.nader\work\_backup\` (bundle `sanarflix-2026-10-20.bundle` e patches `patches-f1`, `patches-f2`).
-> - O PRD foi atualizado na **rev. 8**. As seções 5 a 7 deste arquivo abaixo são **histórico** do plano com `user_id`.
-> - **Falta:** aceite físico (imprimir e escanear), conferir a tela com login real e o piloto (Fase 3).
+> - O PRD foi atualizado na **rev. 8** (20/10) e na **rev. 9** (21/10: plano B por e-mail). As seções 5 a 7 deste arquivo abaixo são **histórico** do plano com `user_id`.
+> - **Falta:** aceite físico (imprimir e escanear, incluindo um cartão do plano B), a importação por e-mail no Academy (do João) e o piloto (Fase 3).
 >
 > ### Backlog de segurança do Academy (fora do projeto dos cartões; o João decide quando fazer)
 > Deixaram de bloquear os cartões, mas **continuam sendo falhas reais do Academy**, independentes deles. Detalhes em `p8-auditoria-user-id.md`.
@@ -65,7 +65,7 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | **Fase 0** (cartão, templates, fixtures) | **Pronta** e aprovada por você | `cartoes-fase-0.2` |
 | **Fase 1** (leitor de uma página) | **Pronta** (GO). Nas fixtures sintéticas acerta 100%, mas elas não provam os limiares: o piloto real confirma. | `cartoes-fase-1` |
 | **Fase E** (emissão em TypeScript + tela) | **Pronta** no código e nos testes. Falta o **aceite físico** (imprimir e escanear). | `cartoes-fase-e` |
-| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (182 + 221). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
+| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (222 + 280). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
 | **Fase 2** (identificar o aluno e gerar a planilha) | **Pronta** no código, **sem banco** (`cartao-omr processar`). Falta rodar no material real. | `cartoes-matricula` |
 | **Fase 3** (piloto real e manual de uso) | **Não começou.** Precisa de cartões impressos e preenchidos por voluntários. | – |
 
@@ -112,8 +112,8 @@ Contexto: o QR do cartão leva o ID do aluno. Qualquer pessoa pode fotografar um
 cd C:\Users\joao.nader\work\sanarflix-cartoes-matricula
 git branch --show-current          # tem que ser feat/cartoes-matricula
 git fetch origin && git merge origin/main
-cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 182 testes
-cd ..\.. && npx vitest run src/features/cartoes                # 221 testes
+cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 222 testes
+cd ..\.. && npx vitest run src/features/cartoes                # 280 testes
 ```
 O `prompt-fase-2.md` está **obsoleto** (era o plano com banco e `user_id`); não o use.
 

@@ -4,7 +4,7 @@
 - **Resultado: concluído no código.** Falta o aceite físico (imprimir e escanear) e o piloto real.
 - **Branch:** `feat/cartoes-matricula` (de `feat/cartoes-resposta`, commit `032259af`). **Tag:** `cartoes-matricula`. Nada foi enviado ao GitHub.
 - **Pasta:** `C:\Users\joao.nader\work\sanarflix-cartoes-matricula`.
-- **Testes:** `services/cartao-omr` → **182 passed** (eram 140); front, `src/features/cartoes` → **221 passed** (eram 192; o filtro de semestre de 21/10 somou 13); `tsc` do app: 0 erros. A suíte inteira do front tem as 35 falhas antigas do Portal do Gestor (também na `main`), fora do escopo.
+- **Testes:** `services/cartao-omr` → **222 passed** (eram 140); front, `src/features/cartoes` → **280 passed** (eram 192; filtro de semestre e plano B por e-mail, 21/10, somaram o resto); `tsc` do app: 0 erros. A suíte inteira do front tem as 35 falhas antigas do Portal do Gestor (também na `main`), fora do escopo.
 - **Portões de produção:** nenhum. Não houve consulta nem escrita no Supabase, nem migration. **Não foi preciso criar o papel `cartao_omr_reader`.**
 
 ## 1. Decisões do João (20/10/2026)
@@ -76,3 +76,15 @@ Pedido do João, depois de testar a UVA (cartões gerados e lidos com a matrícu
 - **Arquivo:** o nome ganha o sufixo do filtro, por exemplo `cartoes_uva_1o-simulado_sem-6-7.pdf`; a lista da emissão (CSV) acompanha o mesmo nome e só traz quem recebeu cartão, então o `processar --lista` aponta como "sem cartão" apenas quem estava no filtro.
 - **Código:** `src/features/cartoes/semestre.ts` (puro), `CartoesTab.tsx`, `api.ts`, `emitir.ts` (`nomeDoArquivo` e `csvDosExcluidos`); testes em `semestre.test.ts` e `CartoesTab.test.tsx`.
 - **Não verificado:** a tela com login real (só vitest). Dados de produção conferidos por SELECT: UVA tem alunos no 6º (1) e 7º (25); SORRISO no 7º ao 10º; Integrado e UNIFIP do 1º ao 12º.
+
+## 8. Adendo de 21/10/2026 — plano B por e-mail e ID do simulado nas Provas
+Pedido do João: em semana de aplicação não dá para pedir as matrículas à IES e corrigir o cadastro a tempo, e nenhum aluno pode ficar sem cartão.
+- **Regra:** matrícula utilizável (presente, no formato aceito, única na IES) segue como estava. **Sem matrícula utilizável** (vazia, formato fora, repetida) o aluno é identificado pelo **e-mail** no QR. O quadro MATRÍCULA continua no cartão, com a numeração em branco e a dica "escreva sua matrícula abaixo"; o e-mail aparece como rótulo sob o QR. Só fica de fora quem também não tem e-mail utilizável (vazio, inválido para o QR, com mais de 58 caracteres ou repetido).
+- **QR:** `SFA2:E:<SIM8>:<EMAIL>` (minúsculas, byte, até 58 caracteres: versão 6). Para manter o módulo em 0,73 mm ou mais, a caixa do QR do `sfa` subiu de 30 para **36 mm** (x de 154 a 190, y de 20 a 56): template **`sfa_v4`** (o `sfa_v3.json` saiu). UniAtenas: template e PDF idênticos aos de antes.
+- **Tela:** a lista mostra o selo "por e-mail" e o e-mail de quem cai no plano B; um aviso diz quantos são. O painel de excluídos agora é só de quem não tem nenhum dos dois, com o motivo dos dois. A busca acha por e-mail. CSV dos excluídos: `nome;matricula;email;semestre;motivo`. Lista da emissão: `identificacao;tipo;nome`.
+- **Leitor e planilha:** `PageResult.identificacao` devolve matrícula ou e-mail; `processar` aceita a lista nova e a antiga (coluna `matricula`); a coluna 1 do xlsx passou a se chamar **`matricula_ra_ou_email`**; `Resumo` e `relatorio.json` contam as páginas identificadas por e-mail. Duplicidade vale para os dois tipos.
+- **Importação (do João):** a 1ª coluna passa a ter matrícula **ou e-mail** na mesma planilha. Comparar `lower(trim(email))`; o script grava o e-mail em minúsculas. O cabeçalho da coluna 1 é só texto (a leitura é por posição), mas convém alinhar o modelo da tela com `matricula_ra_ou_email`.
+- **Limitação conhecida:** o cartão UniAtenas (matrícula em bolhas) não tem plano B. Para os poucos alunos de campi UniAtenas sem matrícula, a tela permite escolher o modelo **Pessoal** para a IES e emitir o cartão por e-mail só para eles.
+- **ID do simulado:** Simulados → Provas mostra o ID embaixo do nome (cinza claro, 11 px, selecionável com um clique): é o `--simulado` do `processar`.
+- **Fixtures:** `sfa_*` regeneradas com cartões por e-mail e com o QR danificado mais forte (a caixa maior e o QR menos denso o recuperavam). Vetores de QR regenerados (inclui e-mails de 8 a 58 caracteres).
+- **Não verificado:** impressão e escaneamento reais do QR da versão 6 (módulo de 0,73 mm); a tela com login real; quantos alunos de cada IES cairão no plano B (a consulta de 20/10 dá a ordem de grandeza: Famp, Fame, B2C, UEA, Claretiano, USCS, FAI e outras têm quase todos sem matrícula, então **o e-mail virou o caminho principal nelas**; falta saber a qualidade de `users.email`).
