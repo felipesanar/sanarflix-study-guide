@@ -150,8 +150,13 @@ function celulaCsv(valor: string): string {
 }
 
 /** CSV (`;`, UTF-8 com BOM, abre direto no Excel) dos alunos que ficaram fora, para o cadastro ser corrigido. */
-export function csvDosExcluidos(excluidos: ClassificacaoAlunos<{ nome: string; matricula: string | null }>['excluidos']): string {
-  const linhas = [['nome', 'matricula', 'motivo'], ...excluidos.map((e) => [e.aluno.nome, e.aluno.matricula ?? '', ROTULO_EXCLUSAO[e.motivo]])];
+export function csvDosExcluidos(
+  excluidos: ClassificacaoAlunos<{ nome: string; matricula: string | null; semestre?: number | null }>['excluidos'],
+): string {
+  const linhas = [
+    ['nome', 'matricula', 'semestre', 'motivo'],
+    ...excluidos.map((e) => [e.aluno.nome, e.aluno.matricula ?? '', e.aluno.semestre == null ? '' : String(e.aluno.semestre), ROTULO_EXCLUSAO[e.motivo]]),
+  ];
   return '\ufeff' + linhas.map((l) => l.map(celulaCsv).join(';')).join('\r\n') + '\r\n';
 }
 
@@ -186,8 +191,8 @@ export async function gerarPdf(
   return doc.output('arraybuffer');
 }
 
-/** Nome de arquivo seguro: `cartoes_<ies>_<simulado>.pdf`. */
-export function nomeDoArquivo(ies: string, nomeSimulado: string): string {
+/** Nome de arquivo seguro: `cartoes_<ies>_<simulado>[_sem-6-7].pdf` (o último trecho é o filtro de semestre). */
+export function nomeDoArquivo(ies: string, nomeSimulado: string, sufixo = ''): string {
   const limpo = (s: string): string =>
     s
       .normalize('NFKD')
@@ -196,6 +201,6 @@ export function nomeDoArquivo(ies: string, nomeSimulado: string): string {
       .replace(/^-+|-+$/g, '')
       .toLowerCase()
       .slice(0, 40);
-  const partes = [limpo(ies), limpo(nomeSimulado)].filter(Boolean);
+  const partes = [limpo(ies), limpo(nomeSimulado), limpo(sufixo)].filter(Boolean);
   return `cartoes_${partes.join('_') || 'simulado'}.pdf`;
 }

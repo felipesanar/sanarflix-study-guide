@@ -38,6 +38,12 @@ import {
   type ProgressoEmissao,
 } from '@/features/cartoes/emitir';
 import { gerarPdfSegundoPlano } from '@/features/cartoes/gerar';
+import {
+  chaveSemestre,
+  filtrarPorSemestre,
+  semestresDisponiveis,
+  sufixoDeSemestres,
+} from '@/features/cartoes/semestre';
 import { ehIesUniatenas } from '@/features/cartoes/templates';
 import type { LayoutCartao } from '@/features/cartoes/types';
 
@@ -86,6 +92,7 @@ export default function CartoesTab() {
   const [erroAlunos, setErroAlunos] = useState<string | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [busca, setBusca] = useState('');
+  const [semestres, setSemestres] = useState<Set<string>>(new Set()); // vazio = todos os semestres
 
   const [gerando, setGerando] = useState(false);
   const [progresso, setProgresso] = useState<ProgressoEmissao | null>(null);
@@ -118,6 +125,7 @@ export default function CartoesTab() {
     setIesLista([]);
     setAlunos([]);
     setExcluidos([]);
+    setSemestres(new Set());
     setSelecionados(new Set());
     setResultado(null);
     if (!simulado) return;
@@ -158,6 +166,7 @@ export default function CartoesTab() {
     setResultado(null);
     setAlunos([]);
     setExcluidos([]);
+    setSemestres(new Set());
     setSelecionados(new Set());
     if (!ies) return;
     const grupo = ehIesUniatenas(ies.nome);
@@ -172,11 +181,38 @@ export default function CartoesTab() {
   };
 
   // ---------------------------------------------------------------- lista de alunos
+  const opcoesSemestre = useMemo(
+    () => semestresDisponiveis([...alunos, ...excluidos.map((e) => e.aluno)]),
+    [alunos, excluidos],
+  );
+  const alunosNoSemestre = useMemo(() => filtrarPorSemestre(alunos, semestres), [alunos, semestres]);
+  const excluidosNoSemestre = useMemo(
+    () => excluidos.filter((e) => !semestres.size || semestres.has(chaveSemestre(e.aluno))),
+    [excluidos, semestres],
+  );
+  // quem entra no PDF: marcado E dentro do filtro de semestre
+  const aEmitir = useMemo(
+    () => alunosNoSemestre.filter((a) => selecionados.has(a.userId)),
+    [alunosNoSemestre, selecionados],
+  );
+
   const visiveis = useMemo(() => {
     const q = normalizar(busca.trim());
-    if (!q) return alunos;
-    return alunos.filter((a) => normalizar(a.nome).includes(q) || (a.matricula ?? '').toLowerCase().includes(q));
-  }, [alunos, busca]);
+    if (!q) return alunosNoSemestre;
+    return alunosNoSemestre.filter((a) => normalizar(a.nome).includes(q) || (a.matricula ?? '').toLowerCase().includes(q));
+  }, [alunosNoSemestre, busca]);
+
+  /** Muda o filtro e remarca todos os alunos dos semestres escolhidos (as desmarcações manuais voltam ao padrão). */
+  const alternarSemestre = (chave: string | null) => {
+    const novo = new Set(chave === null ? [] : semestres);
+    if (chave !== null) {
+      if (novo.has(chave)) novo.delete(chave);
+      else novo.add(chave);
+    }
+    setSemestres(novo);
+    setSelecionados(new Set(filtrarPorSemestre(alunos, novo).map((a) => a.userId)));
+    setResultado(null);
+  };
 
   const todosVisiveisMarcados = visiveis.length > 0 && visiveis.every((a) => selecionados.has(a.userId));
 
@@ -199,7 +235,7 @@ export default function CartoesTab() {
     });
 
   // ---------------------------------------------------------------- geração
-  const total = layout === 'sfa' ? selecionados.size : copias;
+  const total = layout === 'sfa' ? aEmitir.length : copias;
   const podeGerar = !!simulado && !!ies && total > 0 && !gerando && (layout === 'uniatenas' || !carregandoAlunos);
 
   const gerar = async () => {
@@ -218,9 +254,7 @@ export default function CartoesTab() {
         data: formatarDataBR(data),
         ...(layout === 'sfa'
           ? {
-              alunos: alunos
-                .filter((a) => selecionados.has(a.userId))
-                .map((a) => ({ matricula: a.matricula ?? '', nome: a.nome })),
+              alunos: aEmitir.map((a) => ({ matricula: a.matricula ?? '', nome: a.nome })),
             }
           : { copias }),
       });
@@ -231,7 +265,7 @@ export default function CartoesTab() {
         `Cartões — ${simulado.nome}`,
       );
       const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
-      const arquivo = nomeDoArquivo(ies.nome, simulado.nome);
+      const arquivo = nomeDoArquivo(ies.nome, simulado.nome, layout === 'sfa' ? sufixoDeSemestres(semestres) : '');
       const lista =
         layout === 'sfa'
           ? csvDaEmissao(specs.map((s) => ({ nome: s.alunoNome ?? '', matricula: s.matricula ?? '' })))
@@ -257,8 +291,8 @@ export default function CartoesTab() {
   }, [resultado]);
 
   const baixarCsvExcluidos = () => {
-    const csv = csvDosExcluidos(excluidos.map((e) => ({ aluno: e.aluno, motivo: e.motivo })));
-    baixarTexto(csv, nomeDoArquivo(ies?.nome ?? '', 'alunos sem cartao').replace(/^cartoes_/, '').replace(/\.pdf$/, '.csv'));
+    const csv = csvDosExcluidos(excluidosNoSemestre.map((e) => ({ aluno: e.aluno, motivo: e.motivo })));
+    baixarTexto(csv, nomeDoArquivo(ies?.nome ?? '', 'alunos sem cartao', sufixoDeSemestres(semestres)).replace(/^cartoes_/, '').replace(/\.pdf$/, '.csv'));
   };
 
   // ---------------------------------------------------------------- tela
@@ -380,6 +414,36 @@ export default function CartoesTab() {
             />
           ) : (
             <div className="space-y-3 rounded-xl border bg-card p-4">
+              {opcoesSemestre.length > 1 && (
+                <div className="space-y-1.5" role="group" aria-label="Filtrar por semestre">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">Semestre</span>
+                    {opcoesSemestre.map((o) => (
+                      <Button
+                        key={o.chave}
+                        type="button"
+                        size="sm"
+                        variant={semestres.has(o.chave) ? 'default' : 'outline'}
+                        aria-pressed={semestres.has(o.chave)}
+                        disabled={gerando}
+                        onClick={() => alternarSemestre(o.chave)}
+                      >
+                        {`${o.rotulo} (${o.qtd})`}
+                      </Button>
+                    ))}
+                    {semestres.size > 0 && (
+                      <Button type="button" size="sm" variant="ghost" disabled={gerando} onClick={() => alternarSemestre(null)}>
+                        Limpar filtro
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {semestres.size
+                      ? 'Só os semestres escolhidos entram na lista e no PDF. Trocar o filtro remarca todos eles.'
+                      : 'Nenhum semestre escolhido: todos entram. Escolha um ou mais para emitir só para eles.'}
+                  </p>
+                </div>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative w-full sm:w-80">
                   <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -401,7 +465,7 @@ export default function CartoesTab() {
                   {busca ? 'Marcar os listados' : 'Marcar todos'}
                 </label>
                 <span className="ml-auto text-sm text-muted-foreground" aria-live="polite">
-                  {`${selecionados.size} de ${alunos.length} selecionados`}
+                  {`${aEmitir.length} de ${alunosNoSemestre.length} selecionados`}
                 </span>
               </div>
               <ul className="max-h-96 divide-y overflow-auto rounded-lg border" aria-label="Alunos da IES">
@@ -415,6 +479,7 @@ export default function CartoesTab() {
                         aria-label={`Cartão para ${a.nome}`}
                       />
                       <span className="flex-1 truncate">{a.nome}</span>
+                      <span className="text-xs text-muted-foreground">{a.semestre == null ? '' : `${a.semestre}º sem.`}</span>
                       <span className="font-mono text-xs text-muted-foreground">{a.matricula}</span>
                     </label>
                   </li>
@@ -426,12 +491,12 @@ export default function CartoesTab() {
         </div>
       )}
 
-      {ies && layout === 'sfa' && !carregandoAlunos && excluidos.length > 0 && (
+      {ies && layout === 'sfa' && !carregandoAlunos && excluidosNoSemestre.length > 0 && (
         <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
           <div className="flex flex-wrap items-center gap-3">
             <TriangleAlert className="h-4 w-4 text-amber-600" aria-hidden />
             <p className="text-sm font-medium" role="status">
-              {`${excluidos.length} ${excluidos.length === 1 ? 'aluno fica' : 'alunos ficam'} fora do PDF`}
+              {`${excluidosNoSemestre.length} ${excluidosNoSemestre.length === 1 ? 'aluno fica' : 'alunos ficam'} fora do PDF`}
             </p>
             <Button variant="outline" size="sm" className="ml-auto" onClick={baixarCsvExcluidos}>
               <Download className="mr-2 h-4 w-4" />
@@ -443,9 +508,10 @@ export default function CartoesTab() {
             aluno não recebe cartão: corrija o cadastro e gere de novo.
           </p>
           <ul className="max-h-60 divide-y overflow-auto rounded-lg border bg-background" aria-label="Alunos fora do PDF">
-            {excluidos.map(({ aluno, motivo }) => (
+            {excluidosNoSemestre.map(({ aluno, motivo }) => (
               <li key={aluno.userId} className="flex items-center gap-3 px-3 py-2 text-sm">
                 <span className="flex-1 truncate">{aluno.nome}</span>
+                <span className="text-xs text-muted-foreground">{aluno.semestre == null ? '' : `${aluno.semestre}º sem.`}</span>
                 <span className="font-mono text-xs text-muted-foreground">{aluno.matricula ?? '—'}</span>
                 <span className="text-xs text-muted-foreground">{ROTULO_EXCLUSAO[motivo]}</span>
               </li>

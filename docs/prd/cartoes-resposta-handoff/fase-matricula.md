@@ -4,7 +4,7 @@
 - **Resultado: concluído no código.** Falta o aceite físico (imprimir e escanear) e o piloto real.
 - **Branch:** `feat/cartoes-matricula` (de `feat/cartoes-resposta`, commit `032259af`). **Tag:** `cartoes-matricula`. Nada foi enviado ao GitHub.
 - **Pasta:** `C:\Users\joao.nader\work\sanarflix-cartoes-matricula`.
-- **Testes:** `services/cartao-omr` → **182 passed** (eram 140); front, `src/features/cartoes` → **208 passed** (eram 192); `tsc` do app: 0 erros. A suíte inteira do front tem as 35 falhas antigas do Portal do Gestor (também na `main`), fora do escopo.
+- **Testes:** `services/cartao-omr` → **182 passed** (eram 140); front, `src/features/cartoes` → **221 passed** (eram 192; o filtro de semestre de 21/10 somou 13); `tsc` do app: 0 erros. A suíte inteira do front tem as 35 falhas antigas do Portal do Gestor (também na `main`), fora do escopo.
 - **Portões de produção:** nenhum. Não houve consulta nem escrita no Supabase, nem migration. **Não foi preciso criar o papel `cartao_omr_reader`.**
 
 ## 1. Decisões do João (20/10/2026)
@@ -67,3 +67,12 @@
 3. **Aceite físico:** gerar um cartão pela tela, imprimir em A4 a 100%, preencher, escanear a 200 e 300 dpi e rodar `cartao-omr processar` no PDF; abrir o xlsx e fazer o dry-run da importação (sem confirmar o commit real).
 4. Corrigir os cadastros sem matrícula (P3: UniAtenas ~15%, 5 × `99-G-99999`; IES sem `matricula_ra`) com o Relacionamento; confirmar os campi UniAtenas (P2); avisar as IES do cartão novo (P5).
 5. Para o piloto: simulado de teste, voluntários e gabarito conhecido, escaneados em 200 e 300 dpi.
+
+## 7. Adendo de 21/10/2026 — filtro de semestre na tela de emissão
+Pedido do João, depois de testar a UVA (cartões gerados e lidos com a matrícula certa e as 100 questões em branco): uma IES costuma aplicar o simulado só em alguns semestres.
+- **Fonte:** `users.semestre` (inteiro, opcional), lido junto com a lista de alunos (`api.ts`). Sem migration e sem escrita.
+- **Tela:** linha "Semestre" com um botão por semestre existente e a contagem de alunos (`6º (1)`, `7º (3)`, `Sem semestre (1)`); vários podem ser marcados juntos; "Limpar filtro" volta a todos. Sem nenhum marcado, vale todos. O filtro só aparece se a IES tiver mais de um valor. Zera ao trocar de simulado ou de IES.
+- **Efeito:** o filtro vale para a lista, a contagem, o PDF, o painel dos excluídos e o CSV dos excluídos (que ganhou a coluna `semestre`). Trocar o filtro **remarca todos** os alunos dos semestres escolhidos (desmarcações manuais voltam ao padrão). O PDF só leva quem está marcado **e** dentro do filtro.
+- **Arquivo:** o nome ganha o sufixo do filtro, por exemplo `cartoes_uva_1o-simulado_sem-6-7.pdf`; a lista da emissão (CSV) acompanha o mesmo nome e só traz quem recebeu cartão, então o `processar --lista` aponta como "sem cartão" apenas quem estava no filtro.
+- **Código:** `src/features/cartoes/semestre.ts` (puro), `CartoesTab.tsx`, `api.ts`, `emitir.ts` (`nomeDoArquivo` e `csvDosExcluidos`); testes em `semestre.test.ts` e `CartoesTab.test.tsx`.
+- **Não verificado:** a tela com login real (só vitest). Dados de produção conferidos por SELECT: UVA tem alunos no 6º (1) e 7º (25); SORRISO no 7º ao 10º; Integrado e UNIFIP do 1º ao 12º.

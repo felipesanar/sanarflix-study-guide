@@ -191,9 +191,9 @@ describe('CartoesTab', () => {
     const bytes = new Uint8Array(await blob.arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]); // BOM, para o Excel abrir em UTF-8
     const texto = new TextDecoder().decode(bytes.slice(3));
-    expect(texto.startsWith('nome;matricula;motivo\r\n')).toBe(true);
-    expect(texto).toContain('Beltrano Sem RA;;sem matrícula cadastrada');
-    expect(texto).toContain('Matrícula Com Espaço;12 34;');
+    expect(texto.startsWith('nome;matricula;semestre;motivo\r\n')).toBe(true);
+    expect(texto).toContain('Beltrano Sem RA;;;sem matrícula cadastrada');
+    expect(texto).toContain('Matrícula Com Espaço;12 34;;');
   });
 
   it('IES em que ninguém tem matrícula utilizável: explica e não deixa gerar', async () => {
@@ -227,5 +227,127 @@ describe('CartoesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /Gerar PDF/ }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+const POR_SEMESTRE = [
+  { userId: 'a1000000-0000-4000-8000-000000000001', nome: 'Ana Sexto', matricula: '2024001', semestre: 6 },
+  { userId: 'a1000000-0000-4000-8000-000000000002', nome: 'Beto Sétimo', matricula: '2024002', semestre: 7 },
+  { userId: 'a1000000-0000-4000-8000-000000000003', nome: 'Carla Sétimo', matricula: '2024003', semestre: 7 },
+  { userId: 'a1000000-0000-4000-8000-000000000004', nome: 'Davi Oitavo', matricula: '2024004', semestre: 8 },
+  { userId: 'a1000000-0000-4000-8000-000000000005', nome: 'Eva Sem Semestre', matricula: '2024005', semestre: null },
+  { userId: 'a1000000-0000-4000-8000-000000000006', nome: 'Fabio Sétimo Sem RA', matricula: null, semestre: 7 },
+  { userId: 'a1000000-0000-4000-8000-000000000007', nome: 'Gil Oitavo Sem RA', matricula: null, semestre: 8 },
+];
+
+describe('CartoesTab: filtro de semestre', () => {
+  async function abrir() {
+    prepararSimulado([IES_A], POR_SEMESTRE);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Ana Sexto');
+    return screen.getByRole('group', { name: 'Filtrar por semestre' });
+  }
+
+  it('mostra um botão por semestre existente, com a contagem, e começa sem filtro', async () => {
+    const grupo = await abrir();
+    const botoes = within(grupo).getAllByRole('button').map((b) => b.textContent);
+    expect(botoes).toEqual(['6º (1)', '7º (3)', '8º (2)', 'Sem semestre (1)']);
+    expect(screen.getByText('5 de 5 selecionados')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(5 cartões\)/ })).toBeEnabled();
+  });
+
+  it('escolher um semestre deixa só ele na lista, na conta e no painel de excluídos', async () => {
+    const grupo = await abrir();
+    fireEvent.click(within(grupo).getByRole('button', { name: '7º (3)' }));
+    expect(screen.getByText('Beto Sétimo')).toBeInTheDocument();
+    expect(screen.getByText('Carla Sétimo')).toBeInTheDocument();
+    expect(screen.queryByText('Ana Sexto')).not.toBeInTheDocument();
+    expect(screen.queryByText('Davi Oitavo')).not.toBeInTheDocument();
+    expect(screen.getByText('2 de 2 selecionados')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ })).toBeEnabled();
+    const fora = within(screen.getByLabelText('Alunos fora do PDF'));
+    expect(fora.getByText('Fabio Sétimo Sem RA')).toBeInTheDocument();
+    expect(fora.queryByText('Gil Oitavo Sem RA')).not.toBeInTheDocument();
+    expect(screen.getByText('1 aluno fica fora do PDF')).toBeInTheDocument();
+  });
+
+  it('vários semestres somam, e "Limpar filtro" volta a todos', async () => {
+    const grupo = await abrir();
+    fireEvent.click(within(grupo).getByRole('button', { name: '6º (1)' }));
+    fireEvent.click(within(grupo).getByRole('button', { name: '8º (2)' }));
+    expect(screen.getByText('2 de 2 selecionados')).toBeInTheDocument();
+    expect(within(grupo).getByRole('button', { name: '6º (1)' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Limpar filtro' }));
+    expect(screen.getByText('5 de 5 selecionados')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Limpar filtro' })).not.toBeInTheDocument();
+  });
+
+  it('"Sem semestre" pega quem não tem semestre cadastrado', async () => {
+    const grupo = await abrir();
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Sem semestre (1)' }));
+    expect(screen.getByText('Eva Sem Semestre')).toBeInTheDocument();
+    expect(screen.getByText('1 de 1 selecionados')).toBeInTheDocument();
+  });
+
+  it('o PDF só leva os alunos do filtro, e o arquivo traz o semestre no nome', async () => {
+    const grupo = await abrir();
+    fireEvent.click(within(grupo).getByRole('button', { name: '6º (1)' }));
+    fireEvent.click(within(grupo).getByRole('button', { name: '7º (3)' }));
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(3 cartões\)/ }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.success.mock.calls[0]![1]).toMatchObject({
+      description: expect.stringContaining('3 cartão(ões) em cartoes_faculdade-exemplo_simulado-enamed-2026_sem-6-7.pdf'),
+    });
+    // a lista da emissão acompanha: só quem recebeu cartão
+    fireEvent.click(await screen.findByRole('button', { name: /Baixar lista da emissão/ }));
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    const texto = new TextDecoder().decode((await blob.arrayBuffer()).slice(3));
+    expect(texto).toContain('2024001;Ana Sexto');
+    expect(texto).toContain('2024003;Carla Sétimo');
+    expect(texto).not.toContain('Davi');
+    expect(texto).not.toContain('Eva');
+  });
+
+  it('desmarcar um aluno e depois trocar o filtro remarca todos do novo filtro', async () => {
+    const grupo = await abrir();
+    fireEvent.click(within(grupo).getByRole('button', { name: '7º (3)' }));
+    fireEvent.click(screen.getByLabelText('Cartão para Beto Sétimo'));
+    expect(screen.getByText('1 de 2 selecionados')).toBeInTheDocument();
+    fireEvent.click(within(grupo).getByRole('button', { name: '8º (2)' }));
+    expect(screen.getByText('3 de 3 selecionados')).toBeInTheDocument();
+  });
+
+  it('o CSV dos excluídos respeita o filtro e traz o semestre', async () => {
+    const grupo = await abrir();
+    fireEvent.click(within(grupo).getByRole('button', { name: '8º (2)' }));
+    fireEvent.click(screen.getByRole('button', { name: /Baixar CSV/ }));
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    const texto = new TextDecoder().decode((await blob.arrayBuffer()).slice(3));
+    expect(texto).toContain('Gil Oitavo Sem RA;;8;sem matrícula cadastrada');
+    expect(texto).not.toContain('Fabio');
+  });
+
+  it('com um só semestre na IES o filtro nem aparece', async () => {
+    prepararSimulado([IES_A], [POR_SEMESTRE[1]!, POR_SEMESTRE[2]!]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Beto Sétimo');
+    expect(screen.queryByRole('group', { name: 'Filtrar por semestre' })).not.toBeInTheDocument();
+  });
+
+  it('trocar de IES zera o filtro', async () => {
+    prepararSimulado([IES_A, IES_UA], POR_SEMESTRE);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await waitFor(() => expect(screen.getByLabelText('IES')).not.toBeDisabled());
+    fireEvent.change(screen.getByLabelText('IES'), { target: { value: IES_A.id } });
+    const grupo = await screen.findByRole('group', { name: 'Filtrar por semestre' });
+    fireEvent.click(within(grupo).getByRole('button', { name: '7º (3)' }));
+    expect(screen.getByText('2 de 2 selecionados')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('IES'), { target: { value: IES_UA.id } });
+    fireEvent.change(screen.getByLabelText('IES'), { target: { value: IES_A.id } });
+    await screen.findByText('Ana Sexto');
+    expect(screen.getByText('5 de 5 selecionados')).toBeInTheDocument();
   });
 });

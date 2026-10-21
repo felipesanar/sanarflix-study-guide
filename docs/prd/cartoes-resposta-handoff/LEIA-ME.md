@@ -65,7 +65,7 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | **Fase 0** (cartão, templates, fixtures) | **Pronta** e aprovada por você | `cartoes-fase-0.2` |
 | **Fase 1** (leitor de uma página) | **Pronta** (GO). Nas fixtures sintéticas acerta 100%, mas elas não provam os limiares: o piloto real confirma. | `cartoes-fase-1` |
 | **Fase E** (emissão em TypeScript + tela) | **Pronta** no código e nos testes. Falta o **aceite físico** (imprimir e escanear). | `cartoes-fase-e` |
-| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (182 + 208). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
+| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (182 + 221). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
 | **Fase 2** (identificar o aluno e gerar a planilha) | **Pronta** no código, **sem banco** (`cartao-omr processar`). Falta rodar no material real. | `cartoes-matricula` |
 | **Fase 3** (piloto real e manual de uso) | **Não começou.** Precisa de cartões impressos e preenchidos por voluntários. | – |
 
@@ -113,7 +113,7 @@ cd C:\Users\joao.nader\work\sanarflix-cartoes-matricula
 git branch --show-current          # tem que ser feat/cartoes-matricula
 git fetch origin && git merge origin/main
 cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 182 testes
-cd ..\.. && npx vitest run src/features/cartoes                # 208 testes
+cd ..\.. && npx vitest run src/features/cartoes                # 221 testes
 ```
 O `prompt-fase-2.md` está **obsoleto** (era o plano com banco e `user_id`); não o use.
 

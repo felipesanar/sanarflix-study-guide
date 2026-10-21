@@ -24,6 +24,8 @@ export interface AlunoOpt {
   userId: string;
   nome: string;
   matricula: string | null;
+  /** `users.semestre`; `null` quando não está cadastrado. */
+  semestre: number | null;
 }
 
 /** O PostgREST devolve no máximo 1.000 linhas por pedido. */
@@ -74,7 +76,7 @@ export async function listarAlunosDaIes(client: Client, iesId: string): Promise<
   const linhas = await paginar(async (de, ate) => {
     const { data, error } = await client
       .from('users')
-      .select('id, nome, matricula_ra')
+      .select('id, nome, matricula_ra, semestre')
       .eq('id_ies', iesId)
       .order('nome')
       .order('id')
@@ -86,6 +88,7 @@ export async function listarAlunosDaIes(client: Client, iesId: string): Promise<
     userId: u.id,
     nome: u.nome,
     matricula: u.matricula_ra?.trim() || null,
+    semestre: u.semestre ?? null,
   }));
 
   const comPapel = new Set<string>();
