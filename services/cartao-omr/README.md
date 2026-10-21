@@ -9,12 +9,71 @@ Correção automática de cartões-resposta do SanarFlix Academy (PDF digitaliza
 
 ## Como a operação funciona
 
-1. Uma tela do Academy (a construir) emite os cartões: o time seleciona a IES, o simulado e os alunos. O PDF sai pronto para imprimir.
+1. Uma tela do Academy (Admin → Simulados → Cartões-resposta) emite os cartões: o time seleciona o simulado, a IES e os alunos. O PDF sai pronto para imprimir.
 2. **Cada cartão é pessoal**: traz o **nome e a matrícula** do aluno impressos e a matrícula também num QR. Não há cartão genérico. **Plano B:** aluno sem matrícula utilizável no cadastro (vazia, fora do formato ou repetida) recebe um cartão identificado pelo **e-mail** (QR `SFA2:E`), com o campo MATRÍCULA em branco para escrever. Só fica sem cartão quem também não tem e-mail utilizável: a tela lista e baixa um CSV.
 3. A IES aplica a prova, escaneia os cartões preenchidos num PDF e devolve.
 4. O script (`cartao-omr processar`) lê o PDF localmente, **sem banco**, e gera a planilha de respostas com a matrícula (ou, no plano B, o e-mail) na coluna 1: a chave que a importação do Academy casa com o cadastro.
 
 Exceção: o grupo **UniAtenas** usa um cartão único, sem personalização, em que o aluno marca a matrícula em bolhas (`NN-X-NNNNN`).
+
+## Runbook: do cartão à importação
+
+Passo a passo da operação. O que a IES precisa fazer está em `docs/prd/cartoes-resposta-guia-ies.md` (1 página, para enviar a ela).
+
+### 1. Emitir (Admin → Simulados → Cartões-resposta)
+1. Escolha o **simulado** e a **IES**; confira a **data da prova** (vai no cabeçalho). Se a IES aplica só em alguns semestres, marque o(s) **semestre(s)** no filtro: a lista, o PDF e o arquivo (`..._sem-6-7.pdf`) seguem o filtro.
+2. Confira a lista:
+   - quem tem matrícula utilizável sai com **matrícula impressa**;
+   - quem **não tem** aparece com o selo **"por e-mail"** (cartão identificado pelo e-mail, campo MATRÍCULA em branco para o aluno escrever);
+   - quem não tem nem matrícula nem e-mail utilizável fica no painel **"fora do PDF"**: baixe o **CSV** e peça ao Relacionamento para corrigir o cadastro (depois gere de novo).
+3. **Gerar PDF**. Baixe também **"Baixar lista da emissão (CSV)"** e guarde: é a `--lista` do passo 4.
+4. **Grupo UniAtenas:** a tela pré-seleciona o modelo único (sem nome, o aluno escreve o nome e marca a matrícula). Para alunos do grupo sem matrícula, escolha o modelo **Pessoal** e emita só para eles.
+5. Aluno que chegou depois ou perdeu o cartão: emita um cartão só dele pela mesma tela (marque só ele).
+
+### 2. Imprimir e aplicar
+Envie o PDF e o `docs/prd/cartoes-resposta-guia-ies.md` à IES: A4, 100%, só frente, 75 a 90 g/m². Entrega em ordem alfabética, cada cartão ao aluno do nome impresso.
+
+### 3. Receber o scan
+PDF único, 200 a 300 dpi. **PDFs, imagens e planilhas com dados de alunos nunca entram no Git** (`runs/` e `*.pdf` fora de `templates/` e `tests/fixtures/` já são ignorados).
+
+### 4. Processar
+```bash
+cd services/cartao-omr
+.venv/Scripts/python.exe -m cartao_omr processar "C:/caminho/scan.pdf" --simulado <id-do-simulado> --questoes 100 --lista "C:/caminho/lista_da_emissao.csv"
+```
+- **No Git Bash use barras normais** (`/`); a barra invertida some.
+- `--simulado`: o ID aparece embaixo do nome do simulado em Admin → Simulados → Provas (clique para selecionar). `--questoes`: quantas questões o simulado tem (a planilha precisa ter exatamente `1 + N` colunas). `--lista` é opcional, mas aponta quem estava na lista e não devolveu o cartão. `--layout uniatenas` só se o QR do UniAtenas não for lido.
+- A saída vai para `runs/<data>_<hora>_<simulado>/`: `respostas_<simulado>.xlsx`, `relatorio.json` e `recortes/` (imagens das páginas com problema). Uma pasta por execução; abra o xlsx à vontade.
+- Tempo: cerca de 0,1 s por página (500 cartões ≈ 1 minuto).
+
+### 5. Revisar o xlsx
+Abas: **Respostas** (a que a importação lê), **Pendências**, **Não identificados**, **Resumo** (contagens, limiares usados e quem estava na lista e não devolveu).
+
+| Pendência | O que é | O que fazer |
+|---|---|---|
+| `multipla`, `ambigua` | Duas marcas, ou marca fraca/X/✓/ponto: a célula fica **em branco e amarela**, com comentário | Olhe o cartão; preencha a letra na célula se for o caso, ou deixe em branco |
+| `qr_ilegivel` | QR não lido; a página vai para **Não identificados**, com as respostas e o recorte do nome/matrícula em `recortes/` | Identifique o aluno pelo recorte e pela lista da emissão, escreva a matrícula (ou e-mail) na coluna 1 e **mova a linha** (da coluna 3 em diante) para `Respostas` |
+| `matricula_invalida` | UniAtenas: coluna da matrícula em branco ou com duas marcas | Mesma coisa: leia a matrícula no recorte e mova a linha |
+| `aluno_duplicado` | A mesma matrícula/e-mail em 2+ páginas com **respostas diferentes** (nenhuma vai para `Respostas`) | Veja quais páginas, escolha a correta, mova a linha |
+| `pagina_repetida` | Aviso: a mesma folha escaneada duas vezes (respostas idênticas); só a primeira foi mantida | Nada a fazer |
+| `pagina_ilegivel` | Marcadores de canto não achados (página cortada, dobrada, foto) | Reescaneie a página e processe de novo |
+| `simulado_divergente` | Cartão de outro simulado (o QR tem o código do simulado) | Confira o `--simulado`; separe o cartão |
+| `resposta_alem_do_simulado` | Marca depois da última questão do simulado (`--questoes`) | Só aviso: foi ignorada |
+| `fora_da_lista` | Matrícula/e-mail que não estava na lista da emissão | Confira se é cartão de outra turma |
+
+### 6. Importar (Admin → Simulados → Importar respostas)
+1. Escolha o simulado e envie o xlsx (a tela lê só a **primeira aba**, por posição). A 1ª coluna aceita **Matrícula/RA ou e-mail** na mesma planilha.
+2. Rode o **dry-run** e leia o relatório: `ra_not_found`, `email_not_found`, `duplicate_student_in_file` etc. apontam cadastros a corrigir.
+3. Só então **confirme a importação**. Na primeira vez com uma IES nova, use um simulado de teste.
+
+### Problemas comuns
+| Sintoma | Causa e solução |
+|---|---|
+| `PermissionError ... Permission denied` | Um xlsx estava aberto no Excel (hoje cada execução usa pasta nova; use `--saida` diferente se repetir a pasta) |
+| `command not found` com o caminho do Python | Terminal Git Bash: use `/` no lugar de `\` |
+| Muitas `ambigua` numa turma | Caneta clara/falhando, marcas fracas, scanner com "auto-aprimorar" ligado ou resolução baixa: peça novo scan ou revise as células |
+| `qr_ilegivel` em vários cartões | Scan de baixa resolução ou QR dobrado/manchado: reescanear a 300 dpi |
+| Erro de colunas na importação | `--questoes` diferente do total de questões do simulado: refaça o `processar` |
 
 ## Instalação no Windows
 

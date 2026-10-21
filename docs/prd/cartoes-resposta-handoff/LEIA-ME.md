@@ -8,7 +8,7 @@ Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada c
 > - **Fase 2 sem banco:** `cartao-omr processar <pdf> --simulado <id> [--questoes N] [--lista csv]` gera o xlsx com a matrícula na coluna 1. Não há papel `cartao_omr_reader`, `psycopg` nem `.env`.
 > - **Descartados como bloqueio:** F1, F2, P8 e os achados F1 a F6 (importação por ID, P6, segue na `main`). As branches de F1 e F2 foram apagadas; o código está em `C:\Users\joao.nader\work\_backup\` (bundle `sanarflix-2026-10-20.bundle` e patches `patches-f1`, `patches-f2`).
 > - O PRD foi atualizado na **rev. 8** (20/10) e na **rev. 9** (21/10: plano B por e-mail). As seções 5 a 7 deste arquivo abaixo são **histórico** do plano com `user_id`.
-> - **Falta:** aceite físico (imprimir e escanear, incluindo um cartão do plano B), a importação por e-mail no Academy (do João) e o piloto (Fase 3).
+> - **Aceito em papel pelo João (21/10):** cartão com matrícula (UVA), plano B por e-mail (com dry-run no app) e página repetida. **Falta:** teste físico do UniAtenas e calibração dos limiares com uma turma real (Fase 3). Runbook: README do serviço; guia das IES: `docs/prd/cartoes-resposta-guia-ies.md`.
 >
 > ### Backlog de segurança do Academy (fora do projeto dos cartões; o João decide quando fazer)
 > Deixaram de bloquear os cartões, mas **continuam sendo falhas reais do Academy**, independentes deles. Detalhes em `p8-auditoria-user-id.md`.
@@ -65,7 +65,7 @@ Elas são o **mesmo repositório** (o `.git` fica em `sanarflix-principal`); cad
 | **Fase 0** (cartão, templates, fixtures) | **Pronta** e aprovada por você | `cartoes-fase-0.2` |
 | **Fase 1** (leitor de uma página) | **Pronta** (GO). Nas fixtures sintéticas acerta 100%, mas elas não provam os limiares: o piloto real confirma. | `cartoes-fase-1` |
 | **Fase E** (emissão em TypeScript + tela) | **Pronta** no código e nos testes. Falta o **aceite físico** (imprimir e escanear). | `cartoes-fase-e` |
-| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (222 + 280). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
+| **Cartão com matrícula** (rev. 8: QR `SFA2:M`, template `sfa_v3`, tela com bloqueio de quem não tem matrícula) | **Pronto** no código e nos testes (229 + 280). Falta o aceite físico e a conferência da tela com login real. | `cartoes-matricula` |
 | **Fase 2** (identificar o aluno e gerar a planilha) | **Pronta** no código, **sem banco** (`cartao-omr processar`). Falta rodar no material real. | `cartoes-matricula` |
 | **Fase 3** (piloto real e manual de uso) | **Não começou.** Precisa de cartões impressos e preenchidos por voluntários. | – |
 
@@ -112,7 +112,7 @@ Contexto: o QR do cartão leva o ID do aluno. Qualquer pessoa pode fotografar um
 cd C:\Users\joao.nader\work\sanarflix-cartoes-matricula
 git branch --show-current          # tem que ser feat/cartoes-matricula
 git fetch origin && git merge origin/main
-cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 222 testes
+cd services\cartao-omr && .venv\Scripts\python.exe -m pytest   # 229 testes
 cd ..\.. && npx vitest run src/features/cartoes                # 280 testes
 ```
 O `prompt-fase-2.md` está **obsoleto** (era o plano com banco e `user_id`); não o use.

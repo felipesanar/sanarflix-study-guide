@@ -93,6 +93,7 @@ def resumo(res: Resultado) -> dict:
         "identificadas_por_email": sum(1 for pg in res.paginas if pg.destino == RESPOSTAS and pg.via == "email"),
         "nao_identificadas": destinos.get(NAO_IDENTIFICADOS, 0),
         "duplicadas": sum(1 for pg in res.paginas if pg.motivo == ALUNO_DUPLICADO),
+        "repetidas_ignoradas": cont.get("pagina_repetida", 0),
         "questoes": dict(celulas),
         "pendencias": len(res.pendencias),
         "ausentes_da_lista": len(res.ausentes),

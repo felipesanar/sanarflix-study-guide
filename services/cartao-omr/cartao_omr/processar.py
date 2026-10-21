@@ -28,6 +28,7 @@ PAGINA_ILEGIVEL = "pagina_ilegivel"
 QR_ILEGIVEL = "qr_ilegivel"
 MATRICULA_INVALIDA = "matricula_invalida"
 ALUNO_DUPLICADO = "aluno_duplicado"
+PAGINA_REPETIDA = "pagina_repetida"  # aviso: a mesma página escaneada duas vezes; só uma é mantida
 MULTIPLA = "multipla"
 AMBIGUA = "ambigua"
 RESPOSTA_ALEM_DO_SIMULADO = "resposta_alem_do_simulado"
@@ -181,6 +182,36 @@ def ler_pagina(gray: np.ndarray, pagina: int, simulado_id: str, total_questoes: 
     return pg
 
 
+def resolver_duplicadas(paginas: list[PaginaLida]) -> None:
+    """Trata a mesma identificação em 2+ páginas.
+
+    - **Respostas idênticas** (a mesma folha escaneada duas vezes): mantém a primeira, ignora as outras e avisa
+      (`pagina_repetida`).
+    - **Respostas diferentes** (duas folhas do mesmo aluno, ou dois alunos com a mesma chave): nenhuma vai para
+      `Respostas`; todas viram `aluno_duplicado` na aba "Não identificados", para um humano decidir.
+    """
+    por_chave: dict[str, list[PaginaLida]] = defaultdict(list)
+    for pg in paginas:
+        if pg.destino == RESPOSTAS and pg.identificacao:
+            por_chave[pg.identificacao].append(pg)
+    for chave, pgs in por_chave.items():
+        if len(pgs) < 2:
+            continue
+        primeira = pgs[0]
+        if all(p.respostas == primeira.respostas and p.duvidas == primeira.duvidas for p in pgs[1:]):
+            for p in pgs[1:]:
+                p.destino, p.status, p.motivo = IGNORADA, PAGINA_REPETIDA, f"idêntica à página {primeira.pagina}"
+                p.pendencias = [Pendencia(p.pagina, PAGINA_REPETIDA,
+                                          f"{chave}: respostas idênticas às da página {primeira.pagina}; "
+                                          f"só a página {primeira.pagina} foi mantida")]
+            continue
+        outras = ", ".join(str(p.pagina) for p in pgs)
+        for p in pgs:
+            p.destino, p.motivo = NAO_IDENTIFICADOS, ALUNO_DUPLICADO
+            p.pendencias.append(Pendencia(p.pagina, ALUNO_DUPLICADO,
+                                          f"{chave} nas páginas {outras}, com respostas diferentes"))
+
+
 def processar_pdf(pdf: Path, simulado_id: str, saida: Path, total_questoes: int = N_QUESTIONS,
                   lista: set[str] | None = None, cfg: ReadConfig = DEFAULT_CONFIG,
                   layout_hint: str | None = None, progresso=None) -> Resultado:
@@ -196,17 +227,7 @@ def processar_pdf(pdf: Path, simulado_id: str, saida: Path, total_questoes: int 
         if progresso:
             progresso(i + 1, len(doc))
 
-    # duplicidade: a mesma matrícula em 2+ páginas torna todas elas pendentes (nenhuma vai para Respostas)
-    por_chave: dict[str, list[PaginaLida]] = defaultdict(list)
-    for pg in paginas:
-        if pg.destino == RESPOSTAS and pg.identificacao:
-            por_chave[pg.identificacao].append(pg)
-    for chave, pgs in por_chave.items():
-        if len(pgs) > 1:
-            outras = ", ".join(str(p.pagina) for p in pgs)
-            for pg in pgs:
-                pg.destino, pg.motivo = NAO_IDENTIFICADOS, ALUNO_DUPLICADO
-                pg.pendencias.append(Pendencia(pg.pagina, ALUNO_DUPLICADO, f"{chave} nas páginas {outras}"))
+    resolver_duplicadas(paginas)
 
     # QR de cartão pessoal sem matrícula utilizável não existe (parse_qr exige), então sobra só o tipo `fora_da_lista`
     ausentes: list[str] = []

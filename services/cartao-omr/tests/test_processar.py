@@ -22,8 +22,12 @@ from cartao_omr.processar import (
     RESPOSTA_ALEM_DO_SIMULADO,
     RESPOSTAS,
     SIMULADO_DIVERGENTE,
+    PAGINA_REPETIDA,
+    Pendencia,
+    PaginaLida,
     ler_lista_emissao,
     processar_pdf,
+    resolver_duplicadas,
 )
 
 from conftest import ROOT
@@ -122,7 +126,7 @@ def test_simulado_de_outro_cartao_nao_e_lido(tmp_path):
     assert not any(pg.destino == RESPOSTAS for pg in res.paginas)
 
 
-def test_a_mesma_matricula_em_duas_paginas_sai_de_respostas(tmp_path):
+def test_pagina_repetida_com_respostas_identicas_mantem_uma_e_avisa(tmp_path):
     gab = _gab("sfa_personalizado_limpo")
     doc = pymupdf.open(FIXTURES / gab["file"])
     doc.insert_pdf(pymupdf.open(FIXTURES / gab["file"]), from_page=0, to_page=0)  # cartão 1 de novo, no fim
@@ -130,10 +134,63 @@ def test_a_mesma_matricula_em_duas_paginas_sai_de_respostas(tmp_path):
     doc.save(pdf)
     res = processar_pdf(pdf, gab["simulado_id"], tmp_path / "out")
     ultima = len(doc)
-    dups = [pg for pg in res.paginas if pg.motivo == ALUNO_DUPLICADO]
-    assert sorted(pg.pagina for pg in dups) == [1, ultima]
-    assert all(pg.destino == NAO_IDENTIFICADOS and pg.identificacao for pg in dups)
-    assert not any(pg.identificacao == dups[0].identificacao for pg in res.paginas if pg.destino == RESPOSTAS)
+    primeira, repetida = res.paginas[0], res.paginas[-1]
+    assert primeira.destino == RESPOSTAS and primeira.identificacao
+    assert repetida.destino == "ignorada" and repetida.status == PAGINA_REPETIDA
+    avisos = [p for p in res.pendencias if p.tipo == PAGINA_REPETIDA]
+    assert [(p.pagina, "página 1" in p.detalhe) for p in avisos] == [(ultima, True)]
+    assert not [p for p in res.pendencias if p.tipo == ALUNO_DUPLICADO]
+    # a matrícula aparece uma vez só na planilha, e o resumo conta a repetida
+    xlsx = escrever_planilha(res, tmp_path / "r.xlsx")
+    ids = [m for m, _ in _importador(xlsx, 100)]
+    assert ids.count(primeira.identificacao) == 1 and len(ids) == len(set(ids))
+    assert resumo(res)["repetidas_ignoradas"] == 1
+
+
+def _pg(pagina, ident, respostas, duvidas=None):
+    return PaginaLida(pagina, RESPOSTAS, "ok", layout="sfa", identificacao=ident, via="matricula",
+                      respostas=respostas, duvidas=duvidas or {})
+
+
+def test_mesma_chave_com_respostas_diferentes_vai_para_a_revisao_humana():
+    paginas = [_pg(1, "1", {1: "A", 2: None}), _pg(2, "1", {1: "B", 2: None}), _pg(3, "2", {1: "A", 2: None})]
+    resolver_duplicadas(paginas)
+    assert [(p.destino, p.motivo) for p in paginas] == [
+        (NAO_IDENTIFICADOS, ALUNO_DUPLICADO), (NAO_IDENTIFICADOS, ALUNO_DUPLICADO), (RESPOSTAS, "")]
+    assert all("respostas diferentes" in p.pendencias[0].detalhe for p in paginas[:2])
+
+
+def test_tres_paginas_com_uma_diferente_vao_todas_para_a_revisao():
+    paginas = [_pg(1, "1", {1: "A"}), _pg(2, "1", {1: "A"}), _pg(3, "1", {1: "C"})]
+    resolver_duplicadas(paginas)
+    assert {p.destino for p in paginas} == {NAO_IDENTIFICADOS}
+
+
+def test_tres_paginas_identicas_mantem_a_primeira():
+    paginas = [_pg(1, "1", {1: "A"}), _pg(2, "1", {1: "A"}), _pg(3, "1", {1: "A"})]
+    resolver_duplicadas(paginas)
+    assert [p.destino for p in paginas] == [RESPOSTAS, "ignorada", "ignorada"]
+    assert [p.pendencias[0].tipo for p in paginas[1:]] == [PAGINA_REPETIDA, PAGINA_REPETIDA]
+
+
+def test_duvida_diferente_conta_como_resposta_diferente():
+    a = _pg(1, "1", {1: None}, {1: "ambigua"})
+    b = _pg(2, "1", {1: None}, {1: "multipla"})
+    c = _pg(3, "1", {1: None})
+    resolver_duplicadas([a, b])
+    assert a.destino == NAO_IDENTIFICADOS
+    d, e = _pg(4, "9", {1: None}, {1: "ambigua"}), _pg(5, "9", {1: None})
+    resolver_duplicadas([d, e])
+    assert d.destino == NAO_IDENTIFICADOS and c.destino == RESPOSTAS
+
+
+def test_a_repetida_nao_leva_as_duvidas_da_original_em_dobro():
+    a = _pg(1, "1", {1: None}, {1: "ambigua"})
+    a.pendencias.append(Pendencia(1, "ambigua", "célula deixada em branco", questao=1))
+    b = _pg(2, "1", {1: None}, {1: "ambigua"})
+    b.pendencias.append(Pendencia(2, "ambigua", "célula deixada em branco", questao=1))
+    resolver_duplicadas([a, b])
+    assert [p.tipo for p in a.pendencias] == ["ambigua"] and [p.tipo for p in b.pendencias] == [PAGINA_REPETIDA]
 
 
 # ------------------------------------------------------------------ UniAtenas: matrícula das bolhas
@@ -282,14 +339,15 @@ def test_cartao_com_email_vai_para_a_coluna_1_junto_com_os_de_matricula(tmp_path
     assert resumo(res)["identificadas_por_email"] == 1
 
 
-def test_mesmo_email_em_duas_paginas_sai_de_respostas(tmp_path):
+def test_mesmo_email_em_duas_folhas_em_branco_vira_pagina_repetida(tmp_path):
+    """Duas folhas em branco com o mesmo e-mail têm respostas idênticas: uma é mantida e a outra vira aviso."""
     roster = [RosterEntry("", "Bia", email="bia@x.com"), RosterEntry("", "Bia de novo", email="bia@x.com")]
     pdf = tmp_path / "dup.pdf"
     with open(pdf, "wb") as fh:
         write_cards_pdf(fh, specs_personalizados(roster, SIM_EMAIL))
     res = processar_pdf(pdf, SIM_EMAIL, tmp_path / "out")
-    assert [pg.motivo for pg in res.paginas] == [ALUNO_DUPLICADO, ALUNO_DUPLICADO]
-    assert not any(pg.destino == RESPOSTAS for pg in res.paginas)
+    assert [pg.destino for pg in res.paginas] == [RESPOSTAS, "ignorada"]
+    assert [p.tipo for p in res.pendencias] == [PAGINA_REPETIDA]
 
 
 def test_lista_da_emissao_mistura_matricula_e_email(tmp_path):

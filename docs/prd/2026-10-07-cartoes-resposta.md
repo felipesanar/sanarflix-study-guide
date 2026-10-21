@@ -327,7 +327,7 @@ As coordenadas ficam em mm, com origem no topo-esquerdo, e são geradas pelo `ca
 1. **QR personalizado (`M`, ou `E` no plano B):** a matrícula do QR (maiúsculas) ou o e-mail (minúsculas) é a identificação, sem conferir com o banco. Se a emissão deixou uma lista (`--lista`), matrícula fora dela vira o aviso `fora_da_lista`; matrícula da lista sem cartão devolvido aparece no Resumo. Quem valida contra o cadastro é o dry-run da importação.
 2. **QR ilegível:** a página vira `qr_ilegivel` e vai para a aba "Não identificados", com as respostas; o João atribui o aluno pelo recorte do nome e da matrícula impressos. Com `--layout uniatenas` a identificação segue pelas bolhas.
 3. **UniAtenas (`A`):** comparar a string `NN-X-NNNNN` com `upper(trim(matricula_ra))`. Não remover zeros, porque o formato é posicional. Não usar aproximação: matrícula em bolha não tem "erro de leitura de letra", e aproximar arriscaria trocar alunos. **Rev. 8:** a matrícula lida vai direto para a coluna 1; a existência e a unicidade no cadastro são conferidas pelo dry-run da importação.
-4. **Duplicidade:** o mesmo aluno em mais de uma página vira `aluno_duplicado` em **todas** essas páginas.
+4. **Duplicidade (rev. 9):** a mesma identificação em mais de uma página. Se as respostas (e as dúvidas) forem **idênticas** (a mesma folha escaneada duas vezes), a primeira é mantida e as outras viram o aviso `pagina_repetida`. Se **diferirem**, todas viram `aluno_duplicado` e nenhuma vai para `Respostas`: um humano decide.
 
 ### 7.4 Saída: `respostas_<simulado>.xlsx`
 A ordem das abas importa: a tela de importação lê **só a primeira**, **por posição**.
@@ -338,7 +338,7 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
    - **Questões `multipla`/`ambigua`:** a célula fica vazia, com **fundo amarelo** e um comentário (`múltipla` ou `ambígua`, página N). O João decide e preenche.
    - **Importação (P6, entregue em 16/10):** a coluna 1 aceita a Matrícula/RA e também o UUID do aluno (comparado sem diferenciar maiúsculas e ignorando espaços) ou a Matrícula/RA; o aluno precisa pertencer a uma IES do simulado e não pode repetir na planilha (nem por ID e RA ao mesmo tempo). O cabeçalho da coluna 1 é o do modelo da tela, `matricula_ra_ou_id`.
 2. **`Pendências`**: uma linha por problema, com as colunas `pagina | tipo | questao | detalhe | recorte`.
-   - **tipos (rev. 8):** `qr_ilegivel`, `matricula_invalida` (UniAtenas), `aluno_duplicado` (mesma matrícula em 2+ páginas: nenhuma vai para `Respostas`), `multipla`, `ambigua`, `pagina_ilegivel`, `simulado_divergente`, `resposta_alem_do_simulado` (marca depois da questão N, com `--questoes N`) e `fora_da_lista`. Saíram `aluno_nao_identificado` e `aluno_fora_do_roster`.
+   - **tipos (rev. 8):** `qr_ilegivel`, `matricula_invalida` (UniAtenas), `aluno_duplicado` (mesma matrícula ou e-mail em 2+ páginas com respostas diferentes: nenhuma vai para `Respostas`), `pagina_repetida` (aviso: a mesma folha escaneada duas vezes; só a primeira é mantida), `multipla`, `ambigua`, `pagina_ilegivel`, `simulado_divergente`, `resposta_alem_do_simulado` (marca depois da questão N, com `--questoes N`) e `fora_da_lista`. Saíram `aluno_nao_identificado` e `aluno_fora_do_roster`.
    - O `recorte` é o caminho relativo do PNG em `recortes/`.
 3. **`Não identificados`**: as páginas sem aluno, com as respostas completas e a coluna 1 vazia. Depois de identificar o aluno pelo recorte do nome e da matrícula, o João preenche a matrícula e move a linha para `Respostas`.
 4. **`Resumo`**:
@@ -393,6 +393,7 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 - **Aceite:** testes verdes (atendido); o João abre o xlsx de uma execução real e roda o dry-run da importação (**pendente**, Fase 3).
 
 ### Fase 3 — Piloto real e runbook
+- **Rev. 9 (21/10/2026):** o runbook (seção "Runbook" do `services/cartao-omr/README.md`) e o guia de 1 página para as IES (`docs/prd/cartoes-resposta-guia-ies.md`) já estão escritos. O aceite físico com 5 alunos da UVA, o plano B por e-mail e a página repetida foram aprovados pelo João; falta a calibração dos limiares com uma turma real e o teste físico do UniAtenas.
 - **Insumos do João:**
   - um simulado de teste;
   - cartões pessoais impressos e preenchidos por voluntários, com **gabarito conhecido**;
