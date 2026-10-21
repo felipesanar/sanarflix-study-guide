@@ -23,7 +23,7 @@ export interface PreviewResult {
   matricula_ra: string;
   email?: string;
   nome?: string;
-  identificado_por?: 'ra' | 'id';
+  identificado_por?: 'ra' | 'email';
   status: PreviewStatus;
   reason?: string;
   details?: Record<string, unknown>;
@@ -112,9 +112,9 @@ export const REASON_LABEL: Record<string, string> = {
   ra_missing: 'Matrícula/RA em branco',
   duplicate_ra_in_file: 'Matrícula/RA duplicada na planilha',
   ra_not_found: 'Matrícula/RA não encontrada nas IES do simulado',
-  id_not_found: 'ID do aluno não encontrado',
-  id_not_in_ies: 'Aluno não pertence às IES do simulado',
-  duplicate_student_in_file: 'Aluno repetido na planilha (por ID ou RA)',
+  email_not_found: 'E-mail não cadastrado',
+  email_not_in_ies: 'Aluno não pertence às IES do simulado',
+  duplicate_student_in_file: 'Aluno repetido na planilha (por e-mail ou RA)',
   ra_ambiguous: 'Matrícula/RA encontrada em mais de uma IES do simulado',
 };
 
@@ -180,8 +180,8 @@ export function detectEmailHeader(headers: string[], firstRow: Record<string, un
   return null;
 }
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** Identificador no formato de ID do aluno (UUID do Supabase). */
-export function isUuid(v: unknown): boolean {
-  return UUID_REGEX.test(String(v ?? '').trim());
+const IDENT_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Identificador no formato de e-mail (senão é tratado como Matrícula/RA). */
+export function isEmail(v: unknown): boolean {
+  return IDENT_EMAIL_REGEX.test(String(v ?? '').trim());
 }

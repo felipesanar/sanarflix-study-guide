@@ -25,8 +25,8 @@ describe('parseMatrizRespostas', () => {
   });
 });
 
-import { isUuid } from '@/components/admin/simulados/importar-respostas-types';
-describe('isUuid', () => {
-  it('reconhece ID do aluno', () => expect(isUuid(' 3F2A9C1E-1234-4abc-9def-0123456789ab ')).toBe(true));
-  it.each(['2023001234', '23-1-20297', ''])('trata %s como RA', (v) => expect(isUuid(v)).toBe(false));
+import { isEmail } from '@/components/admin/simulados/importar-respostas-types';
+describe('isEmail', () => {
+  it('reconhece e-mail do aluno', () => expect(isEmail(' Ana.DosSantos@Uniatenas.edu.br ')).toBe(true));
+  it.each(['2023001234', '23-1-20297', '3f2a9c1e-1234-4abc-9def-0123456789ab', ''])('trata %s como RA', (v) => expect(isEmail(v)).toBe(false));
 });
