@@ -426,6 +426,57 @@ export type Database = {
           },
         ]
       }
+      b2b_question_access_intervals: {
+        Row: {
+          sanarflix_user_id: string
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          sanarflix_user_id: string
+          valid_from: string
+          valid_until: string
+        }
+        Update: {
+          sanarflix_user_id?: string
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: []
+      }
+      b2b_questions_cohort_state: {
+        Row: {
+          published_at: string
+          singleton: boolean
+        }
+        Insert: {
+          published_at: string
+          singleton: boolean
+        }
+        Update: {
+          published_at?: string
+          singleton?: boolean
+        }
+        Relationships: []
+      }
+      b2b_questions_sync_state: {
+        Row: {
+          pipeline: string
+          updated_at: string
+          watermark: string
+        }
+        Insert: {
+          pipeline: string
+          updated_at?: string
+          watermark: string
+        }
+        Update: {
+          pipeline?: string
+          updated_at?: string
+          watermark?: string
+        }
+        Relationships: []
+      }
       b2c_alternativas: {
         Row: {
           correta: boolean
@@ -1212,6 +1263,54 @@ export type Database = {
           module_name?: string | null
           sanarflix_user_id?: string
           source?: string
+        }
+        Relationships: []
+      }
+      fato_resolucao_questoes_b2b: {
+        Row: {
+          acertou: boolean | null
+          answer_id: string | null
+          carregado_em: string
+          contexto_status: string
+          contextos_candidatos: Json
+          origem_publicacao: string
+          question_id: string
+          response_date: string
+          response_id: string
+          response_timestamp: string
+          sanarflix_user_id: string
+          taxonomia_status: string
+          taxonomias: Json
+        }
+        Insert: {
+          acertou?: boolean | null
+          answer_id?: string | null
+          carregado_em?: string
+          contexto_status: string
+          contextos_candidatos: Json
+          origem_publicacao?: string
+          question_id: string
+          response_date: string
+          response_id: string
+          response_timestamp: string
+          sanarflix_user_id: string
+          taxonomia_status: string
+          taxonomias: Json
+        }
+        Update: {
+          acertou?: boolean | null
+          answer_id?: string | null
+          carregado_em?: string
+          contexto_status?: string
+          contextos_candidatos?: Json
+          origem_publicacao?: string
+          question_id?: string
+          response_date?: string
+          response_id?: string
+          response_timestamp?: string
+          sanarflix_user_id?: string
+          taxonomia_status?: string
+          taxonomias?: Json
         }
         Relationships: []
       }
