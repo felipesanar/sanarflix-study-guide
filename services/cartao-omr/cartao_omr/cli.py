@@ -1,6 +1,7 @@
 """Linha de comando `cartao-omr`: `modelo`, `gerar-cartoes` e `processar` (PDF escaneado -> planilha)."""
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -111,15 +112,16 @@ def processar(
         N_QUESTIONS, "--questoes", min=1, max=N_QUESTIONS,
         help="Total de questões do simulado: a planilha tem exatamente 1 + N colunas (a importação exige)."),
     lista: Optional[Path] = typer.Option(
-        None, "--lista", help="CSV da emissão (coluna matricula): aponta cartões fora da lista e alunos sem cartão."),
+        None, "--lista", help="CSV da emissão (baixado na tela): aponta cartões fora da lista e alunos sem cartão."),
     layout: Optional[str] = typer.Option(
         None, "--layout", help="Layout a assumir quando o QR não for lido (uniatenas lê a matrícula em bolhas)."),
-    saida: Optional[Path] = typer.Option(None, "--saida", help="Pasta de saída (padrão: runs/processar_<simulado>/)."),
+    saida: Optional[Path] = typer.Option(None, "--saida", help="Pasta de saída (padrão: runs/<data>_<hora>_<simulado>/, uma por execução)."),
 ) -> None:
     """Lê o PDF e gera respostas_<simulado>.xlsx, recortes das dúvidas e relatorio.json. Só lê arquivos: sem banco."""
     if layout is not None:
         _check_layout(layout)
-    dest = saida or RUNS_DIR / f"processar_{simulado}"
+    # uma pasta por execução: não sobrescreve o resultado anterior nem esbarra num xlsx aberto no Excel
+    dest = saida or RUNS_DIR / f"{datetime.now():%Y-%m-%d_%H%M%S}_{simulado}"
     try:
         esperados = ler_lista_emissao(lista) if lista else None
         res = processar_pdf(pdf, simulado, dest, questoes, esperados, layout_hint=layout,
@@ -128,6 +130,10 @@ def processar(
         escrever_relatorio(res, dest / "relatorio.json")
     except ValueError as exc:
         typer.echo(f"Erro: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    except PermissionError as exc:
+        typer.echo(f"Erro: não consegui gravar {exc.filename}. Se o arquivo estiver aberto no Excel, feche-o "
+                   "(ou use --saida para outra pasta).", err=True)
         raise typer.Exit(2) from exc
     r = resumo(res)
     typer.echo(f"{r['paginas']} página(s): {r['identificadas']} identificada(s), {r['nao_identificadas']} não identificada(s), "

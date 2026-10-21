@@ -58,7 +58,7 @@ cartao-omr processar scan.pdf --simulado <uuid> --layout uniatenas   # se o QR d
 Sem instalar o script, use `.venv\Scripts\python.exe -m cartao_omr <comando>`.
 
 - `--simulado` precisa ser um UUID (o ID aparece embaixo do nome do simulado em Admin → Simulados → Provas). O `roster.csv` é `matricula,nome` (opcional `ies` e `email`); a matrícula usa só `A-Z`, `0-9`, `.`, `/` e `-` (até 24 caracteres); sem matrícula, a linha precisa de `email` (plano B, até 58 caracteres). Nada pode se repetir. Na emissão pelo Academy a lista vem da tela.
-- `processar`: `--questoes N` é o total de questões do simulado (a planilha tem exatamente `1 + N` colunas, como a importação exige; marcas depois da questão N viram pendência). Saída padrão em `runs/processar_<simulado>/`.
+- `processar`: `--questoes N` é o total de questões do simulado (a planilha tem exatamente `1 + N` colunas, como a importação exige; marcas depois da questão N viram pendência). Saída padrão em `runs/<data>_<hora>_<simulado>/` (uma pasta por execução: nada é sobrescrito e um xlsx aberto no Excel não atrapalha).
   Abas do xlsx: `Respostas` (a única que a importação lê), `Pendências`, `Não identificados`, `Resumo`. Dúvidas (`multipla`/`ambigua`) ficam em branco, amarelas e com comentário. A coluna 1 é texto (preserva zeros e letras).
 - A saída padrão de `gerar-cartoes` é `runs/cartoes_<simulado>/`, que está no `.gitignore`.
   PDFs com nomes de alunos reais **nunca** entram no Git.

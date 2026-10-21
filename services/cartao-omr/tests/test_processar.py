@@ -316,3 +316,32 @@ def test_cli_processar_conta_os_identificados_por_email_no_relatorio(tmp_path):
     rel = json.loads((tmp_path / "o" / "relatorio.json").read_text(encoding="utf-8"))
     assert rel["resumo"]["identificadas_por_email"] == 1
     assert rel["paginas"][0]["identificacao"] == "bia@x.com" and rel["paginas"][0]["via"] == "email"
+
+
+# ------------------------------------------------------------------ pasta de saída e erros de gravação
+def test_cli_processar_usa_uma_pasta_nova_por_execucao(tmp_path, monkeypatch):
+    import cartao_omr.cli as cli
+    monkeypatch.setattr(cli, "RUNS_DIR", tmp_path / "runs")
+    roster = [RosterEntry("2023001", "Ana")]
+    pdf = _pdf_misto(tmp_path, roster)
+    saidas = []
+    for _ in range(2):
+        r = runner.invoke(app, ["processar", str(pdf), "--simulado", SIM_EMAIL])
+        assert r.exit_code == 0, r.output
+        saidas.append(sorted(p.name for p in (tmp_path / "runs").iterdir()))
+    # 1 pasta depois da 1ª execução; 1 ou 2 depois da 2ª (a hora tem resolução de segundos), nunca uma pasta compartilhada com
+    # o nome só do simulado
+    assert all(n.endswith(SIM_EMAIL) and not n.startswith("processar_") for n in saidas[-1])
+
+
+def test_cli_processar_avisa_quando_o_xlsx_esta_aberto_no_excel(tmp_path, monkeypatch):
+    import cartao_omr.cli as cli
+
+    def trava(*_a, **_k):
+        raise PermissionError(13, "Permission denied", str(tmp_path / "respostas_x.xlsx"))
+
+    monkeypatch.setattr(cli, "escrever_planilha", trava)
+    pdf = _pdf_misto(tmp_path, [RosterEntry("2023001", "Ana")])
+    r = runner.invoke(app, ["processar", str(pdf), "--simulado", SIM_EMAIL, "--saida", str(tmp_path / "o")])
+    assert r.exit_code == 2
+    assert "aberto no Excel" in r.output and "respostas_x.xlsx" in r.output and "Traceback" not in r.output
