@@ -23,7 +23,7 @@ if (!entrada || !saida) {
 
 const aqui = dirname(fileURLToPath(import.meta.url));
 const opcoes = JSON.parse(readFileSync(entrada, 'utf8')) as OpcoesEmissao;
-const arquivo = opcoes.layout === 'sfa' ? 'sfa_v3.json' : 'uniatenas_v1.json';
+const arquivo = opcoes.layout === 'sfa' ? 'sfa_v4.json' : 'uniatenas_v1.json';
 const template = JSON.parse(readFileSync(join(aqui, '..', 'templates', arquivo), 'utf8')) as CardTemplate;
 
 const inicio = performance.now();

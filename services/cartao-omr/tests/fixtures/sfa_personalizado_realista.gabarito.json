@@ -4,7 +4,7 @@
  "seed": 2026,
  "file": "sfa_personalizado_realista.pdf",
  "layout": "sfa",
- "template": "sfa_v3",
+ "template": "sfa_v4",
  "simulado_id": "5ddeab4a-99e3-5602-9a0b-5c4f2a024a89",
  "profile": "realista",
  "pages": [
@@ -17,6 +17,7 @@
    "qr": "SFA2:M:5DDEAB4A:2023001000",
    "qr_legivel": true,
    "matricula_qr": "2023001000",
+   "email_qr": null,
    "aluno": "João Teste 001",
    "matricula": null,
    "answers": {
@@ -1449,6 +1450,7 @@
    "qr": "SFA2:M:5DDEAB4A:2023001001",
    "qr_legivel": true,
    "matricula_qr": "2023001001",
+   "email_qr": null,
    "aluno": "Carla Sintético 002",
    "matricula": null,
    "answers": {
@@ -2884,6 +2886,7 @@
    "qr": "SFA2:M:5DDEAB4A:2023001002",
    "qr_legivel": true,
    "matricula_qr": "2023001002",
+   "email_qr": null,
    "aluno": "Carla Sintético 003",
    "matricula": null,
    "answers": {
@@ -4330,6 +4333,7 @@
    "qr": "SFA2:M:5DDEAB4A:AB-0004.X",
    "qr_legivel": true,
    "matricula_qr": "AB-0004.X",
+   "email_qr": null,
    "aluno": "Tiago Amostra 004",
    "matricula": null,
    "answers": {
@@ -5774,9 +5778,10 @@
    "legible": true,
    "defect": null,
    "model": "personalizado",
-   "qr": "SFA2:M:5DDEAB4A:2023001004",
+   "qr": "SFA2:E:5DDEAB4A:aluno.005@faculdade-exemplo.edu.br",
    "qr_legivel": true,
-   "matricula_qr": "2023001004",
+   "matricula_qr": null,
+   "email_qr": "aluno.005@faculdade-exemplo.edu.br",
    "aluno": "Elisa Exemplo 005",
    "matricula": null,
    "answers": {
@@ -7209,6 +7214,7 @@
    "qr": "SFA2:M:5DDEAB4A:2023001005",
    "qr_legivel": true,
    "matricula_qr": "2023001005",
+   "email_qr": null,
    "aluno": "Bruno Sintético 006",
    "matricula": null,
    "answers": {

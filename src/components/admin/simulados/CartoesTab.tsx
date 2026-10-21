@@ -4,7 +4,8 @@
  * O time escolhe simulado, IES e alunos; o PDF é gerado aqui, no navegador, a partir dos templates de
  * `services/cartao-omr/templates`. Nenhum dado de aluno sai do Academy. Cada cartão traz o nome e a matrícula do
  * aluno impressos (a matrícula também no QR): o leitor devolve as respostas pela matrícula, a mesma da importação.
- * Aluno sem matrícula utilizável (vazia, fora do formato ou repetida) não recebe cartão: fica numa lista à parte.
+ * Plano B: quem não tem matrícula utilizável (vazia, fora do formato ou repetida) é identificado pelo e-mail no QR, e o
+ * campo da matrícula sai em branco para o aluno escrever. Só fica sem cartão quem também não tem e-mail utilizável.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Loader2, Printer, Search, TriangleAlert } from 'lucide-react';
@@ -26,15 +27,18 @@ import {
   type SimuladoCartao,
 } from '@/features/cartoes/api';
 import {
-  ROTULO_EXCLUSAO,
+  ROTULO_SEM_MATRICULA,
   EmissaoCancelada,
   classificarAlunos,
   csvDaEmissao,
   csvDosExcluidos,
+  descricaoDaExclusao,
   formatarDataBR,
   montarSpecs,
   nomeDoArquivo,
+  type Identificacao,
   type MotivoExclusao,
+  type MotivoSemMatricula,
   type ProgressoEmissao,
 } from '@/features/cartoes/emitir';
 import { gerarPdfSegundoPlano } from '@/features/cartoes/gerar';
@@ -61,9 +65,12 @@ function normalizar(s: string): string {
   return s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
+type AlunoApto = AlunoOpt & Identificacao;
+
 interface AlunoExcluido {
   aluno: AlunoOpt;
   motivo: MotivoExclusao;
+  motivoSemMatricula: MotivoSemMatricula;
 }
 
 interface Resultado {
@@ -86,7 +93,7 @@ export default function CartoesTab() {
   const [copias, setCopias] = useState(1);
   const [data, setData] = useState('');
 
-  const [alunos, setAlunos] = useState<AlunoOpt[]>([]);
+  const [alunos, setAlunos] = useState<AlunoApto[]>([]);
   const [excluidos, setExcluidos] = useState<AlunoExcluido[]>([]);
   const [carregandoAlunos, setCarregandoAlunos] = useState(false);
   const [erroAlunos, setErroAlunos] = useState<string | null>(null);
@@ -196,10 +203,12 @@ export default function CartoesTab() {
     [alunosNoSemestre, selecionados],
   );
 
+  const porEmailNoFiltro = useMemo(() => alunosNoSemestre.filter((a) => a.via === 'email').length, [alunosNoSemestre]);
+
   const visiveis = useMemo(() => {
     const q = normalizar(busca.trim());
     if (!q) return alunosNoSemestre;
-    return alunosNoSemestre.filter((a) => normalizar(a.nome).includes(q) || (a.matricula ?? '').toLowerCase().includes(q));
+    return alunosNoSemestre.filter((a) => normalizar(a.nome).includes(q) || (a.matricula ?? '').toLowerCase().includes(q) || (a.email ?? '').toLowerCase().includes(q));
   }, [alunosNoSemestre, busca]);
 
   /** Muda o filtro e remarca todos os alunos dos semestres escolhidos (as desmarcações manuais voltam ao padrão). */
@@ -254,7 +263,10 @@ export default function CartoesTab() {
         data: formatarDataBR(data),
         ...(layout === 'sfa'
           ? {
-              alunos: aEmitir.map((a) => ({ matricula: a.matricula ?? '', nome: a.nome })),
+              alunos: aEmitir.map((a) => ({
+                nome: a.nome,
+                ...(a.via === 'matricula' ? { matricula: a.matricula ?? '' } : { email: a.email ?? '' }),
+              })),
             }
           : { copias }),
       });
@@ -268,7 +280,7 @@ export default function CartoesTab() {
       const arquivo = nomeDoArquivo(ies.nome, simulado.nome, layout === 'sfa' ? sufixoDeSemestres(semestres) : '');
       const lista =
         layout === 'sfa'
-          ? csvDaEmissao(specs.map((s) => ({ nome: s.alunoNome ?? '', matricula: s.matricula ?? '' })))
+          ? csvDaEmissao(specs.map((s) => ({ nome: s.alunoNome ?? '', matricula: s.matricula ?? '', email: s.email ?? '' })))
           : null;
       setResultado({ url, arquivo, paginas: specs.length, lista });
       baixar(url, arquivo);
@@ -291,7 +303,7 @@ export default function CartoesTab() {
   }, [resultado]);
 
   const baixarCsvExcluidos = () => {
-    const csv = csvDosExcluidos(excluidosNoSemestre.map((e) => ({ aluno: e.aluno, motivo: e.motivo })));
+    const csv = csvDosExcluidos(excluidosNoSemestre);
     baixarTexto(csv, nomeDoArquivo(ies?.nome ?? '', 'alunos sem cartao', sufixoDeSemestres(semestres)).replace(/^cartoes_/, '').replace(/\.pdf$/, '.csv'));
   };
 
@@ -306,7 +318,9 @@ export default function CartoesTab() {
         <p className="text-sm text-muted-foreground">
           Gera os cartões-resposta em PDF para imprimir. Cada cartão traz o nome e a matrícula do aluno (a matrícula
           também vai num QR), para o script de leitura devolver as respostas já identificadas e prontas para a
-          importação. O PDF é montado neste navegador: nenhum dado dos alunos é enviado para fora.
+          importação. Quem não tem matrícula utilizável no cadastro recebe um cartão identificado pelo e-mail, com o
+          campo da matrícula em branco para escrever. O PDF é montado neste navegador: nenhum dado dos alunos é
+          enviado para fora.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="space-y-1.5">
@@ -409,7 +423,7 @@ export default function CartoesTab() {
             <AdminEmpty title="Nenhum aluno nesta IES" description="Só alunos (sem papel de equipe) aparecem aqui." />
           ) : !alunos.length ? (
             <AdminEmpty
-              title="Nenhum aluno com matrícula utilizável nesta IES"
+              title="Nenhum aluno com matrícula ou e-mail utilizável nesta IES"
               description="Corrija o cadastro dos alunos listados abaixo para poder emitir os cartões."
             />
           ) : (
@@ -444,12 +458,17 @@ export default function CartoesTab() {
                   </p>
                 </div>
               )}
+              {porEmailNoFiltro > 0 && (
+                <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100" role="status">
+                  {`${porEmailNoFiltro} ${porEmailNoFiltro === 1 ? 'aluno não tem' : 'alunos não têm'} matrícula utilizável no cadastro e ${porEmailNoFiltro === 1 ? 'será identificado' : 'serão identificados'} pelo e-mail: o campo MATRÍCULA do cartão sai em branco para o aluno escrever.`}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative w-full sm:w-80">
                   <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     aria-label="Buscar aluno"
-                    placeholder="Buscar por nome ou matrícula"
+                    placeholder="Buscar por nome, matrícula ou e-mail"
                     className="pl-8"
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
@@ -480,7 +499,19 @@ export default function CartoesTab() {
                       />
                       <span className="flex-1 truncate">{a.nome}</span>
                       <span className="text-xs text-muted-foreground">{a.semestre == null ? '' : `${a.semestre}º sem.`}</span>
-                      <span className="font-mono text-xs text-muted-foreground">{a.matricula}</span>
+                      {a.via === 'matricula' ? (
+                        <span className="font-mono text-xs text-muted-foreground">{a.matricula}</span>
+                      ) : (
+                        <span
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                          title={`Sem matrícula utilizável (${a.motivoSemMatricula ? ROTULO_SEM_MATRICULA[a.motivoSemMatricula] : ''}): o cartão é identificado pelo e-mail`}
+                        >
+                          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">
+                            por e-mail
+                          </span>
+                          <span className="font-mono">{a.email}</span>
+                        </span>
+                      )}
                     </label>
                   </li>
                 ))}
@@ -504,18 +535,21 @@ export default function CartoesTab() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            O cartão leva a matrícula do cadastro, e a importação casa as respostas por ela. Sem matrícula utilizável o
-            aluno não recebe cartão: corrija o cadastro e gere de novo.
+            Sem matrícula utilizável o cartão usa o e-mail, e estes alunos também não têm e-mail utilizável. Sem nenhum
+            dos dois a importação não casaria as respostas: corrija o cadastro e gere de novo.
           </p>
           <ul className="max-h-60 divide-y overflow-auto rounded-lg border bg-background" aria-label="Alunos fora do PDF">
-            {excluidosNoSemestre.map(({ aluno, motivo }) => (
+            {excluidosNoSemestre.map((e) => {
+              const aluno = e.aluno;
+              return (
               <li key={aluno.userId} className="flex items-center gap-3 px-3 py-2 text-sm">
                 <span className="flex-1 truncate">{aluno.nome}</span>
                 <span className="text-xs text-muted-foreground">{aluno.semestre == null ? '' : `${aluno.semestre}º sem.`}</span>
                 <span className="font-mono text-xs text-muted-foreground">{aluno.matricula ?? '—'}</span>
-                <span className="text-xs text-muted-foreground">{ROTULO_EXCLUSAO[motivo]}</span>
+                <span className="text-xs text-muted-foreground">{descricaoDaExclusao(e)}</span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

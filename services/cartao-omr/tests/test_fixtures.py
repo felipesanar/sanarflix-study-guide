@@ -181,7 +181,8 @@ def test_fixtures_sfa_identificam_o_aluno_pela_matricula_do_qr():
             if p["kind"] != "cartao":
                 continue
             assert p["matricula"] is None
-            assert parse_qr(p["qr"]).matricula == p["matricula_qr"]
+            qr = parse_qr(p["qr"])
+            assert qr.matricula == p["matricula_qr"] and qr.email == p["email_qr"]
 
 
 def test_gabarito_nao_traz_dados_reais():

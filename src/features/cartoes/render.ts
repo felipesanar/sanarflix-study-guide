@@ -6,13 +6,13 @@
  * rodar no Vite, no Vitest e direto no Node (`services/cartao-omr/tools/emitir_ts.mts`).
  */
 import type { jsPDF } from 'jspdf';
-import { buildPayload, normalizarMatricula } from './payload.ts';
+import { buildPayload, cartaoPorEmail, normalizarMatricula } from './payload.ts';
 import { encodeQr } from './qr.ts';
 import type { CardSpec, CardTemplate, DrawOp } from './types.ts';
 
 const PT_MM = 25.4 / 72;
 
-type Slot = 'titulo' | 'subtitulo' | 'aluno' | 'matricula' | 'label';
+type Slot = 'titulo' | 'subtitulo' | 'aluno' | 'matricula' | 'dica_matricula' | 'label';
 
 function fonte(nome: string): [string, 'normal' | 'bold'] {
   if (nome === 'Helvetica') return ['helvetica', 'normal'];
@@ -38,6 +38,7 @@ export function slotValues(spec: CardSpec): Record<Slot, string> {
     subtitulo: partes.join('  •  '),
     aluno: spec.model === 'personalizado' ? (spec.alunoNome ?? '') : '',
     matricula: spec.model === 'personalizado' ? normalizarMatricula(spec.matricula) : '',
+    dica_matricula: cartaoPorEmail(spec) ? 'escreva sua matrícula abaixo' : '',
     label: spec.label ?? '',
   };
 }

@@ -478,6 +478,9 @@ def fake_roster(rng: random.Random, n: int, sim_key: str) -> list[RosterEntry]:
     for i in range(n):
         nome = f"{rng.choice(PRIMEIROS)} {rng.choice(SOBRENOMES)} {i + 1:03d}"
         # matrículas fictícias; algumas com letra e pontuação, para exercitar o alfabeto do QR
+        if i % 6 == 4:  # plano B: sem matrícula utilizável, identificado pelo e-mail
+            out.append(RosterEntry("", nome, email=f"aluno.{i + 1:03d}@faculdade-exemplo.edu.br"))
+            continue
         mat = f"AB-{i + 1:04d}.X" if i % 7 == 3 else f"{2023001000 + i}"
         out.append(RosterEntry(mat, nome))
     return out
@@ -522,7 +525,8 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int) -> dict:
         qr_damaged = spec.defects.get(idx) == "qr_danificado"
         if qr_damaged:
             qx0, qy0, qx1, qy1 = tpl["qr_box_mm"]
-            ink.cover_box(qx0 - 1, qy0 + 2, qx0 + 21, qy1 - 3)
+            # mancha forte sobre quase toda a área do QR (a caixa do sfa_v4 é maior e o código tem mais folga)
+            ink.cover_box(qx0 - 1, qy0 + 1, qx1 - 4, qy1 - 3, strength=1.0)
 
         # compõe tinta na página
         pen_blue = rng.random() < 0.5
@@ -563,6 +567,7 @@ def build_set(spec: SetSpec, out_dir: Path, seed: int) -> dict:
             "page": len(out_pdf), "kind": "cartao", "legible": legible, "defect": defect,
             "model": spec.model, "qr": card.qr_payload, "qr_legivel": not qr_damaged,
             "matricula_qr": card.matricula_normalizada or None,
+            "email_qr": card.email_normalizado or None,
             "aluno": aluno, "matricula": mat, "answers": answers,
             "scan": {
                 "dpi": dpi, "size_px": [page_img.shape[1], page_img.shape[0]],
@@ -648,9 +653,9 @@ def write_roster_csv(path: Path, n: int, seed: int) -> None:
     roster = fake_roster(random.Random(f"{seed}/roster"), n, "roster")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         wr = csv.writer(fh)
-        wr.writerow(["matricula", "nome"])
+        wr.writerow(["matricula", "nome", "email"])
         for r in roster:
-            wr.writerow([r.matricula, r.nome])
+            wr.writerow([r.matricula, r.nome, r.email])
 
 
 def main(argv: list[str] | None = None) -> int:

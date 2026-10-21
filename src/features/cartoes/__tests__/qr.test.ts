@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import golden from './qr-golden.json';
 import { encodeQr, qrVersion } from '../qr.ts';
-import { buildPayload, isUuid, normalizarMatricula, parseQr, problemaDaMatricula, rotuloDoCartao, sim8 } from '../payload.ts';
+import {
+  EMAIL_MAX,
+  buildPayload,
+  isUuid,
+  normalizarIdentificacao,
+  normalizarMatricula,
+  parseQr,
+  problemaDaMatricula,
+  problemaDoEmail,
+  rotuloDoCartao,
+  sim8,
+} from '../payload.ts';
 
 interface Caso {
   text: string;
@@ -41,13 +52,19 @@ describe('payload SFA2 (referência: models.py)', () => {
     model: 'personalizado' | 'uniatenas';
     simulado_id: string;
     matricula: string | null;
+    email: string | null;
     sim8: string;
     payload: string;
   }>;
 
   it.each(payloads.map((p, i) => [i, p] as const))('payload %i igual ao do Python', (_i, p) => {
     expect(sim8(p.simulado_id)).toBe(p.sim8);
-    const spec = { model: p.model, simuladoId: p.simulado_id, ...(p.matricula ? { matricula: p.matricula } : {}) };
+    const spec = {
+      model: p.model,
+      simuladoId: p.simulado_id,
+      ...(p.matricula ? { matricula: p.matricula } : {}),
+      ...(p.email ? { email: p.email } : {}),
+    };
     expect(buildPayload(spec)).toBe(p.payload);
   });
 
@@ -55,8 +72,8 @@ describe('payload SFA2 (referência: models.py)', () => {
     const sim = '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc';
     const texto = buildPayload({ model: 'personalizado', simuladoId: sim, matricula: ' 99-g-12345 ' });
     expect(texto).toBe('SFA2:M:9D6C1F0E:99-G-12345');
-    expect(parseQr(texto)).toEqual({ kind: 'M', sim8: '9D6C1F0E', matricula: '99-G-12345' });
-    expect(parseQr('SFA2:A:9D6C1F0E')).toEqual({ kind: 'A', sim8: '9D6C1F0E', matricula: null });
+    expect(parseQr(texto)).toEqual({ kind: 'M', sim8: '9D6C1F0E', matricula: '99-G-12345', email: null });
+    expect(parseQr('SFA2:A:9D6C1F0E')).toEqual({ kind: 'A', sim8: '9D6C1F0E', matricula: null, email: null });
   });
 
   it.each([
@@ -78,6 +95,44 @@ describe('payload SFA2 (referência: models.py)', () => {
   it('o pior caso (24 caracteres) cabe no QR de versão 3', () => {
     const texto = buildPayload({ model: 'personalizado', simuladoId: '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc', matricula: 'A'.repeat(24) });
     expect(encodeQr(texto).length).toBe(29); // versão 3: 29 x 29 módulos
+  });
+
+  it('plano B: o e-mail vai em minúsculas no QR do tipo E, e o QR do pior caso (58 caracteres) é de versão 6', () => {
+    const sim = '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc';
+    const texto = buildPayload({ model: 'personalizado', simuladoId: sim, email: ' Maria.Silva@Faculdade.edu.br ' });
+    expect(texto).toBe('SFA2:E:9D6C1F0E:maria.silva@faculdade.edu.br');
+    expect(parseQr(texto)).toEqual({ kind: 'E', sim8: '9D6C1F0E', matricula: null, email: 'maria.silva@faculdade.edu.br' });
+    const pior = 'a'.repeat(53) + '@b.co';
+    expect(pior).toHaveLength(EMAIL_MAX);
+    expect(encodeQr(buildPayload({ model: 'personalizado', simuladoId: sim, email: pior })).length).toBe(41); // versão 6
+  });
+
+  it.each([
+    ['', 'sem_email'],
+    ['  ', 'sem_email'],
+    ['sem-arroba', 'email_invalido'],
+    ['a@b', 'email_invalido'],
+    ['a b@x.com', 'email_invalido'],
+    ['Ç@x.com', 'email_invalido'],
+    ['a'.repeat(54) + '@b.co', 'email_longo_demais'],
+  ])('e-mail %j não pode ir no QR (%s)', (email, motivo) => {
+    expect(problemaDoEmail(email)).toBe(motivo);
+    if (email.trim()) {
+      expect(() => buildPayload({ model: 'personalizado', simuladoId: '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc', email })).toThrow(motivo);
+    }
+  });
+
+  it.each(['SFA2:E:9D6C1F0E:', 'SFA2:E:9D6C1F0E:sem-arroba', 'SFA2:E:9D6C1F0E:Maria@x.com', 'SFA2:E:9D6C1F0E:a@b', 'SFA2:E:9D6C1F0E:a b@x.com'])(
+    'parseQr recusa o e-mail ruim %j',
+    (texto) => {
+      expect(parseQr(texto)).toBeNull();
+    },
+  );
+
+  it('matrícula e e-mail ao mesmo tempo, ou nenhum dos dois, são recusados', () => {
+    const base = { model: 'personalizado' as const, simuladoId: '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc' };
+    expect(() => buildPayload({ ...base, matricula: '123', email: 'a@x.com' })).toThrow(/ou pela matrícula ou pelo e-mail/);
+    expect(() => buildPayload(base)).toThrow(/sem_matricula/);
   });
 
   it('simulado que não é UUID é recusado', () => {
@@ -105,6 +160,9 @@ describe('payload SFA2 (referência: models.py)', () => {
     expect(normalizarMatricula(null)).toBe('');
     expect(problemaDaMatricula('99-G-12345')).toBeNull();
     expect(rotuloDoCartao('personalizado', ' ab-1 ')).toBe('AB-1');
+    expect(rotuloDoCartao('personalizado', '', ' A@X.com ')).toBe('a@x.com');
+    expect(normalizarIdentificacao(' A@X.com ')).toBe('a@x.com');
+    expect(normalizarIdentificacao(' ab-1 ')).toBe('AB-1');
     expect(rotuloDoCartao('uniatenas')).toBe('UNIATENAS');
   });
 });

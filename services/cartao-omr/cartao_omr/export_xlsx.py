@@ -27,7 +27,9 @@ from .processar import (
     Resultado,
 )
 
-COLUNA_ID = "matricula_ra_ou_id"
+# 1ª coluna: matrícula/RA ou, no plano B (aluno sem matrícula no cadastro), o e-mail. O cabeçalho é só para quem lê;
+# a importação lê a coluna por posição.
+COLUNA_ID = "matricula_ra_ou_email"
 AMARELO = PatternFill("solid", fgColor="FFF2CC")
 NEGRITO = Font(bold=True)
 
@@ -37,7 +39,7 @@ def _cabecalho(n: int) -> list[str]:
 
 
 def _linha(pg: PaginaLida, n: int) -> list[str | None]:
-    return [pg.matricula or ""] + [pg.respostas.get(q) for q in range(1, n + 1)]
+    return [pg.identificacao or ""] + [pg.respostas.get(q) for q in range(1, n + 1)]
 
 
 def _escreve_respostas(ws, paginas: list[PaginaLida], n: int, com_pagina: bool = False) -> None:
@@ -88,6 +90,7 @@ def resumo(res: Resultado) -> dict:
         "ilegiveis": cont.get("pagina_ilegivel", 0),
         "simulado_divergente": cont.get("simulado_divergente", 0),
         "identificadas": destinos.get(RESPOSTAS, 0),
+        "identificadas_por_email": sum(1 for pg in res.paginas if pg.destino == RESPOSTAS and pg.via == "email"),
         "nao_identificadas": destinos.get(NAO_IDENTIFICADOS, 0),
         "duplicadas": sum(1 for pg in res.paginas if pg.motivo == ALUNO_DUPLICADO),
         "questoes": dict(celulas),
@@ -101,7 +104,7 @@ def escrever_planilha(res: Resultado, dest: Path) -> Path:
     wb = Workbook()
     ws = wb.active
     ws.title = "Respostas"
-    ok = sorted((pg for pg in res.paginas if pg.destino == RESPOSTAS), key=lambda p: (p.matricula or "", p.pagina))
+    ok = sorted((pg for pg in res.paginas if pg.destino == RESPOSTAS), key=lambda p: (p.identificacao or "", p.pagina))
     _escreve_respostas(ws, ok, n)
 
     wp = wb.create_sheet("Pendências")
@@ -127,7 +130,7 @@ def escrever_planilha(res: Resultado, dest: Path) -> Path:
     wr.column_dimensions["B"].width = 40
     if res.ausentes:
         wr.append([])
-        wr.append(["matrículas da lista sem cartão devolvido"])
+        wr.append(["da lista da emissão, sem cartão devolvido"])
         for m in res.ausentes:
             wr.append([m])
 
@@ -143,7 +146,7 @@ def escrever_relatorio(res: Resultado, dest: Path) -> Path:
         "ausentes_da_lista": res.ausentes,
         "paginas": [
             {"pagina": pg.pagina, "destino": pg.destino, "status": pg.status, "layout": pg.layout,
-             "matricula": pg.matricula, "motivo": pg.motivo}
+             "identificacao": pg.identificacao, "via": pg.via, "motivo": pg.motivo}
             for pg in res.paginas
         ],
     }

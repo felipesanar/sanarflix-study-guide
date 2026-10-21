@@ -20,4 +20,4 @@ def test_vetores_cobrem_as_versoes_1_a_9_e_os_dois_modos():
     assert {c["version"] for c in dados["casos"]} == set(range(1, 10))
     modos = {segno.make(c["text"], error="q", micro=False, boost_error=False).mode for c in dados["casos"]}
     assert {"alphanumeric", "byte"} <= modos
-    assert len(dados["payloads"]) == 50
+    assert len(dados["payloads"]) == 66  # 40 com matrícula, 16 do plano B (e-mail) e 10 do UniAtenas

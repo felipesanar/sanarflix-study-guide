@@ -3,7 +3,16 @@ from __future__ import annotations
 
 import pytest
 
-from cartao_omr.models import CardSpec, QrData, matricula_problem, normalize_matricula, parse_qr, sim8
+from cartao_omr.models import (
+    CardSpec,
+    QrData,
+    email_problem,
+    matricula_problem,
+    normalize_email,
+    normalize_matricula,
+    parse_qr,
+    sim8,
+)
 
 SIM = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
 MAT = "2023001234"
@@ -75,3 +84,61 @@ def test_simulado_que_nao_e_uuid_e_recusado(sim):
 def test_modelo_generico_nao_existe_mais():
     with pytest.raises(ValueError):
         CardSpec(model="generico", simulado_id=SIM).qr_payload
+
+
+# ------------------------------------------------------------------ plano B: e-mail
+EMAIL = "maria.silva@faculdade.edu.br"
+
+
+def test_payload_do_plano_b_leva_o_email_em_minusculas():
+    spec = CardSpec(model="personalizado", simulado_id=SIM, email=" Maria.Silva@Faculdade.edu.br ")
+    assert spec.por_email
+    assert spec.qr_payload == f"SFA2:E:9D6C1F0E:{EMAIL}"
+
+
+def test_parse_qr_do_email():
+    data = parse_qr(f"SFA2:E:9D6C1F0E:{EMAIL}")
+    assert data == QrData("E", "9D6C1F0E", None, EMAIL)
+    assert data.layout == "sfa" and data.identificacao == EMAIL
+    assert parse_qr("SFA2:M:9D6C1F0E:123").identificacao == "123"
+    assert parse_qr("SFA2:A:9D6C1F0E").identificacao is None
+
+
+@pytest.mark.parametrize("texto", [
+    "SFA2:E:9D6C1F0E:", "SFA2:E:9D6C1F0E:sem-arroba", "SFA2:E:9D6C1F0E:Maria@x.com", "SFA2:E:9D6C1F0E:a@b",
+    "SFA2:E:9D6C1F0E:a b@x.com", "SFA2:E:9D6C1F0G:a@x.com", "SFA2:E:9D6C1F0E:" + "a" * 60 + "@x.com",
+])
+def test_parse_qr_recusa_email_ruim(texto):
+    assert parse_qr(texto) is None
+
+
+def test_ida_e_volta_do_email_no_limite():
+    email = "a" * 53 + "@b.co"  # 58 caracteres
+    assert len(email) == 58
+    data = parse_qr(CardSpec(model="personalizado", simulado_id=SIM, email=email).qr_payload)
+    assert data.email == email
+
+
+@pytest.mark.parametrize("email,motivo", [
+    ("", "sem_email"), ("   ", "sem_email"), ("sem-arroba", "email_invalido"), ("a@b", "email_invalido"),
+    ("a b@x.com", "email_invalido"), ("Ç@x.com", "email_invalido"), ("a" * 54 + "@b.co", "email_longo_demais"),
+])
+def test_email_que_nao_cabe_no_qr(email, motivo):
+    assert email_problem(email) == motivo
+    if email.strip():
+        with pytest.raises(ValueError):
+            CardSpec(model="personalizado", simulado_id=SIM, email=email).qr_payload
+
+
+def test_email_ok_e_normalizacao():
+    assert email_problem("Joao.Nader+cartoes@Sanar.com") is None
+    assert normalize_email("  A@X.COM ") == "a@x.com" and normalize_email(None) == ""
+
+
+def test_o_cartao_nao_aceita_matricula_e_email_ao_mesmo_tempo():
+    with pytest.raises(ValueError):
+        CardSpec(model="personalizado", simulado_id=SIM, matricula="123", email="a@x.com").qr_payload
+    # sem nenhum dos dois também não
+    with pytest.raises(ValueError):
+        CardSpec(model="personalizado", simulado_id=SIM).qr_payload
+    assert not CardSpec(model="uniatenas", simulado_id=SIM).por_email

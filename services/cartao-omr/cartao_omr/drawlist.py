@@ -17,7 +17,7 @@ Cores em `#rrggbb`. Operações, na ordem de desenho:
                                                                       `matricula.columns` do template)
   qr       {box: [x0, y0, x1, y1], quiet, ec, color}           (conteúdo = payload do cartão)
 
-SLOTS: `titulo`, `subtitulo`, `aluno`, `matricula`, `label`. O texto é encolhido de 0,25 pt em 0,25 pt até caber em
+SLOTS: `titulo`, `subtitulo`, `aluno`, `matricula`, `dica_matricula`, `label`. O texto é encolhido de 0,25 pt em 0,25 pt até caber em
 `max_w` (mm) ou chegar a `min_size`; se ainda não couber, é cortado com reticências. Slot vazio não desenha.
 """
 from __future__ import annotations
@@ -34,10 +34,11 @@ GRAY_LETTER = "#a6a6a6"
 GRAY_TEXT = "#333333"
 GRAY_LABEL = "#404040"
 
-# Por layout: o sfa_v3 usa o slot `matricula` e a fonte Courier-Bold (versão 2); o UniAtenas segue na 1.
-DRAW_VERSION = {"sfa": 2, "uniatenas": 1}
+# Por layout: o sfa usa o slot `matricula` e a fonte Courier-Bold (versão 2) e, no sfa_v4, a dica do plano B por
+# e-mail e o rótulo que encolhe (versão 3); o UniAtenas segue na 1.
+DRAW_VERSION = {"sfa": 3, "uniatenas": 1}
 
-SLOTS = ("titulo", "subtitulo", "aluno", "matricula", "label")
+SLOTS = ("titulo", "subtitulo", "aluno", "matricula", "dica_matricula", "label")
 
 
 def _r(v: float) -> float:
@@ -122,11 +123,14 @@ def _pessoal() -> list[dict]:
     ops = [
         _rect(f, stroke=GRAY_STROKE, lw=0.5),
         _text(f[0] + 3, L.MAT_TITLE_BASELINE, "MATRÍCULA", "Helvetica-Bold", 10.0),
+        # plano B (identificado por e-mail): a matrícula não vem impressa e o aluno escreve no campo; sem a dica o slot não desenha
+        _slot("dica_matricula", f[2] - 3, L.MAT_TITLE_BASELINE, "Helvetica", 6.5, GRAY_LABEL,
+              L.PESSOAL_DICA_MAX_W, 5.0, align="right"),
         _slot("matricula", f[0] + 3, L.PESSOAL_MATRICULA_BASELINE, "Courier-Bold", 16.0, BLACK, mat_w, 9.0),
         _line(f[0] + 3, L.PESSOAL_AVISOS_RULE_Y, f[2] - 3, L.PESSOAL_AVISOS_RULE_Y, GRAY_STROKE, 0.5),
     ]
     avisos = [
-        "Confira se o nome (ALUNO) e a matrícula impressos neste cartão são os seus.",
+        "Confira se o nome (ALUNO) e a matrícula, quando impressa, são os seus.",
         "Se não forem os seus, avise o aplicador antes de marcar qualquer resposta.",
         "Não troque de cartão com colegas.",
         "Este cartão é identificado automaticamente pelo código QR: não escreva nem cole nada sobre ele.",
@@ -205,10 +209,15 @@ def build_draw(layout: str) -> list[dict]:
     for x, y, w in geo.fiducials.values():
         ops.append(_rect((x, y, x + w, y + w), fill=BLACK))
     ops += _header()
-    ops.append({"op": "qr", "box": [_r(v) for v in L.QR_BOX], "quiet": L.QR_QUIET_MODULES,
+    box = L.QR_BOXES[layout]
+    ops.append({"op": "qr", "box": [_r(v) for v in box], "quiet": L.QR_QUIET_MODULES,
                 "ec": L.QR_ERROR.upper(), "color": BLACK})
-    ops.append(_slot("label", (L.QR_BOX[0] + L.QR_BOX[2]) / 2, L.QR_LABEL_Y, "Helvetica", 6.0, GRAY_LABEL,
-                     align="center"))
+    if layout == L.LAYOUT_SFA:
+        ops.append(_slot("label", (box[0] + box[2]) / 2, L.QR_LABELS_Y[layout], "Helvetica", 6.0, GRAY_LABEL,
+                         L.QR_LABEL_MAX_W_SFA, 4.0, align="center"))
+    else:  # UniAtenas: igual ao de sempre
+        ops.append(_slot("label", (box[0] + box[2]) / 2, L.QR_LABELS_Y[layout], "Helvetica", 6.0, GRAY_LABEL,
+                         align="center"))
     ops += _matricula(geo) if geo.matricula_columns else _pessoal()
     ops += _instrucoes()
     off = baseline_offset(L.NUMBER_PT)

@@ -44,11 +44,16 @@ class PageResult:
         return self.qr.data.matricula if self.qr and self.qr.data else None
 
     @property
+    def email_qr(self) -> str | None:
+        """E-mail do QR do plano B (cartão sem matrícula utilizável); None nos demais."""
+        return self.qr.data.email if self.qr and self.qr.data else None
+
+    @property
     def identificacao(self) -> str | None:
-        """Chave do aluno para a planilha: matrícula do QR (sfa) ou das bolhas (UniAtenas, se válida)."""
+        """Chave do aluno para a planilha: matrícula ou e-mail do QR (sfa), ou matrícula das bolhas (UniAtenas, se válida)."""
         if self.layout == LAYOUT_UNIATENAS:
             return self.matricula.value if self.matricula and self.matricula.valid else None
-        return self.matricula_qr
+        return self.matricula_qr or self.email_qr
 
 
 def read_page(gray: np.ndarray, cfg: ReadConfig = DEFAULT_CONFIG, layout_hint: str | None = None,

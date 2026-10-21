@@ -2,7 +2,7 @@
 
 Sem banco e sem rede (decisão de 20/10/2026): o aluno é identificado só pelo que está no cartão
 (matrícula do QR no cartão pessoal; matrícula em bolhas no UniAtenas). A coluna 1 da planilha é essa
-matrícula, a mesma chave que a importação do Academy casa com `users.matricula_ra`. Quem confere se a
+matrícula (ou, no plano B, pelo e-mail), a chave que a importação do Academy casa com o cadastro. Quem confere se a
 matrícula existe nas IES do simulado é o dry-run da importação.
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ import numpy as np
 
 from .config import DEFAULT_CONFIG, ReadConfig
 from .layout import LAYOUT_UNIATENAS, N_QUESTIONS
-from .models import normalize_matricula, sim8
+from .models import normalize_identificacao, normalize_matricula, sim8
 from .pipeline import omr
 from .pipeline.page import EM_BRANCO, ILEGIVEL, OK, PageResult, load_template, read_page
 from .pipeline.render import open_pdf, render_page
@@ -54,7 +54,8 @@ class PaginaLida:
     destino: str                                   # respostas | nao_identificados | ignorada
     status: str                                    # ok | pagina_em_branco | pagina_ilegivel | simulado_divergente
     layout: str | None = None
-    matricula: str | None = None                   # identificação (QR ou bolhas), normalizada
+    identificacao: str | None = None               # matrícula (QR ou bolhas) ou e-mail (plano B), normalizada
+    via: str | None = None                         # matricula | email
     motivo: str = ""                               # por que não foi identificada
     respostas: dict[int, str | None] = field(default_factory=dict)
     duvidas: dict[int, str] = field(default_factory=dict)    # questão -> multipla | ambigua
@@ -76,15 +77,16 @@ class Resultado:
 
 
 def ler_lista_emissao(path: Path) -> set[str]:
-    """CSV da emissão (coluna `matricula`, separado por `,` ou `;`, com ou sem BOM): as matrículas esperadas."""
+    """CSV da emissão (coluna `identificacao` ou `matricula`; `,` ou `;`; com ou sem BOM): as chaves esperadas."""
     linhas = Path(path).read_text(encoding="utf-8-sig").splitlines()
     if not linhas:
         raise ValueError("o CSV da lista de emissão está vazio")
     reader = csv.DictReader(linhas, delimiter=";" if ";" in linhas[0] else ",")
     cols = {(c or "").strip().lower(): c for c in (reader.fieldnames or [])}
-    if "matricula" not in cols:
-        raise ValueError("o CSV da lista de emissão precisa ter a coluna matricula")
-    out = {normalize_matricula(r[cols["matricula"]]) for r in reader}
+    col = cols.get("identificacao") or cols.get("matricula")
+    if col is None:
+        raise ValueError("o CSV da lista de emissão precisa ter a coluna identificacao (ou matricula)")
+    out = {normalize_identificacao(r[col]) for r in reader}
     out.discard("")
     return out
 
@@ -150,14 +152,15 @@ def ler_pagina(gray: np.ndarray, pagina: int, simulado_id: str, total_questoes: 
     elif res.layout == LAYOUT_UNIATENAS:
         m = res.matricula
         if m is not None and m.valid:
-            pg.matricula = normalize_matricula(m.value)
+            pg.identificacao, pg.via = normalize_matricula(m.value), "matricula"
         else:
             pg.destino, pg.motivo = NAO_IDENTIFICADOS, MATRICULA_INVALIDA
             pg.pendencias.append(Pendencia(
                 pagina, MATRICULA_INVALIDA, m.reason if m else "matrícula não lida",
                 recorte=_recorte(res, tpl, pagina, MATRICULA_INVALIDA, saida)))
     else:
-        pg.matricula = res.matricula_qr
+        pg.identificacao = res.identificacao
+        pg.via = "email" if res.email_qr else ("matricula" if res.matricula_qr else None)
 
     # ---- respostas
     for q in range(1, N_QUESTIONS + 1):
@@ -194,24 +197,24 @@ def processar_pdf(pdf: Path, simulado_id: str, saida: Path, total_questoes: int 
             progresso(i + 1, len(doc))
 
     # duplicidade: a mesma matrícula em 2+ páginas torna todas elas pendentes (nenhuma vai para Respostas)
-    por_matricula: dict[str, list[PaginaLida]] = defaultdict(list)
+    por_chave: dict[str, list[PaginaLida]] = defaultdict(list)
     for pg in paginas:
-        if pg.destino == RESPOSTAS and pg.matricula:
-            por_matricula[pg.matricula].append(pg)
-    for mat, pgs in por_matricula.items():
+        if pg.destino == RESPOSTAS and pg.identificacao:
+            por_chave[pg.identificacao].append(pg)
+    for chave, pgs in por_chave.items():
         if len(pgs) > 1:
             outras = ", ".join(str(p.pagina) for p in pgs)
             for pg in pgs:
                 pg.destino, pg.motivo = NAO_IDENTIFICADOS, ALUNO_DUPLICADO
-                pg.pendencias.append(Pendencia(pg.pagina, ALUNO_DUPLICADO, f"matrícula {mat} nas páginas {outras}"))
+                pg.pendencias.append(Pendencia(pg.pagina, ALUNO_DUPLICADO, f"{chave} nas páginas {outras}"))
 
     # QR de cartão pessoal sem matrícula utilizável não existe (parse_qr exige), então sobra só o tipo `fora_da_lista`
     ausentes: list[str] = []
     if lista is not None:
-        lidas = {pg.matricula for pg in paginas if pg.matricula}
+        lidas = {pg.identificacao for pg in paginas if pg.identificacao}
         for pg in paginas:
-            if pg.matricula and pg.matricula not in lista:
+            if pg.identificacao and pg.identificacao not in lista:
                 pg.pendencias.append(Pendencia(pg.pagina, FORA_DA_LISTA,
-                                               f"matrícula {pg.matricula} não está na lista da emissão"))
+                                               f"{pg.identificacao} não está na lista da emissão"))
         ausentes = sorted(lista - lidas)
     return Resultado(simulado_id, total_questoes, paginas, ausentes, cfg, arquivo=Path(pdf).name)

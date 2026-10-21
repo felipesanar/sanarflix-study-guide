@@ -4,7 +4,7 @@
  "seed": 2026,
  "file": "sfa_personalizado_limpo.pdf",
  "layout": "sfa",
- "template": "sfa_v3",
+ "template": "sfa_v4",
  "simulado_id": "9f43fad7-7ff1-5764-a1bd-f4e79acddb65",
  "profile": "limpo",
  "pages": [
@@ -17,6 +17,7 @@
    "qr": "SFA2:M:9F43FAD7:2023001000",
    "qr_legivel": true,
    "matricula_qr": "2023001000",
+   "email_qr": null,
    "aluno": "Ana Fictício 001",
    "matricula": null,
    "answers": {
@@ -1397,6 +1398,7 @@
    "qr": "SFA2:M:9F43FAD7:2023001001",
    "qr_legivel": true,
    "matricula_qr": "2023001001",
+   "email_qr": null,
    "aluno": "Fábio Modelo 002",
    "matricula": null,
    "answers": {
@@ -2799,6 +2801,7 @@
    "qr": "SFA2:M:9F43FAD7:2023001002",
    "qr_legivel": true,
    "matricula_qr": "2023001002",
+   "email_qr": null,
    "aluno": "Otávio Teste 003",
    "matricula": null,
    "answers": {
@@ -4188,6 +4191,7 @@
    "qr": "SFA2:M:9F43FAD7:AB-0004.X",
    "qr_legivel": true,
    "matricula_qr": "AB-0004.X",
+   "email_qr": null,
    "aluno": "Tiago Teste 004",
    "matricula": null,
    "answers": {

@@ -52,6 +52,7 @@ ALUNOS = [
     {"matricula": "ab-12.3/x", "nome": "Çãtia Ñandú Öztürk"},
     {"matricula": "A1B2C3D4E5F6G7H8I9J0K1L2", "nome": LONGO},
     {"matricula": "99-G-12345", "nome": "Álvaro Falso"},
+    {"email": "Bia.Sem.Matricula@Faculdade.edu.br", "nome": "Bia Sem Matrícula"},  # plano B
 ]
 
 
@@ -76,8 +77,8 @@ def _sfa_entrada(alunos=ALUNOS):
 
 
 def _sfa_py(alunos=ALUNOS):
-    ordenados = sorted(alunos, key=lambda a: (_sort_key(a["nome"]), a["matricula"].strip().upper()))
-    roster = [RosterEntry(a["matricula"], a["nome"]) for a in ordenados]
+    ordenados = sorted(alunos, key=lambda a: (_sort_key(a["nome"]), (a.get("matricula") or a.get("email", "")).strip().upper()))
+    roster = [RosterEntry(a.get("matricula", ""), a["nome"], email=a.get("email", "")) for a in ordenados]
     return specs_personalizados(roster, SIM, "SIMULADO ENAMED 2026", "Faculdade Exemplo", "25/10/2026")
 
 
@@ -99,7 +100,7 @@ def uni(tmp_path_factory):
 def test_uma_pagina_a4_por_cartao_na_mesma_ordem_do_python(sfa):
     pdf, stats, specs = sfa
     doc = pymupdf.open(stream=pdf, filetype="pdf")
-    assert len(doc) == stats["paginas"] == len(specs) == 4
+    assert len(doc) == stats["paginas"] == len(specs) == 5
     for page in doc:
         assert round(page.rect.width / 72 * 25.4) == 210 and round(page.rect.height / 72 * 25.4) == 297
 
@@ -109,7 +110,7 @@ def test_qr_de_cada_pagina_e_o_payload_do_python(sfa):
     for i, spec in enumerate(specs):
         lidos = zxingcpp.read_barcodes(render_gray(pdf, i, 200))
         assert [r.text for r in lidos] == [spec.qr_payload], i
-        assert parse_qr(lidos[0].text).matricula == spec.matricula_normalizada
+        assert parse_qr(lidos[0].text).identificacao == (spec.matricula_normalizada or spec.email_normalizado)
 
 
 def test_qr_do_typescript_e_igual_ao_do_python_pixel_a_pixel(sfa):
@@ -167,13 +168,16 @@ def test_nome_e_matricula_impressos_no_pdf_do_typescript(sfa):
     doc = pymupdf.open(stream=pdf, filetype="pdf")
     for i, spec in enumerate(specs):
         texto = doc[i].get_text()
-        assert "MATRÍCULA" in texto and spec.matricula_normalizada in texto, i
-        assert "CARTÃO PESSOAL" not in texto
+        assert "MATRÍCULA" in texto and "CARTÃO PESSOAL" not in texto, i
+        if spec.por_email:  # plano B: campo em branco, dica para escrever e o e-mail como rótulo sob o QR
+            assert "escreva sua matrícula abaixo" in texto and spec.email_normalizado in texto, i
+        else:
+            assert spec.matricula_normalizada in texto and "escreva sua matrícula" not in texto, i
 
 
 def test_ordem_dos_alunos_ignora_acentos(sfa):
     _, _, specs = sfa
-    assert [s.aluno_nome for s in specs][:2] == ["Álvaro Falso", "Çãtia Ñandú Öztürk"]
+    assert [s.aluno_nome for s in specs][:3] == ["Álvaro Falso", "Bia Sem Matrícula", "Çãtia Ñandú Öztürk"]
 
 
 # ------------------------------------------------------------------ o leitor da Fase 1 lê o cartão do TypeScript
@@ -185,8 +189,9 @@ def test_leitor_da_fase_1_le_o_cartao_gerado_no_typescript(sfa, tmp_path):
     for i, spec in enumerate(specs):
         res = read_page(render_page(doc, i))
         assert res.status == OK, res.reason
-        assert res.matricula_qr == spec.matricula_normalizada and not res.qr_ilegivel
-        assert res.identificacao == spec.matricula_normalizada
+        chave = spec.matricula_normalizada or spec.email_normalizado
+        assert res.identificacao == chave and not res.qr_ilegivel
+        assert (res.email_qr is not None) == spec.por_email
         assert res.alignment.rms_mm < 0.3
         assert all(c.kind == omr.BRANCO for c in res.answers.values())  # cartão em branco: nada marcado
 
@@ -204,6 +209,9 @@ def test_leitor_le_o_cartao_uniatenas_do_typescript(uni, tmp_path):
 @pytest.mark.parametrize("mudanca", [
     {"simuladoId": "sim-1"},
     {"alunos": [{"matricula": "12 34", "nome": "Fulano"}]},
+    {"alunos": [{"nome": "Sem nada"}]},
+    {"alunos": [{"matricula": "1", "email": "a@x.com", "nome": "Os dois"}]},
+    {"alunos": [{"email": "sem-arroba", "nome": "Email ruim"}]},
     {"alunos": [{"matricula": "", "nome": "Fulano"}]},
     {"alunos": [{"matricula": "1", "nome": "A"}, {"matricula": " 1 ", "nome": "B"}]},
     {"alunos": []},

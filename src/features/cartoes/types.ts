@@ -15,14 +15,17 @@ export interface CardSpec {
   alunoNome?: string;
   /** Só no personalizado; normalizada (`trim` + maiúsculas) ao montar o QR. */
   matricula?: string;
+  /** Plano B, só no personalizado: sem matrícula utilizável, o QR leva o e-mail (minúsculas). Exclui a matrícula. */
+  email?: string;
   /** Código legível sob o QR. */
   label?: string;
 }
 
 export interface QrData {
-  kind: 'M' | 'A';
+  kind: 'M' | 'E' | 'A';
   sim8: string;
   matricula: string | null;
+  email: string | null;
 }
 
 // ---------------------------------------------------------------- lista de desenho (ver cartao_omr/drawlist.py)
@@ -40,7 +43,7 @@ export type DrawOp =
       color: string;
       align?: 'left' | 'right' | 'center';
       s?: string;
-      slot?: 'titulo' | 'subtitulo' | 'aluno' | 'matricula' | 'label';
+      slot?: 'titulo' | 'subtitulo' | 'aluno' | 'matricula' | 'dica_matricula' | 'label';
       max_w?: number;
       min_size?: number;
     }

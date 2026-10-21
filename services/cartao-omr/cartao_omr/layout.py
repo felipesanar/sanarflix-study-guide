@@ -12,7 +12,7 @@ LAYOUT_SFA = "sfa"
 LAYOUT_UNIATENAS = "uniatenas"
 LAYOUTS = (LAYOUT_SFA, LAYOUT_UNIATENAS)
 
-TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v3", LAYOUT_UNIATENAS: "uniatenas_v1"}
+TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v4", LAYOUT_UNIATENAS: "uniatenas_v1"}
 
 # ---------------------------------------------------------------- página
 PAGE_W = 210.0
@@ -31,10 +31,17 @@ ALUNO_BOX = (20.0, 30.0, 150.0, 40.0)
 ALUNO_LABEL_X = 20.0
 ALUNO_LINE_X0 = 38.0
 ALUNO_LINE_Y = 38.8
-QR_BOX = (158.0, 20.0, 188.0, 50.0)
+QR_BOX = (158.0, 20.0, 188.0, 50.0)          # UniAtenas (inalterada)
+# sfa: caixa maior (36 mm), porque o QR do plano B (e-mail, modo byte) chega à versão 6 e o módulo precisa
+# ficar em 0,73 mm ou mais. O espaço à direita do título e da linha do aluno (x >= 154) está livre.
+QR_BOX_SFA = (154.0, 20.0, 190.0, 56.0)
+QR_BOXES = {LAYOUT_SFA: QR_BOX_SFA, LAYOUT_UNIATENAS: QR_BOX}
 QR_ERROR = "q"
 QR_QUIET_MODULES = 4
 QR_LABEL_Y = 52.6  # linha de base do código legível sob o QR (6 pt)
+QR_LABEL_Y_SFA = 58.6
+QR_LABEL_MAX_W_SFA = 42.0  # o e-mail do plano B pode ser longo: encolhe até caber (x de 151 a 193 mm)
+QR_LABELS_Y = {LAYOUT_SFA: QR_LABEL_Y_SFA, LAYOUT_UNIATENAS: QR_LABEL_Y}
 
 # ---------------------------------------------------------------- blocos
 # Bloco esquerdo: matrícula em bolhas (uniatenas) ou matrícula impressa + avisos (sfa).
@@ -43,6 +50,7 @@ PESSOAL_FRAME = MATRICULA_FRAME
 # sfa: matrícula impressa em destaque (linha de base), filete e início dos avisos
 PESSOAL_MATRICULA_BASELINE = 58.0
 PESSOAL_AVISOS_RULE_Y = 61.0
+PESSOAL_DICA_MAX_W = 38.0     # dica "escreva sua matrícula" (plano B), à direita do título MATRÍCULA
 PESSOAL_AVISOS_Y0 = 67.0
 # recorte da matrícula impressa (Pendências do leitor)
 PESSOAL_MATRICULA_CROP = (20.0, 50.0, 92.0, 61.0)

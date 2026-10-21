@@ -6,6 +6,9 @@ import {
   gerarPdf,
   montarSpecs,
   classificarAlunos,
+  csvDaEmissao,
+  csvDosExcluidos,
+  descricaoDaExclusao,
   nomeDoArquivo,
   ordenarAlunos,
 } from '../emitir.ts';
@@ -29,7 +32,7 @@ describe('templates', () => {
     for (const layout of ['sfa', 'uniatenas'] as const) {
       const t = TEMPLATES[layout];
       expect(t.layout).toBe(layout);
-      expect(t.draw_version).toBe(layout === 'sfa' ? 2 : 1);
+      expect(t.draw_version).toBe(layout === 'sfa' ? 3 : 1);
       expect(t.draw.length).toBeGreaterThan(30);
       expect(t.draw.some((op) => op.op === 'qr')).toBe(true);
       expect(t.draw.some((op) => op.op === 'bubbles')).toBe(true);
@@ -118,27 +121,59 @@ describe('montarSpecs', () => {
 });
 
 describe('classificarAlunos', () => {
-  it('separa quem pode receber cartão e dá o motivo de quem não pode', () => {
+  it('matrícula utilizável e única segue como está; os demais caem no plano B (e-mail) ou ficam fora', () => {
     const lista = [
-      { nome: 'A', matricula: '2023001' },
-      { nome: 'B', matricula: null },
-      { nome: 'C', matricula: '   ' },
-      { nome: 'D', matricula: '12 34' },
-      { nome: 'E', matricula: 'x'.repeat(30) },
-      { nome: 'F', matricula: '99-G-99999' },
-      { nome: 'G', matricula: ' 99-g-99999 ' },
-      { nome: 'H', matricula: 'ab.12' },
+      { nome: 'A', matricula: '2023001', email: 'a@x.com' },
+      { nome: 'B', matricula: null, email: 'b@x.com' },
+      { nome: 'C', matricula: '   ', email: ' C@X.com ' },
+      { nome: 'D', matricula: '12 34', email: 'd@x.com' },
+      { nome: 'E', matricula: 'x'.repeat(30), email: 'e@x.com' },
+      { nome: 'F', matricula: '99-G-99999', email: 'f@x.com' },
+      { nome: 'G', matricula: ' 99-g-99999 ', email: 'g@x.com' },
+      { nome: 'H', matricula: 'ab.12', email: null },
+      { nome: 'I', matricula: null, email: null },
+      { nome: 'J', matricula: '', email: 'sem-arroba' },
+      { nome: 'K', matricula: null, email: 'k'.repeat(60) + '@x.com' },
     ];
     const r = classificarAlunos(lista);
-    expect(r.aptos.map((a) => a.nome)).toEqual(['A', 'H']);
-    expect(r.excluidos.map((e) => [e.aluno.nome, e.motivo])).toEqual([
-      ['B', 'sem_matricula'],
-      ['C', 'sem_matricula'],
-      ['D', 'formato_nao_suportado'],
-      ['E', 'formato_nao_suportado'],
-      ['F', 'duplicada'],
-      ['G', 'duplicada'],
+    expect(r.aptos.map((a) => [a.nome, a.via, a.motivoSemMatricula ?? null])).toEqual([
+      ['A', 'matricula', null],
+      ['B', 'email', 'sem_matricula'],
+      ['C', 'email', 'sem_matricula'],
+      ['D', 'email', 'formato_nao_suportado'],
+      ['E', 'email', 'formato_nao_suportado'],
+      ['F', 'email', 'duplicada'],
+      ['G', 'email', 'duplicada'],
+      ['H', 'matricula', null],
     ]);
+    expect(r.excluidos.map((e) => [e.aluno.nome, e.motivo, e.motivoSemMatricula])).toEqual([
+      ['I', 'sem_email', 'sem_matricula'],
+      ['J', 'email_invalido', 'sem_matricula'],
+      ['K', 'email_longo_demais', 'sem_matricula'],
+    ]);
+  });
+
+  it('e-mail repetido deixa de fora quem precisava dele, mas não quem tem matrícula', () => {
+    const r = classificarAlunos([
+      { nome: 'A', matricula: '1', email: 'igual@x.com' },
+      { nome: 'B', matricula: null, email: 'igual@x.com' },
+      { nome: 'C', matricula: null, email: 'IGUAL@x.com' },
+      { nome: 'D', matricula: null, email: 'unico@x.com' },
+    ]);
+    expect(r.aptos.map((a) => a.nome)).toEqual(['A', 'D']);
+    expect(r.excluidos.map((e) => [e.aluno.nome, e.motivo])).toEqual([
+      ['B', 'email_duplicado'],
+      ['C', 'email_duplicado'],
+    ]);
+  });
+
+  it('o aluno sem e-mail só fica de fora se a matrícula também não serve', () => {
+    const r = classificarAlunos([
+      { nome: 'A', matricula: '1' },
+      { nome: 'B', matricula: null },
+    ]);
+    expect(r.aptos.map((a) => a.nome)).toEqual(['A']);
+    expect(descricaoDaExclusao(r.excluidos[0]!)).toBe('sem matrícula cadastrada / sem e-mail cadastrado');
   });
 
   it('lista vazia e lista toda boa', () => {
@@ -147,10 +182,54 @@ describe('classificarAlunos', () => {
   });
 });
 
+describe('plano B em montarSpecs e nos CSVs', () => {
+  it('aluno com e-mail vira cartão com QR do tipo E, sem matrícula, e o rótulo é o e-mail', () => {
+    const specs = montarSpecs({
+      layout: 'sfa',
+      simuladoId: SIM,
+      alunos: [{ nome: 'Bia Sem RA', email: ' Bia@X.com ' }, { nome: 'Ana', matricula: '2023001' }],
+    });
+    expect(specs.map((s) => [s.alunoNome, s.matricula ?? null, s.email ?? null, s.label])).toEqual([
+      ['Ana', '2023001', null, '2023001'],
+      ['Bia Sem RA', null, 'bia@x.com', 'bia@x.com'],
+    ]);
+  });
+
+  it.each([
+    [[{ nome: 'X', matricula: '1', email: 'a@x.com' }], /não os dois/],
+    [[{ nome: 'X', email: 'sem-arroba' }], /email_invalido/],
+    [[{ nome: 'X', email: 'a@x.com' }, { nome: 'Y', email: ' A@x.com ' }], /e-mail repetido/],
+    [[{ nome: 'X' }], /sem_matricula/],
+  ] as const)('recusa %#', (alunos, erro) => {
+    expect(() => montarSpecs({ layout: 'sfa', simuladoId: SIM, alunos: alunos as never })).toThrow(erro);
+  });
+
+  it('o slot da dica só aparece no plano B', () => {
+    expect(slotValues({ model: 'personalizado', simuladoId: SIM, email: 'a@x.com' }).dica_matricula).toMatch(/escreva sua matrícula/);
+    expect(slotValues({ model: 'personalizado', simuladoId: SIM, matricula: '1' }).dica_matricula).toBe('');
+    expect(slotValues({ model: 'personalizado', simuladoId: SIM, email: 'a@x.com' }).matricula).toBe('');
+  });
+
+  it('csvDaEmissao traz identificacao, tipo e nome, ordenado por nome', () => {
+    const csv = csvDaEmissao([
+      { nome: 'Zélia', matricula: ' ab-1 ' },
+      { nome: 'Ana', email: 'Ana@x.com' },
+    ]);
+    expect(csv.slice(1)).toBe('identificacao;tipo;nome' + String.fromCharCode(13, 10) + 'ana@x.com;email;Ana' + String.fromCharCode(13, 10) + 'AB-1;matricula;Zélia' + String.fromCharCode(13, 10));
+  });
+
+  it('csvDosExcluidos explica o que falta em cada cadastro', () => {
+    const { excluidos } = classificarAlunos([{ nome: 'Sem Nada', matricula: null, email: null, semestre: 7 }]);
+    const csv = csvDosExcluidos(excluidos);
+    expect(csv).toContain('nome;matricula;email;semestre;motivo');
+    expect(csv).toContain('Sem Nada;;;7;sem matrícula cadastrada / sem e-mail cadastrado');
+  });
+});
+
 describe('render', () => {
   it('slots: título, subtítulo, aluno, matrícula e rótulo', () => {
     const v = slotValues({ model: 'personalizado', simuladoId: SIM, nomeSimulado: 'ENAMED', ies: 'IES X', data: '25/10/2026', alunoNome: 'Maria', matricula: ' ab-1 ', label: 'ABC' });
-    expect(v).toEqual({ titulo: 'CARTÃO-RESPOSTA — ENAMED', subtitulo: 'Instituição: IES X  •  Data: 25/10/2026', aluno: 'Maria', matricula: 'AB-1', label: 'ABC' });
+    expect(v).toEqual({ titulo: 'CARTÃO-RESPOSTA — ENAMED', subtitulo: 'Instituição: IES X  •  Data: 25/10/2026', aluno: 'Maria', matricula: 'AB-1', dica_matricula: '', label: 'ABC' });
     const uni = slotValues({ model: 'uniatenas', simuladoId: SIM, alunoNome: 'ignorado', matricula: 'ignorada' });
     expect(uni.aluno).toBe('');
     expect(uni.matricula).toBe('');

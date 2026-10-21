@@ -26,6 +26,7 @@ from cartao_omr.models import CardSpec, sim8  # noqa: E402
 OUT = ROOT.parent.parent / "src" / "features" / "cartoes" / "__tests__" / "qr-golden.json"
 ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 $%*+-./:"
 MATRICULA_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./-"
+EMAIL_LOCAL = "abcdefghijklmnopqrstuvwxyz0123456789._%+-"
 
 
 def matrix(text: str) -> tuple[int, list[str]]:
@@ -46,13 +47,23 @@ def build() -> dict:
         entrada = f" {mat.lower()} " if i % 2 else mat
         s = CardSpec(model="personalizado", simulado_id=sim, matricula=entrada)
         textos.append(s.qr_payload)
-        payloads.append({"model": "personalizado", "simulado_id": sim, "matricula": entrada,
+        payloads.append({"model": "personalizado", "simulado_id": sim, "matricula": entrada, "email": None,
+                         "sim8": sim8(sim), "payload": s.qr_payload})
+    # plano B: e-mails de 8 a 58 caracteres (QR em modo byte, versões 3 a 6); alguns com maiúsculas e espaços nas pontas
+    for i in range(16):
+        sim = str(uuid.UUID(int=rnd.getrandbits(128), version=4))
+        total = 8 + (i * 50) // 15
+        local = "".join(rnd.choice(EMAIL_LOCAL) for _ in range(max(1, total - len("@x.edu.br"))))
+        entrada = f" {local.upper()}@X.edu.br " if i % 3 == 0 else f"{local}@x.edu.br"
+        s = CardSpec(model="personalizado", simulado_id=sim, email=entrada)
+        textos.append(s.qr_payload)
+        payloads.append({"model": "personalizado", "simulado_id": sim, "matricula": None, "email": entrada,
                          "sim8": sim8(sim), "payload": s.qr_payload})
     for _ in range(10):
         sim = str(uuid.UUID(int=rnd.getrandbits(128), version=4))
         s = CardSpec(model="uniatenas", simulado_id=sim)
         textos.append(s.qr_payload)
-        payloads.append({"model": "uniatenas", "simulado_id": sim, "matricula": None,
+        payloads.append({"model": "uniatenas", "simulado_id": sim, "matricula": None, "email": None,
                          "sim8": sim8(sim), "payload": s.qr_payload})
     # alfanumérico de vários tamanhos (versões 1 a 8), sempre com letra para não virar modo numérico
     for n in list(range(1, 12)) + [20, 27, 34, 40, 48, 60, 77, 90, 104, 118, 140, 170]:

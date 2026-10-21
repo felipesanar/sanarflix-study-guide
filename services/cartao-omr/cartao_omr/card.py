@@ -21,15 +21,25 @@ from reportlab.pdfgen.canvas import Canvas
 
 from . import layout as L
 from .drawlist import DRAW_VERSION, build_draw
-from .models import MODEL_PERSONALIZADO, MODEL_UNIATENAS, CardSpec, RosterEntry, normalize_matricula
+from .models import (
+    EMAIL_MAX,
+    MODEL_PERSONALIZADO,
+    MODEL_UNIATENAS,
+    CardSpec,
+    RosterEntry,
+    matricula_problem,
+    normalize_email,
+    normalize_matricula,
+)
 
 
 # =============================================================== template
-def qr_info(payload: str) -> dict:
-    """Versão, nº de módulos e tamanho do módulo (mm) de um QR dentro da caixa."""
+def qr_info(payload: str, layout: str = L.LAYOUT_UNIATENAS) -> dict:
+    """Versão, nº de módulos e tamanho do módulo (mm) de um QR dentro da caixa do layout."""
     qr = segno.make(payload, error=L.QR_ERROR, micro=False, boost_error=False)
     modules = qr.symbol_size(border=0)[0]
-    box_w = L.QR_BOX[2] - L.QR_BOX[0]
+    box = L.QR_BOXES[layout]
+    box_w = box[2] - box[0]
     return {
         "version": qr.version,
         "modules": modules,
@@ -40,10 +50,12 @@ def qr_info(payload: str) -> dict:
 # Pior caso previsto: simulado_id em UUID e matrícula de 24 caracteres.
 _UUID_EXEMPLO = "ffffffff-ffff-4fff-bfff-ffffffffffff"
 _MATRICULA_EXEMPLO = "A" * 24
+_EMAIL_EXEMPLO = "a" * (EMAIL_MAX - len("@b.co")) + "@b.co"  # 58 caracteres: o pior caso do QR do sfa
 
 
 PAYLOAD_FORMAT = {
-    L.LAYOUT_SFA: "SFA2:M:<SIM8>:<MATRICULA>; maiúsculas, matrícula [A-Z0-9./-] de 1 a 24 caracteres",
+    L.LAYOUT_SFA: ("SFA2:M:<SIM8>:<MATRICULA> (matrícula [A-Z0-9./-], 1 a 24, maiúsculas) | "
+                   "SFA2:E:<SIM8>:<EMAIL> (plano B, minúsculas, até 58 caracteres)"),
     L.LAYOUT_UNIATENAS: "SFA2:A:<SIM8>; maiúsculas, hex sem hífens",
 }
 
@@ -65,6 +77,8 @@ def build_template(layout: str) -> dict:
         simulado_id=_UUID_EXEMPLO,
         matricula=_MATRICULA_EXEMPLO,
     )
+    # sfa: o pior caso é o plano B (e-mail de 58 caracteres, modo byte); o da matrícula vai à parte
+    worst_email = CardSpec(model=MODEL_PERSONALIZADO, simulado_id=_UUID_EXEMPLO, email=_EMAIL_EXEMPLO)
     return {
         "template_version": L.TEMPLATE_VERSION[layout],
         "layout": layout,
@@ -79,13 +93,14 @@ def build_template(layout: str) -> dict:
         "page_mm": [L.PAGE_W, L.PAGE_H],
         "useful_area_mm": list(L.USEFUL),
         "fiducials_mm": fid,
-        "qr_box_mm": list(L.QR_BOX),
+        "qr_box_mm": list(L.QR_BOXES[layout]),
         "qr": {
             "error_level": L.QR_ERROR.upper(),
             "quiet_modules": L.QR_QUIET_MODULES,
             "payload_format": PAYLOAD_FORMAT[layout],
             "example": worst.qr_payload,
-            "worst_case": qr_info(worst.qr_payload),
+            "worst_case": qr_info(worst_email.qr_payload if layout == L.LAYOUT_SFA else worst.qr_payload, layout),
+            **({"worst_case_matricula": qr_info(worst.qr_payload, layout)} if layout == L.LAYOUT_SFA else {}),
         },
         "alternatives": list(L.ALTERNATIVES),
         "questions": questions,
@@ -236,6 +251,7 @@ def slot_values(spec: CardSpec) -> dict[str, str]:
         "subtitulo": "  •  ".join(partes),
         "aluno": spec.aluno_nome if spec.model == MODEL_PERSONALIZADO else "",
         "matricula": spec.matricula_normalizada if spec.model == MODEL_PERSONALIZADO else "",
+        "dica_matricula": "escreva sua matrícula abaixo" if spec.por_email else "",
         "label": spec.label,
     }
 
@@ -341,6 +357,15 @@ def write_cards_pdf(
 
 
 # =============================================================== conjuntos de cartões
+def _identificacao(r: RosterEntry) -> dict:
+    """Matrícula quando o aluno tem uma utilizável; senão o plano B por e-mail (matrícula em branco no cartão)."""
+    if matricula_problem(r.matricula) is None:
+        m = normalize_matricula(r.matricula)
+        return {"matricula": m, "label": m}
+    e = normalize_email(r.email)
+    return {"email": e, "label": e}
+
+
 def specs_personalizados(
     roster: Iterable[RosterEntry],
     simulado_id: str,
@@ -356,8 +381,7 @@ def specs_personalizados(
             ies=r.ies or ies,
             data=data,
             aluno_nome=r.nome,
-            matricula=normalize_matricula(r.matricula),
-            label=normalize_matricula(r.matricula),
+            **_identificacao(r),
         )
         for r in roster
     ]

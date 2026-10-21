@@ -24,6 +24,8 @@ export interface AlunoOpt {
   userId: string;
   nome: string;
   matricula: string | null;
+  /** `users.email`: identifica o aluno no cartão quando não há matrícula utilizável (plano B). */
+  email: string | null;
   /** `users.semestre`; `null` quando não está cadastrado. */
   semestre: number | null;
 }
@@ -76,7 +78,7 @@ export async function listarAlunosDaIes(client: Client, iesId: string): Promise<
   const linhas = await paginar(async (de, ate) => {
     const { data, error } = await client
       .from('users')
-      .select('id, nome, matricula_ra, semestre')
+      .select('id, nome, matricula_ra, email, semestre')
       .eq('id_ies', iesId)
       .order('nome')
       .order('id')
@@ -88,6 +90,7 @@ export async function listarAlunosDaIes(client: Client, iesId: string): Promise<
     userId: u.id,
     nome: u.nome,
     matricula: u.matricula_ra?.trim() || null,
+    email: u.email?.trim() || null,
     semestre: u.semestre ?? null,
   }));
 

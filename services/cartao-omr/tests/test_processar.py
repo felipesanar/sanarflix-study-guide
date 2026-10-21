@@ -8,7 +8,9 @@ import pytest
 from openpyxl import load_workbook
 from typer.testing import CliRunner
 
+from cartao_omr.card import specs_personalizados, write_cards_pdf
 from cartao_omr.cli import app
+from cartao_omr.models import RosterEntry
 from cartao_omr.export_xlsx import COLUNA_ID, escrever_planilha, escrever_relatorio, resumo
 from cartao_omr.processar import (
     ALUNO_DUPLICADO,
@@ -28,6 +30,11 @@ from conftest import ROOT
 
 FIXTURES = ROOT / "tests" / "fixtures"
 runner = CliRunner()
+
+
+def _chave(card: dict) -> str:
+    """Identificação esperada de um cartão do gabarito: a matrícula (maiúsculas) ou, no plano B, o e-mail."""
+    return (card["matricula_qr"] or "").upper() or card["email_qr"]
 
 
 def _gab(nome: str) -> dict:
@@ -69,9 +76,9 @@ def _importador(path, total: int):
 def test_sfa_limpo_identifica_todos_pela_matricula_do_qr(tmp_path):
     gab, res = _processar("sfa_personalizado_limpo", tmp_path)
     cartoes = [p for p in gab["pages"] if p["kind"] == "cartao"]
-    ids = {pg.pagina: pg.matricula for pg in res.paginas}
+    ids = {pg.pagina: pg.identificacao for pg in res.paginas}
     for c in cartoes:
-        assert ids[c["page"]] == c["matricula_qr"].upper()
+        assert ids[c["page"]] == _chave(c)
     assert sum(pg.destino == RESPOSTAS for pg in res.paginas) == len(cartoes)
     assert not [p for p in res.pendencias if p.tipo in (QR_ILEGIVEL, PAGINA_ILEGIVEL, SIMULADO_DIVERGENTE)]
 
@@ -96,7 +103,7 @@ def test_sfa_dificil_manda_para_pendencias_o_que_nao_deu_certeza(tmp_path):
     assert (6, PAGINA_ILEGIVEL) in tipos          # marcador de canto coberto
     assert (7, QR_ILEGIVEL) in tipos              # QR danificado: as respostas saem, o aluno não
     pg7 = next(pg for pg in res.paginas if pg.pagina == 7)
-    assert pg7.destino == NAO_IDENTIFICADOS and pg7.matricula is None
+    assert pg7.destino == NAO_IDENTIFICADOS and pg7.identificacao is None
     assert len(pg7.respostas) == 100
     # os dois ganham recorte para o João conferir (o QR ilegível, nome e matrícula impressos)
     for pend in res.pendencias:
@@ -125,8 +132,8 @@ def test_a_mesma_matricula_em_duas_paginas_sai_de_respostas(tmp_path):
     ultima = len(doc)
     dups = [pg for pg in res.paginas if pg.motivo == ALUNO_DUPLICADO]
     assert sorted(pg.pagina for pg in dups) == [1, ultima]
-    assert all(pg.destino == NAO_IDENTIFICADOS and pg.matricula for pg in dups)
-    assert not any(pg.matricula == dups[0].matricula for pg in res.paginas if pg.destino == RESPOSTAS)
+    assert all(pg.destino == NAO_IDENTIFICADOS and pg.identificacao for pg in dups)
+    assert not any(pg.identificacao == dups[0].identificacao for pg in res.paginas if pg.destino == RESPOSTAS)
 
 
 # ------------------------------------------------------------------ UniAtenas: matrícula das bolhas
@@ -136,7 +143,7 @@ def test_uniatenas_identifica_pelas_bolhas_e_pendencia_a_invalida(tmp_path):
     for c in (p for p in gab["pages"] if p["kind"] == "cartao"):
         pg = por_pagina[c["page"]]
         if c["matricula"]["status"] == "ok":
-            assert pg.destino == RESPOSTAS and pg.matricula == c["matricula"]["value"]
+            assert pg.destino == RESPOSTAS and pg.identificacao == c["matricula"]["value"]
         else:
             assert pg.destino == NAO_IDENTIFICADOS and pg.motivo == MATRICULA_INVALIDA
     invalidas = [p for p in res.pendencias if p.tipo == MATRICULA_INVALIDA]
@@ -150,7 +157,7 @@ def test_layout_dado_a_mao_quando_o_qr_nao_e_lido(tmp_path):
     # com o layout sfa assumido não há matrícula para ler: continua não identificado, mas sem erro
     com = processar_pdf(FIXTURES / gab["file"], gab["simulado_id"], tmp_path / "b", layout_hint="sfa")
     assert next(pg for pg in com.paginas if pg.pagina == 7).destino == RESPOSTAS
-    assert next(pg for pg in com.paginas if pg.pagina == 7).matricula is None
+    assert next(pg for pg in com.paginas if pg.pagina == 7).identificacao is None
 
 
 # ------------------------------------------------------------------ planilha
@@ -164,14 +171,14 @@ def test_planilha_no_formato_da_importacao(tmp_path, total):
     assert wb["Respostas"].cell(1, 2).value == "Questão 1"
     assert wb["Respostas"].max_column == 1 + total
     rows = _importador(xlsx, total)
-    esperadas = sorted(c["matricula_qr"].upper() for c in gab["pages"] if c["kind"] == "cartao")
+    esperadas = sorted(_chave(c) for c in gab["pages"] if c["kind"] == "cartao")
     assert [m for m, _ in rows] == esperadas
     assert len({m for m, _ in rows}) == len(rows)  # a importação recusa matrícula repetida
 
 
 def test_matricula_com_zeros_a_esquerda_e_letras_fica_como_texto(tmp_path):
     _, res = _processar("sfa_personalizado_limpo", tmp_path)
-    res.paginas[0].matricula = "00012345"
+    res.paginas[0].identificacao = "00012345"
     xlsx = escrever_planilha(res, tmp_path / "r.xlsx")
     ws = load_workbook(xlsx)["Respostas"]
     assert "00012345" in [str(ws.cell(r, 1).value) for r in range(2, ws.max_row + 1)]
@@ -186,7 +193,7 @@ def test_duvida_vira_celula_amarela_vazia_com_comentario(tmp_path):
     ws = load_workbook(xlsx)["Respostas"]
     linhas = {str(ws.cell(r, 1).value): r for r in range(2, ws.max_row + 1)}
     pg = next(pg for pg in res.paginas if pg.pagina == duvida.pagina)
-    cel = ws.cell(linhas[pg.matricula], 1 + duvida.questao)
+    cel = ws.cell(linhas[pg.identificacao], 1 + duvida.questao)
     assert cel.value is None and cel.fill.fgColor.rgb.endswith("FFF2CC")
     assert f"página {pg.pagina}" in cel.comment.text
 
@@ -211,7 +218,7 @@ def test_resumo_e_relatorio(tmp_path):
 # ------------------------------------------------------------------ lista da emissão
 def test_lista_da_emissao_aponta_quem_esta_fora_e_quem_faltou(tmp_path):
     gab = _gab("sfa_personalizado_limpo")
-    mats = sorted(c["matricula_qr"].upper() for c in gab["pages"] if c["kind"] == "cartao")
+    mats = sorted(_chave(c) for c in gab["pages"] if c["kind"] == "cartao")
     csv_ = tmp_path / "emissao.csv"
     csv_.write_text("matricula;nome\n" + "\n".join(f"{m};Fulano" for m in mats[1:]) + "\n9999;Faltou\n",
                     encoding="utf-8-sig")
@@ -249,3 +256,63 @@ def test_cli_processar_recusa_entradas_ruins(tmp_path, args):
     pdf = FIXTURES / _gab("sfa_personalizado_limpo")["file"]
     r = runner.invoke(app, ["processar", str(pdf), "--saida", str(tmp_path), *args])
     assert r.exit_code != 0
+
+
+# ------------------------------------------------------------------ plano B: cartão identificado por e-mail
+SIM_EMAIL = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
+
+
+def _pdf_misto(tmp_path, roster):
+    pdf = tmp_path / "misto.pdf"
+    with open(pdf, "wb") as fh:
+        write_cards_pdf(fh, specs_personalizados(roster, SIM_EMAIL, "SIM", "IES"))
+    return pdf
+
+
+def test_cartao_com_email_vai_para_a_coluna_1_junto_com_os_de_matricula(tmp_path):
+    roster = [RosterEntry("2023001", "Ana Com Matrícula"), RosterEntry("", "Bia Sem Matrícula", email="Bia@x.com"),
+              RosterEntry("2023003", "Caio Com Matrícula")]
+    res = processar_pdf(_pdf_misto(tmp_path, roster), SIM_EMAIL, tmp_path / "out", 100)
+    assert [(pg.identificacao, pg.via) for pg in res.paginas] == [
+        ("2023001", "matricula"), ("bia@x.com", "email"), ("2023003", "matricula")]
+    assert all(pg.destino == RESPOSTAS for pg in res.paginas)
+    xlsx = escrever_planilha(res, tmp_path / "r.xlsx")
+    assert [m for m, _ in _importador(xlsx, 100)] == ["2023001", "2023003", "bia@x.com"]
+    assert load_workbook(xlsx)["Respostas"].cell(1, 1).value == "matricula_ra_ou_email"
+    assert resumo(res)["identificadas_por_email"] == 1
+
+
+def test_mesmo_email_em_duas_paginas_sai_de_respostas(tmp_path):
+    roster = [RosterEntry("", "Bia", email="bia@x.com"), RosterEntry("", "Bia de novo", email="bia@x.com")]
+    pdf = tmp_path / "dup.pdf"
+    with open(pdf, "wb") as fh:
+        write_cards_pdf(fh, specs_personalizados(roster, SIM_EMAIL))
+    res = processar_pdf(pdf, SIM_EMAIL, tmp_path / "out")
+    assert [pg.motivo for pg in res.paginas] == [ALUNO_DUPLICADO, ALUNO_DUPLICADO]
+    assert not any(pg.destino == RESPOSTAS for pg in res.paginas)
+
+
+def test_lista_da_emissao_mistura_matricula_e_email(tmp_path):
+    roster = [RosterEntry("2023001", "Ana"), RosterEntry("", "Bia", email="bia@x.com")]
+    csv_ = tmp_path / "lista.csv"
+    csv_.write_text("identificacao;tipo;nome\n2023001;matricula;Ana\nBIA@X.COM;email;Bia\nzed@x.com;email;Zed\n",
+                    encoding="utf-8-sig")
+    lista = ler_lista_emissao(csv_)
+    assert lista == {"2023001", "bia@x.com", "zed@x.com"}
+    res = processar_pdf(_pdf_misto(tmp_path, roster), SIM_EMAIL, tmp_path / "out", lista=lista)
+    assert not [p for p in res.pendencias if p.tipo == FORA_DA_LISTA]
+    assert res.ausentes == ["zed@x.com"]
+    # a lista antiga (coluna matricula) continua valendo
+    velho = tmp_path / "velha.csv"
+    velho.write_text("matricula;nome\n2023001;Ana\n", encoding="utf-8")
+    assert ler_lista_emissao(velho) == {"2023001"}
+
+
+def test_cli_processar_conta_os_identificados_por_email_no_relatorio(tmp_path):
+    roster = [RosterEntry("", "Bia", email="bia@x.com")]
+    r = runner.invoke(app, ["processar", str(_pdf_misto(tmp_path, roster)), "--simulado", SIM_EMAIL,
+                            "--saida", str(tmp_path / "o")])
+    assert r.exit_code == 0, r.output
+    rel = json.loads((tmp_path / "o" / "relatorio.json").read_text(encoding="utf-8"))
+    assert rel["resumo"]["identificadas_por_email"] == 1
+    assert rel["paginas"][0]["identificacao"] == "bia@x.com" and rel["paginas"][0]["via"] == "email"

@@ -1,5 +1,5 @@
 {
-  "template_version": "sfa_v3",
+  "template_version": "sfa_v4",
   "layout": "sfa",
   "conventions": {
     "units": "mm",
@@ -18,16 +18,21 @@
     "br": [195.0, 282.0, 7.0],
     "orient": [18.0, 9.5, 4.0]
   },
-  "qr_box_mm": [158.0, 20.0, 188.0, 50.0],
+  "qr_box_mm": [154.0, 20.0, 190.0, 56.0],
   "qr": {
     "error_level": "Q",
     "quiet_modules": 4,
-    "payload_format": "SFA2:M:<SIM8>:<MATRICULA>; maiúsculas, matrícula [A-Z0-9./-] de 1 a 24 caracteres",
+    "payload_format": "SFA2:M:<SIM8>:<MATRICULA> (matrícula [A-Z0-9./-], 1 a 24, maiúsculas) | SFA2:E:<SIM8>:<EMAIL> (plano B, minúsculas, até 58 caracteres)",
     "example": "SFA2:M:FFFFFFFF:AAAAAAAAAAAAAAAAAAAAAAAA",
     "worst_case": {
+      "version": 6,
+      "modules": 41,
+      "module_mm": 0.7347
+    },
+    "worst_case_matricula": {
       "version": 3,
       "modules": 29,
-      "module_mm": 0.8108
+      "module_mm": 0.973
     }
   },
   "alternatives": [
@@ -650,7 +655,7 @@
     "instrucoes": [98.0, 44.0, 150.0, 108.0],
     "grade": [20.0, 116.0, 190.0, 276.0]
   },
-  "draw_version": 2,
+  "draw_version": 3,
   "draw": [
     {"op": "rect", "x0": 8.0, "y0": 8.0, "x1": 15.0, "y1": 15.0, "fill": "#000000"},
     {"op": "rect", "x0": 195.0, "y0": 8.0, "x1": 202.0, "y1": 15.0, "fill": "#000000"},
@@ -662,15 +667,16 @@
     {"op": "text", "x": 20.0, "y": 37.6, "s": "ALUNO:", "font": "Helvetica-Bold", "size": 11.0, "color": "#000000"},
     {"op": "line", "x0": 38.0, "y0": 38.8, "x1": 150.0, "y1": 38.8, "color": "#000000", "lw": 0.5},
     {"op": "text", "slot": "aluno", "x": 39.5, "y": 37.8, "font": "Helvetica", "size": 10.5, "color": "#000000", "max_w": 110.0, "min_size": 7.0},
-    {"op": "qr", "box": [158.0, 20.0, 188.0, 50.0], "quiet": 4, "ec": "Q", "color": "#000000"},
-    {"op": "text", "slot": "label", "x": 173.0, "y": 52.6, "font": "Helvetica", "size": 6.0, "color": "#404040", "align": "center"},
+    {"op": "qr", "box": [154.0, 20.0, 190.0, 56.0], "quiet": 4, "ec": "Q", "color": "#000000"},
+    {"op": "text", "slot": "label", "x": 172.0, "y": 58.6, "font": "Helvetica", "size": 6.0, "color": "#404040", "max_w": 42.0, "min_size": 4.0, "align": "center"},
     {"op": "rect", "x0": 20.0, "y0": 44.0, "x1": 92.0, "y1": 108.0, "stroke": "#7f7f7f", "lw": 0.5},
     {"op": "text", "x": 23.0, "y": 48.6, "s": "MATRÍCULA", "font": "Helvetica-Bold", "size": 10.0, "color": "#000000"},
+    {"op": "text", "slot": "dica_matricula", "x": 89.0, "y": 48.6, "font": "Helvetica", "size": 6.5, "color": "#404040", "max_w": 38.0, "min_size": 5.0, "align": "right"},
     {"op": "text", "slot": "matricula", "x": 23.0, "y": 58.0, "font": "Courier-Bold", "size": 16.0, "color": "#000000", "max_w": 66.0, "min_size": 9.0},
     {"op": "line", "x0": 23.0, "y0": 61.0, "x1": 89.0, "y1": 61.0, "color": "#7f7f7f", "lw": 0.5},
     {"op": "text", "x": 23.0, "y": 67.0, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 67.0, "s": "Confira se o nome (ALUNO) e a matrícula impressos", "font": "Helvetica", "size": 7.5, "color": "#000000"},
-    {"op": "text", "x": 26.0, "y": 70.7, "s": "neste cartão são os seus.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 67.0, "s": "Confira se o nome (ALUNO) e a matrícula, quando", "font": "Helvetica", "size": 7.5, "color": "#000000"},
+    {"op": "text", "x": 26.0, "y": 70.7, "s": "impressa, são os seus.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
     {"op": "text", "x": 23.0, "y": 76.6, "s": "•", "font": "Helvetica", "size": 7.5, "color": "#000000"},
     {"op": "text", "x": 26.0, "y": 76.6, "s": "Se não forem os seus, avise o aplicador antes de", "font": "Helvetica", "size": 7.5, "color": "#000000"},
     {"op": "text", "x": 26.0, "y": 80.3, "s": "marcar qualquer resposta.", "font": "Helvetica", "size": 7.5, "color": "#000000"},
