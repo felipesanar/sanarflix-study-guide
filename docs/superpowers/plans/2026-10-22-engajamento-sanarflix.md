@@ -240,12 +240,12 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Criar: `supabase/migrations/<version>_eng_pipeline.sql`
 
 **Passos:**
-- [ ] **Passo 1.** Copie as 3 funções da spec **literalmente**. Acrescente:
+- [x] **Passo 1.** Copie as 3 funções da spec **literalmente**. Acrescente:
   ```sql
   REVOKE ALL ON FUNCTION public.eng_refresh_classificacao(), public.eng_refresh_agregados(), public.eng_refresh(text) FROM PUBLIC, anon, authenticated;
   ```
-- [ ] **Passo 2.** Mostre ao João, peça o "ok", aplique e salve o arquivo.
-- [ ] **Passo 3.** Commit: `feat(engajamento): pipeline de refresh da camada eng_*`.
+- [x] **Passo 2.** Mostre ao João, peça o "ok", aplique e salve o arquivo.
+- [x] **Passo 3.** Commit: `feat(engajamento): pipeline de refresh da camada eng_*`.
 
 **Dependências:** A3.
 
