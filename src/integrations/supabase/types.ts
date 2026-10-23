@@ -1132,6 +1132,304 @@ export type Database = {
         }
         Relationships: []
       }
+      eng_atividade_aluno_dia: {
+        Row: {
+          acertos: number
+          dia: string
+          documentos: number
+          erros: number
+          questoes: number
+          respostas_todas: number
+          sanarflix_user_id: string
+          videos: number
+        }
+        Insert: {
+          acertos?: number
+          dia: string
+          documentos?: number
+          erros?: number
+          questoes?: number
+          respostas_todas?: number
+          sanarflix_user_id: string
+          videos?: number
+        }
+        Update: {
+          acertos?: number
+          dia?: string
+          documentos?: number
+          erros?: number
+          questoes?: number
+          respostas_todas?: number
+          sanarflix_user_id?: string
+          videos?: number
+        }
+        Relationships: []
+      }
+      eng_consumo_aluno_dia_conteudo: {
+        Row: {
+          aberturas: number
+          content_id: string
+          content_name: string
+          content_type: string
+          dia: string
+          especialidade: string
+          modulo: string
+          sanarflix_user_id: string
+          ultima_abertura: string
+        }
+        Insert: {
+          aberturas: number
+          content_id: string
+          content_name: string
+          content_type: string
+          dia: string
+          especialidade: string
+          modulo: string
+          sanarflix_user_id: string
+          ultima_abertura: string
+        }
+        Update: {
+          aberturas?: number
+          content_id?: string
+          content_name?: string
+          content_type?: string
+          dia?: string
+          especialidade?: string
+          modulo?: string
+          sanarflix_user_id?: string
+          ultima_abertura?: string
+        }
+        Relationships: []
+      }
+      eng_depara_quiz_no: {
+        Row: {
+          conteudo_caminho_norm: string | null
+          criado_em: string
+          criado_por: string
+          folha_id: string
+          id: number
+          observacao: string | null
+          quiz_especialidade_norm: string
+        }
+        Insert: {
+          conteudo_caminho_norm?: string | null
+          criado_em?: string
+          criado_por: string
+          folha_id: string
+          id?: never
+          observacao?: string | null
+          quiz_especialidade_norm: string
+        }
+        Update: {
+          conteudo_caminho_norm?: string | null
+          criado_em?: string
+          criado_por?: string
+          folha_id?: string
+          id?: never
+          observacao?: string | null
+          quiz_especialidade_norm?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eng_depara_quiz_no_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+        ]
+      }
+      eng_no_taxonomia: {
+        Row: {
+          atualizado_em: string
+          ciclo: string
+          nivel: number
+          no_id: string
+          nome: string
+          pai_id: string | null
+          sintetico: boolean
+        }
+        Insert: {
+          atualizado_em?: string
+          ciclo: string
+          nivel: number
+          no_id: string
+          nome: string
+          pai_id?: string | null
+          sintetico?: boolean
+        }
+        Update: {
+          atualizado_em?: string
+          ciclo?: string
+          nivel?: number
+          no_id?: string
+          nome?: string
+          pai_id?: string | null
+          sintetico?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eng_no_taxonomia_pai_id_fkey"
+            columns: ["pai_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+        ]
+      }
+      eng_questao_classificacao: {
+        Row: {
+          ciclo: string
+          classificado_em: string
+          esp_id: string
+          folha_id: string
+          motivo: string
+          n_candidatas: number
+          n1_id: string
+          n2_id: string
+          n3_id: string | null
+          origem: string
+          posicao_escolhida: number | null
+          question_id: string
+        }
+        Insert: {
+          ciclo: string
+          classificado_em?: string
+          esp_id: string
+          folha_id: string
+          motivo: string
+          n_candidatas: number
+          n1_id: string
+          n2_id: string
+          n3_id?: string | null
+          origem: string
+          posicao_escolhida?: number | null
+          question_id: string
+        }
+        Update: {
+          ciclo?: string
+          classificado_em?: string
+          esp_id?: string
+          folha_id?: string
+          motivo?: string
+          n_candidatas?: number
+          n1_id?: string
+          n2_id?: string
+          n3_id?: string | null
+          origem?: string
+          posicao_escolhida?: number | null
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eng_questao_classificacao_esp_id_fkey"
+            columns: ["esp_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+          {
+            foreignKeyName: "eng_questao_classificacao_folha_id_fkey"
+            columns: ["folha_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+          {
+            foreignKeyName: "eng_questao_classificacao_n1_id_fkey"
+            columns: ["n1_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+          {
+            foreignKeyName: "eng_questao_classificacao_n2_id_fkey"
+            columns: ["n2_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+          {
+            foreignKeyName: "eng_questao_classificacao_n3_id_fkey"
+            columns: ["n3_id"]
+            isOneToOne: false
+            referencedRelation: "eng_no_taxonomia"
+            referencedColumns: ["no_id"]
+          },
+        ]
+      }
+      eng_questoes_aluno_dia_no: {
+        Row: {
+          acertos: number
+          ciclo: string
+          dia: string
+          erros: number
+          esp_id: string
+          folha_id: string
+          n1_id: string
+          n2_id: string
+          n3_id: string | null
+          questoes: number
+          sanarflix_user_id: string
+        }
+        Insert: {
+          acertos: number
+          ciclo: string
+          dia: string
+          erros: number
+          esp_id: string
+          folha_id: string
+          n1_id: string
+          n2_id: string
+          n3_id?: string | null
+          questoes: number
+          sanarflix_user_id: string
+        }
+        Update: {
+          acertos?: number
+          ciclo?: string
+          dia?: string
+          erros?: number
+          esp_id?: string
+          folha_id?: string
+          n1_id?: string
+          n2_id?: string
+          n3_id?: string | null
+          questoes?: number
+          sanarflix_user_id?: string
+        }
+        Relationships: []
+      }
+      eng_refresh_log: {
+        Row: {
+          contagens: Json | null
+          disparo: string
+          erro: string | null
+          id: number
+          iniciado_em: string
+          status: string
+          terminado_em: string | null
+        }
+        Insert: {
+          contagens?: Json | null
+          disparo: string
+          erro?: string | null
+          id?: never
+          iniciado_em?: string
+          status: string
+          terminado_em?: string | null
+        }
+        Update: {
+          contagens?: Json | null
+          disparo?: string
+          erro?: string | null
+          id?: never
+          iniciado_em?: string
+          status?: string
+          terminado_em?: string | null
+        }
+        Relationships: []
+      }
       error_notebook_entries: {
         Row: {
           confidence_at_answer: string | null
@@ -3518,9 +3816,81 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      eng_alunos_recorte: {
+        Args: { p_fim: string; p_ies: string; p_inicio: string }
+        Returns: {
+          acertos: number
+          acertos_ant: number
+          dias_ativos_30: number
+          dias_ativos_ant: number
+          dias_ativos_mes_ref: number
+          dias_ativos_periodo: number
+          dias_sem_atividade: number
+          documentos: number
+          documentos_ant: number
+          email: string
+          erros: number
+          erros_ant: number
+          faixa_recencia: string
+          id_ies: string
+          melhor_mes: string
+          melhor_mes_dias: number
+          nivel: string
+          nome: string
+          questoes: number
+          questoes_ant: number
+          sanarflix_user_id: string
+          semestre: number
+          ultima_atividade: string
+          videos: number
+          videos_ant: number
+        }[]
+      }
+      eng_atualizado_em: { Args: never; Returns: string }
+      eng_base_ativa: {
+        Args: { p_ies: string }
+        Returns: {
+          email: string
+          id_ies: string
+          nome: string
+          sanarflix_user_id: string
+          semestre: number
+        }[]
+      }
+      eng_detalhe_atividade: {
+        Args: { p_dia: string; p_user: string }
+        Returns: Json
+      }
+      eng_hoje: { Args: never; Returns: string }
+      eng_meta: {
+        Args: {
+          p_criterio: string
+          p_fim: string
+          p_inicio: string
+          p_low: boolean
+        }
+        Returns: Json
+      }
+      eng_norm_busca: { Args: { p: string }; Returns: string }
+      eng_norm_rotulo: { Args: { p: string }; Returns: string }
+      eng_norm_texto: { Args: { p: string }; Returns: string }
+      eng_pct: { Args: { d: number; n: number }; Returns: number }
+      eng_razao: { Args: { d: number; n: number }; Returns: number }
+      eng_refresh: { Args: { p_disparo?: string }; Returns: Json }
+      eng_refresh_agregados: { Args: never; Returns: Json }
+      eng_refresh_classificacao: { Args: never; Returns: Json }
+      eng_rotulo_curso: { Args: { p: string }; Returns: string }
+      eng_validar_periodo: {
+        Args: { p_fim: string; p_inicio: string }
+        Returns: undefined
+      }
       gestor_pode_acessar_ies: { Args: { p_ies_id: string }; Returns: boolean }
       get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
+      get_admin_engajamento: {
+        Args: { p_fim: string; p_inicio: string; p_semestre?: number }
+        Returns: Json
+      }
       get_all_user_performance_by_area: {
         Args: never
         Returns: {
@@ -3617,6 +3987,106 @@ export type Database = {
           p_grande_area?: string
           p_ies_id: string
           p_semestre: string
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_aluno: {
+        Args: {
+          p_aluno: string
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_alunos: {
+        Args: {
+          p_busca?: string
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_ordem?: string
+          p_page?: number
+          p_page_size?: number
+          p_sem_atividade_14d?: boolean
+          p_semestre?: number
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_conteudo_alunos: {
+        Args: {
+          p_content_id?: string
+          p_especialidade?: string
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_modulo?: string
+          p_semestre?: number
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_conteudos: {
+        Args: {
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_semestre?: number
+          p_tipo?: string
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_export_alunos: {
+        Args: {
+          p_busca?: string
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_ordem?: string
+          p_sem_atividade_14d?: boolean
+          p_semestre?: number
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_lista: {
+        Args: {
+          p_aluno?: string
+          p_busca?: string
+          p_categoria?: string
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_page?: number
+          p_page_size?: number
+          p_semestre?: number
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_questoes: {
+        Args: {
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_semestre?: number
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_questoes_alunos: {
+        Args: {
+          p_fim: string
+          p_folha_id?: string
+          p_ies_id: string
+          p_inicio: string
+          p_semestre?: number
+        }
+        Returns: Json
+      }
+      get_gestor_engajamento_visao_geral: {
+        Args: {
+          p_aluno?: string
+          p_fim: string
+          p_ies_id: string
+          p_inicio: string
+          p_semestre?: number
         }
         Returns: Json
       }

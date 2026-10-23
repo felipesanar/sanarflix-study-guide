@@ -474,9 +474,9 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Modificar: `src/integrations/supabase/types.ts`, **só** via `generate_typescript_types`.
 
 **Passos:**
-- [ ] **Passo 1.** Rode `generate_typescript_types` e substitua o arquivo inteiro pelo resultado.
-- [ ] **Passo 2.** Rode o type-check. Esperado: nenhum erro novo.
-- [ ] **Passo 3.** Commit: `chore(types): regenera types do Supabase com a camada eng_*`.
+- [x] **Passo 1.** Rode `generate_typescript_types` e substitua o arquivo inteiro pelo resultado.
+- [x] **Passo 2.** Rode o type-check. Esperado: nenhum erro novo.
+- [x] **Passo 3.** Commit: `chore(types): regenera types do Supabase com a camada eng_*`.
 
 **Não fazer:** não edite o arquivo à mão.
 
