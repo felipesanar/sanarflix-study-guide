@@ -381,13 +381,13 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Criar: `supabase/migrations/<version>_get_gestor_engajamento_questoes.sql`
 
 **Passos:**
-- [ ] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
-- [ ] **Passo 2.** Valide **V11** e **V12**. Para isso, escreva uma consulta que percorre o JSON com `jsonb_array_elements` e compara as somas.
+- [x] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
+- [x] **Passo 2.** Valide **V11** e **V12**. Para isso, escreva uma consulta que percorre o JSON com `jsonb_array_elements` e compara as somas.
   - `questoes_alunos` com a folha de maior volume:
     - `resumo.questoes` = `questoes` do mesmo nó na árvore;
     - `alunos` tem ≤ 12 itens, ordenados por questões.
   - Folha inexistente → `no_invalido`.
-- [ ] **Passo 3.** Commit: `feat(engajamento): RPCs da aba Questões`.
+- [x] **Passo 3.** Commit: `feat(engajamento): RPCs da aba Questões`.
 
 **Confirmação do João:** **sim**.
 
