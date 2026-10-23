@@ -401,12 +401,12 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Criar: `supabase/migrations/<version>_get_gestor_engajamento_conteudos.sql`
 
 **Passos:**
-- [ ] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
-- [ ] **Passo 2.** Valide **V7** (`kpis.videos`/`documentos` com `p_tipo='todos'`) e **V14**. Depois:
+- [x] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
+- [x] **Passo 2.** Valide **V7** (`kpis.videos`/`documentos` com `p_tipo='todos'`) e **V14**. Depois:
   - com `p_tipo='video'`: `kpis.documentos = 0` e `kpis.consumos = kpis.videos`;
   - `"Materiais gerais"` aparece por último dentro da especialidade;
   - `conteudo_alunos` do conteúdo de maior volume: `resumo.consumos` = `consumos` do nó.
-- [ ] **Passo 3.** Commit: `feat(engajamento): RPCs da aba Conteúdos`.
+- [x] **Passo 3.** Commit: `feat(engajamento): RPCs da aba Conteúdos`.
 
 **Confirmação do João:** **sim**.
 
