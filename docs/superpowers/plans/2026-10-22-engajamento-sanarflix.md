@@ -435,12 +435,12 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 
 **Arquivos:** nenhum.
 
-- [ ] **Passo 1.** **V20** (a)–(d) da §14:
+- [x] **Passo 1.** **V20** (a)–(d) da §14:
   - (a) `SET LOCAL role anon; SELECT public.get_gestor_engajamento_visao_geral(...)` → erro de permissão;
   - (b) gestor de **outra** IES com o id da PARACATU → `Permission denied: cannot access this IES`;
   - (c) gestor chamando o admin → `admin role required`;
   - (d) grants das tabelas → 0 linhas.
-- [ ] **Passo 2.** **V22:** `EXPLAIN (ANALYZE, BUFFERS)` de cada RPC na Integrado (`72b19e77-c569-4bf7-a433-44563df1015f`) com "Últimos 6 meses", e do admin.
+- [x] **Passo 2.** **V22:** `EXPLAIN (ANALYZE, BUFFERS)` de cada RPC na Integrado (`72b19e77-c569-4bf7-a433-44563df1015f`) com "Últimos 6 meses", e do admin.
   - Limites: < 2 s (gestor) e < 5 s (admin).
   - Se estourar, **pare e avise o João** com o plano. Não mude regra para ganhar desempenho.
 - [ ] **Passo 3.** **V21:** com o "ok" do João, rode `eng_refresh('manual')` mais uma vez e compare as `contagens` das duas últimas linhas de log.
@@ -458,11 +458,11 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Modificar: `src/test/unit/gestorMigrationsAvisosAlunoContatoContexto.test.ts`, acrescentando as 9 RPCs `get_gestor_engajamento_*` à lista `toEqual` em ordem alfabética, sem mexer no resto.
 
 **Passos:**
-- [ ] **Passo 1.** Escreva os casos da linha "SQL estático" da §15.2.
-- [ ] **Passo 2.** Rode os 2 arquivos.
+- [x] **Passo 1.** Escreva os casos da linha "SQL estático" da §15.2.
+- [x] **Passo 2.** Rode os 2 arquivos.
   - Esperado: `engajamentoMigrations.test.ts` todo verde.
   - No arquivo antigo: as mesmas falhas do baseline, nenhuma nova. O caso da lista de RPCs pode continuar falhando se já falhava por outras RPCs (ex.: `get_gestor_prova_oficial` fora da lista). Registre no relatório.
-- [ ] **Passo 3.** Commit: `test(engajamento): guardas estáticos das migrations eng_*`.
+- [x] **Passo 3.** Commit: `test(engajamento): guardas estáticos das migrations eng_*`.
 
 **Confirmação do João:** não.
 
