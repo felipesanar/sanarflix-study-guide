@@ -218,13 +218,13 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 3. Revokes das 4 funções (`FROM PUBLIC, anon, authenticated`).
 
 **Passos:**
-- [ ] **Passo 1.** Monte o SQL a partir da spec. Mostre ao João e peça o "ok".
-- [ ] **Passo 2.** `apply_migration` (`eng_agregados_e_leitura`) e salve o arquivo.
-- [ ] **Passo 3.** Verifique:
+- [x] **Passo 1.** Monte o SQL a partir da spec. Mostre ao João e peça o "ok".
+- [x] **Passo 2.** `apply_migration` (`eng_agregados_e_leitura`) e salve o arquivo.
+- [x] **Passo 3.** Verifique:
   - tabelas e grants, como na A2 (0 grants para anon/authenticated);
   - `SELECT count(*) FROM public.eng_base_ativa('d86c32ba-2d09-4c7e-a426-1d981ec7b595');` → ≈ 521;
   - `SELECT count(*) FROM public.eng_alunos_recorte('d86c32ba-2d09-4c7e-a426-1d981ec7b595', DATE '2026-05-01', public.eng_hoje());` → igual ao anterior. Com as tabelas ainda vazias, todos têm `faixa_recencia = 'nunca_acessou'`.
-- [ ] **Passo 4.** Commit: `feat(engajamento): agregados aluno×dia e funções de leitura`.
+- [x] **Passo 4.** Commit: `feat(engajamento): agregados aluno×dia e funções de leitura`.
 
 **Dependências:** A2.
 
