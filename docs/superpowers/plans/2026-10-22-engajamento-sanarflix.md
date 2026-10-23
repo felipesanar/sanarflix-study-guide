@@ -333,17 +333,17 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
   ```
 
 **Passos:**
-- [ ] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
-- [ ] **Passo 2.** Pegue um gestor da PARACATU (§14) e confirme com o João qual usar. Chame a RPC simulando o JWT (bloco `BEGIN … ROLLBACK` da §14) com `[2026-05-01, eng_hoje()]`.
-- [ ] **Passo 3.** Valide **V1, V2, V5, V6, V7, V8, V9, V10 e V13** contra o JSON. Repita com `p_semestre = 8` e com `p_aluno` = um aluno da PARACATU com atividade:
+- [x] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
+- [x] **Passo 2.** Pegue um gestor da PARACATU (§14) e confirme com o João qual usar. Chame a RPC simulando o JWT (bloco `BEGIN … ROLLBACK` da §14) com `[2026-05-01, eng_hoje()]`.
+- [x] **Passo 3.** Valide **V1, V2, V5, V6, V7, V8, V9, V10 e V13** contra o JSON. Repita com `p_semestre = 8` e com `p_aluno` = um aluno da PARACATU com atividade:
   - com semestre: `kpis.baseAtiva` = `count(*)` da base com semestre 8;
   - com aluno: `kpis.baseAtiva = 1` e soma dos níveis = 1.
-- [ ] **Passo 4.** Erros esperados:
+- [x] **Passo 4.** Erros esperados:
   - `p_inicio > p_fim` → `periodo_invalido`;
   - `p_semestre = 13` → `semestre_invalido`;
   - semestre e aluno juntos → `filtro_conflitante`;
   - aluno de outra IES → `aluno_fora_do_recorte`.
-- [ ] **Passo 5.** Commit: `feat(engajamento): RPC get_gestor_engajamento_visao_geral`.
+- [x] **Passo 5.** Commit: `feat(engajamento): RPC get_gestor_engajamento_visao_geral`.
 
 **Dependências:** A5.
 
