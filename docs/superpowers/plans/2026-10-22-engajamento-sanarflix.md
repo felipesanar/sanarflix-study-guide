@@ -420,10 +420,10 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Criar: `supabase/migrations/<version>_get_admin_engajamento.sql`, com o `v_criterio_admin` da §7.4 e os grants da §7.2.
 
 **Passos:**
-- [ ] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
-- [ ] **Passo 2.** Chame como admin (JWT simulado de um usuário com `user_roles.role='admin'`; confirme qual com o João) e valide **V15, V16 e V17**.
+- [x] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
+- [x] **Passo 2.** Chame como admin (JWT simulado de um usuário com `user_roles.role='admin'`; confirme qual com o João) e valide **V15, V16 e V17**.
   - Confira também que **nenhuma** chave do JSON traz nome, e-mail ou `sanarflix_user_id`: inspecione as chaves de `ranking[0]`.
-- [ ] **Passo 3.** Commit: `feat(engajamento): RPC do admin`.
+- [x] **Passo 3.** Commit: `feat(engajamento): RPC do admin`.
 
 **Confirmação do João:** **sim**.
 
