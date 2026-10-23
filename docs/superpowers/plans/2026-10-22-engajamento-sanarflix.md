@@ -359,15 +359,15 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - Criar: `supabase/migrations/<version>_get_gestor_engajamento_alunos.sql`, com as 4 funções e os 4 pares de `REVOKE`/`GRANT`. As assinaturas estão na §8.11.
 
 **Passos:**
-- [ ] **Passo 1.** Monte cada função com o cabeçalho, o `DECLARE` e as guardas da §8.1 mais o corpo da seção. Mostre ao João, peça o "ok", aplique e salve.
-- [ ] **Passo 2.** Valide:
+- [x] **Passo 1.** Monte cada função com o cabeçalho, o `DECLARE` e as guardas da §8.1 mais o corpo da seção. Mostre ao João, peça o "ok", aplique e salve.
+- [x] **Passo 2.** Valide:
   - **V18:** as 9 categorias da lista batem com os cartões e as faixas da visão geral;
   - **V19:** `alunos.total` = base ativa;
   - `alunos` com `p_busca = 'conceicao'` acha nomes com "Conceição";
   - `p_sem_atividade_14d = true` → `total` = número de alunos com `dias_sem_atividade ≥ 14` ou nulo;
   - `export_alunos` devolve `email` e o mesmo número de linhas de `alunos.total`;
   - `aluno` (drawer) de um aluno ativo: `timeline` com até 4 itens, `meses` com uma linha por mês do período.
-- [ ] **Passo 3.** Commit: `feat(engajamento): RPCs de alunos, listas, drawer e exportação`.
+- [x] **Passo 3.** Commit: `feat(engajamento): RPCs de alunos, listas, drawer e exportação`.
 
 **Confirmação do João:** **sim**.
 
