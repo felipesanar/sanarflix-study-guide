@@ -30,3 +30,21 @@ describe('isEmail', () => {
   it('reconhece e-mail do aluno', () => expect(isEmail(' Ana.DosSantos@Uniatenas.edu.br ')).toBe(true));
   it.each(['2023001234', '23-1-20297', '3f2a9c1e-1234-4abc-9def-0123456789ab', ''])('trata %s como RA', (v) => expect(isEmail(v)).toBe(false));
 });
+
+import { buildNaoEncontrados } from '@/components/admin/simulados/importar-respostas-types';
+describe('buildNaoEncontrados', () => {
+  it('lista só erros, com linha e motivo', () => {
+    const rows = [
+      { rowIndex: 2, matricula_ra: '111', answers: {} },
+      { rowIndex: 3, matricula_ra: 'X@Y.com', answers: {} },
+    ];
+    const out = buildNaoEncontrados(
+      [
+        { matricula_ra: '111', status: 'preview_ok' },
+        { matricula_ra: 'x@y.com', status: 'preview_error', reason: 'email_not_found' },
+      ],
+      rows,
+    );
+    expect(out).toEqual([{ linha: 3, identificador: 'x@y.com', motivo: 'E-mail não cadastrado' }]);
+  });
+});
