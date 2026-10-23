@@ -1,3 +1,4 @@
+import { buildNaoEncontrados } from './importar-respostas-types';
 /** Fatia C2 — sub-aba Importar respostas (wizard existente reapresentado sobre os primitivos novos). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
@@ -449,6 +450,7 @@ export default function ImportarRespostasTab() {
           casados={stats.casados}
           conflitos={stats.conflitos}
           naoEncontrados={stats.naoEncontrados}
+          naoEncontradosLista={buildNaoEncontrados(previewResults, parsedRows)}
           conflictMode={conflictMode}
           onConflictModeChange={setConflictMode}
           importing={importing}

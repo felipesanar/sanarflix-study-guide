@@ -185,3 +185,29 @@ const IDENT_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function isEmail(v: unknown): boolean {
   return IDENT_EMAIL_REGEX.test(String(v ?? '').trim());
 }
+
+export interface NaoEncontradoItem {
+  linha: number | null;
+  identificador: string;
+  motivo: string;
+}
+
+/** Linhas do dry-run com erro (alunos que ficarão de fora), com nº da linha e motivo legível. */
+export function buildNaoEncontrados(results: PreviewResult[], rows: ParsedRow[]): NaoEncontradoItem[] {
+  const linhaPorId = new Map<string, number>();
+  for (const r of rows) {
+    const k = normRa(r.matricula_ra);
+    if (!linhaPorId.has(k)) linhaPorId.set(k, r.rowIndex);
+  }
+  return results
+    .filter((r) => r.status === 'preview_error')
+    .map((r) => {
+      const id = r.matricula_ra || r.email || '';
+      return {
+        linha: linhaPorId.get(normRa(id)) ?? null,
+        identificador: id,
+        motivo: (r.reason && REASON_LABEL[r.reason]) || r.reason || 'Erro de validação',
+      };
+    })
+    .sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9));
+}
