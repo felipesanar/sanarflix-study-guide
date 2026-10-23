@@ -115,7 +115,7 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 
 **Arquivos:** nenhum (só leitura).
 
-- [ ] **Passo 1.** Rode e compare com a §1.3. Divergência relevante → **pare e avise o João**.
+- [x] **Passo 1.** Rode e compare com a §1.3. Divergência relevante → **pare e avise o João**.
 
   ```sql
   SELECT (SELECT count(*) FROM dim_aluno_b2b) dim,
@@ -133,7 +133,7 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
   - base ativa variando mais de 10% em relação a 7.120;
   - aparecer um terceiro `ciclo`;
   - mudança de colunas, verificada em `information_schema.columns` das três tabelas.
-- [ ] **Passo 2 (drift).**
+- [x] **Passo 2 (drift).**
 
   ```sql
   SELECT n.nspname, p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -174,10 +174,10 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 6. `COMMENT ON TABLE` curto em cada tabela, citando a spec.
 
 **Passos:**
-- [ ] **Passo 1.** Monte o SQL copiando **literalmente** os blocos da spec.
-- [ ] **Passo 2.** Mostre o SQL ao João e peça o "ok" para aplicar `eng_fundacao`.
-- [ ] **Passo 3.** `apply_migration` (name `eng_fundacao`). Depois `list_migrations` e salve o arquivo com a `version`.
-- [ ] **Passo 4.** Verifique:
+- [x] **Passo 1.** Monte o SQL copiando **literalmente** os blocos da spec.
+- [x] **Passo 2.** Mostre o SQL ao João e peça o "ok" para aplicar `eng_fundacao`.
+- [x] **Passo 3.** `apply_migration` (name `eng_fundacao`). Depois `list_migrations` e salve o arquivo com a `version`.
+- [x] **Passo 4.** Verifique:
 
   ```sql
   SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'eng\_%' ORDER BY 1;
@@ -191,7 +191,7 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
   - 4 tabelas listadas;
   - **0** grants para anon/authenticated;
   - `obstetrícia` | `Cirurgia Geral` | `conceicao joao` | `33.3` | `2.5` | data de hoje (BRT).
-- [ ] **Passo 5.** Commit: `feat(engajamento): fundação eng_* (taxonomia, classificação, de-para, log)`.
+- [x] **Passo 5.** Commit: `feat(engajamento): fundação eng_* (taxonomia, classificação, de-para, log)`.
 
 **Dependências:** A1.
 
