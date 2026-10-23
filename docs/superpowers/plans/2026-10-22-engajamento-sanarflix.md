@@ -89,17 +89,17 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 **Arquivos:**
 - Criar: `docs/superpowers/notes/2026-10-22-engajamento-baseline-testes.md`
 
-- [ ] **Passo 1.** Rode `git status`, `git log -1` e `git rev-parse --abbrev-ref HEAD`.
+- [x] **Passo 1.** Rode `git status`, `git log -1` e `git rev-parse --abbrev-ref HEAD`.
   - Esperado: branch `feat/engajamento-sanarflix`, árvore limpa, HEAD contendo o commit das specs.
   - Se não for isso, **pare**.
-- [ ] **Passo 2.** `get_project` em `gvqvrmkizemwsasmupmo`. Esperado: nome "SanarFlix Academy", status `ACTIVE_HEALTHY`.
-- [ ] **Passo 3.** Rode a suíte inteira em background: `node node_modules/vitest/vitest.mjs run > <scratchpad>/baseline-full.txt 2>&1`.
-- [ ] **Passo 4.** Extraia do arquivo:
+- [x] **Passo 2.** `get_project` em `gvqvrmkizemwsasmupmo`. Esperado: nome "SanarFlix Academy", status `ACTIVE_HEALTHY`.
+- [x] **Passo 3.** Rode a suíte inteira em background: `node node_modules/vitest/vitest.mjs run > <scratchpad>/baseline-full.txt 2>&1`.
+- [x] **Passo 4.** Extraia do arquivo:
   - a linha de resumo ("Test Files … Tests …");
   - a lista de **arquivos** e **casos** que falharam, com as linhas `FAIL`.
 
   Grave os dois no arquivo de notas, com data e hash do commit.
-- [ ] **Passo 5.** Commit: `docs(engajamento): baseline de testes antes do bloco A`.
+- [x] **Passo 5.** Commit: `docs(engajamento): baseline de testes antes do bloco A`.
 
 **Aceite:** o arquivo de notas existe com o resumo e a lista de falhas. Referência de 22/10: 40 falhas em 11 arquivos.
 
