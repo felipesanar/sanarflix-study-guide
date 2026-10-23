@@ -261,13 +261,13 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 
 **Arquivos:** nenhum (o resultado vai para o relatório ao João).
 
-- [ ] **Passo 1.** Peça o "ok" do João para **rodar** o refresh em produção. É escrita nas tabelas novas.
-- [ ] **Passo 2.** Execute numa única chamada de `execute_sql`:
+- [x] **Passo 1.** Peça o "ok" do João para **rodar** o refresh em produção. É escrita nas tabelas novas.
+- [x] **Passo 2.** Execute numa única chamada de `execute_sql`:
   ```sql
   SET statement_timeout TO '30min'; SELECT public.eng_refresh('manual');
   ```
   Se o MCP cortar em 2 min, use o job avulso da §6.5 e acompanhe por `eng_refresh_log`.
-- [ ] **Passo 3.** Confira o log:
+- [x] **Passo 3.** Confira o log:
   ```sql
   SELECT id, status, erro, terminado_em - iniciado_em AS duracao, contagens FROM eng_refresh_log ORDER BY id DESC LIMIT 1;
   ```
@@ -275,7 +275,7 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
   - `status='ok'`;
   - duração < 15 min;
   - `contagens` na ordem de grandeza da tabela da §6.2 (questões ≈ 84,7 mil; sem classificação ≈ 17 mil; `entradas_invalidas` = 0; `classificadas_depara` = 0).
-- [ ] **Passo 4.** Rode as validações **V3** e **V4** (§14). Rode também:
+- [x] **Passo 4.** Rode as validações **V3** e **V4** (§14). Rode também:
   ```sql
   -- V5 na camada: questões da PARACATU no período, camada vs. fonte
   WITH B AS (SELECT sanarflix_user_id FROM eng_base_ativa('d86c32ba-2d09-4c7e-a426-1d981ec7b595'))
@@ -289,13 +289,13 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
   Esperado:
   - `camada = fonte`;
   - nós: clínico nível 1 = 5, nível 2 = 43, nível 3 ≈ 390 (+1 sintético); básico nível 1 = 33.
-- [ ] **Passo 5.** Rode **V8, V9 e V10** usando direto `eng_alunos_recorte` (sem RPC):
+- [x] **Passo 5.** Rode **V8, V9 e V10** usando direto `eng_alunos_recorte` (sem RPC):
   ```sql
   SELECT faixa_recencia, count(*) FROM eng_alunos_recorte('d86c32ba-2d09-4c7e-a426-1d981ec7b595', '2026-05-01', eng_hoje()) GROUP BY 1;
   SELECT nivel, count(*) FROM eng_alunos_recorte('d86c32ba-2d09-4c7e-a426-1d981ec7b595', '2026-05-01', eng_hoje()) GROUP BY 1;
   ```
   As somas têm que dar a base ativa.
-- [ ] **Passo 6.** Relate ao João os números, com o esperado ao lado.
+- [x] **Passo 6.** Relate ao João os números, com o esperado ao lado.
 
 **Aceite:** log `ok`; V3, V4, V5 (camada), V8, V9 e V10 batendo.
 
@@ -312,10 +312,10 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 **Arquivos:**
 - Criar: `supabase/migrations/<version>_eng_cron.sql`, com o bloco "Job diário" da §6.5: `unschedule` idempotente + `schedule` com `SET statement_timeout`.
 
-- [ ] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
-- [ ] **Passo 2.** Verifique: `SELECT jobname, schedule, command FROM cron.job WHERE jobname = 'eng-refresh-diario';` → 1 linha, `0 9 * * *`.
+- [x] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
+- [x] **Passo 2.** Verifique: `SELECT jobname, schedule, command FROM cron.job WHERE jobname = 'eng-refresh-diario';` → 1 linha, `0 9 * * *`.
 - [ ] **Passo 3.** No dia seguinte, ou quando o João pedir, confira se apareceu uma linha `disparo='cron'` com `status='ok'` em `eng_refresh_log`. Esse item é do checklist do portão.
-- [ ] **Passo 4.** Commit: `feat(engajamento): cron diário do refresh (06:00 BRT)`.
+- [x] **Passo 4.** Commit: `feat(engajamento): cron diário do refresh (06:00 BRT)`.
 
 **Confirmação do João:** **sim**.
 
