@@ -314,7 +314,7 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 
 - [x] **Passo 1.** Mostre ao João, peça o "ok", aplique e salve.
 - [x] **Passo 2.** Verifique: `SELECT jobname, schedule, command FROM cron.job WHERE jobname = 'eng-refresh-diario';` → 1 linha, `0 9 * * *`.
-- [ ] **Passo 3.** No dia seguinte, ou quando o João pedir, confira se apareceu uma linha `disparo='cron'` com `status='ok'` em `eng_refresh_log`. Esse item é do checklist do portão.
+- [x] **Passo 3.** No dia seguinte, ou quando o João pedir, confira se apareceu uma linha `disparo='cron'` com `status='ok'` em `eng_refresh_log`. Esse item é do checklist do portão.
 - [x] **Passo 4.** Commit: `feat(engajamento): cron diário do refresh (06:00 BRT)`.
 
 **Confirmação do João:** **sim**.
