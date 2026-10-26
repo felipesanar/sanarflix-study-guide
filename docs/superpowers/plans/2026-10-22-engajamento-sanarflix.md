@@ -786,13 +786,13 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - Teste: `__tests__/engajamento/QuestoesTopo.test.tsx`.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - textos da §12.3;
   - o seletor troca título e descrição;
   - o eixo de % aparece na descrição.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 
@@ -813,7 +813,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - **Pop-up.** `useEngajamentoQuestoesAlunos(folhaId)`.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - a soma das questões das linhas de nível 1 = total exibido (com fixture coerente);
   - o básico aparece como "Ciclo básico" e **não** dentro das grandes áreas;
   - folha do clínico com `aria-label` "Ver alunos do tema …", do básico com "Ver alunos do assunto …";
@@ -821,8 +821,8 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - rodapé "Mostrando os 12 alunos…" só com mais de 12 alunos.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Dev server, PARACATU: abrir e fechar níveis e abrir um pop-up. O total da gaveta = KPI do topo.
-- [ ] **Passo 3.** Suíte + type-check + commit.
+- [x] **Passo 2.** Dev server, PARACATU: abrir e fechar níveis e abrir um pop-up. O total da gaveta = KPI do topo.
+- [x] **Passo 3.** Suíte + type-check + commit.
 
 ---
 
