@@ -287,6 +287,16 @@ export function formatarAtualizadoEm(iso: string | null | undefined): string | n
   return `${pega('day')}/${pega('month')}/${pega('year')}, ${pega('hour')}:${pega('minute')}`;
 }
 
+/** Nome da IES para nome de arquivo: minúsculo, sem acento, espaços →  (§10.7). */
+export function slugIes(nome: string): string {
+  return nome
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
 /** Busca no front (filtro local de listas já carregadas): minúsculo e sem acento. */
 export function normalizarBusca(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

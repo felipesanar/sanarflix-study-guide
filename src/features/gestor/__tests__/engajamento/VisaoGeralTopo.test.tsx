@@ -8,8 +8,15 @@ vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'
 
 const mockVisaoGeral = vi.fn();
 vi.mock('@/features/gestor/api/engajamento', () => ({
+  PAGE_SIZE_ALUNOS: 20,
   useEngajamentoVisaoGeral: (...args: unknown[]) => mockVisaoGeral(...args),
+  // A rota também monta a tabela "Por aluno" e a lista dos pop-ups: o que elas consultam fica fora do escopo destes testes.
+  useEngajamentoAlunos: () => ({ data: undefined, isLoading: true, isError: false, isPlaceholderData: false, refetch: () => undefined }),
+  useEngajamentoLista: () => ({ data: undefined, isLoading: true, isError: false, isPlaceholderData: false, refetch: () => undefined }),
+  buscarExportAlunos: vi.fn(),
+  buscarListaCompleta: vi.fn(),
 }));
+vi.mock('@/features/gestor/api/queries', () => ({ useGestorContexto: () => ({ data: { podeExportar: false } }) }));
 
 import { DoAcessoAoHabito } from '@/features/gestor/components/engajamento/DoAcessoAoHabito';
 import { EngajamentoMesAMes } from '@/features/gestor/components/engajamento/EngajamentoMesAMes';

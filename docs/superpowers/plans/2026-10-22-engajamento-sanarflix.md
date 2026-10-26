@@ -714,7 +714,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - **Exportar base de alunos (CSV):** só se `podeExportar`. Chama `buscarExportAlunos` e monta com `montarCsv` e `baixarCsv`, colunas da §10.7.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - textos da §12.2 (KPIs por aba, sem e com aluno);
   - título do gráfico com "· Out parcial até 22/10";
   - "Mostrando 1–20 de 521 alunos, ordenados pela aba selecionada";
@@ -723,8 +723,8 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - o botão de exportar some com `podeExportar=false`.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Dev server: busca "conceicao" acha "Conceição" (se houver na PARACATU; senão, teste com outro nome acentuado da base).
-- [ ] **Passo 3.** Suíte + type-check + commit.
+- [x] **Passo 2.** Dev server: busca "conceicao" acha "Conceição" (se houver na PARACATU; senão, teste com outro nome acentuado da base).
+- [x] **Passo 3.** Suíte + type-check + commit.
 
 ---
 

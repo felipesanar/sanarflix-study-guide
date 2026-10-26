@@ -20,6 +20,7 @@ import {
   rotuloRecencia,
   rotuloSemestreLetivo,
   rotuloPeriodoMinusculo,
+  slugIes,
   textoDetalhe,
 } from '@/features/gestor/lib/engajamento';
 
@@ -282,5 +283,13 @@ describe('rotuloPeriodoMinusculo', () => {
     expect(rotuloPeriodoMinusculo('letivo', '2026-10-22')).toBe('semestre letivo 2026.2');
     expect(rotuloPeriodoMinusculo('letivo', '2026-03-10')).toBe('semestre letivo 2026.1');
     expect(rotuloPeriodoMinusculo('custom', '2026-10-22')).toBe('personalizado');
+  });
+});
+
+describe('slugIes', () => {
+  it('minúsculo, sem acento e com espaços viram hífen', () => {
+    expect(slugIes('PARACATU')).toBe('paracatu');
+    expect(slugIes('Centro Universitário São Lucas')).toBe('centro-universitario-sao-lucas');
+    expect(slugIes('  Integrado  Macapá ')).toBe('integrado-macapa');
   });
 });

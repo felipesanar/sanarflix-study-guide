@@ -209,6 +209,11 @@ export function visaoGeralComAluno(): VisaoGeralEngajamento {
       especialidadeMaisAssistida: { nome: 'Cardiologia', total: 21 },
       especialidadeMaisLida: { nome: 'Pediatria', total: 12 },
     },
+    consumo: {
+      questoes: { total: 1284, totalAnterior: 0, totalIes: null, acertoPct: 74.0, acertoPctAnterior: null, acertoPctIes: null, alunos: 1 },
+      videos: { total: 142, totalAnterior: null, totalIes: null, alunos: 1 },
+      documentos: { total: 61, totalAnterior: null, totalIes: null, alunos: 1 },
+    },
     meses: base.meses.map((m, i) => ({ ...m, diasAtivos: [6, 8, 7, 9, 8, 4][i] })),
     habito: { mes: '2026-09', ativosNoMes: 1, baixo: 0, medio: 0, alto: 1, altissimo: 0, diasAtivosAluno: 8 },
     niveis: base.niveis.map((n) => ({

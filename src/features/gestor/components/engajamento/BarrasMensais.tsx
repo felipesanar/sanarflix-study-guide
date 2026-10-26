@@ -22,6 +22,10 @@ export interface BarrasMensaisProps {
   pontos: PontoBarraMensal[];
   /** Altura da área das barras, em px (padrão 160). */
   altura?: number;
+  /** Cor das barras de mês fechado (padrão: marca). */
+  corFechada?: string;
+  /** Cor das barras de mês parcial (padrão: tom claro da marca). */
+  corParcial?: string;
 }
 
 /** Altura, em px, de uma barra: proporcional ao maior valor; valor > 0 nunca some. */
@@ -35,7 +39,7 @@ export function alturaDaBarra(valor: number, maximo: number, altura: number): nu
  * série (o máximo ocupa 100% da área útil), valor escrito acima, rótulo do mês
  * abaixo. Mês parcial: cor mais clara e `*` no rótulo.
  */
-export function BarrasMensais({ rotulo, pontos, altura = 160 }: BarrasMensaisProps) {
+export function BarrasMensais({ rotulo, pontos, altura = 160, corFechada = 'var(--gp-brand)', corParcial = COR_BARRA_CLARA }: BarrasMensaisProps) {
   const maximo = pontos.reduce((m, p) => Math.max(m, p.valor), 0);
 
   return (
@@ -70,7 +74,7 @@ export function BarrasMensais({ rotulo, pontos, altura = 160 }: BarrasMensaisPro
                     width: '70%',
                     maxWidth: 48,
                     height: alturaDaBarra(p.valor, maximo, altura),
-                    background: p.parcial ? COR_BARRA_CLARA : 'var(--gp-brand)',
+                    background: p.parcial ? corParcial : corFechada,
                     borderRadius: 'var(--gp-radius-sm) var(--gp-radius-sm) 0 0',
                   }}
                 />

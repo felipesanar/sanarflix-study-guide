@@ -39,6 +39,8 @@ export function estadoDaConsulta(c: Pick<ConsultaDoBloco, 'data' | 'isLoading' |
 
 export interface BlocoEngajamentoProps {
   titulo: string;
+  /** Linha em maiúsculas acima do título ("Acompanhamento"). */
+  sobretitulo?: string;
   descricao?: React.ReactNode;
   /** Link ou botão à direita do título ("Abrir taxonomia →", seletor de métrica…). */
   acao?: React.ReactNode;
@@ -68,6 +70,7 @@ export interface BlocoEngajamentoProps {
  */
 export function BlocoEngajamento({
   titulo,
+  sobretitulo,
   descricao,
   acao,
   consulta,
@@ -107,6 +110,18 @@ export function BlocoEngajamento({
             <CardContent className="flex flex-col" style={{ padding: 18, gap: 14 }}>
               <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
                 <div className="min-w-0 flex-1">
+                  {sobretitulo ? (
+                    <p
+                      className="uppercase"
+                      style={{
+                        fontSize: 'var(--gp-font-size-label)',
+                        letterSpacing: 'var(--gp-font-tracking-label)',
+                        color: 'var(--gp-text-3)',
+                      }}
+                    >
+                      {sobretitulo}
+                    </p>
+                  ) : null}
                   <TituloBloco id={idTitulo}>{titulo}</TituloBloco>
                   {descricao ? (
                     <p style={{ marginTop: 2, fontSize: 'var(--gp-font-size-apoio)', color: 'var(--gp-text-3)' }}>{descricao}</p>

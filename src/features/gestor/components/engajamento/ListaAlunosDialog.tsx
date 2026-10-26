@@ -18,7 +18,7 @@ import type { CategoriaLista, LinhaListaEngajamento } from '@/features/gestor/ap
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { useValorComAtraso } from '@/features/gestor/hooks/useValorComAtraso';
 import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
-import { mesAno, rotuloRecencia, textoDetalhe } from '@/features/gestor/lib/engajamento';
+import { mesAno, rotuloRecencia, slugIes, textoDetalhe } from '@/features/gestor/lib/engajamento';
 import { formatNumero, TRACO } from '@/features/gestor/lib/formatters';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
@@ -82,14 +82,6 @@ function mensagemVazio(categoria: CategoriaLista): string {
   return CATEGORIAS_NIVEL.includes(categoria)
     ? 'Nenhum aluno nesta categoria neste recorte'
     : 'Nenhum aluno nesta faixa neste recorte.';
-}
-
-function slugIes(nome: string): string {
-  return nome
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, '-');
 }
 
 /**
