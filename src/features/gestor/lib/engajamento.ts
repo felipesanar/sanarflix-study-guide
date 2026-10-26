@@ -251,6 +251,31 @@ export function textoDetalhe(detalhe: DetalheAtividadeTexto | null): string {
   return detalhe.especialidade ? `${quando} · ${base} de ${detalhe.especialidade}` : `${quando} · ${base}`;
 }
 
+/**
+ * `"22/10/2026, 06:02"` — data e hora de um instante ISO no fuso de America/Sao_Paulo
+ * (o "atualizado em" do cabeçalho, §12.1). `null` ou ISO inválido → `null`: o chamador
+ * diz "atualização pendente", nunca inventa um horário.
+ *
+ * Compõe a string a partir das partes em vez de confiar no separador do locale
+ * (ICU recente troca ", " por " " entre data e hora).
+ */
+export function formatarAtualizadoEm(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const instante = new Date(iso);
+  if (Number.isNaN(instante.getTime())) return null;
+  const partes = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(instante);
+  const pega = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? '';
+  return `${pega('day')}/${pega('month')}/${pega('year')}, ${pega('hour')}:${pega('minute')}`;
+}
+
 /** Busca no front (filtro local de listas já carregadas): minúsculo e sem acento. */
 export function normalizarBusca(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

@@ -280,7 +280,9 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
     // sidebar apontam para a mesma tela e têm que dizer o mesmo nome. Este
     // teste afirmava "Detalhamento por simulados" com `s` minúsculo enquanto a
     // nav dizia `S` maiúsculo — a divergência que motivou a fonte única.
-    for (const item of GESTOR_V2_NAV.filter((i) => i.url !== '/gestor')) {
+    // Só as duas telas de análise têm direcionador na Início; o Engajamento (grupo
+    // "Uso da plataforma") tem a própria entrada na sidebar e nenhum card aqui.
+    for (const item of GESTOR_V2_NAV.filter((i) => i.grupo === 'Desempenho Institucional')) {
       expect(screen.getByText(item.title)).toBeInTheDocument();
     }
   });

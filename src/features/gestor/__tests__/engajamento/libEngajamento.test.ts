@@ -7,6 +7,7 @@ import {
   deltaPct,
   deltaPp,
   diaMes,
+  formatarAtualizadoEm,
   hojeSaoPaulo,
   mesAno,
   mesCurto,
@@ -248,5 +249,27 @@ describe('normalizarBusca', () => {
     expect(normalizarBusca('Conceição João')).toBe('conceicao joao');
     expect(normalizarBusca('ÁÉÍÓÚ Çã')).toBe('aeiou ca');
     expect(normalizarBusca('')).toBe('');
+  });
+});
+
+describe('formatarAtualizadoEm', () => {
+  it('converte o instante UTC para o horário de São Paulo: "dd/mm/aaaa, HH:mm"', () => {
+    expect(formatarAtualizadoEm('2026-10-22T09:02:41.5+00:00')).toBe('22/10/2026, 06:02');
+    expect(formatarAtualizadoEm('2026-10-26T09:02:34.011434+00:00')).toBe('26/10/2026, 06:02');
+  });
+
+  it('a virada de dia respeita o fuso: 01:30 UTC ainda é o dia anterior em São Paulo', () => {
+    expect(formatarAtualizadoEm('2026-10-23T01:30:00Z')).toBe('22/10/2026, 22:30');
+  });
+
+  it('meia-noite é 00:00, nunca 24:00', () => {
+    expect(formatarAtualizadoEm('2026-10-23T03:00:00Z')).toBe('23/10/2026, 00:00');
+  });
+
+  it('sem instante ou com ISO inválido não inventa horário', () => {
+    expect(formatarAtualizadoEm(null)).toBeNull();
+    expect(formatarAtualizadoEm(undefined)).toBeNull();
+    expect(formatarAtualizadoEm('')).toBeNull();
+    expect(formatarAtualizadoEm('ontem')).toBeNull();
   });
 });

@@ -83,15 +83,16 @@ describe('GestorShell (spec §8.3)', () => {
     });
   });
 
-  it('a nav tem exatamente os 3 itens do portal v2, com o rótulo completo do 3º (referência)', () => {
+  it('a nav tem exatamente os 4 itens do portal v2, com o rótulo completo do 3º (referência) e o Engajamento (spec 2026-10-22-engajamento §10.2)', () => {
     renderizar('/gestor');
     expect(GESTOR_V2_NAV.map((i) => i.title)).toEqual([
       'Início',
       'Visão Geral',
       'Detalhamento por Simulados',
+      'Engajamento',
     ]);
     const nav = screen.getByRole('navigation', { name: /seções do portal/i });
-    expect(nav.querySelectorAll('a')).toHaveLength(3);
+    expect(nav.querySelectorAll('a')).toHaveLength(4);
     expect(screen.getByRole('link', { name: 'Início' })).toHaveAttribute('href', '/gestor');
     expect(screen.getByRole('link', { name: 'Visão Geral' })).toHaveAttribute('href', '/gestor/visao-geral');
     expect(screen.getByRole('link', { name: 'Detalhamento por Simulados' })).toHaveAttribute(

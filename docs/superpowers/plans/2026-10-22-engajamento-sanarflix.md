@@ -594,7 +594,7 @@ export interface FiltrosEngajamento {
   - atualizar `__tests__/SidebarNav.test.tsx` e `__tests__/gestorV2Routes.test.tsx` (§15.3)
 
 **Passos:**
-- [ ] **Passo 1.** Testes do layout:
+- [x] **Passo 1.** Testes do layout:
   - título e subtítulo da §12.1, com o nome da IES e "atualizado em" vindos do mock da RPC de visão geral;
   - opções dos dois `<select>`;
   - "Personalizado…" mostra "De", "Até" e "Aplicar";
@@ -603,16 +603,16 @@ export interface FiltrosEngajamento {
   - `temDados=false` → estado vazio da §11 nas 3 abas.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Atualize os testes da sidebar:
+- [x] **Passo 2.** Atualize os testes da sidebar:
   - 4 itens;
   - títulos de grupo "Desempenho Institucional" e "Uso da plataforma";
   - badge "NOVO" no item Engajamento;
   - o hover em Engajamento aquece o chunk do layout.
 
   Implemente a §10.2. PASS.
-- [ ] **Passo 3.** Rotas: `/gestor/engajamento`, `/questoes` e `/conteudos` montam dentro do portal novo. PASS.
-- [ ] **Passo 4.** Abra o dev server (`preview_start` `dev`) com `?ies=d86c32ba-2d09-4c7e-a426-1d981ec7b595` logado como gestor/admin. Confira a sidebar e o cabeçalho e tire um screenshot para o relatório.
-- [ ] **Passo 5.** Suíte + type-check + commit: `feat(engajamento): rotas, layout, filtros e item na sidebar`.
+- [x] **Passo 3.** Rotas: `/gestor/engajamento`, `/questoes` e `/conteudos` montam dentro do portal novo. PASS.
+- [x] **Passo 4.** Abra o dev server (`preview_start` `dev`) com `?ies=d86c32ba-2d09-4c7e-a426-1d981ec7b595` logado como gestor/admin. Confira a sidebar e o cabeçalho e tire um screenshot para o relatório.
+- [x] **Passo 5.** Suíte + type-check + commit: `feat(engajamento): rotas, layout, filtros e item na sidebar`.
 
 **Confirmação do João:** não.
 

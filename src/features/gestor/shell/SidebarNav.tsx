@@ -19,13 +19,22 @@ export interface GestorV2NavItem {
    * repouso, handoff §3), e portanto pertence ao render, não ao catálogo.
    */
   icon: DendeIconName;
+  /**
+   * Título de grupo da sidebar. A etiqueta é desenhada acima do item quando o
+   * `grupo` existe e é diferente do do item anterior. Item sem `grupo` (o
+   * Início) fica solto, acima de qualquer título.
+   */
+  grupo?: string;
+  /** Selo ao lado do título (hoje só "NOVO", no Engajamento). */
+  badge?: 'NOVO';
 }
 
-/** Navegação canônica do Portal do Gestor v2 — 3 itens, nada mais (spec §2.1, §8.3). */
+/** Navegação canônica do Portal do Gestor v2 — 4 itens em 2 grupos (spec 2026-10-22-engajamento §10.2). */
 export const GESTOR_V2_NAV: GestorV2NavItem[] = [
   { title: 'Início', url: '/gestor', icon: 'home' },
-  { title: 'Visão Geral', url: '/gestor/visao-geral', icon: 'equalizer' },
-  { title: 'Detalhamento por Simulados', url: '/gestor/detalhamento', icon: 'insights' },
+  { title: 'Visão Geral', url: '/gestor/visao-geral', icon: 'equalizer', grupo: 'Desempenho Institucional' },
+  { title: 'Detalhamento por Simulados', url: '/gestor/detalhamento', icon: 'insights', grupo: 'Desempenho Institucional' },
+  { title: 'Engajamento', url: '/gestor/engajamento', icon: 'timeline', grupo: 'Uso da plataforma', badge: 'NOVO' },
 ];
 
 /**
@@ -60,11 +69,19 @@ const TITULO_GRUPO_NAV: React.CSSProperties = {
 };
 
 /**
- * Índice do primeiro item sob "Desempenho Institucional". O Início fica solto
- * acima do título de grupo — a referência separa a tela de entrada das duas
- * telas de análise.
+ * Selo "NOVO" ao lado do título do item (spec 2026-10-22-engajamento §10.2).
+ * Superfície de marca cheia, texto `--gp-on-brand`.
  */
-const PRIMEIRO_DO_GRUPO = 1;
+const SELO_NOVO: React.CSSProperties = {
+  marginLeft: 'auto',
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.04em',
+  padding: '2px 6px',
+  borderRadius: 'var(--gp-radius-pill)',
+  background: 'var(--gp-brand)',
+  color: 'var(--gp-on-brand)',
+};
 
 /** Barra vertical de marca colada à esquerda do item ativo (referência: 3px). */
 const BARRA_ATIVA: React.CSSProperties = {
@@ -80,7 +97,7 @@ const BARRA_ATIVA: React.CSSProperties = {
 };
 
 /**
- * `layoutId` compartilhado da barra ativa entre os 3 itens (plano de motion,
+ * `layoutId` compartilhado da barra ativa entre os itens (plano de motion,
  * Onda 2/B1: "indicador de página ativa que DESLIZA entre itens ao navegar",
  * mesmo pedido que o segmentado de `FiltroSemestre.tsx` resolve com
  * `transform`/`getBoundingClientRect`).
@@ -191,6 +208,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
   const aquecerChunk = React.useCallback((url: string) => {
     if (url === '/gestor/visao-geral') void import('@/features/gestor/routes/VisaoGeral').catch(() => undefined);
     if (url === '/gestor/detalhamento') void import('@/features/gestor/routes/Detalhamento').catch(() => undefined);
+    if (url === '/gestor/engajamento') void import('@/features/gestor/routes/engajamento/EngajamentoLayout').catch(() => undefined);
   }, []);
 
   return (
@@ -199,7 +217,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
       className="flex flex-col"
       style={{ padding: '16px 12px', gap: 2 }}
     >
-      {GESTOR_V2_NAV.map(({ title, url, icon }, indice) => {
+      {GESTOR_V2_NAV.map(({ title, url, icon, grupo, badge }, indice) => {
         const aoPassarMouse = () => {
           aquecerChunk(url);
           if (url === '/gestor/visao-geral') aquecerVisaoGeral();
@@ -208,9 +226,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
 
         return (
         <React.Fragment key={url}>
-          {indice === PRIMEIRO_DO_GRUPO && (
+          {grupo !== undefined && grupo !== GESTOR_V2_NAV[indice - 1]?.grupo && (
             <div style={{ ...TITULO_GRUPO_NAV, padding: '18px 12px 8px' }}>
-              Desempenho Institucional
+              {grupo}
             </div>
           )}
           <NavLink
@@ -270,6 +288,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
                   )}
                 />
                 {title}
+                {badge && (
+                  <>
+                    {/* O espaço literal faz o nome acessível do link sair "Engajamento novo"; num
+                        contêiner flex, texto só de espaço não ocupa lugar na tela. */}
+                    {' '}
+                    <span aria-label="novo" style={SELO_NOVO}>
+                      {badge}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </NavLink>

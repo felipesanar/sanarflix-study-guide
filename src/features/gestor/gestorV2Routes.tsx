@@ -11,6 +11,10 @@ import {
 
 const VisaoGeral = lazy(() => import('@/features/gestor/routes/VisaoGeral'));
 const Detalhamento = lazy(() => import('@/features/gestor/routes/Detalhamento'));
+const EngajamentoLayout = lazy(() => import('@/features/gestor/routes/engajamento/EngajamentoLayout'));
+const VisaoGeralEngajamento = lazy(() => import('@/features/gestor/routes/engajamento/VisaoGeralEngajamento'));
+const QuestoesEngajamento = lazy(() => import('@/features/gestor/routes/engajamento/QuestoesEngajamento'));
+const ConteudosEngajamento = lazy(() => import('@/features/gestor/routes/engajamento/ConteudosEngajamento'));
 
 /**
  * Árvore de rotas da experiência Gestão durante o rollout faseado por IES
@@ -47,6 +51,17 @@ export const gestorV2Routes = (): RouteObject[] => {
         { index: true, element: <GestorIndexSwitch /> },
         { path: 'visao-geral', element: <PortalV2Gate><VisaoGeral /></PortalV2Gate> },
         { path: 'detalhamento', element: <PortalV2Gate><Detalhamento /></PortalV2Gate> },
+        // Engajamento SanarFlix (spec 2026-10-22-engajamento §10.2): fica ANTES de `telasLegadas`
+        // (nenhuma tela legada usa `engajamento`) e usa o PortalV2Gate existente, sem gate novo (D9).
+        {
+          path: 'engajamento',
+          element: <PortalV2Gate><EngajamentoLayout /></PortalV2Gate>,
+          children: [
+            { index: true, element: <VisaoGeralEngajamento /> },
+            { path: 'questoes', element: <QuestoesEngajamento /> },
+            { path: 'conteudos', element: <ConteudosEngajamento /> },
+          ],
+        },
         ...telasLegadas,
       ],
     },
