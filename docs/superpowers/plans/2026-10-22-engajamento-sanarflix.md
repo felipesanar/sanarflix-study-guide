@@ -763,7 +763,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - **Comparativo:** clicar no semestre chama `setSemestre(n)` (toggle). A linha selecionada fica realçada, e a linha do semestre do aluno filtrado fica realçada mais leve.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - textos da §12.2;
   - legenda "Nunca acessaram";
   - segmentos com `aria-pressed`;
@@ -773,8 +773,8 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - clicar no 8º grava `eng_sem=8` e apaga `aluno`.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Dev server: o filtro do topo e o Comparativo ficam sincronizados nos dois sentidos.
-- [ ] **Passo 3.** Suíte + type-check + commit.
+- [x] **Passo 2.** Dev server: o filtro do topo e o Comparativo ficam sincronizados nos dois sentidos.
+- [x] **Passo 3.** Suíte + type-check + commit.
 
 ---
 
