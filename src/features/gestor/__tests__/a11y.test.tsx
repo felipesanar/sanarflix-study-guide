@@ -60,6 +60,11 @@ import type {
 } from '@/features/gestor/api/types';
 import type { DetalhamentoComExtras } from '@/features/gestor/api/detalhamentoExtras';
 import { metaFake, visaoGeralFake } from './fixtures/visaoGeral';
+import { DrawerAlunoEngajamento } from '@/features/gestor/components/engajamento/DrawerAlunoEngajamento';
+import { useEngajamentoAluno } from '@/features/gestor/api/engajamento';
+import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
+import { alunoEngajamento } from './fixtures/engajamento/aluno';
+import { resultadoGestor } from './fixtures/engajamento/visaoGeral';
 
 vi.mock('@/features/gestor/api/queries', () => ({
   useGestorContexto: vi.fn(),
@@ -533,4 +538,83 @@ describe('acessibilidade — gráficos têm nome acessível e alternativa tabula
    * ou com um polyfill de `ResizeObserver` que dispare com dimensões — ver
    * item 4 do relatório final (lista do que o axe em jsdom não cobre).
    */
+});
+
+/* ------------------------------------------------------------------------ */
+/* Engajamento SanarFlix (spec 2026-10-22-engajamento §15.2)                */
+/* ------------------------------------------------------------------------ */
+
+vi.mock('@/features/gestor/api/engajamento', () => ({
+  useEngajamentoAluno: vi.fn(),
+}));
+
+const FILTROS_ENGAJAMENTO: FiltrosEngajamento = {
+  iesId: 'ies-1',
+  periodo: '6m',
+  de: null,
+  ate: null,
+  inicio: '2026-05-01',
+  fim: '2026-10-22',
+  semestre: null,
+  alunoId: null,
+  tipo: 'todos',
+  setPeriodo: () => undefined,
+  setSemestre: () => undefined,
+  setAluno: () => undefined,
+  setTipo: () => undefined,
+  limparFiltroPagina: () => undefined,
+};
+
+function HostDrawerAlunoEngajamento() {
+  const [aberto, setAberto] = React.useState(false);
+  return (
+    <>
+      <button onClick={() => setAberto(true)}>abrir engajamento do aluno</button>
+      {aberto ? <DrawerAlunoEngajamento alunoId="aluno-1" filtros={FILTROS_ENGAJAMENTO} onFechar={() => setAberto(false)} /> : null}
+    </>
+  );
+}
+
+describe('acessibilidade — Engajamento: drawer do aluno', () => {
+  beforeEach(() => {
+    vi.mocked(useEngajamentoAluno).mockReturnValue(
+      resultadoGestor(alunoEngajamento()) as unknown as ReturnType<typeof useEngajamentoAluno>,
+    );
+  });
+
+  it('DrawerAlunoEngajamento aberto: sem violações de axe', async () => {
+    const user = userEvent.setup();
+    montar(<HostDrawerAlunoEngajamento />, '/gestor/engajamento');
+    await user.click(screen.getByRole('button', { name: 'abrir engajamento do aluno' }));
+    expect(await screen.findByRole('dialog', { name: 'Detalhes do aluno' })).toBeInTheDocument();
+    await checarSemViolacoes();
+  });
+
+  it('DrawerAlunoEngajamento: ESC fecha e o foco volta para o disparador', async () => {
+    const user = userEvent.setup();
+    montar(<HostDrawerAlunoEngajamento />, '/gestor/engajamento');
+    const disparador = screen.getByRole('button', { name: 'abrir engajamento do aluno' });
+
+    await user.click(disparador);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(disparador, 'ESC deve devolver o foco ao disparador — ver useDevolverFocoAoFechar').toHaveFocus();
+  });
+
+  it('todo gráfico do drawer vive numa <figure> com tabela alternativa', async () => {
+    const user = userEvent.setup();
+    montar(<HostDrawerAlunoEngajamento />, '/gestor/engajamento');
+    await user.click(screen.getByRole('button', { name: 'abrir engajamento do aluno' }));
+    const painel = await screen.findByRole('dialog');
+    const graficos = within(painel).getAllByRole('img');
+    expect(graficos.length).toBeGreaterThanOrEqual(1);
+    for (const grafico of graficos) {
+      expect(grafico).toHaveAccessibleName(/\S/);
+      const figura = grafico.closest('figure');
+      expect(figura).not.toBeNull();
+      expect(within(figura as HTMLElement).getByText('Ver dados em tabela')).toBeInTheDocument();
+    }
+  });
 });

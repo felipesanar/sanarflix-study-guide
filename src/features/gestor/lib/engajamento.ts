@@ -287,6 +287,15 @@ export function formatarAtualizadoEm(iso: string | null | undefined): string | n
   return `${pega('day')}/${pega('month')}/${pega('year')}, ${pega('hour')}:${pega('minute')}`;
 }
 
+/** Iniciais para o avatar: 1ª letra do primeiro e do último nome ("Ana Clara Ribeiro" → "AR"). */
+export function iniciais(nome: string): string {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '';
+  const primeira = partes[0][0];
+  const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+  return (primeira + ultima).toUpperCase();
+}
+
 /** Nome da IES para nome de arquivo: minúsculo, sem acento, espaços →  (§10.7). */
 export function slugIes(nome: string): string {
   return nome

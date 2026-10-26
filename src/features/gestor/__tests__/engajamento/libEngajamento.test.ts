@@ -21,6 +21,7 @@ import {
   rotuloSemestreLetivo,
   rotuloPeriodoMinusculo,
   slugIes,
+  iniciais,
   textoDetalhe,
 } from '@/features/gestor/lib/engajamento';
 
@@ -291,5 +292,14 @@ describe('slugIes', () => {
     expect(slugIes('PARACATU')).toBe('paracatu');
     expect(slugIes('Centro Universitário São Lucas')).toBe('centro-universitario-sao-lucas');
     expect(slugIes('  Integrado  Macapá ')).toBe('integrado-macapa');
+  });
+});
+
+describe('iniciais', () => {
+  it('1ª letra do primeiro e do último nome, em maiúscula', () => {
+    expect(iniciais('Ana Clara Ribeiro')).toBe('AR');
+    expect(iniciais('  joão  pedro silva ')).toBe('JS');
+    expect(iniciais('Madonna')).toBe('M');
+    expect(iniciais('')).toBe('');
   });
 });

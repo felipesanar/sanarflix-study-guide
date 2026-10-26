@@ -735,7 +735,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - Teste: `__tests__/engajamento/DrawerAlunoEngajamento.test.tsx` + caso no `a11y.test.tsx` (axe + ESC devolve o foco).
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - textos da §12.2 (drawer);
   - barras empilhadas com legenda "Questões (÷4)";
   - "Acerto por especialidade vs. semestre" com o traço;
@@ -744,7 +744,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - "Filtrar a página por este aluno" chama `setAluno`, apaga `eng_sem` e fecha.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 
