@@ -23,6 +23,7 @@ export interface PreviewResult {
   matricula_ra: string;
   email?: string;
   nome?: string;
+  identificado_por?: 'ra' | 'email';
   status: PreviewStatus;
   reason?: string;
   details?: Record<string, unknown>;
@@ -111,6 +112,9 @@ export const REASON_LABEL: Record<string, string> = {
   ra_missing: 'Matrícula/RA em branco',
   duplicate_ra_in_file: 'Matrícula/RA duplicada na planilha',
   ra_not_found: 'Matrícula/RA não encontrada nas IES do simulado',
+  email_not_found: 'E-mail não cadastrado',
+  email_not_in_ies: 'Aluno não pertence às IES do simulado',
+  duplicate_student_in_file: 'Aluno repetido na planilha (por e-mail ou RA)',
   ra_ambiguous: 'Matrícula/RA encontrada em mais de uma IES do simulado',
 };
 
@@ -174,4 +178,36 @@ export function detectEmailHeader(headers: string[], firstRow: Record<string, un
     }
   }
   return null;
+}
+
+const IDENT_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Identificador no formato de e-mail (senão é tratado como Matrícula/RA). */
+export function isEmail(v: unknown): boolean {
+  return IDENT_EMAIL_REGEX.test(String(v ?? '').trim());
+}
+
+export interface NaoEncontradoItem {
+  linha: number | null;
+  identificador: string;
+  motivo: string;
+}
+
+/** Linhas do dry-run com erro (alunos que ficarão de fora), com nº da linha e motivo legível. */
+export function buildNaoEncontrados(results: PreviewResult[], rows: ParsedRow[]): NaoEncontradoItem[] {
+  const linhaPorId = new Map<string, number>();
+  for (const r of rows) {
+    const k = normRa(r.matricula_ra);
+    if (!linhaPorId.has(k)) linhaPorId.set(k, r.rowIndex);
+  }
+  return results
+    .filter((r) => r.status === 'preview_error')
+    .map((r) => {
+      const id = r.matricula_ra || r.email || '';
+      return {
+        linha: linhaPorId.get(normRa(id)) ?? null,
+        identificador: id,
+        motivo: (r.reason && REASON_LABEL[r.reason]) || r.reason || 'Erro de validação',
+      };
+    })
+    .sort((a, b) => (a.linha ?? 1e9) - (b.linha ?? 1e9));
 }
