@@ -637,14 +637,14 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 ```
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - todo gráfico tem `figure`, `role="img"` com nome, "Ver dados em tabela" e `table` (como em `a11y.test.tsx`);
   - mês parcial com `*`;
   - eixo de % na faixa calculada;
   - `BarrasPorSemestre` clicável chama `onSelecionar` e marca `aria-pressed`.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit: `feat(engajamento): componentes de gráfico`.
+- [x] **Passo 2.** Suíte + type-check + commit: `feat(engajamento): componentes de gráfico`.
 
 **Não fazer:** não use recharts (§10.6). Não use hex/rgb.
 
