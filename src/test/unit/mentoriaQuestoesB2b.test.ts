@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SQL = readFileSync(
-  join(process.cwd(), 'supabase', 'migrations', '20261026150000_mentoria_questoes_b2b.sql'),
+  join(process.cwd(), 'supabase', 'migrations', '20261026184129_mentoria_questoes_b2b.sql'),
   'utf8',
 );
 const idx = SQL.search(/create or replace function public\.mentor_aluno_questoes/i);

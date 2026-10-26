@@ -35,8 +35,8 @@ e sem depender do `localhost:8080` do Felipe. Proposta, nada executado.
 4. Ligar a proteção de deploy (Vercel Authentication ou senha) para o preview não ficar público.
 5. Supabase Auth (`gvqv`) → URL Configuration: acrescentar o domínio do preview às Redirect URLs. O login por
    senha funciona sem isso; recuperar senha e convite precisam.
-6. Aplicar antes a migration `20261026150000_mentoria_questoes_b2b.sql` (questões B2B), pelo roteiro de sempre
-   (functiondef, BEGIN/ROLLBACK, advisors). Sem ela o preview mostra "–" em questões.
+6. ~~Aplicar a migration de questões B2B.~~ Feito em 26/10: `20261026184129_mentoria_questoes_b2b.sql`
+   aplicada em produção depois do teste em transação desfeita. Questões aparecem já no `localhost`.
 7. Mandar ao Léo o link e como entrar (ver o ponto 2 abaixo).
 
 ## Decisões que o Felipe precisa tomar
