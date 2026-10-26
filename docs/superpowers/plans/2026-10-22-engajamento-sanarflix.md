@@ -900,14 +900,14 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - atualizar `src/test/unit/adminNav.test.ts` (§15.3)
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - item "Engajamento SanarFlix" depois de "Monitoramento", com a capability `simulados.manage`;
   - KPIs sem e com semestre (§12.5);
   - `compacto(261000)` → "261 mil";
   - faixa de filtro com o texto da §12.5.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 
