@@ -26,7 +26,7 @@ export default function ConteudosEngajamento() {
   const parcial = ultimo?.parcial ? ` · ${mesExtenso(ultimo.mes).toLowerCase()} parcial, até ${diaMes(filtros.fim)}` : '';
 
   return (
-    <div className="flex flex-col gap-4" data-testid="conteudos-engajamento">
+    <div className="flex min-w-0 flex-col gap-4" data-testid="conteudos-engajamento">
       <FiltroTipoConteudo tipo={filtros.tipo} setTipo={filtros.setTipo} />
 
       <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>

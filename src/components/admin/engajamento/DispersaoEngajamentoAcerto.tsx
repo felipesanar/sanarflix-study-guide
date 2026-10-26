@@ -32,7 +32,7 @@ export function DispersaoEngajamentoAcerto({ ranking, rede }: DispersaoEngajamen
   const py = (v: number) => (1 - (v - eixoY.min) / (eixoY.max - eixoY.min)) * 100;
 
   return (
-    <section aria-labelledby="titulo-dispersao" className="rounded-xl border bg-card p-4" data-testid="dispersao">
+    <section aria-labelledby="titulo-dispersao" className="min-w-0 max-w-full rounded-xl border bg-card p-4" data-testid="dispersao">
       <h2 id="titulo-dispersao" className="text-base font-semibold">
         Engajamento × acerto
       </h2>

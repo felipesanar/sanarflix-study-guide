@@ -947,15 +947,15 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 **Objetivo:** conferir tela × fonte na PARACATU e fechar a entrega.
 
 **Passos:**
-- [ ] **Passo 1.** `a11y.test.tsx`: acrescente as 3 abas e o drawer (axe sem violações). PASS.
-- [ ] **Passo 2.** Dev server, PARACATU, "Últimos 6 meses":
+- [x] **Passo 1.** `a11y.test.tsx`: acrescente as 3 abas e o drawer (axe sem violações). PASS.
+- [x] **Passo 2.** Dev server, PARACATU, "Últimos 6 meses":
   - para **cada número visível** das 3 abas e do admin, confira contra a RPC do mesmo minuto e contra as validações V1–V19 da §14;
   - preencha uma tabela "tela | RPC | fonte" no relatório.
-- [ ] **Passo 3.** Repita o essencial com "Últimos 30 dias", com 8º semestre, com um aluno filtrado e com `tipo=video`.
-- [ ] **Passo 4.** Viewport mobile (`resize_window` `mobile`): sem rolagem horizontal da página. Tabelas largas rolam dentro do próprio contêiner. Tema escuro (`colorScheme: dark`): legível, sem branco estourado.
-- [ ] **Passo 5.** Suíte inteira em background: nenhuma falha nova contra a A0.
-- [ ] **Passo 6.** Commit final do plano com os checkboxes marcados. **Não** faça push nem PR sem o João pedir.
-- [ ] **Passo 7.** Relatório ao João:
+- [x] **Passo 3.** Repita o essencial com "Últimos 30 dias", com 8º semestre, com um aluno filtrado e com `tipo=video`.
+- [x] **Passo 4.** Viewport mobile (`resize_window` `mobile`): sem rolagem horizontal da página. Tabelas largas rolam dentro do próprio contêiner. Tema escuro (`colorScheme: dark`): legível, sem branco estourado.
+- [x] **Passo 5.** Suíte inteira em background: nenhuma falha nova contra a A0.
+- [x] **Passo 6.** Commit final do plano com os checkboxes marcados. **Não** faça push nem PR sem o João pedir.
+- [x] **Passo 7.** Relatório ao João:
   - screenshots;
   - tabela de conferência;
   - pendências: de-para, telas do aluno e as R1–R9 da §16;

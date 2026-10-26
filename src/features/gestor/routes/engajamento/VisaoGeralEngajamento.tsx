@@ -38,7 +38,7 @@ export default function VisaoGeralEngajamento() {
   const ocupado = consulta.isPlaceholderData === true;
 
   return (
-    <div className="flex flex-col gap-4" data-testid="visao-geral-engajamento">
+    <div className="flex min-w-0 flex-col gap-4" data-testid="visao-geral-engajamento">
       <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
         <KpisEngajamento
           dados={data}

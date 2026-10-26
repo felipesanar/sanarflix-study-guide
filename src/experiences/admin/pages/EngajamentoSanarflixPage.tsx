@@ -65,7 +65,7 @@ const EngajamentoSanarflixPage: React.FC = () => {
     : 'Rede B2B · sem dados individuais de aluno — para isso, abra o portal do gestor da IES';
 
   return (
-    <div className="space-y-6" data-testid="engajamento-admin">
+    <div className="w-0 min-w-full space-y-6" data-testid="engajamento-admin">
       <AdminSectionHeader
         title="Engajamento por instituição"
         subtitle={subtitulo}

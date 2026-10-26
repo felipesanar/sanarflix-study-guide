@@ -211,7 +211,7 @@ export function EvolucaoRede({ meses, semestres, fim, semestre, onSemestre }: Ev
     (ultimo?.parcial ? ` · ${mesExtenso(ultimo.mes).toLowerCase()} parcial, até ${diaMes(fim)}` : '');
 
   return (
-    <section aria-labelledby="titulo-evolucao-rede" className="rounded-xl border bg-card p-4" data-testid="evolucao-rede">
+    <section aria-labelledby="titulo-evolucao-rede" className="min-w-0 max-w-full rounded-xl border bg-card p-4" data-testid="evolucao-rede">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 id="titulo-evolucao-rede" className="text-base font-semibold">
@@ -234,7 +234,7 @@ export function EvolucaoRede({ meses, semestres, fim, semestre, onSemestre }: Ev
       </div>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-2">
-        <div data-testid="evolucao-mensal">
+        <div data-testid="evolucao-mensal" className="min-w-0">
           <h3 className="text-sm font-semibold">{info.nome} por mês</h3>
           <p className="mb-2 text-xs text-muted-foreground">{descMes}</p>
           <LinhaRede
@@ -244,7 +244,7 @@ export function EvolucaoRede({ meses, semestres, fim, semestre, onSemestre }: Ev
             pontos={meses.map((m) => ({ mes: m.mes, parcial: m.parcial, valor: valorMes(m) }))}
           />
         </div>
-        <div data-testid="evolucao-semestre">
+        <div data-testid="evolucao-semestre" className="min-w-0">
           <h3 className="text-sm font-semibold">{info.nome} por semestre</h3>
           <p className="mb-2 text-xs text-muted-foreground">{info.descSemestre} · clique num semestre para filtrar a página</p>
           <BarrasSemestreRede

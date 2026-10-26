@@ -61,7 +61,24 @@ import type {
 import type { DetalhamentoComExtras } from '@/features/gestor/api/detalhamentoExtras';
 import { metaFake, visaoGeralFake } from './fixtures/visaoGeral';
 import { DrawerAlunoEngajamento } from '@/features/gestor/components/engajamento/DrawerAlunoEngajamento';
-import { useEngajamentoAluno } from '@/features/gestor/api/engajamento';
+import {
+  useEngajamentoAluno,
+  useEngajamentoAlunos,
+  useEngajamentoConteudoAlunos,
+  useEngajamentoConteudos,
+  useEngajamentoLista,
+  useEngajamentoQuestoes,
+  useEngajamentoQuestoesAlunos,
+  useEngajamentoVisaoGeral,
+} from '@/features/gestor/api/engajamento';
+import VisaoGeralEngajamento from '@/features/gestor/routes/engajamento/VisaoGeralEngajamento';
+import QuestoesEngajamento from '@/features/gestor/routes/engajamento/QuestoesEngajamento';
+import ConteudosEngajamento from '@/features/gestor/routes/engajamento/ConteudosEngajamento';
+import { alunosEngajamento, TRES_ALUNOS } from './fixtures/engajamento/alunos';
+import { conteudoAlunos, conteudosParacatu } from './fixtures/engajamento/conteudos';
+import { linhaLista, listaEngajamento } from './fixtures/engajamento/lista';
+import { questoesAlunosTema, questoesParacatu } from './fixtures/engajamento/questoes';
+import { visaoGeralParacatu } from './fixtures/engajamento/visaoGeral';
 import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
 import { alunoEngajamento } from './fixtures/engajamento/aluno';
 import { resultadoGestor } from './fixtures/engajamento/visaoGeral';
@@ -545,7 +562,17 @@ describe('acessibilidade — gráficos têm nome acessível e alternativa tabula
 /* ------------------------------------------------------------------------ */
 
 vi.mock('@/features/gestor/api/engajamento', () => ({
+  PAGE_SIZE_ALUNOS: 20,
+  useEngajamentoVisaoGeral: vi.fn(),
+  useEngajamentoAlunos: vi.fn(),
+  useEngajamentoLista: vi.fn(),
   useEngajamentoAluno: vi.fn(),
+  useEngajamentoQuestoes: vi.fn(),
+  useEngajamentoQuestoesAlunos: vi.fn(),
+  useEngajamentoConteudos: vi.fn(),
+  useEngajamentoConteudoAlunos: vi.fn(),
+  buscarExportAlunos: vi.fn(),
+  buscarListaCompleta: vi.fn(),
 }));
 
 const FILTROS_ENGAJAMENTO: FiltrosEngajamento = {
@@ -615,6 +642,78 @@ describe('acessibilidade — Engajamento: drawer do aluno', () => {
       const figura = grafico.closest('figure');
       expect(figura).not.toBeNull();
       expect(within(figura as HTMLElement).getByText('Ver dados em tabela')).toBeInTheDocument();
+    }
+  });
+});
+
+describe('acessibilidade — Engajamento: as três abas (spec §15.2)', () => {
+  beforeEach(() => {
+    vi.mocked(useGestorContexto).mockReturnValue(resultadoOk(CONTEXTO) as unknown as ReturnType<typeof useGestorContexto>);
+    vi.mocked(useEngajamentoVisaoGeral).mockReturnValue(resultadoGestor(visaoGeralParacatu()) as unknown as ReturnType<typeof useEngajamentoVisaoGeral>);
+    vi.mocked(useEngajamentoAlunos).mockReturnValue(resultadoGestor(alunosEngajamento(TRES_ALUNOS)) as unknown as ReturnType<typeof useEngajamentoAlunos>);
+    vi.mocked(useEngajamentoLista).mockReturnValue(
+      resultadoGestor(listaEngajamento('frequente', [linhaLista()], { total: 4 })) as unknown as ReturnType<typeof useEngajamentoLista>,
+    );
+    vi.mocked(useEngajamentoQuestoes).mockReturnValue(resultadoGestor(questoesParacatu()) as unknown as ReturnType<typeof useEngajamentoQuestoes>);
+    vi.mocked(useEngajamentoQuestoesAlunos).mockReturnValue(resultadoGestor(questoesAlunosTema()) as unknown as ReturnType<typeof useEngajamentoQuestoesAlunos>);
+    vi.mocked(useEngajamentoConteudos).mockReturnValue(resultadoGestor(conteudosParacatu()) as unknown as ReturnType<typeof useEngajamentoConteudos>);
+    vi.mocked(useEngajamentoConteudoAlunos).mockReturnValue(resultadoGestor(conteudoAlunos()) as unknown as ReturnType<typeof useEngajamentoConteudoAlunos>);
+  });
+
+  const URL_ENG = '/gestor/engajamento?ies=ies-1';
+
+  it('Visão geral: sem violações de axe', async () => {
+    montar(<VisaoGeralEngajamento />, URL_ENG);
+    await checarSemViolacoes();
+  });
+
+  it('Visão geral com o pop-up de lista aberto: sem violações de axe', async () => {
+    const user = userEvent.setup();
+    montar(<VisaoGeralEngajamento />, URL_ENG);
+    await user.click(screen.getAllByRole('button', { name: /Ver todos os \d+ alunos com/ })[0]);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await checarSemViolacoes();
+  });
+
+  it('Questões: sem violações de axe', async () => {
+    montar(<QuestoesEngajamento />, '/gestor/engajamento/questoes?ies=ies-1');
+    await checarSemViolacoes();
+  });
+
+  it('Questões com o pop-up de alunos do tema aberto: sem violações de axe', async () => {
+    const user = userEvent.setup();
+    montar(<QuestoesEngajamento />, '/gestor/engajamento/questoes?ies=ies-1');
+    await user.click(screen.getByRole('button', { name: 'Ver alunos do tema Arritmias' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await checarSemViolacoes();
+  });
+
+  it('Conteúdos: sem violações de axe', async () => {
+    montar(<ConteudosEngajamento />, '/gestor/engajamento/conteudos?ies=ies-1');
+    await checarSemViolacoes();
+  });
+
+  it('Conteúdos com o pop-up do conteúdo aberto: sem violações de axe', async () => {
+    const user = userEvent.setup();
+    montar(<ConteudosEngajamento />, '/gestor/engajamento/conteudos?ies=ies-1');
+    await user.click(screen.getByRole('button', { name: 'Ver alunos que consumiram Aula de ECG' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await checarSemViolacoes();
+  });
+
+  it.each([
+    ['Visão geral', <VisaoGeralEngajamento key="v" />, '/gestor/engajamento?ies=ies-1'],
+    ['Questões', <QuestoesEngajamento key="q" />, '/gestor/engajamento/questoes?ies=ies-1'],
+    ['Conteúdos', <ConteudosEngajamento key="c" />, '/gestor/engajamento/conteudos?ies=ies-1'],
+  ])('%s: todo gráfico (role="img" dentro de <figure>) tem nome e "Ver dados em tabela"', (_nome, ui, url) => {
+    montar(ui, url);
+    const figuras = [...document.querySelectorAll('figure')];
+    expect(figuras.length).toBeGreaterThanOrEqual(2);
+    for (const figura of figuras) {
+      const grafico = within(figura as HTMLElement).getByRole('img');
+      expect(grafico).toHaveAccessibleName(/\S/);
+      expect(within(figura as HTMLElement).getByText('Ver dados em tabela')).toBeInTheDocument();
+      expect(within(figura as HTMLElement).getByRole('table')).toBeInTheDocument();
     }
   });
 });

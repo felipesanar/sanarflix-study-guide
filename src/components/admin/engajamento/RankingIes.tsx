@@ -69,7 +69,7 @@ export function RankingIes({ ranking, rede }: RankingIesProps) {
   const linhas = React.useMemo(() => ordenarRanking(ranking, criterio), [ranking, criterio]);
 
   return (
-    <section aria-labelledby="titulo-ranking-ies" className="rounded-xl border bg-card p-4" data-testid="ranking-ies">
+    <section aria-labelledby="titulo-ranking-ies" className="min-w-0 max-w-full rounded-xl border bg-card p-4" data-testid="ranking-ies">
       <div className="flex flex-wrap items-center gap-3">
         <h2 id="titulo-ranking-ies" className="text-base font-semibold">
           Ranking de IES
@@ -95,7 +95,7 @@ export function RankingIes({ ranking, rede }: RankingIesProps) {
         </div>
       </div>
 
-      <div className="mt-3 overflow-x-auto">
+      <div className="relative mt-3 overflow-x-auto">
         <table aria-label="Ranking de IES" className="w-full min-w-[960px] border-collapse text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">

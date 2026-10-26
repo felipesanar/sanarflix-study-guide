@@ -94,7 +94,7 @@ export default function QuestoesEngajamento() {
   const ocupado = consulta.isPlaceholderData === true;
 
   return (
-    <div className="flex flex-col gap-4" data-testid="questoes-engajamento">
+    <div className="flex min-w-0 flex-col gap-4" data-testid="questoes-engajamento">
       <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
         <KpisQuestoes dados={data} meta={meta} estado={estadoDaConsulta(consulta)} onTentarNovamente={consulta.refetch} />
       </div>

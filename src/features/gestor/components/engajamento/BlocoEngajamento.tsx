@@ -95,7 +95,7 @@ export function BlocoEngajamento({
     <div
       data-testid={`bloco-${bloco}`}
       aria-busy={ocupado ? true : undefined}
-      className={cn('transition-opacity', ocupado && 'opacity-60')}
+      className={cn('min-w-0 transition-opacity', ocupado && 'opacity-60')}
     >
       <BlocoGestor
         estado={estado}
