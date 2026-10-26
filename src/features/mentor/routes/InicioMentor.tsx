@@ -11,6 +11,8 @@ import { ehLinkHttp } from '@/features/mentor/lib/linkSeguro';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { CardConteudosSemana } from '@/features/mentor/components/turma/ConteudosSemana';
 import { temDadoConsumo } from '@/features/mentor/components/turma/consumo';
+import { CardQuestoesSemana } from '@/features/mentor/components/turma/QuestoesSemana';
+import { temDadoQuestoes } from '@/features/mentor/components/turma/questoes';
 import { contarAlertas, numeroUltimoSimulado, temDadosSimulado, formatPct } from '@/features/mentor/components/turma/simulados';
 import { formatDiaMesHora, formatUltimoAcesso, nomeOuEmail, plural } from '@/features/mentor/components/turma/util';
 
@@ -238,6 +240,8 @@ const InicioMentor: React.FC = () => {
   const qtdSumidos = (turma.data ?? []).filter((a) => a.segmento === 'sumido').length;
   // "Conteúdos na semana" só aparece quando ao menos um aluno tem fonte de consumo.
   const mostrarConteudos = (turma.data ?? []).some(temDadoConsumo);
+  const mostrarQuestoes = (turma.data ?? []).some(temDadoQuestoes);
+  const numeroCards = 3 + Number(mostrarConteudos) + Number(mostrarQuestoes);
 
   if (contexto.isLoading) return <p className="text-sm text-muted-foreground">Carregando sua turma…</p>;
   if (contexto.isError) {
@@ -290,11 +294,18 @@ const InicioMentor: React.FC = () => {
 
       <AlertasSimulados habilitado={!!contexto.data?.mentor} />
 
-      <div className={mostrarConteudos ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-4' : 'grid gap-4 md:grid-cols-3'}>
+      <div
+        className={numeroCards === 5
+          ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+          : numeroCards === 4
+            ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-4'
+            : 'grid gap-4 md:grid-cols-3'}
+      >
         <CardSumiram />
         <CardProximaSessao />
         <CardAFazer />
         {mostrarConteudos && <CardConteudosSemana alunos={turma.data ?? []} />}
+        {mostrarQuestoes && <CardQuestoesSemana alunos={turma.data ?? []} />}
       </div>
     </div>
   );

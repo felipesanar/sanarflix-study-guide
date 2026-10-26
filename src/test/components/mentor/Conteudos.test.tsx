@@ -11,6 +11,10 @@ const fetchAluno = vi.fn();
 const fetchDesempenhoTurma = vi.fn();
 const fetchAlunoNotas = vi.fn();
 const fetchAlunoConteudos = vi.fn();
+vi.mock('@/services/mentor/questoes', () => ({
+  chavesQuestoes: { aluno: (email: string) => ['mentor', 'aluno-questoes', email] },
+  fetchAlunoQuestoes: async () => ({ tem_dado_questoes: false, por_semana: [], por_area: [], ultima_resposta: null }),
+}));
 vi.mock('@/services/mentor/contexto', () => ({ fetchMentorContexto: () => fetchMentorContexto() }));
 vi.mock('@/services/mentor/turma', () => ({
   fetchTurma: () => fetchTurma(),

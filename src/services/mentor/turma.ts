@@ -19,6 +19,14 @@ export interface ContagemConteudos {
   total: number | null;
 }
 
+/** Contagem de questões respondidas e corrigidas numa janela. */
+export interface ContagemQuestoes {
+  respondidas: number | null;
+  acertos: number | null;
+  erros: number | null;
+  pct_acerto: number | null;
+}
+
 /** Um aluno da turma — item de `mentor_turma()`. */
 export interface AlunoTurma {
   email: string;
@@ -40,6 +48,9 @@ export interface AlunoTurma {
   conteudos_7d?: ContagemConteudos | null;
   conteudos_30d?: ContagemConteudos | null;
   tem_dado_consumo?: boolean;
+  questoes_7d?: ContagemQuestoes | null;
+  questoes_30d?: ContagemQuestoes | null;
+  tem_dado_questoes?: boolean;
 }
 
 export interface AlunoDetalhe {

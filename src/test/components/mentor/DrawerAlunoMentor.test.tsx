@@ -9,6 +9,10 @@ const fetchAlunoNotas = vi.fn();
 const liberarAgenda = vi.fn();
 const desligarAgenda = vi.fn();
 vi.mock('@/services/mentor/turma', () => ({ fetchAluno: (e: string) => fetchAluno(e) }));
+vi.mock('@/services/mentor/questoes', () => ({
+  chavesQuestoes: { aluno: (email: string) => ['mentor', 'aluno-questoes', email] },
+  fetchAlunoQuestoes: async () => ({ tem_dado_questoes: false, por_semana: [], por_area: [], ultima_resposta: null }),
+}));
 vi.mock('@/services/mentor/desempenho', async () => ({
   ...(await vi.importActual<typeof import('@/services/mentor/desempenho')>('@/services/mentor/desempenho')),
   fetchAlunoNotas: (e: string) => fetchAlunoNotas(e),

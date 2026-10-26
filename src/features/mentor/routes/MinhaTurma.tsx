@@ -11,6 +11,7 @@ import { chavesDesempenho, fetchDesempenhoTurma, type AlunoDesempenho, type Situ
 import { DrawerAlunoMentor } from '@/features/mentor/components/DrawerAlunoMentor';
 import { EstadoErro } from '@/features/mentor/components/turma/EstadoErro';
 import { CardConteudosSemana, CelulaConteudos7d } from '@/features/mentor/components/turma/ConteudosSemana';
+import { CardQuestoesSemana, CelulaQuestoes7d } from '@/features/mentor/components/turma/QuestoesSemana';
 import { SeletorSimuladosMentor } from '@/features/mentor/components/SeletorSimuladosMentor';
 import {
   ALERTA_ROTULO,
@@ -384,7 +385,7 @@ const MinhaTurma: React.FC = () => {
         <>
           {comDados ? (
             cards && (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <CardEvolucao titulo="Possível aprovação" testId="card-aprovacao" linhas={linhasAprovacao}>
                   <p className="text-xs text-muted-foreground">
                     {semMeta > 0
@@ -396,6 +397,7 @@ const MinhaTurma: React.FC = () => {
                   <p className="text-xs text-muted-foreground">de quem fez</p>
                 </CardEvolucao>
                 <CardConteudosSemana alunos={alunos} />
+                <CardQuestoesSemana alunos={alunos} />
                 <CardEvolucao titulo="Participação no último simulado" testId="card-participacao" linhas={linhasParticipacao}>
                   {cards.naoFizeram > 0 && (
                     <button
@@ -413,7 +415,7 @@ const MinhaTurma: React.FC = () => {
               </div>
             )
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <CardResumo titulo="Ativos na semana">
                 <p className="text-3xl font-semibold">{contagem.ativo}</p>
                 <p className="text-xs text-muted-foreground">de {alunos.length}</p>
@@ -433,6 +435,7 @@ const MinhaTurma: React.FC = () => {
                 <p className="text-xs text-muted-foreground">Precisa de simulados e de Metas.</p>
               </CardResumo>
               <CardConteudosSemana alunos={alunos} />
+              <CardQuestoesSemana alunos={alunos} />
             </div>
           )}
 
@@ -548,6 +551,7 @@ const MinhaTurma: React.FC = () => {
                       <th className="px-3 py-2 font-medium">Acerto</th>
                     )}
                     <th className="px-3 py-2 font-medium">Conteúdos (7d)</th>
+                    <th className="px-3 py-2 font-medium">Questões (7d)</th>
                     <th className="px-3 py-2 font-medium">Último acesso</th>
                   </tr>
                 </thead>
@@ -592,6 +596,9 @@ const MinhaTurma: React.FC = () => {
                       <td className="px-3 py-2">
                         <CelulaConteudos7d aluno={a} />
                       </td>
+                      <td className="px-3 py-2">
+                        <CelulaQuestoes7d aluno={a} />
+                      </td>
                       <td className="px-3 py-2">{formatUltimoAcesso(a.dias_sem_atividade)}</td>
                     </tr>
                   ))}
@@ -610,7 +617,7 @@ const MinhaTurma: React.FC = () => {
                           </td>
                         );
                       })}
-                      <td className="px-3 py-2" colSpan={3} />
+                      <td className="px-3 py-2" colSpan={4} />
                     </tr>
                   </tfoot>
                 )}
