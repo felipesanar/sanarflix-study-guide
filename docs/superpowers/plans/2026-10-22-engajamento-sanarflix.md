@@ -876,14 +876,14 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - Teste: `__tests__/engajamento/exportarEngajamento.test.ts`.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - para cada aba, a lista de seções e os cabeçalhos de coluna;
   - a primeira linha de cada seção traz o recorte;
   - nenhum e-mail nem id de aluno no CSV agregado;
   - nome do arquivo via `nomeArquivoCsv`.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 

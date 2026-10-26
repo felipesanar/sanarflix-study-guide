@@ -61,7 +61,7 @@ export default function EngajamentoLayout() {
           <>
             <FiltroPeriodo filtros={filtros} />
             <FiltroSemestreEngajamento filtros={filtros} />
-            <BotaoExportarAba />
+            <BotaoExportarAba filtros={filtros} iesNome={dados?.ies.nome} alunoNome={alunoDoRecorte?.nome ?? null} />
           </>
         }
       >

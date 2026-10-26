@@ -8,6 +8,9 @@ vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'
 const mockVisaoGeral = vi.fn();
 vi.mock('@/features/gestor/api/engajamento', () => ({
   useEngajamentoVisaoGeral: (...args: unknown[]) => mockVisaoGeral(...args),
+  // O botão "Exportar" lê a consulta da aba atual; aqui as outras abas não têm dado.
+  useEngajamentoQuestoes: () => ({ data: undefined }),
+  useEngajamentoConteudos: () => ({ data: undefined }),
 }));
 
 import EngajamentoLayout from '@/features/gestor/routes/engajamento/EngajamentoLayout';
