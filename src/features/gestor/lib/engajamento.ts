@@ -287,6 +287,21 @@ export function formatarAtualizadoEm(iso: string | null | undefined): string | n
   return `${pega('day')}/${pega('month')}/${pega('year')}, ${pega('hour')}:${pega('minute')}`;
 }
 
+/**
+ * Dias corridos entre o dia (em America/Sao_Paulo) de um instante UTC e o dia de
+ * `agora`. Converte para o fuso ANTES de contar: 23h30 de 22/10 em São Paulo é
+ * 02h30 de 23/10 em UTC, e conta como "hoje" no dia 22. Instante inválido → `null`.
+ */
+export function diasDesdeSaoPaulo(iso: string, agora: Date = new Date()): number | null {
+  const instante = new Date(iso);
+  if (Number.isNaN(instante.getTime())) return null;
+  const dia = (d: string) => {
+    const [a, m, dd] = d.split('-').map(Number);
+    return Date.UTC(a, m - 1, dd);
+  };
+  return Math.round((dia(hojeSaoPaulo(agora)) - dia(hojeSaoPaulo(instante))) / 86_400_000);
+}
+
 /** Iniciais para o avatar: 1ª letra do primeiro e do último nome ("Ana Clara Ribeiro" → "AR"). */
 export function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
@@ -296,7 +311,7 @@ export function iniciais(nome: string): string {
   return (primeira + ultima).toUpperCase();
 }
 
-/** Nome da IES para nome de arquivo: minúsculo, sem acento, espaços →  (§10.7). */
+/** Nome da IES para nome de arquivo: minúsculo, sem acento, espaços viram hífen (§10.7). */
 export function slugIes(nome: string): string {
   return nome
     .normalize('NFD')

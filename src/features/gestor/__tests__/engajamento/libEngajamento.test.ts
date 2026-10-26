@@ -22,6 +22,7 @@ import {
   rotuloPeriodoMinusculo,
   slugIes,
   iniciais,
+  diasDesdeSaoPaulo,
   textoDetalhe,
 } from '@/features/gestor/lib/engajamento';
 
@@ -301,5 +302,22 @@ describe('iniciais', () => {
     expect(iniciais('  joão  pedro silva ')).toBe('JS');
     expect(iniciais('Madonna')).toBe('M');
     expect(iniciais('')).toBe('');
+  });
+});
+
+describe('diasDesdeSaoPaulo', () => {
+  const agora = new Date('2026-10-22T15:00:00Z'); // 12h em São Paulo, dia 22
+
+  it('converte o instante UTC para o dia de São Paulo antes de contar', () => {
+    // 02h30Z de 23/10 = 23h30 de 22/10 em São Paulo: ainda é hoje.
+    expect(diasDesdeSaoPaulo('2026-10-23T02:30:00Z', agora)).toBe(0);
+    // 02h59Z de 22/10 = 23h59 de 21/10 em São Paulo: ontem.
+    expect(diasDesdeSaoPaulo('2026-10-22T02:59:00Z', agora)).toBe(1);
+    expect(diasDesdeSaoPaulo('2026-10-19T12:00:00Z', agora)).toBe(3);
+  });
+
+  it('atravessa virada de mês e instante inválido vira null', () => {
+    expect(diasDesdeSaoPaulo('2026-09-30T12:00:00Z', agora)).toBe(22);
+    expect(diasDesdeSaoPaulo('ontem', agora)).toBeNull();
   });
 });

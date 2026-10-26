@@ -834,13 +834,13 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - Teste: `__tests__/engajamento/ConteudosTopo.test.tsx`.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - "Todos", "Vídeo" e "Documento" com ícones e `aria-pressed`;
   - trocar o tipo grava `tipo` na URL e recarrega;
   - textos da §12.4 por tipo.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 
@@ -858,13 +858,13 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - Pop-up com `useEngajamentoConteudoAlunos({ content_id, especialidade, modulo })`.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - participação 100% somada nos filhos (±1 por arredondamento);
   - ícones com `aria-label`;
   - pop-up com "Aberturas" e "Última abertura" (UTC → BRT).
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 
