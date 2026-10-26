@@ -443,7 +443,7 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 - [x] **Passo 2.** **V22:** `EXPLAIN (ANALYZE, BUFFERS)` de cada RPC na Integrado (`72b19e77-c569-4bf7-a433-44563df1015f`) com "Últimos 6 meses", e do admin.
   - Limites: < 2 s (gestor) e < 5 s (admin).
   - Se estourar, **pare e avise o João** com o plano. Não mude regra para ganhar desempenho.
-- [ ] **Passo 3.** **V21:** com o "ok" do João, rode `eng_refresh('manual')` mais uma vez e compare as `contagens` das duas últimas linhas de log.
+- [x] **Passo 3.** **V21:** com o "ok" do João, rode `eng_refresh('manual')` mais uma vez e compare as `contagens` das duas últimas linhas de log.
 
 **Confirmação do João:** sim, só para o refresh do passo 3.
 
@@ -488,15 +488,15 @@ Cada fase (Bloco A, Portão, Bloco B) termina com uma mensagem ao João listando
 
 O Bloco B **só começa** com todos os itens marcados **e** o "ok" do João nesta lista. Cole a lista preenchida no chat, com os números.
 
-- [ ] As 4 migrations de estrutura/pipeline/cron (A2, A3, A4, A6) e as 5 de RPC (A7–A11) foram aplicadas, cada uma com o "ok" do João. Os 9 arquivos estão em `supabase/migrations/` com a `version` de `list_migrations`.
-- [ ] `eng_refresh_log` tem ≥ 1 linha `status='ok'` com `disparo='cron'` (o cron rodou sozinho).
-- [ ] V1–V22 da §14 batem na PARACATU, com números relatados ao lado do esperado.
-- [ ] As 10 RPCs devolvem dados reais da PARACATU (gestor) e da rede (admin).
-- [ ] V20: anon, gestor de outra IES e gestor no admin recebem erro. Nenhum grant em `eng_*` para anon/authenticated.
-- [ ] V22: tempos dentro do limite na Integrado.
-- [ ] `src/integrations/supabase/types.ts` regenerado e type-check sem erro novo.
-- [ ] Suíte de testes sem falha nova em relação à A0.
-- [ ] Próximos passos enviados ao João, separados em Claude/João.
+- [x] As 4 migrations de estrutura/pipeline/cron (A2, A3, A4, A6) e as 5 de RPC (A7–A11) foram aplicadas, cada uma com o "ok" do João. Os 9 arquivos estão em `supabase/migrations/` com a `version` de `list_migrations`.
+- [x] `eng_refresh_log` tem ≥ 1 linha `status='ok'` com `disparo='cron'` (o cron rodou sozinho).
+- [x] V1–V22 da §14 batem na PARACATU, com números relatados ao lado do esperado.
+- [x] As 10 RPCs devolvem dados reais da PARACATU (gestor) e da rede (admin).
+- [x] V20: anon, gestor de outra IES e gestor no admin recebem erro. Nenhum grant em `eng_*` para anon/authenticated.
+- [x] V22: tempos dentro do limite na Integrado.
+- [x] `src/integrations/supabase/types.ts` regenerado e type-check sem erro novo.
+- [x] Suíte de testes sem falha nova em relação à A0.
+- [x] Próximos passos enviados ao João, separados em Claude/João.
 
 ---
 
