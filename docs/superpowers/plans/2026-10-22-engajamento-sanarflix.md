@@ -658,7 +658,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - Teste: `__tests__/engajamento/VisaoGeralTopo.test.tsx`, com a fixture da visão geral (PARACATU da §8.1) e uma variante com aluno.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - **sem aluno:** os 5 KPIs com rótulos, valores e notas da §12.2. `engajadosPctAnterior = null` → "sem comparativo para este período". Com `p_semestre`, a nota vira "média da IES: …".
   - **mês a mês:** "63%" com "180 alunos"; último mês com `*` e o rodapé "Outubro parcial, até 22/10.".
   - **hábito:** a descrição com "set/26", "223 dos 521"; percentuais "59,6%", "22,4%", "15,7%", "2,2%" (133/223, 50/223, 35/223, 5/223).
@@ -666,7 +666,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 
   FAIL → implemente → PASS.
 - [ ] **Passo 2.** Confira no dev server com a PARACATU. Os números têm que bater com a RPC chamada na A7 (mesmo dia).
-- [ ] **Passo 3.** Suíte + type-check + commit.
+- [x] **Passo 3.** Suíte + type-check + commit.
 
 ---
 
