@@ -163,3 +163,80 @@ describe('contrato do envelope: o que a tela lê é o que o SQL emite', () => {
     expect(drawer).not.toMatch(/>\{nome\}</);
   });
 });
+
+/**
+ * Engajamento SanarFlix (spec 2026-10-22-engajamento §15.2): as chaves de
+ * primeiro nível de `'data'` que cada RPC emite têm que ser EXATAMENTE as que
+ * `api/types-engajamento.ts` declara — nem uma a mais, nem uma a menos. A lista
+ * literal de cada caso é a da spec (§8), a fonte da verdade do contrato.
+ *
+ * As chaves do tipo são lidas do próprio arquivo de tipos, não de uma cópia: um
+ * campo acrescentado só de um lado (SQL ou TS) reprova aqui.
+ */
+describe('contrato do envelope do Engajamento: o que o tipo declara é o que o SQL emite', () => {
+  const TIPOS = fs.readFileSync(path.resolve(__dirname, '../api/types-engajamento.ts'), 'utf-8');
+
+  /** Chaves de primeiro nível de `export interface <nome> { … }` (campos aninhados não entram). */
+  function chavesDoTipo(nome: string): Set<string> {
+    const semComentarios = TIPOS.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const inicio = semComentarios.search(new RegExp(`export interface ${nome}\\b[^{]*\\{`));
+    expect(inicio, `interface ${nome} não encontrada em types-engajamento.ts`).toBeGreaterThanOrEqual(0);
+    const abre = semComentarios.indexOf('{', inicio);
+
+    const chaves = new Set<string>();
+    let profundidade = 0;
+    let linhaAtual = '';
+    for (let i = abre; i < semComentarios.length; i += 1) {
+      const c = semComentarios[i];
+      if (c === '\n') {
+        if (profundidade === 1) {
+          const m = /^\s*([a-zA-Z][a-zA-Z0-9_]*)\??:/.exec(linhaAtual);
+          if (m) chaves.add(m[1]);
+        }
+        linhaAtual = '';
+        continue;
+      }
+      if (c === '{') {
+        if (profundidade === 1) {
+          const m = /^\s*([a-zA-Z][a-zA-Z0-9_]*)\??:/.exec(linhaAtual);
+          if (m) chaves.add(m[1]);
+        }
+        profundidade += 1;
+      } else if (c === '}') {
+        profundidade -= 1;
+        if (profundidade === 0) break;
+      }
+      if (profundidade === 1) linhaAtual += c;
+    }
+    return chaves;
+  }
+
+  const CASOS: Array<[string, string, string[]]> = [
+    [
+      'get_gestor_engajamento_visao_geral', 'VisaoGeralEngajamento',
+      ['ies', 'temDados', 'periodo', 'recorte', 'kpis', 'aluno', 'meses', 'habito', 'niveis', 'recencia', 'consumo', 'especialidades', 'semestres'],
+    ],
+    ['get_gestor_engajamento_alunos', 'AlunosEngajamento', ['data', 'page', 'pageSize', 'total', 'totalPages']],
+    ['get_gestor_engajamento_lista', 'ListaEngajamento', ['categoria', 'data', 'page', 'pageSize', 'total', 'totalPages']],
+    ['get_gestor_engajamento_aluno', 'AlunoEngajamento', ['aluno', 'resumo', 'meses', 'especialidades', 'timeline']],
+    ['get_gestor_engajamento_questoes', 'QuestoesEngajamento', ['kpis', 'meses', 'semestres', 'arvore']],
+    ['get_gestor_engajamento_questoes_alunos', 'QuestoesAlunosEngajamento', ['no', 'resumo', 'alunos']],
+    ['get_gestor_engajamento_conteudos', 'ConteudosEngajamento', ['kpis', 'meses', 'semestres', 'arvore']],
+    ['get_gestor_engajamento_conteudo_alunos', 'ConteudoAlunosEngajamento', ['conteudo', 'resumo', 'alunos']],
+    ['get_gestor_engajamento_export_alunos', 'ExportAlunosEngajamento', ['alunos']],
+    ['get_admin_engajamento', 'AdminEngajamento', ['periodo', 'recorte', 'rede', 'ranking', 'meses', 'semestres']],
+  ];
+
+  it.each(CASOS)('%s emite exatamente as chaves de %s', (rpc, tipo, esperadas) => {
+    const emitidas = [...chavesDoEnvelope(corpoVigente(rpc))].sort();
+    const declaradas = [...chavesDoTipo(tipo)].sort();
+    expect(emitidas, `SQL de ${rpc} × lista da spec §8`).toEqual([...esperadas].sort());
+    expect(declaradas, `${tipo} em types-engajamento.ts × SQL de ${rpc}`).toEqual(emitidas);
+  });
+
+  it('o envelope tem meta ao lado de data em toda RPC do gestor do Engajamento', () => {
+    for (const [rpc] of CASOS) {
+      expect(corpoVigente(rpc), rpc).toMatch(/'meta',\s*public\.eng_meta\(/);
+    }
+  });
+});

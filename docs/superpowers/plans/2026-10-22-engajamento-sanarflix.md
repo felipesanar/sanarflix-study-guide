@@ -548,23 +548,23 @@ export interface FiltrosEngajamento {
 ```
 
 **Passos:**
-- [ ] **Passo 1.** Escreva os testes de `lib/engajamento.ts` com os casos da §15.2. Para datas, use `hoje` fixo, por exemplo:
+- [x] **Passo 1.** Escreva os testes de `lib/engajamento.ts` com os casos da §15.2. Para datas, use `hoje` fixo, por exemplo:
   - `calcularPeriodo('6m', '2026-10-22')` → `{inicio:'2026-05-01', fim:'2026-10-22'}`;
   - `calcularPeriodo('letivo', '2026-10-22')` → `2026-07-01`;
   - `calcularPeriodo('30d', '2026-03-01')` → `2026-01-31`;
   - `custom` com `de > ate` → cai em `6m`.
 
   Rode: FAIL.
-- [ ] **Passo 2.** Implemente `lib/engajamento.ts`. Rode: PASS.
-- [ ] **Passo 3.** Teste do hook de URL: regras 1–8 da §9.6, com `MemoryRouter` e `initialEntries`. Implemente. PASS.
-- [ ] **Passo 4.** Teste dos hooks de RPC, no padrão de `__tests__/queries.test.tsx`:
+- [x] **Passo 2.** Implemente `lib/engajamento.ts`. Rode: PASS.
+- [x] **Passo 3.** Teste do hook de URL: regras 1–8 da §9.6, com `MemoryRouter` e `initialEntries`. Implemente. PASS.
+- [x] **Passo 4.** Teste dos hooks de RPC, no padrão de `__tests__/queries.test.tsx`:
   - `mockRpc` chamado com o nome e os `p_*` exatos da §8.11;
   - `queryKey` contém `'engajamento'` e o `user.id`;
   - sem `iesId`, nenhuma chamada.
 
   Implemente. PASS.
-- [ ] **Passo 5.** Casos do contrato. PASS.
-- [ ] **Passo 6.** Suíte do gestor + type-check. Commit: `feat(engajamento): tipos, filtros e hooks do front`.
+- [x] **Passo 5.** Casos do contrato. PASS.
+- [x] **Passo 6.** Suíte do gestor + type-check. Commit: `feat(engajamento): tipos, filtros e hooks do front`.
 
 **Não fazer:** nenhum componente visual nesta tarefa.
 
