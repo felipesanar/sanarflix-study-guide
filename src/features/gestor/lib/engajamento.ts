@@ -126,6 +126,17 @@ export function rotuloSemestreLetivo(hoje: string): string {
   return `Semestre letivo ${ano}.${mes <= 6 ? 1 : 2}`;
 }
 
+/**
+ * Opção de período em minúsculas, para frases como "{IES} · últimos 6 meses" (§12.2).
+ * "Personalizado…" vira "personalizado" (sem as reticências do seletor).
+ */
+export function rotuloPeriodoMinusculo(opcao: string, hoje: string): string {
+  if (opcao === '6m') return 'últimos 6 meses';
+  if (opcao === '30d') return 'últimos 30 dias';
+  if (opcao === 'letivo') return rotuloSemestreLetivo(hoje).toLowerCase();
+  return 'personalizado';
+}
+
 /** D15: 1–4 básico, 5–8 clínico, 9–12 internato. */
 export function cicloDoSemestre(n: number): Ciclo {
   if (n <= 4) return 'basico';

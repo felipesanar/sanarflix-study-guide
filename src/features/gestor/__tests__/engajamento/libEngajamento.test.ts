@@ -19,6 +19,7 @@ import {
   rotuloPeriodoAnterior,
   rotuloRecencia,
   rotuloSemestreLetivo,
+  rotuloPeriodoMinusculo,
   textoDetalhe,
 } from '@/features/gestor/lib/engajamento';
 
@@ -271,5 +272,15 @@ describe('formatarAtualizadoEm', () => {
     expect(formatarAtualizadoEm(undefined)).toBeNull();
     expect(formatarAtualizadoEm('')).toBeNull();
     expect(formatarAtualizadoEm('ontem')).toBeNull();
+  });
+});
+
+describe('rotuloPeriodoMinusculo', () => {
+  it('opção do seletor em minúsculas, para o subtítulo dos pop-ups', () => {
+    expect(rotuloPeriodoMinusculo('6m', '2026-10-22')).toBe('últimos 6 meses');
+    expect(rotuloPeriodoMinusculo('30d', '2026-10-22')).toBe('últimos 30 dias');
+    expect(rotuloPeriodoMinusculo('letivo', '2026-10-22')).toBe('semestre letivo 2026.2');
+    expect(rotuloPeriodoMinusculo('letivo', '2026-03-10')).toBe('semestre letivo 2026.1');
+    expect(rotuloPeriodoMinusculo('custom', '2026-10-22')).toBe('personalizado');
   });
 });

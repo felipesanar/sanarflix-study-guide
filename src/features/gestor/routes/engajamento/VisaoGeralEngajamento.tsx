@@ -3,6 +3,7 @@ import { BlocoGestor } from '@/features/gestor/components/BlocoGestor';
 import { DoAcessoAoHabito } from '@/features/gestor/components/engajamento/DoAcessoAoHabito';
 import { EngajamentoMesAMes } from '@/features/gestor/components/engajamento/EngajamentoMesAMes';
 import { estadoDaConsulta } from '@/features/gestor/components/engajamento/BlocoEngajamento';
+import { NivelEngajamento } from '@/features/gestor/components/engajamento/NivelEngajamento';
 import { KpisEngajamento } from '@/features/gestor/components/engajamento/KpisEngajamento';
 import { useEngajamentoVisaoGeral } from '@/features/gestor/api/engajamento';
 import { useFiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
@@ -10,7 +11,7 @@ import { useFiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajam
 /**
  * Aba Visão geral do Engajamento. O topo (KPIs, mês a mês, hábito) vem da RPC de
  * visão geral, a mesma que o layout já consulta (mesma chave de cache). Os demais
- * blocos entram nas tarefas B5 a B8; até lá resta o esqueleto no fim da página.
+ * blocos entram nas tarefas B6 a B8; até lá resta o esqueleto no fim da página.
  */
 export default function VisaoGeralEngajamento() {
   const filtros = useFiltrosEngajamento();
@@ -36,6 +37,8 @@ export default function VisaoGeralEngajamento() {
         <EngajamentoMesAMes dados={data} consulta={consulta} />
         <DoAcessoAoHabito dados={data} consulta={consulta} />
       </div>
+
+      <NivelEngajamento dados={data} consulta={consulta} filtros={filtros} />
 
       <BlocoGestor titulo="Mais blocos da Visão geral" estado="loading" alturaSkeleton={240} bloco="engajamento-visao-geral">
         {null}

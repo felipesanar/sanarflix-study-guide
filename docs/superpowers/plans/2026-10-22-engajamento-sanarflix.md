@@ -665,7 +665,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - **com aluno:** os 5 KPIs do modo aluno, "Dias ativos mês a mês" com "N d", e as faixas "Sim"/"Não".
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Confira no dev server com a PARACATU. Os números têm que bater com a RPC chamada na A7 (mesmo dia).
+- [x] **Passo 2.** Confira no dev server com a PARACATU. Os números têm que bater com a RPC chamada na A7 (mesmo dia).
 - [x] **Passo 3.** Suíte + type-check + commit.
 
 ---
@@ -685,7 +685,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - paginação "Anterior"/"Próxima".
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - textos da §12.2 (cartões e pop-up);
   - cartão vazio;
   - "+N" só quando `total > amostra`;
@@ -694,7 +694,7 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
   - foco volta ao botão ao fechar (`useDevolverFocoAoFechar`).
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Suíte + type-check + commit.
+- [x] **Passo 2.** Suíte + type-check + commit.
 
 ---
 
