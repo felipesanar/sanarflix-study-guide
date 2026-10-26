@@ -2,7 +2,10 @@ import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { AdminEmpty, AdminError, AdminLoading, AdminSectionHeader } from '@/experiences/admin/ui';
+import { DispersaoEngajamentoAcerto } from '@/components/admin/engajamento/DispersaoEngajamentoAcerto';
+import { EvolucaoRede } from '@/components/admin/engajamento/EvolucaoRede';
 import { KpisRede } from '@/components/admin/engajamento/KpisRede';
+import { RankingIes } from '@/components/admin/engajamento/RankingIes';
 import { useAdminEngajamento } from '@/services/admin/engajamento';
 import {
   calcularPeriodo,
@@ -124,7 +127,13 @@ const EngajamentoSanarflixPage: React.FC = () => {
           <KpisRede rede={dados.rede} semestre={semestre} />
           {dados.ranking.length === 0 ? (
             <AdminEmpty title="Nenhuma instituição com alunos ativos neste recorte." />
-          ) : null}
+          ) : (
+            <>
+              <RankingIes ranking={dados.ranking} rede={dados.rede} />
+              <EvolucaoRede meses={dados.meses} semestres={dados.semestres} fim={fim} semestre={semestre} onSemestre={definirSemestre} />
+              <DispersaoEngajamentoAcerto ranking={dados.ranking} rede={dados.rede} />
+            </>
+          )}
         </>
       )}
     </div>

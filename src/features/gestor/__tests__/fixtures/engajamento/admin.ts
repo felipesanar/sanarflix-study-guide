@@ -56,7 +56,7 @@ export function adminEngajamento(): AdminEngajamento {
       },
       {
         iesId: 'ies-centro-c',
-        nome: 'Centro Universitário Gama',
+        nome: 'Centro Univ. Gama',
         base: 179,
         engajados: 80,
         engajadosPct: 44.7,

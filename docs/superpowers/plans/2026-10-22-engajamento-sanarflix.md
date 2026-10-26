@@ -930,15 +930,15 @@ BarraHorizontal({ pct: number; cor?: string; marcador?: number | null })   // ma
 - **Dispersão:** conforme a §10.6.
 
 **Passos:**
-- [ ] **Passo 1.** Testes:
+- [x] **Passo 1.** Testes:
   - ordenação pelos 3 critérios;
   - IES sem proficiência;
   - clique no semestre grava `sem`;
   - `figure` + tabela alternativa nos gráficos.
 
   FAIL → implemente → PASS.
-- [ ] **Passo 2.** Dev server como admin: PARACATU no ranking com os mesmos números da visão geral do gestor (V16).
-- [ ] **Passo 3.** Suíte + type-check + commit.
+- [x] **Passo 2.** Dev server como admin: PARACATU no ranking com os mesmos números da visão geral do gestor (V16).
+- [x] **Passo 3.** Suíte + type-check + commit.
 
 ---
 
