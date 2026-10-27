@@ -222,14 +222,13 @@ describe('EngajamentoMesAMes (§12.2)', () => {
     expect(screen.getByText('Outubro parcial, até 22/10.')).toBeInTheDocument();
   });
 
-  it('a tabela alternativa traz uma linha por mês, com o rótulo do mês parcial', () => {
+  it('sem tabela alternativa: uma barra por mês, com o rótulo do mês parcial', () => {
     const d = visaoGeralParacatu();
     envolver(<EngajamentoMesAMes dados={d} consulta={consulta(d)} />);
     const figura = screen.getByRole('img', { name: 'Engajamento mês a mês' }).closest('figure') as HTMLElement;
-    expect(within(figura).getByText('Ver dados em tabela')).toBeInTheDocument();
-    const linhas = within(figura).getAllByRole('row');
-    expect(linhas).toHaveLength(7); // cabeçalho + 6 meses
-    expect(within(linhas[6]).getByRole('rowheader')).toHaveTextContent('Out*');
+    expect(within(figura).queryByText('Ver dados em tabela')).toBeNull();
+    expect(within(figura).getAllByTestId('barra-mensal')).toHaveLength(6);
+    expect(within(figura).getByText('Out*')).toBeInTheDocument();
   });
 
   it('sem mês parcial no fim, não há rodapé', () => {

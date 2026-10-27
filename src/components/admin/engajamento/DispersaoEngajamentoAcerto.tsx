@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { FiguraGrafico } from '@/features/gestor/components/engajamento/FiguraGrafico';
 import { eixoPct } from '@/features/gestor/components/engajamento/LinhaMensal';
-import { formatPct, TRACO } from '@/features/gestor/lib/formatters';
 import type { AdminEngajamento } from '@/features/gestor/api/types-engajamento';
 
 export interface DispersaoEngajamentoAcertoProps {
@@ -40,11 +39,6 @@ export function DispersaoEngajamentoAcerto({ ranking, rede }: DispersaoEngajamen
 
       <FiguraGrafico
         rotulo="Engajamento × acerto por instituição"
-        cabecalho={['Instituição', 'Engajados · acerto']}
-        linhasTabela={ranking.map((l) => ({
-          rotulo: l.nome,
-          valor: `${formatPct(l.engajadosPct)} engajados · acerto ${l.acertoPct === null ? TRACO : formatPct(l.acertoPct)}`,
-        }))}
       >
         <div className="grid gap-x-2" style={{ gridTemplateColumns: '28px 1fr' }}>
           <div className="relative" style={{ height: ALTURA }}>

@@ -84,11 +84,6 @@ function AtividadeMesAMes({ meses }: { meses: AlunoEngajamento['meses'] }) {
     <Secao titulo="Atividade mês a mês">
       <FiguraGrafico
         rotulo="Atividade mês a mês"
-        cabecalho={['Mês', 'Atividade']}
-        linhasTabela={meses.map((m) => ({
-          rotulo: mesCurto(m.mes, m.parcial),
-          valor: `${formatNumero(m.questoes)} questões · ${formatNumero(m.videos)} vídeos · ${formatNumero(m.documentos)} documentos`,
-        }))}
       >
         <div className="flex items-end" style={{ gap: 6 }}>
           {meses.map((m) => (

@@ -42,8 +42,6 @@ export function BarrasPorSemestre({ rotulo, linhas, modo, selecionado = null, on
   return (
     <FiguraGrafico
       rotulo={rotulo}
-      cabecalho={['Semestre', 'Valor']}
-      linhasTabela={linhas.map((l) => ({ rotulo: `${l.semestre}º semestre`, valor: l.valor === null ? TRACO : l.texto }))}
     >
       <div className="overflow-x-auto">
         <div className="flex items-end gap-1" style={{ minWidth: linhas.length * 32 }}>

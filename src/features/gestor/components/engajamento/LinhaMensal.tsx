@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { mesCurto } from '@/features/gestor/lib/engajamento';
-import { TRACO } from '@/features/gestor/lib/formatters';
 import { FiguraGrafico } from './FiguraGrafico';
 
 export interface PontoLinhaMensal {
@@ -83,11 +82,6 @@ export function LinhaMensal({ rotulo, pontos, modo, formatar, passoQuantidade = 
   return (
     <FiguraGrafico
       rotulo={rotulo}
-      cabecalho={['Mês', 'Valor']}
-      linhasTabela={pontos.map((p) => ({
-        rotulo: mesCurto(p.mes, p.parcial),
-        valor: p.valor === null ? TRACO : formatar(p.valor),
-      }))}
     >
       <div className="overflow-x-auto">
         <div style={{ minWidth: Math.max(n * 36, 280) + 48 }}>

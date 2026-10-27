@@ -26,7 +26,14 @@ export interface BarrasMensaisProps {
   corFechada?: string;
   /** Cor das barras de mês parcial (padrão: tom claro da marca). */
   corParcial?: string;
+  /** 'AAAA-MM' do mês a pôr em destaque (o mês atual); ganha `corDestaque` mesmo se parcial. */
+  mesDestaque?: string;
+  corDestaque?: string;
 }
+
+/** Linha do valor (16px) + respiro de 8px entre ele e o topo da barra. */
+const RESPIRO_VALOR = 8;
+const ALTURA_VALOR = 16 + RESPIRO_VALOR;
 
 /** Altura, em px, de uma barra: proporcional ao maior valor; valor > 0 nunca some. */
 export function alturaDaBarra(valor: number, maximo: number, altura: number): number {
@@ -39,34 +46,38 @@ export function alturaDaBarra(valor: number, maximo: number, altura: number): nu
  * série (o máximo ocupa 100% da área útil), valor escrito acima, rótulo do mês
  * abaixo. Mês parcial: cor mais clara e `*` no rótulo.
  */
-export function BarrasMensais({ rotulo, pontos, altura = 160, corFechada = 'var(--gp-brand)', corParcial = COR_BARRA_CLARA }: BarrasMensaisProps) {
+export function BarrasMensais({
+  rotulo,
+  pontos,
+  altura = 160,
+  corFechada = 'var(--gp-brand)',
+  corParcial = COR_BARRA_CLARA,
+  mesDestaque,
+  corDestaque = 'var(--gp-brand)',
+}: BarrasMensaisProps) {
   const maximo = pontos.reduce((m, p) => Math.max(m, p.valor), 0);
 
   return (
-    <FiguraGrafico
-      rotulo={rotulo}
-      cabecalho={['Mês', 'Valor']}
-      linhasTabela={pontos.map((p) => ({
-        rotulo: mesCurto(p.mes, p.parcial),
-        valor: p.sub ? `${p.texto} (${p.sub})` : p.texto,
-      }))}
-    >
+    <FiguraGrafico rotulo={rotulo}>
       <div className="overflow-x-auto">
         <div className="flex items-end gap-2" style={{ minWidth: pontos.length * 36 }}>
           {pontos.map((p) => (
             <div key={p.mes} className="flex min-w-0 flex-1 flex-col items-center">
-              <span
-                className="tabular-nums"
-                style={{
-                  fontSize: 'var(--gp-font-size-apoio)',
-                  fontWeight: 'var(--gp-font-weight-medio)',
-                  color: 'var(--gp-text-1)',
-                  lineHeight: '16px',
-                }}
-              >
-                {p.texto}
-              </span>
-              <div className="flex w-full items-end justify-center" style={{ height: altura }}>
+              {/* Valor e barra juntos, colados no fundo: o valor sobe com a barra e fica
+                  sempre a 8px do topo dela, inclusive na mais alta (altura + 24px de folga). */}
+              <div className="flex w-full flex-col items-center justify-end" style={{ height: altura + ALTURA_VALOR }}>
+                <span
+                  className="tabular-nums"
+                  style={{
+                    fontSize: 'var(--gp-font-size-apoio)',
+                    fontWeight: 'var(--gp-font-weight-medio)',
+                    color: 'var(--gp-text-1)',
+                    lineHeight: '16px',
+                    marginBottom: RESPIRO_VALOR,
+                  }}
+                >
+                  {p.texto}
+                </span>
                 <div
                   data-testid="barra-mensal"
                   data-parcial={p.parcial ? 'true' : 'false'}
@@ -74,7 +85,7 @@ export function BarrasMensais({ rotulo, pontos, altura = 160, corFechada = 'var(
                     width: '70%',
                     maxWidth: 48,
                     height: alturaDaBarra(p.valor, maximo, altura),
-                    background: p.parcial ? corParcial : corFechada,
+                    background: p.mes === mesDestaque ? corDestaque : p.parcial ? corParcial : corFechada,
                     borderRadius: 'var(--gp-radius-sm) var(--gp-radius-sm) 0 0',
                   }}
                 />

@@ -152,6 +152,8 @@ export interface CelulaCabecalhoProps {
   ordem?: OrdemTabela | null;
   onOrdenar?: () => void;
   largura?: number | string;
+  /** Realce da coluna (ex.: sombreamento de marca); mescla com o estilo padrão do cabeçalho. */
+  style?: React.CSSProperties;
 }
 
 export function CelulaCabecalho({
@@ -160,6 +162,7 @@ export function CelulaCabecalho({
   ordem,
   onOrdenar,
   largura,
+  style,
 }: CelulaCabecalhoProps) {
   const densidade = useDensidadeTabela();
   const alinhamento = numerica ? 'right' : 'left';
@@ -168,6 +171,7 @@ export function CelulaCabecalho({
     padding: PADDING_DENSIDADE[densidade].cabecalho,
     textAlign: alinhamento,
     width: largura,
+    ...style,
   };
 
   if (!onOrdenar) {

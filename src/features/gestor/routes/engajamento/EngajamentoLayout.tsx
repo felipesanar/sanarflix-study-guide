@@ -58,11 +58,12 @@ export default function EngajamentoLayout() {
         titulo="Engajamento no SanarFlix"
         apoio={apoio}
         acoes={
-          <>
+          // `items-end`: os filtros têm rótulo em cima do controle; o botão (sem rótulo) alinha pela base deles.
+          <div className="flex flex-wrap items-end justify-end gap-2.5">
             <FiltroPeriodo filtros={filtros} />
             <FiltroSemestreEngajamento filtros={filtros} />
             <BotaoExportarAba filtros={filtros} iesNome={dados?.ies.nome} alunoNome={alunoDoRecorte?.nome ?? null} />
-          </>
+          </div>
         }
       >
         <AbasEngajamento />

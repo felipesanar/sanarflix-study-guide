@@ -630,7 +630,7 @@ describe('acessibilidade — Engajamento: drawer do aluno', () => {
     expect(disparador, 'ESC deve devolver o foco ao disparador — ver useDevolverFocoAoFechar').toHaveFocus();
   });
 
-  it('todo gráfico do drawer vive numa <figure> com tabela alternativa', async () => {
+  it('todo gráfico do drawer vive numa <figure> com nome, sem tabela alternativa', async () => {
     const user = userEvent.setup();
     montar(<HostDrawerAlunoEngajamento />, '/gestor/engajamento');
     await user.click(screen.getByRole('button', { name: 'abrir engajamento do aluno' }));
@@ -641,7 +641,7 @@ describe('acessibilidade — Engajamento: drawer do aluno', () => {
       expect(grafico).toHaveAccessibleName(/\S/);
       const figura = grafico.closest('figure');
       expect(figura).not.toBeNull();
-      expect(within(figura as HTMLElement).getByText('Ver dados em tabela')).toBeInTheDocument();
+      expect(within(figura as HTMLElement).queryByText('Ver dados em tabela')).toBeNull();
     }
   });
 });
@@ -705,15 +705,15 @@ describe('acessibilidade — Engajamento: as três abas (spec §15.2)', () => {
     ['Visão geral', <VisaoGeralEngajamento key="v" />, '/gestor/engajamento?ies=ies-1'],
     ['Questões', <QuestoesEngajamento key="q" />, '/gestor/engajamento/questoes?ies=ies-1'],
     ['Conteúdos', <ConteudosEngajamento key="c" />, '/gestor/engajamento/conteudos?ies=ies-1'],
-  ])('%s: todo gráfico (role="img" dentro de <figure>) tem nome e "Ver dados em tabela"', (_nome, ui, url) => {
+  ])('%s: todo gráfico (role="img" dentro de <figure>) tem nome e não tem "Ver dados em tabela"', (_nome, ui, url) => {
     montar(ui, url);
     const figuras = [...document.querySelectorAll('figure')];
     expect(figuras.length).toBeGreaterThanOrEqual(2);
     for (const figura of figuras) {
       const grafico = within(figura as HTMLElement).getByRole('img');
       expect(grafico).toHaveAccessibleName(/\S/);
-      expect(within(figura as HTMLElement).getByText('Ver dados em tabela')).toBeInTheDocument();
-      expect(within(figura as HTMLElement).getByRole('table')).toBeInTheDocument();
+      expect(within(figura as HTMLElement).queryByText('Ver dados em tabela')).toBeNull();
+      expect(within(figura as HTMLElement).queryByRole('table')).toBeNull();
     }
   });
 });

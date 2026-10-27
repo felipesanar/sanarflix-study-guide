@@ -93,14 +93,14 @@ const RPCS_DO_GESTOR = [
 /** Assinatura (tipos) de cada RPC, §8.11 — a mesma que o REVOKE/GRANT precisa citar. */
 const ASSINATURAS: Record<string, string> = {
   get_gestor_engajamento_visao_geral: 'uuid, date, date, smallint, text',
-  get_gestor_engajamento_alunos: 'uuid, date, date, smallint, text, text, boolean, integer, integer',
+  get_gestor_engajamento_alunos: 'uuid, date, date, smallint, text, text, boolean, integer, integer, text',
   get_gestor_engajamento_lista: 'uuid, date, date, smallint, text, text, text, integer, integer',
   get_gestor_engajamento_aluno: 'uuid, date, date, text',
   get_gestor_engajamento_questoes: 'uuid, date, date, smallint',
   get_gestor_engajamento_questoes_alunos: 'uuid, date, date, smallint, text',
   get_gestor_engajamento_conteudos: 'uuid, date, date, smallint, text',
   get_gestor_engajamento_conteudo_alunos: 'uuid, date, date, smallint, text, text, text',
-  get_gestor_engajamento_export_alunos: 'uuid, date, date, smallint, text, text, boolean',
+  get_gestor_engajamento_export_alunos: 'uuid, date, date, smallint, text, text, boolean, text',
 };
 
 describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {

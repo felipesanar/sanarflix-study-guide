@@ -23,7 +23,12 @@ export type CicloSemestre = 'basico' | 'clinico' | 'internato';
 export type NivelEngajamento = 'frequente' | 'esporadico' | 'parou' | 'nunca';
 export type FaixaRecencia = 'ativos30' | 'sumidos30a59' | 'sumidos60' | 'nunca_acessou';
 export type CategoriaLista = NivelEngajamento | FaixaRecencia | 'sumidos30mais';
-export type OrdemAlunos = 'questoes' | 'videos' | 'documentos';
+/** Aba de "Consumo dos alunos": só escolhe o que a tela realça, não ordena a tabela. */
+export type AbaConsumo = 'questoes' | 'videos' | 'documentos';
+
+/** Coluna da tabela "Por aluno" pela qual a lista pode ser ordenada (clique no cabeçalho). */
+export type OrdemAlunos = 'nome' | 'semestre' | 'questoes' | 'acerto' | 'videos' | 'documentos' | 'ultima_atividade';
+export type DirecaoOrdem = 'asc' | 'desc';
 export type SituacaoAlunoEngajamento = 'ativo' | 'sumido' | 'sem_atividade';
 export type TipoAtividade = 'questoes' | 'video' | 'documento';
 export type TipoConteudoBanco = 'video' | 'document';

@@ -34,6 +34,7 @@ import type {
   ExportAlunosEngajamento,
   LinhaExportAluno,
   ListaEngajamento,
+  DirecaoOrdem,
   OrdemAlunos,
   QuestoesAlunosEngajamento,
   QuestoesEngajamento,
@@ -105,18 +106,20 @@ export function useEngajamentoVisaoGeral(
 export function useEngajamentoAlunos(
   f: FiltrosRecorteEngajamento,
   ordem: OrdemAlunos,
+  direcao: DirecaoOrdem,
   busca: string,
   sem14: boolean,
   page: number,
 ): ResultadoGestor<AlunosEngajamento> {
   const termo = buscaOuNull(busca);
   return useEnvelope<AlunosEngajamento>(
-    ['gestor', 'engajamento', 'alunos', f.iesId, f.inicio, f.fim, f.semestre, ordem, termo, sem14, page],
+    ['gestor', 'engajamento', 'alunos', f.iesId, f.inicio, f.fim, f.semestre, ordem, direcao, termo, sem14, page],
     'get_gestor_engajamento_alunos',
     {
       ...periodo(f),
       p_semestre: f.semestre,
       p_ordem: ordem,
+      p_direcao: direcao,
       p_busca: termo,
       p_sem_atividade_14d: sem14,
       p_page: page,
@@ -242,6 +245,7 @@ function exigirIes(f: FiltrosRecorteEngajamento, rpc: string): void {
 export async function buscarExportAlunos(
   f: FiltrosRecorteEngajamento,
   ordem: OrdemAlunos,
+  direcao: DirecaoOrdem,
   busca: string,
   sem14: boolean,
 ): Promise<LinhaExportAluno[]> {
@@ -251,6 +255,7 @@ export async function buscarExportAlunos(
     ...periodo(f),
     p_semestre: f.semestre,
     p_ordem: ordem,
+    p_direcao: direcao,
     p_busca: buscaOuNull(busca),
     p_sem_atividade_14d: sem14,
   });

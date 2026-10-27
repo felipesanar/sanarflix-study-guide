@@ -54,14 +54,11 @@ describe('EvolucaoRede (§12.5)', () => {
     expect(mensal().getByText('Total de questões resolvidas na rede')).toBeInTheDocument();
   });
 
-  it('gráfico mensal: figura acessível com tabela, mês parcial "Out*" e valores formatados', () => {
+  it('gráfico mensal: figura acessível sem tabela, mês parcial "Out*" e valores formatados', () => {
     montarEvolucao();
     const figura = mensal().getByRole('img', { name: 'Questões resolvidas por mês' }).closest('figure') as HTMLElement;
-    expect(within(figura).getByText('Ver dados em tabela')).toBeInTheDocument();
-    const linhas = within(figura).getAllByRole('row');
-    expect(linhas).toHaveLength(7);
-    expect(within(linhas[6]).getByRole('rowheader')).toHaveTextContent('Out*');
-    expect(within(linhas[6]).getByRole('cell')).toHaveTextContent('36.000');
+    expect(within(figura).queryByText('Ver dados em tabela')).toBeNull();
+    expect(within(figura).getByText('Out*')).toBeInTheDocument();
     expect(within(figura).getAllByTestId('rede-ponto').map((p) => p.getAttribute('data-parcial'))).toEqual(['false', 'false', 'false', 'false', 'false', 'true']);
     expect(within(figura).getByTestId('rede-serie')).toBeInTheDocument();
   });
@@ -169,15 +166,13 @@ describe('DispersaoEngajamentoAcerto (§10.6, §12.5)', () => {
     expect(screen.getByTestId('media-x').className).toContain('border-dashed');
   });
 
-  it('figura acessível: tabela com todas as IES, "—" para a que não tem acerto', () => {
+  it('figura acessível sem tabela: desenha as IES com engajamento e acerto, rotuladas pelo nome abreviado', () => {
     montar();
     const figura = screen.getByRole('img', { name: 'Engajamento × acerto por instituição' }).closest('figure') as HTMLElement;
-    expect(within(figura).getByText('Ver dados em tabela')).toBeInTheDocument();
-    const linhas = within(figura).getAllByRole('row').slice(1);
-    expect(linhas).toHaveLength(3);
-    expect(within(linhas[0]).getByRole('cell')).toHaveTextContent('63% engajados · acerto 66%');
-    expect(within(linhas[2]).getByRole('rowheader')).toHaveTextContent('Centro Univ. Gama');
-    expect(within(linhas[2]).getByRole('cell')).toHaveTextContent('45% engajados · acerto —');
+    expect(within(figura).queryByText('Ver dados em tabela')).toBeNull();
+    expect(within(figura).queryByRole('table')).toBeNull();
+    expect(within(figura).getAllByTestId('bolha-ies')).toHaveLength(2); // a IES sem acerto não vira bolha
+    expect(within(figura).queryByText('CU Gama')).toBeNull();
   });
 
   it('com uma só IES desenhável ou nenhuma, não quebra', () => {

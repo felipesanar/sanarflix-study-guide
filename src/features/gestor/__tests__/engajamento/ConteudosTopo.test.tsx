@@ -130,15 +130,15 @@ describe('ConteudosEngajamento — filtro, Evolução e Por semestre (§12.4)', 
     expect(nota('kpi-conteudos-consumidos')).toBe('documentos abertos no período');
   });
 
-  it('Evolução: título, descrição com o mês parcial e a figura com a tabela alternativa', () => {
+  it('Evolução: título, descrição com o mês parcial e a figura sem tabela alternativa', () => {
     montar();
     expect(screen.getByRole('heading', { level: 2, name: 'Evolução dos conteúdos consumidos' })).toBeInTheDocument();
     expect(screen.getByText('Total por mês · outubro parcial, até 22/10')).toBeInTheDocument();
     const figura = screen.getByRole('img', { name: 'Evolução dos conteúdos consumidos' }).closest('figure') as HTMLElement;
-    const linhas = within(figura).getAllByRole('row');
-    expect(linhas).toHaveLength(7);
-    expect(within(linhas[6]).getByRole('rowheader')).toHaveTextContent('Out*');
-    expect(within(linhas[6]).getByRole('cell')).toHaveTextContent('1.637');
+    expect(within(figura).queryByText('Ver dados em tabela')).toBeNull();
+    expect(within(figura).getAllByTestId('linha-ponto')).toHaveLength(6);
+    expect(within(figura).getByText('Out*')).toBeInTheDocument();
+    expect(within(figura).getByText('1.637')).toBeInTheDocument();
   });
 
   it('Evolução: eixo de quantidade em múltiplos de 500 (3.000 × 1,15 → 3.500)', () => {
@@ -156,15 +156,13 @@ describe('ConteudosEngajamento — filtro, Evolução e Por semestre (§12.4)', 
     expect(screen.getByText('Total por mês')).toBeInTheDocument();
   });
 
-  it('Por semestre: título, descrição, as 12 linhas e o semestre do filtro realçado', () => {
+  it('Por semestre: título, descrição, as 12 barras e o semestre do filtro realçado', () => {
     montar('/gestor/engajamento/conteudos?ies=ies-1&eng_sem=8');
     expect(screen.getByRole('heading', { level: 2, name: 'Conteúdos por semestre' })).toBeInTheDocument();
     expect(screen.getByText('Total consumido no período por alunos de cada semestre')).toBeInTheDocument();
     const grafico = screen.getByRole('img', { name: 'Conteúdos por semestre' });
-    const figura = grafico.closest('figure') as HTMLElement;
-    const corpo = within(figura).getAllByRole('row').slice(1);
-    expect(corpo).toHaveLength(12);
-    expect(within(corpo[7]).getByRole('cell')).toHaveTextContent('3.000');
+    expect(within(grafico).getAllByTestId('barra-semestre')).toHaveLength(12);
+    expect(within(grafico).getByText('8º').parentElement).toHaveTextContent('3.000');
     expect((within(grafico).getByText('8º').parentElement as HTMLElement).style.background).toContain('--gp-brand-surface');
     expect((within(grafico).getByText('7º').parentElement as HTMLElement).style.background).toBe('transparent');
   });

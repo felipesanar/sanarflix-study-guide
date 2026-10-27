@@ -8,13 +8,13 @@ import { LinhaMensal, eixoPct, eixoQuantidade } from '@/features/gestor/componen
 import { BarrasPorSemestre } from '@/features/gestor/components/engajamento/BarrasPorSemestre';
 import { BarraHorizontal } from '@/features/gestor/components/engajamento/BarraHorizontal';
 
-/** Mesmo contrato do `a11y.test.tsx`: todo gráfico vive numa <figure>, com nome e tabela alternativa. */
+/** Mesmo contrato do `a11y.test.tsx`: todo gráfico vive numa <figure>, com nome; sem tabela alternativa. */
 function esperarFiguraAcessivel(nome: string) {
   const grafico = screen.getByRole('img', { name: nome });
   const figura = grafico.closest('figure');
   expect(figura, 'todo gráfico vive dentro de <figure>').not.toBeNull();
-  expect(within(figura as HTMLElement).getByText('Ver dados em tabela')).toBeInTheDocument();
-  expect(within(figura as HTMLElement).getByRole('table')).toBeInTheDocument();
+  expect(within(figura as HTMLElement).queryByText('Ver dados em tabela')).toBeNull();
+  expect(within(figura as HTMLElement).queryByRole('table')).toBeNull();
   return figura as HTMLElement;
 }
 
@@ -25,35 +25,24 @@ const MESES = [
 ];
 
 describe('FiguraGrafico (§10.6)', () => {
-  it('<figure> + role="img" com nome + "Ver dados em tabela" com uma linha por ponto', () => {
+  it('<figure> + role="img" com nome, o desenho dentro e sem "Ver dados em tabela"', () => {
     render(
-      <FiguraGrafico rotulo="Questões por mês" linhasTabela={[{ rotulo: 'Set', valor: '10' }, { rotulo: 'Out*', valor: '20' }]}>
+      <FiguraGrafico rotulo="Questões por mês">
         <span>desenho</span>
       </FiguraGrafico>,
     );
     const figura = esperarFiguraAcessivel('Questões por mês');
     expect(within(figura).getByText('desenho')).toBeInTheDocument();
-    const linhas = within(figura).getAllByRole('row');
-    expect(linhas).toHaveLength(3); // cabeçalho + 2 pontos
-    expect(within(linhas[2]).getByRole('rowheader')).toHaveTextContent('Out*');
-    expect(within(linhas[2]).getByRole('cell')).toHaveTextContent('20');
-  });
-
-  it('a tabela tem legenda e cabeçalhos de coluna', () => {
-    render(<FiguraGrafico rotulo="X" linhasTabela={[]} cabecalho={['Mês', 'Valor']}><i /></FiguraGrafico>);
-    expect(screen.getByRole('table', { name: 'X' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Mês' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Valor' })).toBeInTheDocument();
   });
 });
 
 describe('BarrasMensais', () => {
-  it('é uma figura acessível, com a tabela alternativa "rótulo (sub)"', () => {
+  it('é uma figura acessível; valor, mês e "sub" aparecem no próprio gráfico', () => {
     render(<BarrasMensais rotulo="Engajamento mês a mês" pontos={MESES} />);
     const figura = esperarFiguraAcessivel('Engajamento mês a mês');
-    const linhas = within(figura).getAllByRole('row');
-    expect(within(linhas[1]).getByRole('rowheader')).toHaveTextContent('Ago');
-    expect(within(linhas[1]).getByRole('cell')).toHaveTextContent('40% (208 alunos)');
+    expect(within(figura).getByText('40%')).toBeInTheDocument();
+    expect(within(figura).getByText('Ago')).toBeInTheDocument();
+    expect(within(figura).getByText('208 alunos')).toBeInTheDocument();
   });
 
   it('mês parcial leva "*" no rótulo e cor mais clara', () => {
@@ -126,7 +115,7 @@ describe('LinhaMensal', () => {
   ];
   const fmtPct = (v: number) => `${Math.round(v)}%`;
 
-  it('é uma figura acessível, com a tabela alternativa e "—" para mês sem dado', () => {
+  it('é uma figura acessível; mês sem dado fica sem ponto, só com o rótulo', () => {
     render(
       <LinhaMensal
         rotulo="Evolução do % de acerto"
@@ -136,10 +125,9 @@ describe('LinhaMensal', () => {
       />,
     );
     const figura = esperarFiguraAcessivel('Evolução do % de acerto');
-    const linhas = within(figura).getAllByRole('row');
-    expect(within(linhas[2]).getByRole('cell')).toHaveTextContent('66%');
-    expect(within(linhas[3]).getByRole('rowheader')).toHaveTextContent('Out*');
-    expect(within(linhas[3]).getByRole('cell')).toHaveTextContent('—');
+    expect(within(figura).getAllByText('66%').length).toBeGreaterThanOrEqual(1);
+    expect(within(figura).getByText('Out*')).toBeInTheDocument();
+    expect(within(figura).getAllByTestId('linha-ponto')).toHaveLength(2); // o mês sem dado não desenha ponto
   });
 
   it('eixo de % na faixa calculada (55% a 75%) com 3 marcas', () => {
@@ -204,7 +192,7 @@ describe('LinhaMensal', () => {
     expect(screen.getAllByTestId('linha-serie')).toHaveLength(1);
   });
 
-  it('o valor aparece sobre cada ponto até 12 meses; acima disso só na tabela alternativa', () => {
+  it('o valor aparece sobre cada ponto até 12 meses; acima disso só os eixos', () => {
     const doze = Array.from({ length: 12 }, (_, i) => ({ mes: `2025-${String(i + 1).padStart(2, '0')}`, parcial: false, valor: 60 + i }));
     const { unmount } = render(<LinhaMensal rotulo="Doze" modo="pct" formatar={fmtPct} pontos={doze} />);
     const grafico = screen.getByRole('img', { name: 'Doze' });
@@ -225,14 +213,13 @@ describe('BarrasPorSemestre', () => {
     texto: i === 4 ? '—' : String((i + 1) * 100),
   }));
 
-  it('é uma figura acessível com as 12 linhas e "—" onde não há dado', () => {
+  it('é uma figura acessível com as 12 barras e "—" onde não há dado', () => {
     render(<BarrasPorSemestre rotulo="Questões por semestre" linhas={linhas} modo="quantidade" />);
     const figura = esperarFiguraAcessivel('Questões por semestre');
-    const corpo = within(figura).getAllByRole('row').slice(1);
-    expect(corpo).toHaveLength(12);
-    expect(within(corpo[7]).getByRole('rowheader')).toHaveTextContent('8º semestre');
-    expect(within(corpo[7]).getByRole('cell')).toHaveTextContent('800');
-    expect(within(corpo[4]).getByRole('cell')).toHaveTextContent('—');
+    expect(within(figura).getAllByTestId('barra-semestre')).toHaveLength(12);
+    expect(within(figura).getByText('8º')).toBeInTheDocument();
+    expect(within(figura).getByText('800')).toBeInTheDocument();
+    expect(within(figura).getByText('—')).toBeInTheDocument();
   });
 
   it('sem onSelecionar é só desenho: nenhum botão', () => {

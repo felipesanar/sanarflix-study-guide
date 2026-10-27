@@ -91,13 +91,13 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
       ],
       [
         'alunos',
-        () => useEngajamentoAlunos(F, 'videos', 'ana', true, 3),
+        () => useEngajamentoAlunos(F, 'videos', 'asc', 'ana', true, 3),
         'get_gestor_engajamento_alunos',
         {
-          ...base, p_semestre: null, p_ordem: 'videos', p_busca: 'ana',
+          ...base, p_semestre: null, p_ordem: 'videos', p_direcao: 'asc', p_busca: 'ana',
           p_sem_atividade_14d: true, p_page: 3, p_page_size: 20,
         },
-        ['gestor', 'u1', 'engajamento', 'alunos', 'ies-1', '2026-05-01', '2026-10-22', null, 'videos', 'ana', true, 3],
+        ['gestor', 'u1', 'engajamento', 'alunos', 'ies-1', '2026-05-01', '2026-10-22', null, 'videos', 'asc', 'ana', true, 3],
       ],
       [
         'lista',
@@ -170,7 +170,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
 
   it('busca vazia ou só espaços vai como p_busca null (a RPC trata null como "sem busca")', async () => {
     mockRpc.mockResolvedValue(envelope({}));
-    const { result } = renderHook(() => useEngajamentoAlunos(F, 'questoes', '   ', false, 1), { wrapper });
+    const { result } = renderHook(() => useEngajamentoAlunos(F, 'questoes', 'desc', '   ', false, 1), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect((mockRpc.mock.calls[0][1] as Record<string, unknown>).p_busca).toBeNull();
   });
@@ -180,7 +180,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
     const semIes = { ...F, iesId: null };
     const hooks: Array<() => { isLoading: boolean }> = [
       () => useEngajamentoVisaoGeral(semIes),
-      () => useEngajamentoAlunos(semIes, 'questoes', '', false, 1),
+      () => useEngajamentoAlunos(semIes, 'questoes', 'desc', '', false, 1),
       () => useEngajamentoLista(semIes, 'parou', '', 1, 20),
       () => useEngajamentoAluno(semIes, 'aluno-7'),
       () => useEngajamentoQuestoes(semIes),
@@ -231,7 +231,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
     });
 
     it.each([
-      ['useEngajamentoAlunos', (page: number) => useEngajamentoAlunos(F, 'questoes', '', false, page)],
+      ['useEngajamentoAlunos', (page: number) => useEngajamentoAlunos(F, 'questoes', 'desc', '', false, page)],
       ['useEngajamentoQuestoes', (sem: number) => useEngajamentoQuestoes({ ...F, semestre: sem })],
       ['useEngajamentoConteudos', (sem: number) => useEngajamentoConteudos({ ...F, semestre: sem })],
     ])('%s mantém o dado anterior', async (_nome, hook) => {
@@ -323,23 +323,23 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
     it('buscarExportAlunos chama a exportação com os mesmos filtros da tabela e devolve as linhas', async () => {
       const alunos = [{ nome: 'Ana', email: 'ana@x.com', semestre: 8 }];
       mockRpc.mockResolvedValue(envelope({ alunos }));
-      const resultado = await buscarExportAlunos(F, 'documentos', '', true);
+      const resultado = await buscarExportAlunos(F, 'documentos', 'asc', '', true);
       expect(mockRpc).toHaveBeenCalledWith('get_gestor_engajamento_export_alunos', {
         p_ies_id: 'ies-1', p_inicio: '2026-05-01', p_fim: '2026-10-22', p_semestre: null,
-        p_ordem: 'documentos', p_busca: null, p_sem_atividade_14d: true,
+        p_ordem: 'documentos', p_direcao: 'asc', p_busca: null, p_sem_atividade_14d: true,
       });
       expect(resultado).toEqual(alunos);
     });
 
     it('sem IES, as duas funções recusam em vez de chamar a RPC com p_ies_id nulo', async () => {
       await expect(buscarListaCompleta({ ...F, iesId: null }, 'parou', '')).rejects.toThrow(/IES/);
-      await expect(buscarExportAlunos({ ...F, iesId: null }, 'questoes', '', false)).rejects.toThrow(/IES/);
+      await expect(buscarExportAlunos({ ...F, iesId: null }, 'questoes', 'desc', '', false)).rejects.toThrow(/IES/);
       expect(mockRpc).not.toHaveBeenCalled();
     });
 
     it('erro da RPC vira exceção com o nome da função', async () => {
       mockRpc.mockResolvedValue({ data: null, error: { message: 'ordem_invalida' } });
-      await expect(buscarExportAlunos(F, 'questoes', '', false)).rejects.toThrow(
+      await expect(buscarExportAlunos(F, 'questoes', 'desc', '', false)).rejects.toThrow(
         /get_gestor_engajamento_export_alunos: ordem_invalida/,
       );
     });

@@ -25,13 +25,14 @@ const ROTULO_CICLO = { basico: 'básico', clinico: 'clínico', internato: 'inter
 const TEXTO_MARCA = 'text-[color:var(--gp-brand-strong)] dark:text-[color:var(--gp-brand-on-dark)]';
 
 /**
- * "Comparativo entre semestres" (spec §12.2, P8): sempre os 12 semestres, que
- * ignoram o filtro de semestre e de aluno. Clicar no semestre filtra a página
+ * "Comparativo entre semestres" (spec §12.2, P8): só os semestres que a IES tem
+ * (base > 0; ex.: a FAI só tem o 12º), que ignoram o filtro de semestre e de aluno. Clicar no semestre filtra a página
  * (`eng_sem`), clicar de novo limpa. A linha selecionada leva o fundo de seleção
  * e a do semestre do aluno filtrado, o mais leve.
  */
 export function ComparativoSemestres({ dados, consulta, filtros }: ComparativoSemestresProps) {
   const semestreDoAluno = dados?.recorte.aluno?.semestre ?? null;
+  const semestresDaIes = (dados?.semestres ?? []).filter((s) => s.base > 0);
   const alternar = (n: number) => filtros.setSemestre(filtros.semestre === n ? null : n);
 
   return (
@@ -55,7 +56,7 @@ export function ComparativoSemestres({ dados, consulta, filtros }: ComparativoSe
           </tr>
         </CabecalhoTabela>
         <CorpoTabela>
-          {(dados?.semestres ?? []).map((s, i, todos) => {
+          {semestresDaIes.map((s, i, todos) => {
             const selecionado = filtros.semestre === s.semestre;
             const doAluno = !selecionado && semestreDoAluno === s.semestre;
             return (

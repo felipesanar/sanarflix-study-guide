@@ -321,13 +321,62 @@ describe('TabelaPorAluno (§8.2, §12.2)', () => {
     expect(within(tabela).getByRole('columnheader', { name: 'Detalhes' })).toHaveClass('sr-only');
   });
 
-  it('consulta ordenada pela aba, página 1, sem busca e sem o filtro de 14 dias', () => {
+  it('consulta ordenada por questões (maior primeiro), página 1, sem busca e sem o filtro de 14 dias', () => {
     montar();
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.objectContaining({ iesId: 'ies-1' }), 'questoes', '', false, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.objectContaining({ iesId: 'ies-1' }), 'questoes', 'desc', '', false, 1);
+  });
+
+  it('trocar de aba NÃO reordena a tabela: a consulta continua a mesma', () => {
+    montar();
+    mockAlunos.mockClear();
     abrirAba('Vídeos');
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'videos', '', false, 1);
     abrirAba('Documentos');
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'documentos', '', false, 1);
+    for (const chamada of mockAlunos.mock.calls) {
+      expect(chamada.slice(1)).toEqual(['questoes', 'desc', '', false, 1]);
+    }
+  });
+
+  it('trocar de aba só muda o realce: cabeçalho e células da(s) coluna(s) da aba levam o sombreamento', () => {
+    montar();
+    const tabela = screen.getByRole('table', { name: 'Consumo por aluno' });
+    const realcado = (el: HTMLElement) => el.style.background.includes('--gp-brand-surface-soft');
+    const cab = () => within(tabela).getAllByRole('columnheader');
+    // Questões: Questões resolvidas (2) e % de acerto (3)
+    expect(cab().map(realcado)).toEqual([false, false, true, true, false, false, false, false]);
+    abrirAba('Vídeos');
+    expect(cab().map(realcado)).toEqual([false, false, false, false, true, false, false, false]);
+    const ana = within(screen.getByRole('row', { name: /Ana Clara/ })).getAllByRole('cell');
+    expect(ana.map(realcado)).toEqual([false, false, false, false, true, false, false, false]);
+    abrirAba('Documentos');
+    expect(cab().map(realcado)).toEqual([false, false, false, false, false, true, false, false]);
+  });
+
+  it('clicar no cabeçalho ordena: 1º clique na direção padrão, 2º inverte, e volta para a página 1', () => {
+    montar();
+    fireEvent.click(screen.getByRole('button', { name: 'Página 3' }));
+    const cabecalho = (nome: RegExp) => screen.getByRole('columnheader', { name: nome });
+    fireEvent.click(within(cabecalho(/Vídeos assistidos/)).getByRole('button'));
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'videos', 'desc', '', false, 1);
+    expect(cabecalho(/Vídeos assistidos/)).toHaveAttribute('aria-sort', 'descending');
+    expect(cabecalho(/Questões resolvidas/)).toHaveAttribute('aria-sort', 'none');
+    fireEvent.click(within(cabecalho(/Vídeos assistidos/)).getByRole('button'));
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'videos', 'asc', '', false, 1);
+    expect(cabecalho(/Vídeos assistidos/)).toHaveAttribute('aria-sort', 'ascending');
+    fireEvent.click(within(cabecalho(/^Aluno/)).getByRole('button'));
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'nome', 'asc', '', false, 1);
+    fireEvent.click(within(cabecalho(/Última atividade/)).getByRole('button'));
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'ultima_atividade', 'desc', '', false, 1);
+  });
+
+  it('a ordenação escolhida sobrevive à troca de aba e vai junto na exportação', async () => {
+    mockBuscarExport.mockResolvedValue([]);
+    montar();
+    fireEvent.click(within(screen.getByRole('columnheader', { name: /% de acerto/ })).getByRole('button'));
+    abrirAba('Documentos');
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'acerto', 'desc', '', false, 1);
+    fireEvent.click(screen.getByRole('button', { name: /Exportar base de alunos \(CSV\)/ }));
+    await act(async () => {});
+    expect(mockBuscarExport).toHaveBeenCalledWith(expect.anything(), 'acerto', 'desc', '', false);
   });
 
   it('células: semestre, números, acerto "—" e recência', () => {
@@ -389,20 +438,22 @@ describe('TabelaPorAluno (§8.2, §12.2)', () => {
     expect(onAbrir).toHaveBeenCalledWith('aluno-3');
   });
 
-  it('rodapé "Mostrando a–b de total alunos, ordenados pela aba selecionada" e paginação', () => {
+  it('rodapé "Mostrando a–b de total alunos" e paginação', () => {
     montar();
-    expect(screen.getByText('Mostrando 1–20 de 521 alunos, ordenados pela aba selecionada')).toBeInTheDocument();
+    expect(screen.getByText('Mostrando 1–20 de 521 alunos')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Página 2' }));
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', false, 2);
-    expect(screen.getByText('Mostrando 21–40 de 521 alunos, ordenados pela aba selecionada')).toBeInTheDocument();
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', false, 2);
+    expect(screen.getByText('Mostrando 21–40 de 521 alunos')).toBeInTheDocument();
   });
 
-  it('trocar de aba volta a tabela para a página 1', () => {
+  it('trocar a ordenação volta a tabela para a página 1; trocar de aba não mexe na página', () => {
     montar();
     fireEvent.click(screen.getByRole('button', { name: 'Página 3' }));
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', false, 3);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', false, 3);
     abrirAba('Vídeos');
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'videos', '', false, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', false, 3);
+    fireEvent.click(within(screen.getByRole('columnheader', { name: /Semestre/ })).getByRole('button'));
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'semestre', 'asc', '', false, 1);
   });
 
   it('a busca só vira parâmetro após 300 ms e volta para a página 1', () => {
@@ -414,11 +465,11 @@ describe('TabelaPorAluno (§8.2, §12.2)', () => {
     act(() => {
       vi.advanceTimersByTime(299);
     });
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', false, 2);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', false, 2);
     act(() => {
       vi.advanceTimersByTime(2);
     });
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'conceicao', false, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', 'conceicao', false, 1);
   });
 
   it('grupo "Filtrar alunos": "Todos" e "Sem atividade há 14 dias" com aria-pressed; ligar volta para a página 1', () => {
@@ -430,12 +481,12 @@ describe('TabelaPorAluno (§8.2, §12.2)', () => {
     fireEvent.click(within(grupo).getByRole('button', { name: 'Sem atividade há 14 dias' }));
     expect(onSem14).toHaveBeenCalledWith(true);
     expect(within(grupo).getByRole('button', { name: 'Sem atividade há 14 dias' })).toHaveAttribute('aria-pressed', 'true');
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', true, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', true, 1);
   });
 
   it('o filtro de 14 dias iniciado pelo pai (Quem não voltou) já chega ligado', () => {
     montar(visaoGeralParacatu(), filtros(), { sem14Inicial: true });
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', true, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', true, 1);
     expect(screen.getByRole('button', { name: 'Sem atividade há 14 dias' })).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -491,7 +542,7 @@ describe('TabelaPorAluno — Exportar base de alunos (CSV) (§10.7)', () => {
     abrirAba('Vídeos');
     await exportar();
 
-    expect(mockBuscarExport).toHaveBeenCalledWith(expect.objectContaining({ iesId: 'ies-1' }), 'videos', '', true);
+    expect(mockBuscarExport).toHaveBeenCalledWith(expect.objectContaining({ iesId: 'ies-1' }), 'questoes', 'desc', '', true);
     expect(mockBaixarCsv).toHaveBeenCalledTimes(1);
     const [nome, colunas, linhas] = mockBaixarCsv.mock.calls[0];
     expect(nome).toMatch(/^gestor-engajamento-base-alunos-paracatu-\d{4}-\d{2}-\d{2}\.csv$/);

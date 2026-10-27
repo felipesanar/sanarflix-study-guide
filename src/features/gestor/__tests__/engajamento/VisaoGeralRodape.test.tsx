@@ -322,12 +322,25 @@ describe('ComparativoSemestres (§12.2, P8)', () => {
     expect(screen.getByTestId('semestre-8').style.background).not.toContain('soft');
   });
 
-  it('semestre sem engajados: "—" nas médias e 0% sem número inventado', () => {
+  it('semestre com base mas sem engajados: "—" nas médias e 0% sem número inventado', () => {
     const d = visaoGeralParacatu();
-    d.semestres[8] = { ...d.semestres[8], base: 0, engajados: 0, engajadosPct: null, videosPorEngajado: null, documentosPorEngajado: null, questoesPorEngajado: null, acertoPct: null };
+    d.semestres[8] = { ...d.semestres[8], base: 5, engajados: 0, engajadosPct: 0, videosPorEngajado: null, documentosPorEngajado: null, questoesPorEngajado: null, acertoPct: null };
     montar(d);
     const celulas = within(screen.getByTestId('semestre-9')).getAllByRole('cell').map((c) => c.textContent);
-    expect(celulas).toEqual(['9º internato', '0', '—', '—', '—', '—', '—']);
+    expect(celulas).toEqual(['9º internato', '5', '0%', '—', '—', '—', '—']);
+  });
+
+  it('só mostra os semestres que a IES tem: base 0 não vira linha em branco (ex.: FAI só com o 12º)', () => {
+    const d = visaoGeralParacatu();
+    d.semestres = d.semestres.map((s) =>
+      s.semestre === 12 ? s : { ...s, base: 0, engajados: 0, engajadosPct: null, videosPorEngajado: null, documentosPorEngajado: null, questoesPorEngajado: null, acertoPct: null },
+    );
+    montar(d);
+    const linhas = screen.getAllByRole('row').slice(1);
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0].textContent).toContain('12º');
+    expect(screen.queryByTestId('semestre-1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('semestre-12')).toBeInTheDocument();
   });
 });
 
@@ -344,11 +357,11 @@ describe('VisaoGeralEngajamento (rota) — rodapé da página', () => {
     Element.prototype.scrollIntoView = rolar;
     envolver(<VisaoGeralEngajamento />);
     expect(screen.getByRole('button', { name: 'Sem atividade há 14 dias' })).toHaveAttribute('aria-pressed', 'false');
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', false, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', false, 1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Filtrar na tabela de alunos' }));
     expect(screen.getByRole('button', { name: 'Sem atividade há 14 dias' })).toHaveAttribute('aria-pressed', 'true');
-    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', '', true, 1);
+    expect(mockAlunos).toHaveBeenLastCalledWith(expect.anything(), 'questoes', 'desc', '', true, 1);
     expect(rolar).toHaveBeenCalledTimes(1);
     expect(rolar.mock.instances[0]).toBe(document.getElementById('consumo'));
   });

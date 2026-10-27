@@ -115,17 +115,16 @@ describe('DrawerAlunoEngajamento (§12.2)', () => {
   });
 
   describe('Atividade mês a mês', () => {
-    it('figura acessível com a legenda "Questões (÷4)", "Vídeos", "Documentos" e uma linha por mês na tabela', () => {
+    it('figura acessível com a legenda "Questões (÷4)", "Vídeos", "Documentos", um grupo de barras por mês e sem tabela', () => {
       montar();
       const grafico = within(painel()).getByRole('img', { name: 'Atividade mês a mês' });
       const figura = grafico.closest('figure') as HTMLElement;
       expect(within(figura).getByText('Questões (÷4)')).toBeInTheDocument();
       expect(within(figura).getByText('Vídeos')).toBeInTheDocument();
       expect(within(figura).getByText('Documentos')).toBeInTheDocument();
-      const linhas = within(figura).getAllByRole('row');
-      expect(linhas).toHaveLength(4);
-      expect(within(linhas[3]).getByRole('rowheader')).toHaveTextContent('Out*');
-      expect(within(linhas[3]).getByRole('cell')).toHaveTextContent('284 questões · 5 vídeos · 0 documentos');
+      expect(within(figura).queryByText('Ver dados em tabela')).toBeNull();
+      expect(within(figura).getAllByTestId('drawer-barra-questoes')).toHaveLength(3);
+      expect(within(figura).getByText('Out*')).toBeInTheDocument();
     });
 
     it('questões entram ÷ 4 e o mês de maior atividade ocupa a área toda', () => {

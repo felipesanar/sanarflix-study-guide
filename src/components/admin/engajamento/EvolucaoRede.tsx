@@ -64,8 +64,6 @@ function LinhaRede({
   return (
     <FiguraGrafico
       rotulo={rotulo}
-      cabecalho={['Mês', 'Valor']}
-      linhasTabela={pontos.map((p) => ({ rotulo: mesCurto(p.mes, p.parcial), valor: p.valor === null ? TRACO : formatar(p.valor) }))}
     >
       <div className="overflow-x-auto">
         <div style={{ minWidth: Math.max(n * 36, 280) + 56 }}>
@@ -150,8 +148,6 @@ function BarrasSemestreRede({
   return (
     <FiguraGrafico
       rotulo={rotulo}
-      cabecalho={['Semestre', 'Valor']}
-      linhasTabela={linhas.map((l) => ({ rotulo: `${l.semestre}º semestre`, valor: texto(l.valor) }))}
     >
       <div className="overflow-x-auto">
         <div className="flex items-end gap-1" style={{ minWidth: linhas.length * 34 }}>

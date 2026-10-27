@@ -124,24 +124,22 @@ describe('QuestoesEngajamento — Evolução e Por semestre (§12.3)', () => {
       montar();
       const grafico = screen.getByRole('img', { name: 'Evolução das questões resolvidas' });
       const figura = grafico.closest('figure') as HTMLElement;
-      expect(within(figura).getByText('Ver dados em tabela')).toBeInTheDocument();
-      const linhas = within(figura).getAllByRole('row');
-      expect(linhas).toHaveLength(7);
-      expect(within(linhas[6]).getByRole('rowheader')).toHaveTextContent('Out*');
-      expect(within(linhas[6]).getByRole('cell')).toHaveTextContent('19.873');
-      expect(within(linhas[4]).getByRole('cell')).toHaveTextContent('31.000');
+      expect(within(figura).queryByText('Ver dados em tabela')).toBeNull();
+      expect(within(figura).getAllByTestId('linha-ponto')).toHaveLength(6);
+      expect(within(figura).getByText('Out*')).toBeInTheDocument();
+      expect(within(figura).getByText('19.873')).toBeInTheDocument();
+      expect(within(figura).getByText('31.000')).toBeInTheDocument();
     });
 
-    it('% de acerto: valores em % inteiro; mês sem acerto vira "—"', () => {
+    it('% de acerto: valores em % inteiro; mês sem acerto fica sem ponto', () => {
       const d = questoesParacatu();
       d.meses[2] = { ...d.meses[2], questoes: 0, acertoPct: null };
       mockQuestoes.mockReturnValue(resultadoGestor(d));
       montar();
       fireEvent.change(screen.getByLabelText('Métrica da evolução'), { target: { value: 'pct' } });
       const figura = screen.getByRole('img', { name: 'Evolução do % de acerto' }).closest('figure') as HTMLElement;
-      const linhas = within(figura).getAllByRole('row');
-      expect(within(linhas[1]).getByRole('cell')).toHaveTextContent('65%');
-      expect(within(linhas[3]).getByRole('cell')).toHaveTextContent('—');
+      expect(within(figura).getAllByText('65%').length).toBeGreaterThanOrEqual(1);
+      expect(within(figura).getAllByTestId('linha-ponto')).toHaveLength(5); // o mês sem acerto não desenha ponto
     });
 
     it('sem mês parcial no fim, a descrição não cita parcial', () => {
@@ -154,16 +152,15 @@ describe('QuestoesEngajamento — Evolução e Por semestre (§12.3)', () => {
   });
 
   describe('Por semestre', () => {
-    it('padrão "Quantidade": título, descrição, seletor e as 12 linhas', () => {
+    it('padrão "Quantidade": título, descrição, seletor e as 12 barras', () => {
       montar();
       expect(screen.getByRole('heading', { level: 2, name: 'Questões por semestre' })).toBeInTheDocument();
       expect(screen.getByText('Total resolvido no período por alunos de cada semestre')).toBeInTheDocument();
       const seletor = screen.getByLabelText('Métrica por semestre');
       expect(within(seletor).getAllByRole('option').map((o) => o.textContent)).toEqual(['Quantidade', '% de acerto']);
       const figura = screen.getByRole('img', { name: 'Questões por semestre' }).closest('figure') as HTMLElement;
-      const corpo = within(figura).getAllByRole('row').slice(1);
-      expect(corpo).toHaveLength(12);
-      expect(within(corpo[7]).getByRole('cell')).toHaveTextContent('30.000');
+      expect(within(figura).getAllByTestId('barra-semestre')).toHaveLength(12);
+      expect(within(figura).getByText('8º').parentElement).toHaveTextContent('30.000');
     });
 
     it('"% de acerto": título e descrição próprios; sem acerto, "—"', () => {
@@ -172,9 +169,8 @@ describe('QuestoesEngajamento — Evolução e Por semestre (§12.3)', () => {
       expect(screen.getByRole('heading', { level: 2, name: '% de acerto por semestre' })).toBeInTheDocument();
       expect(screen.getByText('Acerto médio dos alunos de cada semestre (barra cheia = 100%)')).toBeInTheDocument();
       const figura = screen.getByRole('img', { name: '% de acerto por semestre' }).closest('figure') as HTMLElement;
-      const corpo = within(figura).getAllByRole('row').slice(1);
-      expect(within(corpo[0]).getByRole('cell')).toHaveTextContent('60%');
-      expect(within(corpo[8]).getByRole('cell')).toHaveTextContent('—');
+      expect(within(figura).getByText('1º').parentElement).toHaveTextContent('60%');
+      expect(within(figura).getByText('9º').parentElement).toHaveTextContent('—');
     });
 
     it('os dois seletores são independentes', () => {
@@ -197,10 +193,10 @@ describe('QuestoesEngajamento — Evolução e Por semestre (§12.3)', () => {
       expect((within(g2).getByText('8º').parentElement as HTMLElement).style.background).toBe('transparent');
     });
 
-    it('as barras ignoram o filtro: continuam as 12 linhas com o filtro de semestre ligado', () => {
+    it('as barras ignoram o filtro: continuam as 12 barras com o filtro de semestre ligado', () => {
       montar('/gestor/engajamento/questoes?ies=ies-1&eng_sem=8');
       const figura = screen.getByRole('img', { name: 'Questões por semestre' }).closest('figure') as HTMLElement;
-      expect(within(figura).getAllByRole('row').slice(1)).toHaveLength(12);
+      expect(within(figura).getAllByTestId('barra-semestre')).toHaveLength(12);
     });
   });
 

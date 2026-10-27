@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
-import type { OrdemAlunos, VisaoGeralEngajamento } from '@/features/gestor/api/types-engajamento';
+import type { AbaConsumo, VisaoGeralEngajamento } from '@/features/gestor/api/types-engajamento';
 import { deltaPct, deltaPp, dec1, diaMes, mesCurto, rotuloPeriodoAnterior } from '@/features/gestor/lib/engajamento';
 import { formatNumero, formatPct, TRACO } from '@/features/gestor/lib/formatters';
 import { BarrasMensais, COR_BARRA_CLARA } from './BarrasMensais';
@@ -16,7 +16,7 @@ export interface ConsumoAlunosProps {
   onAbrirDetalhes: (alunoId: string) => void;
 }
 
-const ABAS: Array<{ id: OrdemAlunos; rotulo: string }> = [
+const ABAS: Array<{ id: AbaConsumo; rotulo: string }> = [
   { id: 'questoes', rotulo: 'Questões' },
   { id: 'videos', rotulo: 'Vídeos' },
   { id: 'documentos', rotulo: 'Documentos' },
@@ -51,12 +51,13 @@ function CartaoCinza({ titulo, valor, nota }: Cartao) {
 
 /**
  * "Consumo dos alunos" (spec §12.2): abas Questões | Vídeos | Documentos que
- * trocam os 3 KPIs, o gráfico mensal e a ordenação da tabela "Por aluno".
+ * trocam os 3 KPIs (empilhados à esquerda), o gráfico mensal (à direita, mês atual em
+ * destaque) e o realce de colunas da tabela "Por aluno". A aba NÃO ordena a tabela.
  * Sem aluno filtrado os KPIs são do recorte da página; com aluno, comparam o aluno
  * com a média do semestre dele.
  */
 export function ConsumoAlunos({ dados, consulta, filtros, sem14, onSem14Change, onAbrirDetalhes }: ConsumoAlunosProps) {
-  const [aba, setAba] = React.useState<OrdemAlunos>('questoes');
+  const [aba, setAba] = React.useState<AbaConsumo>('questoes');
   const refsAbas = React.useRef<Array<HTMLButtonElement | null>>([]);
 
   const aoTeclar = (e: React.KeyboardEvent, i: number) => {
@@ -171,7 +172,12 @@ export function ConsumoAlunos({ dados, consulta, filtros, sem14, onSem14Change, 
         alturaSkeleton={520}
         bloco="consumo-alunos"
       >
-        <div role="tablist" aria-label="Tipo de consumo" className="inline-flex self-start" style={{ gap: 6 }}>
+        <div
+          role="tablist"
+          aria-label="Tipo de consumo"
+          className="flex"
+          style={{ gap: 4, borderBottom: '1px solid var(--gp-border-subtle)', margin: '0 -18px', padding: '0 18px' }}
+        >
           {ABAS.map((a, i) => (
             <button
               key={a.id}
@@ -187,14 +193,15 @@ export function ConsumoAlunos({ dados, consulta, filtros, sem14, onSem14Change, 
               onClick={() => setAba(a.id)}
               onKeyDown={(e) => aoTeclar(e, i)}
               style={{
-                height: 32,
-                padding: '0 14px',
-                borderRadius: 'var(--gp-radius-pill)',
+                height: 40,
+                padding: '0 12px',
+                marginBottom: -1,
                 fontSize: 'var(--gp-font-size-body)',
-                fontWeight: 'var(--gp-font-weight-medio)',
-                border: `1px solid ${aba === a.id ? 'var(--gp-brand-border)' : 'var(--gp-border-strong)'}`,
-                background: aba === a.id ? 'var(--gp-brand-surface)' : 'transparent',
-                color: 'var(--gp-text-1)',
+                fontWeight: aba === a.id ? 'var(--gp-font-weight-forte)' : 'var(--gp-font-weight-medio)',
+                border: 'none',
+                borderBottom: `2px solid ${aba === a.id ? 'var(--gp-brand)' : 'transparent'}`,
+                background: 'transparent',
+                color: aba === a.id ? 'var(--gp-brand-strong)' : 'var(--gp-text-1)',
               }}
             >
               {a.rotulo}
@@ -203,31 +210,36 @@ export function ConsumoAlunos({ dados, consulta, filtros, sem14, onSem14Change, 
         </div>
 
         <div id="painel-consumo" role="tabpanel" aria-labelledby={`aba-consumo-${aba}`} className="flex flex-col" style={{ gap: 18 }}>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {cartoes().map((c) => (
-              <CartaoCinza key={c.titulo} {...c} />
-            ))}
-          </div>
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <div className="flex flex-col gap-3">
+              {cartoes().map((c) => (
+                <CartaoCinza key={c.titulo} {...c} />
+              ))}
+            </div>
 
-          <div>
-            <h3 style={{ fontSize: 'var(--gp-font-size-h3)', fontWeight: 'var(--gp-font-weight-forte)', marginBottom: 8 }}>{tituloGrafico}</h3>
-            <BarrasMensais
-              rotulo={tituloGrafico}
-              corFechada={COR_BARRA_CLARA}
-              corParcial={COR_BARRA_CLARA}
-              pontos={meses.map((m) => ({ mes: m.mes, parcial: m.parcial, valor: valorMes(m), texto: formatNumero(valorMes(m)) }))}
-            />
+            <div className="min-w-0">
+              <h3 style={{ fontSize: 'var(--gp-font-size-h3)', fontWeight: 'var(--gp-font-weight-forte)', marginBottom: 8 }}>{tituloGrafico}</h3>
+              <BarrasMensais
+                rotulo={tituloGrafico}
+                corFechada={COR_BARRA_CLARA}
+                corParcial={COR_BARRA_CLARA}
+                mesDestaque={dados?.periodo.hoje.slice(0, 7)}
+                pontos={meses.map((m) => ({ mes: m.mes, parcial: m.parcial, valor: valorMes(m), texto: formatNumero(valorMes(m)) }))}
+              />
+            </div>
           </div>
 
           {dados ? (
-            <TabelaPorAluno
-              filtros={filtros}
-              ordem={aba}
-              sem14={sem14}
-              onSem14Change={onSem14Change}
-              iesNome={dados.ies.nome}
-              onAbrirDetalhes={onAbrirDetalhes}
-            />
+            <div style={{ borderTop: '1px solid var(--gp-border-subtle)', margin: '0 -18px', padding: '18px 18px 0' }}>
+              <TabelaPorAluno
+                filtros={filtros}
+                aba={aba}
+                sem14={sem14}
+                onSem14Change={onSem14Change}
+                iesNome={dados.ies.nome}
+                onAbrirDetalhes={onAbrirDetalhes}
+              />
+            </div>
           ) : null}
         </div>
       </BlocoEngajamento>
