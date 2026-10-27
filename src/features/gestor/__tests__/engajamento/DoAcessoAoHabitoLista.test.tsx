@@ -17,7 +17,7 @@ import { DoAcessoAoHabito } from '@/features/gestor/components/engajamento/DoAce
 import { linhaLista, listaEngajamento } from '../fixtures/engajamento/lista';
 import { resultadoGestor, visaoGeralComAluno, visaoGeralParacatu } from '../fixtures/engajamento/visaoGeral';
 
-/** "Do acesso ao hábito": clicar numa faixa lista os alunos dela, como "Quem não voltou" (§12.2). */
+/** "Do acesso ao hábito": clicar numa faixa abre o pop-up com os alunos dela (§12.2). */
 
 const FILTROS = { iesId: 'ies-1', inicio: '2026-05-01', fim: '2026-10-22', semestre: null, alunoId: null, tipo: 'todos' as const, periodo: '6m' };
 
@@ -32,92 +32,77 @@ const montar = (d = visaoGeralParacatu(), filtros: typeof FILTROS | null = FILTR
 
 const faixa = (chave: string) => screen.getByTestId(`habito-faixa-${chave}`);
 
-describe('DoAcessoAoHabito — lista da faixa', () => {
+describe('DoAcessoAoHabito — pop-up da faixa', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLista.mockReturnValue(
-      resultadoGestor(listaEngajamento('habito_alto', [linhaLista({ diasAtivosMes: 11 })], { total: 35, pageSize: 5 })),
+      resultadoGestor(listaEngajamento('habito_alto', [linhaLista({ diasAtivosMes: 11 })], { total: 35, pageSize: 20 })),
     );
   });
 
-  it('as quatro faixas são botões; a "Base ativa" não é', () => {
+  it('as quatro faixas são botões que abrem pop-up; a "Base ativa" não é', () => {
     montar();
-    for (const c of ['baixo', 'medio', 'alto', 'altissimo']) expect(faixa(c)).toHaveAttribute('aria-pressed', 'false');
+    for (const c of ['baixo', 'medio', 'alto', 'altissimo']) expect(faixa(c)).toHaveAttribute('aria-haspopup', 'dialog');
     expect(screen.queryByTestId('habito-faixa-base')).not.toBeInTheDocument();
-    expect(faixa('alto')).toHaveAccessibleName('Alto engajamento: 35 alunos · clique para listar');
+    expect(faixa('alto')).toHaveAccessibleName('Alto engajamento: 35 alunos · ver lista de alunos');
   });
 
-  it('sem faixa selecionada não há lista nem consulta de lista', () => {
+  it('sinaliza que dá para clicar: "Ver alunos" em cada faixa, e só nelas', () => {
     montar();
-    expect(screen.queryByTestId('habito-lista')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('habito-dica-clique')).toHaveLength(4);
+    for (const c of ['baixo', 'medio', 'alto', 'altissimo']) {
+      expect(within(faixa(c)).getByTestId('habito-dica-clique')).toHaveTextContent('Ver alunos');
+    }
+    expect(within(screen.getByTestId('habito-base')).queryByTestId('habito-dica-clique')).not.toBeInTheDocument();
+  });
+
+  it('sem clique não há pop-up nem consulta de lista', () => {
+    montar();
+    expect(screen.queryByTestId('lista-alunos-dialog')).not.toBeInTheDocument();
     expect(mockLista).not.toHaveBeenCalled();
-  });
-
-  it('clicar numa faixa consulta a categoria dela (5 linhas) e mostra a prévia com os dias ativos no mês', () => {
-    montar();
-    fireEvent.click(faixa('alto'));
-    expect(faixa('alto')).toHaveAttribute('aria-pressed', 'true');
-    expect(mockLista).toHaveBeenLastCalledWith(FILTROS, 'habito_alto', '', 1, 5);
-    const lista = screen.getByTestId('habito-lista');
-    expect(within(lista).getByRole('heading', { level: 3, name: 'Alunos: alto engajamento' })).toBeInTheDocument();
-    expect(within(lista).getAllByRole('columnheader').map((c) => c.textContent)).toEqual([
-      'Aluno',
-      'Sem.',
-      'Dias ativos no mês',
-      'Dias sem consumo',
-    ]);
-    expect(within(lista).getByRole('row', { name: /Ana Clara/ })).toHaveTextContent('11');
   });
 
   it.each([
     ['baixo', 'habito_baixo'],
     ['medio', 'habito_medio'],
+    ['alto', 'habito_alto'],
     ['altissimo', 'habito_altissimo'],
-  ])('a faixa %s consulta %s', (chave, categoria) => {
+  ])('clicar em %s abre o pop-up e consulta %s (20 por página)', (chave, categoria) => {
     montar();
     fireEvent.click(faixa(chave));
-    expect(mockLista).toHaveBeenLastCalledWith(FILTROS, categoria, '', 1, 5);
+    expect(screen.getByTestId('lista-alunos-dialog')).toBeInTheDocument();
+    expect(mockLista).toHaveBeenLastCalledWith(FILTROS, categoria, '', 1, 20);
   });
 
-  it('clicar de novo na mesma faixa fecha a lista; clicar em outra troca', () => {
+  it('o pop-up traz as colunas Aluno, Sem., Dias ativos no mês e Dias sem consumo, e o bloco não expande', () => {
     montar();
     fireEvent.click(faixa('alto'));
-    fireEvent.click(faixa('medio'));
-    expect(faixa('alto')).toHaveAttribute('aria-pressed', 'false');
-    expect(faixa('medio')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('heading', { level: 3, name: 'Alunos: médio engajamento' })).toBeInTheDocument();
-    fireEvent.click(faixa('medio'));
-    expect(screen.queryByTestId('habito-lista')).not.toBeInTheDocument();
-  });
-
-  it('"Mostrando 5 de 35 alunos" e "Ver lista completa" quando há mais de 5', () => {
-    montar();
-    fireEvent.click(faixa('alto'));
-    expect(screen.getByText('Mostrando 1 de 35 alunos')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver lista completa' })).toBeInTheDocument();
-  });
-
-  it('com 5 ou menos, sem "Ver lista completa"', () => {
-    mockLista.mockReturnValue(resultadoGestor(listaEngajamento('habito_altissimo', [linhaLista()], { total: 5, pageSize: 5 })));
-    montar();
-    fireEvent.click(faixa('altissimo'));
-    expect(screen.queryByRole('button', { name: 'Ver lista completa' })).not.toBeInTheDocument();
-  });
-
-  it('"Ver lista completa" abre o pop-up da faixa, com a coluna "Dias ativos no mês"', () => {
-    montar();
-    fireEvent.click(faixa('alto'));
-    fireEvent.click(screen.getByRole('button', { name: 'Ver lista completa' }));
-    expect(mockLista).toHaveBeenLastCalledWith(FILTROS, 'habito_alto', '', 1, 20);
     const dialogo = screen.getByTestId('lista-alunos-dialog');
-    expect(within(dialogo).getByText('Dias ativos no mês')).toBeInTheDocument();
-    expect(within(dialogo).getByText('11 dias ativos no mês')).toBeInTheDocument();
+    expect(within(dialogo).getByRole('heading', { name: 'Alunos: alto engajamento' })).toBeInTheDocument();
+    expect(within(dialogo).getAllByRole('columnheader').map((c) => c.textContent)).toEqual([
+      'Aluno',
+      'Sem.',
+      'Dias ativos no mês',
+      'Dias sem consumo',
+    ]);
+    expect(within(dialogo).getByRole('row', { name: /Ana Clara/ })).toHaveTextContent('11');
     expect(within(dialogo).getByText(/8 a 14 dias ativos no mês/)).toBeInTheDocument();
+    // nada de lista dentro do bloco
+    expect(screen.queryByTestId('habito-lista')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('bloco-do-acesso-ao-habito')).queryAllByRole('table')).toHaveLength(0);
   });
 
-  it('com aluno filtrado as faixas viram "Sim"/"Não" e não são clicáveis', () => {
+  it('fechar o pop-up volta ao bloco', () => {
+    montar();
+    fireEvent.click(faixa('medio'));
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar lista' }));
+    expect(screen.queryByTestId('lista-alunos-dialog')).not.toBeInTheDocument();
+  });
+
+  it('com aluno filtrado as faixas viram "Sim"/"Não", sem sinalização e sem clique', () => {
     montar(visaoGeralComAluno());
     expect(screen.queryByTestId('habito-faixa-alto')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('habito-dica-clique')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('habito-valor').length).toBeGreaterThan(0);
     expect(mockLista).not.toHaveBeenCalled();
   });
@@ -125,5 +110,6 @@ describe('DoAcessoAoHabito — lista da faixa', () => {
   it('sem `filtros` o bloco continua só de leitura', () => {
     montar(visaoGeralParacatu(), null);
     expect(screen.queryByTestId('habito-faixa-alto')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('habito-dica-clique')).not.toBeInTheDocument();
   });
 });

@@ -70,7 +70,7 @@ export function textoDetalheLinha(
   categoria: CategoriaLista,
   coluna: ColunaDetalhe,
 ): string {
-  if (coluna === 'diasAtivosMes') return `${formatNumero(linha.diasAtivosMes)} dias ativos no mês`;
+  if (coluna === 'diasAtivosMes') return formatNumero(linha.diasAtivosMes);
   if (coluna === 'melhorMes') {
     if (linha.melhorMes) return `${mesAno(linha.melhorMes)} · ${formatNumero(linha.melhorMesDias)} dias ativos`;
     return linha.diasSemAtividade === null ? '— (nunca acessou)' : '— (sem atividade no período)';
