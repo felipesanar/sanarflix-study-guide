@@ -4,7 +4,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FiguraGrafico } from '@/features/gestor/components/engajamento/FiguraGrafico';
 import { BarrasMensais, alturaDaBarra } from '@/features/gestor/components/engajamento/BarrasMensais';
-import { LinhaMensal, eixoPct, eixoQuantidade } from '@/features/gestor/components/engajamento/LinhaMensal';
+import { LinhaMensal, eixoPct, eixoQuantidade, tetoRedondo } from '@/features/gestor/components/engajamento/LinhaMensal';
 import { BarrasPorSemestre } from '@/features/gestor/components/engajamento/BarrasPorSemestre';
 import { BarraHorizontal } from '@/features/gestor/components/engajamento/BarraHorizontal';
 
@@ -104,6 +104,24 @@ describe('eixos da LinhaMensal (§10.6)', () => {
     expect(eixoQuantidade([0, 0])).toEqual({ min: 0, max: 1000 });
     expect(eixoQuantidade([null])).toEqual({ min: 0, max: 1000 });
     expect(eixoQuantidade([12], 500)).toEqual({ min: 0, max: 500 });
+  });
+
+  it('série diária ("auto"): o teto acompanha a ordem de grandeza dos dados', () => {
+    expect(eixoQuantidade([3, 1, 0], 'auto')).toEqual({ min: 0, max: 4 }); // 3,45 → 4
+    expect(eixoQuantidade([7, 2], 'auto')).toEqual({ min: 0, max: 10 }); // 8,05 → 10
+    expect(eixoQuantidade([88, 12, 3], 'auto')).toEqual({ min: 0, max: 120 }); // 101,2 → 120
+    expect(eixoQuantidade([420, 80], 'auto')).toEqual({ min: 0, max: 500 }); // 483 → 500
+    expect(eixoQuantidade([1800], 'auto')).toEqual({ min: 0, max: 2400 }); // 2.070 → 2.400
+    expect(eixoQuantidade([0, null], 'auto')).toEqual({ min: 0, max: 4 }); // sem dado: nunca 0
+  });
+
+  it('tetoRedondo: sempre par (o meio do eixo é inteiro) e nunca menor que o valor', () => {
+    for (const v of [1, 4, 5, 9, 10, 11, 17, 25, 49, 101, 333, 999, 1234, 54321]) {
+      const t = tetoRedondo(v);
+      expect(t).toBeGreaterThanOrEqual(v);
+      expect(t % 2).toBe(0);
+      expect(t).toBeLessThanOrEqual(Math.max(10, v * 1.35));
+    }
   });
 });
 

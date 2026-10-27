@@ -107,10 +107,11 @@ describe('EngajamentoLayout (spec §12.1)', () => {
   });
 
   describe('filtro Período', () => {
-    it('opções: Últimos 6 meses, Últimos 30 dias, Semestre letivo AAAA.S e Personalizado…', () => {
+    it('opções: Últimos 6 meses, Últimos 3 meses, Últimos 30 dias, Semestre letivo AAAA.S e Personalizado…', () => {
       renderizar();
       expect(rotulos(screen.getByLabelText('Período'))).toEqual([
         'Últimos 6 meses',
+        'Últimos 3 meses',
         'Últimos 30 dias',
         'Semestre letivo 2026.2',
         'Personalizado…',
@@ -123,6 +124,9 @@ describe('EngajamentoLayout (spec §12.1)', () => {
       fireEvent.change(screen.getByLabelText('Período'), { target: { value: '30d' } });
       expect(params().get('periodo')).toBe('30d');
       expect(screen.getByLabelText('Período')).toHaveValue('30d');
+      fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3m' } });
+      expect(params().get('periodo')).toBe('3m');
+      expect(screen.getByLabelText('Período')).toHaveValue('3m');
       fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'letivo' } });
       expect(params().get('periodo')).toBe('letivo');
     });

@@ -9,13 +9,28 @@ import type { SituacaoAlunoEngajamento, VisaoGeralEngajamento } from '@/features
 export interface KpisEngajamentoProps {
   dados: VisaoGeralEngajamento | undefined;
   meta?: Meta;
-  /** Opção de período em vigor (`6m`, `30d`, `letivo`, `custom`): dá o rótulo "6 meses anteriores". */
+  /** Opção de período em vigor (`3m`, `6m`, `30d`, `letivo`, `custom`): dá o rótulo "6 meses anteriores". */
   periodo: string;
   estado?: EstadoKpi;
   onTentarNovamente?: () => void;
 }
 
 const SEM_COMPARATIVO = 'sem comparativo para este período';
+
+/**
+ * Critério de cada KPI no tooltip "i": uma frase em linguagem de gestor, no lugar do
+ * critério técnico longo da RPC (`meta.criterio`), e sem a linha "Fonte".
+ */
+const CRITERIO = {
+  baseAtiva: 'Alunos da sua instituição com acesso vigente ao SanarFlix, do 1º ao 12º semestre.',
+  engajados: 'Alunos da base ativa que resolveram ao menos uma questão ou abriram ao menos um conteúdo no período.',
+  semRetorno: 'Alunos que já usaram o SanarFlix, mas estão há 30 dias ou mais sem nenhuma atividade.',
+  questoes: 'Questões respondidas pelos alunos no período.',
+  acerto: 'Percentual de acertos entre as questões respondidas no período.',
+  semestre: 'Semestre em que o aluno está.',
+  situacao: 'Ativo: usou o SanarFlix nos últimos 30 dias. Sumido: parou há mais tempo. Sem atividade: nunca usou.',
+  diasAtivos: 'Dias do período em que o aluno resolveu questões ou abriu conteúdos.',
+} as const;
 
 const ROTULO_SITUACAO: Record<SituacaoAlunoEngajamento, string> = {
   ativo: 'Ativo',
@@ -85,7 +100,7 @@ function notaComparativa(
  */
 export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarNovamente }: KpisEngajamentoProps) {
   const metaKpi = meta ?? META_VAZIA_ENGAJAMENTO;
-  const comum = { meta: metaKpi, estado, onTentarNovamente };
+  const comum = { meta: metaKpi, estado, onTentarNovamente, ocultarFonte: true };
 
   const k = dados?.kpis;
   const aluno = dados?.aluno ?? null;
@@ -100,6 +115,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
         <KpiCard
           {...comum}
           testId="kpi-semestre"
+        criterio={CRITERIO.semestre}
           titulo="Semestre"
           valor={`${alunoRecorte.semestre}º`}
           rodape={`turma com ${formatNumero(aluno.baseSemestre)} alunos`}
@@ -107,6 +123,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
         <KpiCard
           {...comum}
           testId="kpi-situacao"
+        criterio={CRITERIO.situacao}
           titulo="Situação"
           valor={ROTULO_SITUACAO[aluno.situacao]}
           corpo={<CorpoTexto texto={ROTULO_SITUACAO[aluno.situacao]} perigo={aluno.situacao !== 'ativo'} tamanho={28} />}
@@ -115,6 +132,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
         <KpiCard
           {...comum}
           testId="kpi-dias-ativos"
+        criterio={CRITERIO.diasAtivos}
           titulo="Dias ativos"
           valor={formatNumero(aluno.diasAtivos)}
           valorNumerico={aluno.diasAtivos}
@@ -125,6 +143,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
         <KpiCard
           {...comum}
           testId="kpi-questoes"
+        criterio={CRITERIO.questoes}
           titulo="Questões resolvidas"
           valor={formatNumero(k.questoes)}
           valorNumerico={k.questoes}
@@ -134,6 +153,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
         <KpiCard
           {...comum}
           testId="kpi-acerto"
+        criterio={CRITERIO.acerto}
           titulo="Acerto"
           valor={formatPct(k.acertoPct)}
           rodape={`média do semestre: ${formatPct(aluno.mediaSemestreAcertoPct)}`}
@@ -147,6 +167,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
       <KpiCard
         {...comum}
         testId="kpi-base-ativa"
+        criterio={CRITERIO.baseAtiva}
         titulo="Base ativa"
         valor={formatNumero(k?.baseAtiva ?? null)}
         valorNumerico={k?.baseAtiva ?? null}
@@ -156,6 +177,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
       <KpiCard
         {...comum}
         testId="kpi-engajados"
+        criterio={CRITERIO.engajados}
         titulo="Alunos engajados"
         valor={formatPct(k?.engajadosPct ?? null)}
         valorNumerico={k?.engajadosPct ?? null}
@@ -172,6 +194,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
       <KpiCard
         {...comum}
         testId="kpi-sem-retorno"
+        criterio={CRITERIO.semRetorno}
         titulo="Sem retorno há 30+ dias"
         valor={formatNumero(k?.semRetorno30 ?? null)}
         corpo={
@@ -186,6 +209,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
       <KpiCard
         {...comum}
         testId="kpi-questoes"
+        criterio={CRITERIO.questoes}
         titulo="Questões resolvidas"
         valor={formatNumero(k?.questoes ?? null)}
         valorNumerico={k?.questoes ?? null}
@@ -201,6 +225,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
       <KpiCard
         {...comum}
         testId="kpi-acerto"
+        criterio={CRITERIO.acerto}
         titulo="Acerto médio"
         valor={formatPct(k?.acertoPct ?? null)}
         rodape={

@@ -12,7 +12,7 @@
 import { TRACO } from './rotulos';
 import { formatNumero } from './formatters';
 
-export type OpcaoPeriodo = '6m' | '30d' | 'letivo' | 'custom';
+export type OpcaoPeriodo = '3m' | '6m' | '30d' | 'letivo' | 'custom';
 export type OpcaoPeriodoAdmin = '6m' | '30d' | 'ano';
 export type TipoConteudo = 'todos' | 'video' | 'document';
 export type Ciclo = 'basico' | 'clinico' | 'internato';
@@ -68,6 +68,7 @@ function inicioDoSemestreLetivo(hoje: string): string {
 /**
  * P1/P2. Datas inclusivas.
  *
+ * - `'3m'`: 1º dia de (mês de hoje − 2) → hoje.
  * - `'6m'`: 1º dia de (mês de hoje − 5) → hoje.
  * - `'30d'`: hoje − 29 → hoje.
  * - `'letivo'`: 01/01 ou 01/07 do semestre corrente → hoje.
@@ -84,15 +85,19 @@ export function calcularPeriodo(
   const hojeMs = paraMs(hoje);
   if (hojeMs === null) throw new Error(`calcularPeriodo: "hoje" inválido (${hoje})`);
 
-  const seisMeses = () => {
+  /** Do 1º dia do mês (hoje − `n − 1` meses) até hoje: o mês corrente conta como um dos `n`. */
+  const ultimosMeses = (n: 3 | 6) => {
     const [ano, mes] = hoje.split('-').map(Number);
-    const total = ano * 12 + (mes - 1) - 5;
+    const total = ano * 12 + (mes - 1) - (n - 1);
     const anoInicio = Math.floor(total / 12);
     const mesInicio = (total % 12) + 1;
-    return { inicio: `${anoInicio}-${doisDigitos(mesInicio)}-01`, fim: hoje, opcaoEfetiva: '6m' };
+    return { inicio: `${anoInicio}-${doisDigitos(mesInicio)}-01`, fim: hoje, opcaoEfetiva: n === 3 ? '3m' : '6m' };
   };
+  const seisMeses = () => ultimosMeses(6);
 
   switch (opcao) {
+    case '3m':
+      return ultimosMeses(3);
     case '30d':
       return { inicio: deMs(hojeMs - 29 * DIA_MS), fim: hoje, opcaoEfetiva: '30d' };
     case 'letivo':
@@ -131,6 +136,7 @@ export function rotuloSemestreLetivo(hoje: string): string {
  * "Personalizado…" vira "personalizado" (sem as reticências do seletor).
  */
 export function rotuloPeriodoMinusculo(opcao: string, hoje: string): string {
+  if (opcao === '3m') return 'últimos 3 meses';
   if (opcao === '6m') return 'últimos 6 meses';
   if (opcao === '30d') return 'últimos 30 dias';
   if (opcao === 'letivo') return rotuloSemestreLetivo(hoje).toLowerCase();
@@ -180,6 +186,33 @@ export function mesCurto(mes: string, parcial = false): string {
 export function mesExtenso(mes: string): string {
   const i = indiceDoMes(mes);
   return i < 0 ? TRACO : MESES_EXTENSO[i];
+}
+
+/** Até quantos dias a Evolução (Questões e Conteúdos) vai dia a dia; acima disso, o consolidado por mês. */
+export const MAX_DIAS_EVOLUCAO_DIARIA = 31;
+
+/** Dias do período, contando os dois extremos (`'2026-10-01'` a `'2026-10-31'` = 31). */
+export function diasDoPeriodo(inicio: string, fim: string): number {
+  const dia = (iso: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : Number.NaN;
+  };
+  return Math.round((dia(fim) - dia(inicio)) / 86_400_000) + 1;
+}
+
+/** Regra da Evolução: período de até 31 dias mostra os dados por dia; acima disso, por mês. */
+export function evolucaoPorDia(inicio: string, fim: string): boolean {
+  return diasDoPeriodo(inicio, fim) <= MAX_DIAS_EVOLUCAO_DIARIA;
+}
+
+/**
+ * Rótulo do eixo na série diária: `'2026-10-27'` → `'27'`; no 1º ponto e no dia 1 o mês vem
+ * numa segunda linha (`'27\nout'`), para o eixo mostrar onde o mês muda sem alargar o rótulo.
+ */
+export function rotuloDia(dia: string, comMes: boolean): string {
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(dia);
+  if (!m) return TRACO;
+  return comMes || m[2] === '01' ? `${m[2]}\n${MESES_CURTO[Number(m[1]) - 1].toLowerCase()}` : m[2];
 }
 
 /** `'2026-10-22'` → `'22/10'`. */
@@ -241,8 +274,9 @@ export function deltaPct(atual: number, anterior: number | null): string | null 
   return '0%';
 }
 
-/** Rótulo do período anterior: `'6m'` → "6 meses anteriores"; `'30d'` → "30 dias anteriores"; demais → "{N} dias anteriores". */
+/** Rótulo do período anterior: `'3m'` → "3 meses anteriores"; `'6m'` → "6 meses anteriores"; `'30d'` → "30 dias anteriores"; demais → "{N} dias anteriores". */
 export function rotuloPeriodoAnterior(opcao: string, dias: number): string {
+  if (opcao === '3m') return '3 meses anteriores';
   if (opcao === '6m') return '6 meses anteriores';
   if (opcao === '30d') return '30 dias anteriores';
   return `${dias} dias anteriores`;

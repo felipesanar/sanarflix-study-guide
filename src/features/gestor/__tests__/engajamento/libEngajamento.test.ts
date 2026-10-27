@@ -7,6 +7,9 @@ import {
   deltaPct,
   deltaPp,
   diaMes,
+  diasDoPeriodo,
+  evolucaoPorDia,
+  rotuloDia,
   formatarAtualizadoEm,
   hojeSaoPaulo,
   mesAno,
@@ -50,6 +53,12 @@ describe('calcularPeriodo (P1, P2)', () => {
     expect(calcularPeriodo('6m', '2026-03-01').inicio).toBe('2025-10-01');
     expect(calcularPeriodo('6m', '2026-05-15').inicio).toBe('2025-12-01');
     expect(calcularPeriodo('6m', '2026-06-15').inicio).toBe('2026-01-01');
+  });
+
+  it("'3m' começa no 1º dia do mês de hoje − 2 (o mês corrente é um dos 3)", () => {
+    expect(calcularPeriodo('3m', '2026-10-22')).toEqual({ inicio: '2026-08-01', fim: '2026-10-22', opcaoEfetiva: '3m' });
+    expect(calcularPeriodo('3m', '2026-02-10').inicio).toBe('2025-12-01'); // virada do ano
+    expect(calcularPeriodo('3m', '2026-03-31').inicio).toBe('2026-01-01');
   });
 
   it("'30d' = hoje − 29 até hoje, inclusive (30 dias)", () => {
@@ -227,6 +236,7 @@ describe('deltaPp e deltaPct (D10)', () => {
 
 describe('rotuloPeriodoAnterior', () => {
   it('6m e 30d têm texto próprio; os demais usam o número de dias', () => {
+    expect(rotuloPeriodoAnterior('3m', 84)).toBe('3 meses anteriores');
     expect(rotuloPeriodoAnterior('6m', 175)).toBe('6 meses anteriores');
     expect(rotuloPeriodoAnterior('30d', 30)).toBe('30 dias anteriores');
     expect(rotuloPeriodoAnterior('letivo', 114)).toBe('114 dias anteriores');
@@ -280,6 +290,7 @@ describe('formatarAtualizadoEm', () => {
 
 describe('rotuloPeriodoMinusculo', () => {
   it('opção do seletor em minúsculas, para o subtítulo dos pop-ups', () => {
+    expect(rotuloPeriodoMinusculo('3m', '2026-10-22')).toBe('últimos 3 meses');
     expect(rotuloPeriodoMinusculo('6m', '2026-10-22')).toBe('últimos 6 meses');
     expect(rotuloPeriodoMinusculo('30d', '2026-10-22')).toBe('últimos 30 dias');
     expect(rotuloPeriodoMinusculo('letivo', '2026-10-22')).toBe('semestre letivo 2026.2');
@@ -319,5 +330,27 @@ describe('diasDesdeSaoPaulo', () => {
   it('atravessa virada de mês e instante inválido vira null', () => {
     expect(diasDesdeSaoPaulo('2026-09-30T12:00:00Z', agora)).toBe(22);
     expect(diasDesdeSaoPaulo('ontem', agora)).toBeNull();
+  });
+});
+
+describe('Evolução por dia ou por mês', () => {
+  it('diasDoPeriodo conta os dois extremos, inclusive na virada de mês e de ano', () => {
+    expect(diasDoPeriodo('2026-10-22', '2026-10-22')).toBe(1);
+    expect(diasDoPeriodo('2026-10-01', '2026-10-31')).toBe(31);
+    expect(diasDoPeriodo('2026-09-23', '2026-10-22')).toBe(30);
+    expect(diasDoPeriodo('2025-12-30', '2026-01-02')).toBe(4);
+  });
+
+  it('evolucaoPorDia: até 31 dias é por dia; 32 ou mais é por mês', () => {
+    expect(evolucaoPorDia('2026-09-23', '2026-10-22')).toBe(true); // 30 dias
+    expect(evolucaoPorDia('2026-09-22', '2026-10-22')).toBe(true); // 31 dias
+    expect(evolucaoPorDia('2026-09-21', '2026-10-22')).toBe(false); // 32 dias
+    expect(evolucaoPorDia('2026-04-25', '2026-10-22')).toBe(false); // 6 meses
+  });
+
+  it('rotuloDia: só o dia; o mês vem numa 2ª linha no 1º ponto e no dia 1', () => {
+    expect(rotuloDia('2026-10-27', false)).toBe('27');
+    expect(rotuloDia('2026-09-23', true)).toBe('23\nset');
+    expect(rotuloDia('2026-10-01', false)).toBe('01\nout');
   });
 });

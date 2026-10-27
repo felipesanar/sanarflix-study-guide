@@ -360,6 +360,8 @@ export interface ArvoreQuestoes {
 export interface QuestoesEngajamento {
   kpis: { questoes: number; acertoPct: number | null; alunos: number; porAluno: number | null };
   meses: { mes: string; parcial: boolean; questoes: number; acertoPct: number | null }[];
+  /** Série diária; só vem preenchida em período de até 31 dias (senão `[]`). */
+  dias?: { dia: string; questoes: number; acertoPct: number | null }[];
   semestres: { semestre: number; questoes: number; acertoPct: number | null }[];
   arvore: ArvoreQuestoes;
 }
@@ -418,6 +420,8 @@ export interface EspecialidadeConteudo {
 export interface ConteudosEngajamento {
   kpis: { consumos: number; videos: number; documentos: number; alunos: number; porAluno: number | null };
   meses: { mes: string; parcial: boolean; consumos: number }[];
+  /** Série diária; só vem preenchida em período de até 31 dias (senão `[]`). */
+  dias?: { dia: string; consumos: number }[];
   semestres: { semestre: number; consumos: number }[];
   arvore: EspecialidadeConteudo[];
 }

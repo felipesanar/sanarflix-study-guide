@@ -33,3 +33,26 @@ describe('TooltipRastreabilidade — clique', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 });
+
+describe('TooltipRastreabilidade — ocultarFonte', () => {
+  const texto = (ocultarFonte: boolean) => {
+    render(
+      <TooltipProvider>
+        <TooltipRastreabilidade meta={META_ENGAJAMENTO} titulo="Base ativa" criterio="Frase curta." ocultarFonte={ocultarFonte} />
+      </TooltipProvider>,
+    );
+    return screen.getByTestId('rastreabilidade-texto').textContent ?? '';
+  };
+
+  it('por padrão mostra a fonte', () => {
+    expect(texto(false)).toContain('Fonte: ');
+  });
+
+  it('com ocultarFonte a fonte some, e período, atualização e o critério informado ficam', () => {
+    const t = texto(true);
+    expect(t).not.toContain('Fonte');
+    expect(t).toContain('Período: ');
+    expect(t).toContain('Atualizado em: ');
+    expect(t).toContain('Critério: Frase curta.');
+  });
+});

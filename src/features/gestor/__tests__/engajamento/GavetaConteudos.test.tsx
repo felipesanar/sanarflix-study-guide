@@ -65,13 +65,9 @@ describe('GavetaConteudos — estrutura (§12.4)', () => {
     ]);
   });
 
-  it('rodapé literal (consumo = abertura, tempo não registrado, 1 consumo por dia, só web desde jan/2026)', () => {
+  it('sem nota de rodapé sobre o que conta como consumo', () => {
     montar();
-    expect(
-      screen.getByText(
-        'Consumo = player ou documento aberto. O SanarFlix não registra tempo assistido. Abrir o mesmo conteúdo várias vezes no mesmo dia conta um consumo. Só há registro de acesso pela web, a partir de janeiro de 2026.',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Consumo = player ou documento aberto/)).not.toBeInTheDocument();
   });
 
   it('abertura inicial: a 1ª especialidade e o seu 1º módulo', () => {

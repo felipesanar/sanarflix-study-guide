@@ -3,8 +3,10 @@ import { mesCurto } from '@/features/gestor/lib/engajamento';
 import { FiguraGrafico } from './FiguraGrafico';
 
 export interface PontoLinhaMensal {
-  /** 'AAAA-MM'. */
+  /** 'AAAA-MM' (série mensal) ou 'AAAA-MM-DD' (série diária): identifica o ponto. */
   mes: string;
+  /** Texto do eixo x; sem ele, o mês curto de `mes` ("Set", "Out*"). */
+  rotulo?: string;
   parcial: boolean;
   /** `null` = mês sem dado (a linha quebra ali). */
   valor: number | null;
@@ -17,19 +19,41 @@ export interface LinhaMensalProps {
   modo: 'quantidade' | 'pct';
   /** Formata um valor do eixo / do ponto ("145.873", "66%"). */
   formatar: (v: number) => string;
-  /** Múltiplo do teto do eixo de quantidade: 1.000 para questões, 500 para conteúdos. */
-  passoQuantidade?: 500 | 1000;
+  /**
+   * Múltiplo do teto do eixo de quantidade: 1.000 para questões, 500 para conteúdos (série mensal).
+   * `'auto'` (série diária): teto "redondo" na ordem de grandeza dos dados (ex.: 4, 10, 60, 400).
+   */
+  passoQuantidade?: PassoQuantidade;
 }
+
+export type PassoQuantidade = 500 | 1000 | 'auto';
 
 export interface Eixo {
   min: number;
   max: number;
 }
 
-/** Eixo de quantidade (§10.6): 0 a `ceil(max × 1,15)`, arredondado para cima ao múltiplo de `passo`. */
-export function eixoQuantidade(valores: Array<number | null>, passo: 500 | 1000 = 1000): Eixo {
+/**
+ * Teto "redondo" e par (o meio do eixo cai num inteiro) para `valor`: 4, 6, 8, 10, 12, 16, 20, 24, 30,
+ * 40, 50, 60, 80, 100, 120… Abaixo de 10 só vale 4, 6, 8 ou 10; daí em diante, a mantissa sobe em degraus
+ * de 1,2 / 1,6 / 2 / 2,4 / 3 / 4 / 5 / 6 / 8 / 10 da ordem de grandeza.
+ */
+export function tetoRedondo(valor: number): number {
+  if (valor <= 10) return [4, 6, 8, 10].find((t) => t >= valor) ?? 10;
+  const ordem = 10 ** Math.floor(Math.log10(valor));
+  const degraus = [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10];
+  return (degraus.find((d) => d * ordem >= valor) ?? 10) * ordem;
+}
+
+/**
+ * Eixo de quantidade (§10.6): 0 a `ceil(max × 1,15)`. Série mensal: arredondado para cima ao múltiplo
+ * de `passo` (500 ou 1.000). Série diária (`'auto'`): ao teto redondo da ordem de grandeza dos dados,
+ * para a linha não ficar achatada embaixo quando os valores por dia são pequenos.
+ */
+export function eixoQuantidade(valores: Array<number | null>, passo: PassoQuantidade = 1000): Eixo {
   const maximo = valores.reduce<number>((m, v) => Math.max(m, v ?? 0), 0);
   const teto = Math.ceil(maximo * 1.15);
+  if (passo === 'auto') return { min: 0, max: tetoRedondo(teto) };
   return { min: 0, max: Math.max(passo, Math.ceil(teto / passo) * passo) };
 }
 
@@ -44,7 +68,7 @@ export function eixoPct(valores: Array<number | null>): Eixo {
 
 const LARGURA = 1000;
 const ALTURA = 220;
-/** Até aqui cada ponto leva o valor escrito em cima; acima disso só a tabela alternativa. */
+/** Até aqui cada ponto leva o valor escrito em cima; acima disso o valor fica no `title` do ponto. */
 const MAX_PONTOS_COM_VALOR = 12;
 
 /**
@@ -84,7 +108,7 @@ export function LinhaMensal({ rotulo, pontos, modo, formatar, passoQuantidade = 
       rotulo={rotulo}
     >
       <div className="overflow-x-auto">
-        <div style={{ minWidth: Math.max(n * 36, 280) + 48 }}>
+        <div style={{ minWidth: Math.max(n * (comValor ? 36 : 20), 280) + 48 }}>
           <div className="grid" style={{ gridTemplateColumns: '44px 1fr', columnGap: 4 }}>
             <div className="relative" style={{ height: ALTURA }}>
               {ticks.map((t, i) => (
@@ -151,6 +175,7 @@ export function LinhaMensal({ rotulo, pontos, modo, formatar, passoQuantidade = 
                   <React.Fragment key={p.mes}>
                     <span
                       data-testid="linha-ponto"
+                      title={`${(p.rotulo ?? mesCurto(p.mes, p.parcial)).replace(/\s+/g, ' ')}: ${formatar(p.valor)}`}
                       data-parcial={p.parcial ? 'true' : 'false'}
                       className="absolute block"
                       style={{
@@ -189,15 +214,17 @@ export function LinhaMensal({ rotulo, pontos, modo, formatar, passoQuantidade = 
               {pontos.map((p) => (
                 <span
                   key={p.mes}
-                  className="flex-1 text-center"
+                  className="min-w-0 flex-1 text-center"
                   style={{
                     marginTop: 4,
                     fontSize: 'var(--gp-font-size-label)',
                     fontWeight: 'var(--gp-font-weight-medio)',
                     color: 'var(--gp-text-2)',
+                    whiteSpace: 'pre-line',
+                    lineHeight: '14px',
                   }}
                 >
-                  {mesCurto(p.mes, p.parcial)}
+                  {p.rotulo ?? mesCurto(p.mes, p.parcial)}
                 </span>
               ))}
             </div>

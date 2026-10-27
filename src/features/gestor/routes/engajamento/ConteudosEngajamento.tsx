@@ -5,10 +5,13 @@ import { FiltroTipoConteudo } from '@/features/gestor/components/engajamento/Fil
 import { GavetaConteudos } from '@/features/gestor/components/engajamento/GavetaConteudos';
 import { KpisConteudos } from '@/features/gestor/components/engajamento/KpisConteudos';
 import { LinhaMensal } from '@/features/gestor/components/engajamento/LinhaMensal';
-import { useEngajamentoConteudos } from '@/features/gestor/api/engajamento';
+import { useEngajamentoConteudos, useEngajamentoVisaoGeral } from '@/features/gestor/api/engajamento';
 import { useFiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
-import { diaMes, mesExtenso } from '@/features/gestor/lib/engajamento';
+import { diaMes, evolucaoPorDia, mesExtenso, rotuloDia } from '@/features/gestor/lib/engajamento';
 import { formatNumero } from '@/features/gestor/lib/formatters';
+
+/** Altura das barras de "Conteúdos por semestre": com ela o bloco fica da altura da Evolução ao lado. */
+const ALTURA_BARRAS = 190;
 
 /**
  * Aba Conteúdos do Engajamento (spec §9.4). Tudo vem de
@@ -21,9 +24,22 @@ export default function ConteudosEngajamento() {
   const { data, meta } = consulta;
   const ocupado = consulta.isPlaceholderData === true;
 
+  // Só os semestres que a IES tem (base ativa > 0). A base vem da visão geral, que o layout já consulta
+  // (mesma chave de cache) e que ignora o filtro de semestre. Enquanto ela não chega, vale quem tem consumo.
+  const baseDosSemestres = useEngajamentoVisaoGeral(filtros).data?.semestres;
+
   const meses = data?.meses ?? [];
   const ultimo = meses[meses.length - 1];
-  const parcial = ultimo?.parcial ? ` · ${mesExtenso(ultimo.mes).toLowerCase()} parcial, até ${diaMes(filtros.fim)}` : '';
+  const semestresDaIes = (data?.semestres ?? []).filter((s) =>
+    baseDosSemestres ? baseDosSemestres.some((b) => b.semestre === s.semestre && b.base > 0) : s.consumos > 0,
+  );
+  // Período de até 31 dias: a Evolução vai dia a dia; acima disso, consolidado por mês.
+  const dias = data?.dias ?? [];
+  const porDia = evolucaoPorDia(filtros.inicio, filtros.fim) && dias.length > 0;
+  const pontosEvolucao = porDia
+    ? dias.map((d, i) => ({ mes: d.dia, rotulo: rotuloDia(d.dia, i === 0), parcial: false, valor: d.consumos }))
+    : meses.map((m) => ({ mes: m.mes, parcial: m.parcial, valor: m.consumos }));
+  const parcial = !porDia && ultimo?.parcial ? ` · ${mesExtenso(ultimo.mes).toLowerCase()} parcial, até ${diaMes(filtros.fim)}` : '';
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-testid="conteudos-engajamento">
@@ -36,17 +52,18 @@ export default function ConteudosEngajamento() {
       <div className="grid gap-4 lg:grid-cols-2">
         <BlocoEngajamento
           titulo="Evolução dos conteúdos consumidos"
-          descricao={`Total por mês${parcial}`}
+          descricao={`Total por ${porDia ? 'dia' : 'mês'}${parcial}`}
           consulta={consulta}
           alturaSkeleton={300}
           bloco="conteudos-evolucao"
+          preencherAltura
         >
           <LinhaMensal
             rotulo="Evolução dos conteúdos consumidos"
             modo="quantidade"
             formatar={formatNumero}
-            passoQuantidade={500}
-            pontos={meses.map((m) => ({ mes: m.mes, parcial: m.parcial, valor: m.consumos }))}
+            passoQuantidade={porDia ? 'auto' : 500}
+            pontos={pontosEvolucao}
           />
         </BlocoEngajamento>
 
@@ -56,13 +73,18 @@ export default function ConteudosEngajamento() {
           consulta={consulta}
           alturaSkeleton={300}
           bloco="conteudos-por-semestre"
+          preencherAltura
         >
-          <BarrasPorSemestre
-            rotulo="Conteúdos por semestre"
-            modo="quantidade"
-            selecionado={filtros.semestre}
-            linhas={(data?.semestres ?? []).map((s) => ({ semestre: s.semestre, valor: s.consumos, texto: formatNumero(s.consumos) }))}
-          />
+          {/* Mesma altura da Evolução ao lado: a folga fica acima das barras. */}
+          <div className="flex flex-1 flex-col justify-end">
+            <BarrasPorSemestre
+              rotulo="Conteúdos por semestre"
+              modo="quantidade"
+              selecionado={filtros.semestre}
+              altura={ALTURA_BARRAS}
+              linhas={semestresDaIes.map((s) => ({ semestre: s.semestre, valor: s.consumos, texto: formatNumero(s.consumos) }))}
+            />
+          </div>
         </BlocoEngajamento>
       </div>
 

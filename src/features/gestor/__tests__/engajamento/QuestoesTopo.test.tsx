@@ -7,15 +7,18 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
 const mockQuestoes = vi.fn();
+const mockVisaoGeral = vi.fn();
 vi.mock('@/features/gestor/api/engajamento', () => ({
   useEngajamentoQuestoes: (...args: unknown[]) => mockQuestoes(...args),
+  // A base de cada semestre (quais existem na IES) vem da visão geral, que o layout já consulta.
+  useEngajamentoVisaoGeral: (...args: unknown[]) => mockVisaoGeral(...args),
   // A gaveta de taxonomia (mesma rota) só consulta alunos com o pop-up aberto: fora do escopo destes testes.
   useEngajamentoQuestoesAlunos: () => ({ data: undefined, isLoading: true, isError: false, isPlaceholderData: false, refetch: () => undefined }),
 }));
 
 import { KpisQuestoes } from '@/features/gestor/components/engajamento/KpisQuestoes';
 import QuestoesEngajamento from '@/features/gestor/routes/engajamento/QuestoesEngajamento';
-import { META_ENGAJAMENTO, resultadoGestor } from '../fixtures/engajamento/visaoGeral';
+import { META_ENGAJAMENTO, resultadoGestor, visaoGeralParacatu } from '../fixtures/engajamento/visaoGeral';
 import { questoesParacatu } from '../fixtures/engajamento/questoes';
 
 /** Aba Questões, parte de cima: KPIs, Evolução e Por semestre (spec 2026-10-22-engajamento §12.3). */
@@ -88,6 +91,7 @@ describe('QuestoesEngajamento — Evolução e Por semestre (§12.3)', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-22T15:00:00Z'));
     mockQuestoes.mockReturnValue(resultadoGestor(questoesParacatu()));
+    mockVisaoGeral.mockReturnValue(resultadoGestor(visaoGeralParacatu()));
   });
   afterEach(() => vi.useRealTimers());
 
@@ -197,6 +201,98 @@ describe('QuestoesEngajamento — Evolução e Por semestre (§12.3)', () => {
       montar('/gestor/engajamento/questoes?ies=ies-1&eng_sem=8');
       const figura = screen.getByRole('img', { name: 'Questões por semestre' }).closest('figure') as HTMLElement;
       expect(within(figura).getAllByTestId('barra-semestre')).toHaveLength(12);
+    });
+  });
+
+  describe('Por semestre: só os semestres da IES e altura igual à da Evolução', () => {
+    it('base 0 não vira coluna em branco (ex.: só o 11º e o 12º)', () => {
+      const v = visaoGeralParacatu();
+      v.semestres = v.semestres.map((s) => (s.semestre >= 11 ? s : { ...s, base: 0 }));
+      mockVisaoGeral.mockReturnValue(resultadoGestor(v));
+      montar();
+      const figura = screen.getByRole('img', { name: 'Questões por semestre' });
+      expect(within(figura).getAllByTestId('barra-semestre')).toHaveLength(2);
+      expect(within(figura).getByText('11º')).toBeInTheDocument();
+      expect(within(figura).queryByText('1º')).not.toBeInTheDocument();
+    });
+
+    it('enquanto a base não chega, mostra só os semestres com questões', () => {
+      mockVisaoGeral.mockReturnValue(resultadoGestor(undefined, { isLoading: true }));
+      const d = questoesParacatu();
+      d.semestres = d.semestres.map((s) => (s.semestre >= 11 ? s : { ...s, questoes: 0 }));
+      mockQuestoes.mockReturnValue(resultadoGestor(d));
+      montar();
+      const figura = screen.getByRole('img', { name: 'Questões por semestre' });
+      expect(within(figura).getAllByTestId('barra-semestre')).toHaveLength(2);
+    });
+
+    it('os dois blocos crescem até a mesma altura (lado a lado)', () => {
+      montar();
+      for (const b of ['questoes-evolucao', 'questoes-por-semestre']) {
+        expect(screen.getByTestId(`bloco-${b}`)).toHaveClass('h-full');
+      }
+    });
+  });
+
+  describe('Evolução: por dia até 31 dias, por mês acima disso', () => {
+    const comDias = () => {
+      const d = questoesParacatu();
+      d.dias = Array.from({ length: 30 }, (_, i) => ({
+        dia: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10),
+        questoes: 100 + i,
+        acertoPct: 60 + (i % 5),
+      }));
+      return d;
+    };
+
+    it('30 dias: um ponto por dia, título/descrição "por dia" e sem texto de mês parcial', () => {
+      mockQuestoes.mockReturnValue(resultadoGestor(comDias()));
+      montar('/gestor/engajamento/questoes?ies=ies-1&periodo=30d');
+      expect(screen.getByText('Total de questões por dia')).toBeInTheDocument();
+      expect(screen.queryByText(/parcial/)).not.toBeInTheDocument();
+      const figura = screen.getByRole('img', { name: 'Evolução das questões resolvidas' });
+      expect(within(figura).getAllByTestId('linha-ponto')).toHaveLength(30);
+      expect(within(figura).queryByText('Out*')).not.toBeInTheDocument();
+      // eixo x em dias: o 1º ponto com mês, o dia 1 com mês, os demais só o dia
+      expect(within(figura).getByText('23 set')).toBeInTheDocument();
+      expect(within(figura).getByText('01 out')).toBeInTheDocument();
+      expect(within(figura).getByText('22')).toBeInTheDocument();
+    });
+
+    it('cada ponto diário leva o valor no title (passar o mouse)', () => {
+      mockQuestoes.mockReturnValue(resultadoGestor(comDias()));
+      montar('/gestor/engajamento/questoes?ies=ies-1&periodo=30d');
+      const figura = screen.getByRole('img', { name: 'Evolução das questões resolvidas' });
+      expect(within(figura).getAllByTestId('linha-ponto')[0]).toHaveAttribute('title', '23 set: 100');
+    });
+
+    it('% de acerto também vira por dia', () => {
+      mockQuestoes.mockReturnValue(resultadoGestor(comDias()));
+      montar('/gestor/engajamento/questoes?ies=ies-1&periodo=30d');
+      fireEvent.change(screen.getByLabelText('Métrica da evolução'), { target: { value: 'pct' } });
+      expect(screen.getByText(/^Acerto médio por dia \(eixo de/)).toBeInTheDocument();
+    });
+
+    it('31 dias ainda é por dia; 32 dias volta para o consolidado por mês', () => {
+      mockQuestoes.mockReturnValue(resultadoGestor(comDias()));
+      const { unmount } = montar('/gestor/engajamento/questoes?ies=ies-1&periodo=custom&de=2026-09-22&ate=2026-10-22');
+      expect(screen.getByText('Total de questões por dia')).toBeInTheDocument();
+      unmount();
+      montar('/gestor/engajamento/questoes?ies=ies-1&periodo=custom&de=2026-09-21&ate=2026-10-22');
+      expect(screen.getByText(/^Total de questões por mês/)).toBeInTheDocument();
+      expect(screen.getByText('Out*')).toBeInTheDocument();
+    });
+
+    it('6 meses: consolidado por mês, mesmo que a resposta traga `dias`', () => {
+      mockQuestoes.mockReturnValue(resultadoGestor(comDias()));
+      montar();
+      expect(screen.getByText(/^Total de questões por mês/)).toBeInTheDocument();
+      expect(within(screen.getByRole('img', { name: 'Evolução das questões resolvidas' })).getAllByTestId('linha-ponto')).toHaveLength(6);
+    });
+
+    it('período curto sem `dias` na resposta (RPC antiga): cai no mensal em vez de ficar vazio', () => {
+      montar('/gestor/engajamento/questoes?ies=ies-1&periodo=30d');
+      expect(screen.getByText(/^Total de questões por mês/)).toBeInTheDocument();
     });
   });
 

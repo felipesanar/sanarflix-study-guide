@@ -24,7 +24,7 @@ const CHAVE = {
   tipo: 'tipo',
 } as const;
 
-const PERIODOS_VALIDOS: readonly OpcaoPeriodo[] = ['6m', '30d', 'letivo', 'custom'];
+const PERIODOS_VALIDOS: readonly OpcaoPeriodo[] = ['3m', '6m', '30d', 'letivo', 'custom'];
 const TIPOS_VALIDOS: readonly TipoConteudo[] = ['todos', 'video', 'document'];
 
 const ehPeriodo = (v: string | null): v is OpcaoPeriodo =>

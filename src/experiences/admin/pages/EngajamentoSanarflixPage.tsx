@@ -7,28 +7,24 @@ import { EvolucaoRede } from '@/components/admin/engajamento/EvolucaoRede';
 import { KpisRede } from '@/components/admin/engajamento/KpisRede';
 import { RankingIes } from '@/components/admin/engajamento/RankingIes';
 import { useAdminEngajamento } from '@/services/admin/engajamento';
+import { FiltroPeriodoAdmin } from '@/components/admin/engajamento/FiltroPeriodoAdmin';
 import {
   calcularPeriodo,
   hojeSaoPaulo,
   rotuloOpcaoSemestre,
-  type OpcaoPeriodoAdmin,
+  rotuloPeriodoMinusculo,
+  type OpcaoPeriodo,
 } from '@/features/gestor/lib/engajamento';
+import { formatData } from '@/features/gestor/lib/formatters';
 
-const OPCOES_PERIODO: OpcaoPeriodoAdmin[] = ['6m', '30d', 'ano'];
+const OPCOES_PERIODO: readonly OpcaoPeriodo[] = ['3m', '6m', '30d', 'letivo', 'custom'];
 const SEMESTRES = Array.from({ length: 12 }, (_, i) => i + 1);
 
 const CONTROLE =
   'h-9 rounded-md border border-border bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-/** Opção do seletor de período e o mesmo texto em minúsculas para o subtítulo (§12.5). */
-function rotuloPeriodo(opcao: OpcaoPeriodoAdmin, hoje: string): string {
-  if (opcao === '6m') return 'Últimos 6 meses';
-  if (opcao === '30d') return 'Últimos 30 dias';
-  return hoje.slice(0, 4);
-}
-
-function lerPeriodo(bruto: string | null): OpcaoPeriodoAdmin {
-  return OPCOES_PERIODO.includes(bruto as OpcaoPeriodoAdmin) ? (bruto as OpcaoPeriodoAdmin) : '6m';
+function lerPeriodo(bruto: string | null): OpcaoPeriodo {
+  return OPCOES_PERIODO.includes(bruto as OpcaoPeriodo) ? (bruto as OpcaoPeriodo) : '6m';
 }
 
 function lerSemestre(bruto: string | null): number | null {
@@ -39,15 +35,20 @@ function lerSemestre(bruto: string | null): number | null {
 /**
  * Admin › Engajamento SanarFlix (`/admin/engajamento`, spec 2026-10-22-engajamento §9.5,
  * §10.8, §12.5). Mostra a rede B2B inteira, comparando IES; nenhuma resposta traz dado
- * individual de aluno. Estado na URL: `periodo` (`6m` | `30d` | `ano`) e `sem` (1–12);
- * valor inválido cai no padrão.
+ * individual de aluno. Estado na URL: `periodo` (`3m` | `6m` | `30d` | `letivo` | `custom`, com `de` e
+ * `ate` no personalizado) e `sem` (1–12); valor inválido cai no padrão. As opções de período são as do
+ * portal do gestor.
  */
 const EngajamentoSanarflixPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const hoje = hojeSaoPaulo();
-  const periodo = lerPeriodo(params.get('periodo'));
+  const deBruto = params.get('de');
+  const ateBruto = params.get('ate');
   const semestre = lerSemestre(params.get('sem'));
-  const { inicio, fim } = calcularPeriodo(periodo, hoje);
+  // Personalizado com datas inválidas cai no padrão (6 meses), como no portal do gestor.
+  const calculado = calcularPeriodo(lerPeriodo(params.get('periodo')), hoje, deBruto, ateBruto);
+  const periodo = calculado.opcaoEfetiva as OpcaoPeriodo;
+  const { inicio, fim } = calculado;
 
   const consulta = useAdminEngajamento(inicio, fim, semestre);
   const dados = consulta.data;
@@ -57,11 +58,22 @@ const EngajamentoSanarflixPage: React.FC = () => {
     mudanca(proximos);
     setParams(proximos, { replace: true });
   };
-  const definirPeriodo = (p: OpcaoPeriodoAdmin) => escrever((q) => (p === '6m' ? q.delete('periodo') : q.set('periodo', p)));
+  const definirPeriodo = (p: OpcaoPeriodo, de?: string, ate?: string) =>
+    escrever((q) => {
+      if (p === '6m') q.delete('periodo');
+      else q.set('periodo', p);
+      if (p === 'custom' && de && ate) {
+        q.set('de', de);
+        q.set('ate', ate);
+      } else {
+        q.delete('de');
+        q.delete('ate');
+      }
+    });
   const definirSemestre = (n: number | null) => escrever((q) => (n === null ? q.delete('sem') : q.set('sem', String(n))));
 
   const subtitulo = dados
-    ? `Rede B2B · ${dados.rede.ies} IES · ${rotuloPeriodo(periodo, hoje).toLowerCase()} · sem dados individuais de aluno — para isso, abra o portal do gestor da IES`
+    ? `Rede B2B · ${dados.rede.ies} IES · ${periodo === 'custom' ? `${formatData(inicio)} a ${formatData(fim)}` : rotuloPeriodoMinusculo(periodo, hoje)} · sem dados individuais de aluno — para isso, abra o portal do gestor da IES`
     : 'Rede B2B · sem dados individuais de aluno — para isso, abra o portal do gestor da IES';
 
   return (
@@ -71,18 +83,12 @@ const EngajamentoSanarflixPage: React.FC = () => {
         subtitle={subtitulo}
         actions={
           <>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="eng-admin-periodo" className="text-xs font-semibold text-muted-foreground">
-                Período
-              </label>
-              <select id="eng-admin-periodo" value={periodo} onChange={(e) => definirPeriodo(e.target.value as OpcaoPeriodoAdmin)} className={CONTROLE}>
-                {OPCOES_PERIODO.map((o) => (
-                  <option key={o} value={o}>
-                    {rotuloPeriodo(o, hoje)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FiltroPeriodoAdmin
+              periodo={periodo}
+              de={periodo === 'custom' ? deBruto : null}
+              ate={periodo === 'custom' ? ateBruto : null}
+              onChange={definirPeriodo}
+            />
             <div className="flex flex-col gap-1">
               <label htmlFor="eng-admin-semestre" className="text-xs font-semibold text-muted-foreground">
                 Semestre do aluno

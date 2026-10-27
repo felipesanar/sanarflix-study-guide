@@ -60,23 +60,95 @@ describe('EngajamentoSanarflixPage (§12.5)', () => {
     expect(mockAdmin).toHaveBeenLastCalledWith('2026-05-01', '2026-10-22', null);
   });
 
-  it('filtro Período: 6 meses, 30 dias e o ano corrente; escrever grava `periodo` (e o padrão limpa a chave)', () => {
+  it('filtro Período: as mesmas opções do portal do gestor; escrever grava `periodo` (e o padrão limpa a chave)', () => {
     montar();
     const seletor = screen.getByLabelText('Período');
-    expect(within(seletor).getAllByRole('option').map((o) => o.textContent)).toEqual(['Últimos 6 meses', 'Últimos 30 dias', '2026']);
+    expect(within(seletor).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Últimos 6 meses',
+      'Últimos 3 meses',
+      'Últimos 30 dias',
+      'Semestre letivo 2026.2',
+      'Personalizado…',
+    ]);
+    fireEvent.change(seletor, { target: { value: '3m' } });
+    expect(params().get('periodo')).toBe('3m');
+    expect(mockAdmin).toHaveBeenLastCalledWith('2026-08-01', '2026-10-22', null);
     fireEvent.change(seletor, { target: { value: '30d' } });
     expect(params().get('periodo')).toBe('30d');
     expect(mockAdmin).toHaveBeenLastCalledWith('2026-09-23', '2026-10-22', null);
-    fireEvent.change(seletor, { target: { value: 'ano' } });
-    expect(params().get('periodo')).toBe('ano');
-    expect(mockAdmin).toHaveBeenLastCalledWith('2026-01-01', '2026-10-22', null);
+    fireEvent.change(seletor, { target: { value: 'letivo' } });
+    expect(params().get('periodo')).toBe('letivo');
+    expect(mockAdmin).toHaveBeenLastCalledWith('2026-07-01', '2026-10-22', null);
     fireEvent.change(seletor, { target: { value: '6m' } });
     expect(params().has('periodo')).toBe(false);
   });
 
   it('subtítulo acompanha o período escolhido', () => {
-    montar('/admin/engajamento?periodo=ano');
-    expect(screen.getByText(/· 2026 · sem dados individuais/)).toBeInTheDocument();
+    const { unmount } = montar('/admin/engajamento?periodo=3m');
+    expect(screen.getByText(/· últimos 3 meses · sem dados individuais/)).toBeInTheDocument();
+    unmount();
+    montar('/admin/engajamento?periodo=letivo');
+    expect(screen.getByText(/· semestre letivo 2026\.2 · sem dados individuais/)).toBeInTheDocument();
+  });
+
+  describe('Personalizado…', () => {
+    it('só abre De e Até; a URL e a consulta só mudam no Aplicar, com datas válidas', () => {
+      montar();
+      expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'custom' } });
+      expect(params().has('periodo')).toBe(false);
+      expect(mockAdmin).toHaveBeenLastCalledWith('2026-05-01', '2026-10-22', null);
+
+      const aplicar = screen.getByRole('button', { name: 'Aplicar' });
+      expect(aplicar).toBeDisabled();
+      fireEvent.change(screen.getByLabelText('De'), { target: { value: '2026-09-01' } });
+      fireEvent.change(screen.getByLabelText('Até'), { target: { value: '2026-09-15' } });
+      expect(aplicar).toBeEnabled();
+      fireEvent.click(aplicar);
+
+      expect(params().get('periodo')).toBe('custom');
+      expect(params().get('de')).toBe('2026-09-01');
+      expect(params().get('ate')).toBe('2026-09-15');
+      expect(mockAdmin).toHaveBeenLastCalledWith('2026-09-01', '2026-09-15', null);
+      expect(screen.getByText(/· 01\/09\/2026 a 15\/09\/2026 · sem dados individuais/)).toBeInTheDocument();
+    });
+
+    it('datas inválidas não habilitam o Aplicar (fim antes do início, antes de 2025, depois de hoje)', () => {
+      montar();
+      fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'custom' } });
+      const aplicar = screen.getByRole('button', { name: 'Aplicar' });
+      fireEvent.change(screen.getByLabelText('De'), { target: { value: '2026-09-15' } });
+      fireEvent.change(screen.getByLabelText('Até'), { target: { value: '2026-09-01' } });
+      expect(aplicar).toBeDisabled();
+      fireEvent.change(screen.getByLabelText('De'), { target: { value: '2024-12-31' } });
+      fireEvent.change(screen.getByLabelText('Até'), { target: { value: '2026-09-01' } });
+      expect(aplicar).toBeDisabled();
+      fireEvent.change(screen.getByLabelText('De'), { target: { value: '2026-09-01' } });
+      fireEvent.change(screen.getByLabelText('Até'), { target: { value: '2026-10-23' } });
+      expect(aplicar).toBeDisabled();
+    });
+
+    it('link com período personalizado já abre os campos preenchidos e consulta o intervalo', () => {
+      montar('/admin/engajamento?periodo=custom&de=2026-09-01&ate=2026-09-15');
+      expect(screen.getByLabelText('Período')).toHaveValue('custom');
+      expect(screen.getByLabelText('De')).toHaveValue('2026-09-01');
+      expect(screen.getByLabelText('Até')).toHaveValue('2026-09-15');
+      expect(mockAdmin).toHaveBeenLastCalledWith('2026-09-01', '2026-09-15', null);
+    });
+
+    it('personalizado com datas inválidas na URL cai no padrão (6 meses)', () => {
+      montar('/admin/engajamento?periodo=custom&de=2026-09-15&ate=2026-09-01');
+      expect(screen.getByLabelText('Período')).toHaveValue('6m');
+      expect(mockAdmin).toHaveBeenLastCalledWith('2026-05-01', '2026-10-22', null);
+    });
+
+    it('escolher outra opção limpa `de` e `ate`', () => {
+      montar('/admin/engajamento?periodo=custom&de=2026-09-01&ate=2026-09-15');
+      fireEvent.change(screen.getByLabelText('Período'), { target: { value: '30d' } });
+      expect(params().get('periodo')).toBe('30d');
+      expect(params().has('de')).toBe(false);
+      expect(params().has('ate')).toBe(false);
+    });
   });
 
   it('filtro Semestre do aluno: "Todos (1º ao 12º)" e "{n}º semestre · {ciclo}"', () => {

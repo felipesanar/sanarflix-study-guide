@@ -7,15 +7,18 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
 const mockConteudos = vi.fn();
+const mockVisaoGeral = vi.fn();
 vi.mock('@/features/gestor/api/engajamento', () => ({
   useEngajamentoConteudos: (...args: unknown[]) => mockConteudos(...args),
+  // A base de cada semestre (quais existem na IES) vem da visão geral, que o layout já consulta.
+  useEngajamentoVisaoGeral: (...args: unknown[]) => mockVisaoGeral(...args),
   // O pop-up de um conteúdo (gaveta, na mesma rota) só consulta com o pop-up aberto.
   useEngajamentoConteudoAlunos: () => ({ data: undefined, isLoading: true, isError: false, isPlaceholderData: false, refetch: () => undefined }),
 }));
 
 import { KpisConteudos } from '@/features/gestor/components/engajamento/KpisConteudos';
 import ConteudosEngajamento from '@/features/gestor/routes/engajamento/ConteudosEngajamento';
-import { META_ENGAJAMENTO, resultadoGestor } from '../fixtures/engajamento/visaoGeral';
+import { META_ENGAJAMENTO, resultadoGestor, visaoGeralParacatu } from '../fixtures/engajamento/visaoGeral';
 import { conteudosParacatu } from '../fixtures/engajamento/conteudos';
 
 /** Aba Conteúdos, parte de cima: filtro de tipo, KPIs, Evolução e Por semestre (spec 2026-10-22-engajamento §12.4). */
@@ -100,6 +103,7 @@ describe('ConteudosEngajamento — filtro, Evolução e Por semestre (§12.4)', 
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-22T15:00:00Z'));
     mockConteudos.mockReturnValue(resultadoGestor(conteudosParacatu()));
+    mockVisaoGeral.mockReturnValue(resultadoGestor(visaoGeralParacatu()));
   });
   afterEach(() => vi.useRealTimers());
 
@@ -156,7 +160,7 @@ describe('ConteudosEngajamento — filtro, Evolução e Por semestre (§12.4)', 
     expect(screen.getByText('Total por mês')).toBeInTheDocument();
   });
 
-  it('Por semestre: título, descrição, as 12 barras e o semestre do filtro realçado', () => {
+  it('Por semestre: título, descrição, uma barra por semestre da IES (12 na PARACATU) e o semestre do filtro realçado', () => {
     montar('/gestor/engajamento/conteudos?ies=ies-1&eng_sem=8');
     expect(screen.getByRole('heading', { level: 2, name: 'Conteúdos por semestre' })).toBeInTheDocument();
     expect(screen.getByText('Total consumido no período por alunos de cada semestre')).toBeInTheDocument();
@@ -165,6 +169,61 @@ describe('ConteudosEngajamento — filtro, Evolução e Por semestre (§12.4)', 
     expect(within(grafico).getByText('8º').parentElement).toHaveTextContent('3.000');
     expect((within(grafico).getByText('8º').parentElement as HTMLElement).style.background).toContain('--gp-brand-surface');
     expect((within(grafico).getByText('7º').parentElement as HTMLElement).style.background).toBe('transparent');
+  });
+
+  it('Por semestre: só os semestres com alunos na IES (ex.: só o 11º e o 12º), sem colunas em branco', () => {
+    const v = visaoGeralParacatu();
+    v.semestres = v.semestres.map((s) => (s.semestre >= 11 ? s : { ...s, base: 0 }));
+    mockVisaoGeral.mockReturnValue(resultadoGestor(v));
+    montar();
+    const grafico = screen.getByRole('img', { name: 'Conteúdos por semestre' });
+    expect(within(grafico).getAllByTestId('barra-semestre')).toHaveLength(2);
+    expect(within(grafico).getByText('11º')).toBeInTheDocument();
+    expect(within(grafico).getByText('12º')).toBeInTheDocument();
+    expect(within(grafico).queryByText('1º')).not.toBeInTheDocument();
+  });
+
+  it('Por semestre: enquanto a base não chega, mostra só os semestres com consumo', () => {
+    mockVisaoGeral.mockReturnValue(resultadoGestor(undefined, { isLoading: true }));
+    const d = conteudosParacatu();
+    d.semestres = d.semestres.map((s) => (s.semestre >= 11 ? s : { ...s, consumos: 0 }));
+    mockConteudos.mockReturnValue(resultadoGestor(d));
+    montar();
+    const grafico = screen.getByRole('img', { name: 'Conteúdos por semestre' });
+    expect(within(grafico).getAllByTestId('barra-semestre')).toHaveLength(2);
+  });
+
+  it('Evolução e Por semestre crescem até a mesma altura (lado a lado)', () => {
+    montar();
+    for (const b of ['conteudos-evolucao', 'conteudos-por-semestre']) {
+      expect(screen.getByTestId(`bloco-${b}`)).toHaveClass('h-full');
+    }
+  });
+
+  it('Evolução por dia em período de até 31 dias; por mês acima disso', () => {
+    const d = conteudosParacatu();
+    d.dias = Array.from({ length: 30 }, (_, i) => ({ dia: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10), consumos: 10 + i }));
+    mockConteudos.mockReturnValue(resultadoGestor(d));
+    const { unmount } = montar('/gestor/engajamento/conteudos?ies=ies-1&periodo=30d');
+    expect(screen.getByText('Total por dia')).toBeInTheDocument();
+    const figura = screen.getByRole('img', { name: 'Evolução dos conteúdos consumidos' });
+    expect(within(figura).getAllByTestId('linha-ponto')).toHaveLength(30);
+    expect(within(figura).getByText('23 set')).toBeInTheDocument();
+    unmount();
+    montar('/gestor/engajamento/conteudos?ies=ies-1&periodo=6m');
+    expect(screen.getByText(/^Total por mês/)).toBeInTheDocument();
+    expect(within(screen.getByRole('img', { name: 'Evolução dos conteúdos consumidos' })).getAllByTestId('linha-ponto')).toHaveLength(6);
+  });
+
+  it('Evolução por dia: o eixo y acompanha a grandeza diária (não o múltiplo de 500 do mensal)', () => {
+    const d = conteudosParacatu();
+    d.dias = Array.from({ length: 30 }, (_, i) => ({ dia: new Date(Date.UTC(2026, 8, 23 + i)).toISOString().slice(0, 10), consumos: 10 + i })); // máx. 39
+    mockConteudos.mockReturnValue(resultadoGestor(d));
+    montar('/gestor/engajamento/conteudos?ies=ies-1&periodo=30d');
+    const figura = screen.getByRole('img', { name: 'Evolução dos conteúdos consumidos' });
+    expect(within(figura).getByText('50')).toBeInTheDocument(); // 39 × 1,15 = 44,85 → 50
+    expect(within(figura).queryByText('500')).not.toBeInTheDocument();
+    expect(within(figura).queryByText('250')).not.toBeInTheDocument();
   });
 
   it('trocando filtro: dado anterior com aria-busy nos blocos e nos KPIs', () => {

@@ -15,7 +15,7 @@ export interface LinhaBarraSemestre {
 export interface BarrasPorSemestreProps {
   /** Nome acessível da figura. */
   rotulo: string;
-  /** As 12 linhas, 1º a 12º (P8). */
+  /** Uma linha por semestre, do 1º ao 12º (P8); quem chama decide quais mostrar (ex.: só os da IES). */
   linhas: LinhaBarraSemestre[];
   /**
    * `quantidade`: barra relativa à maior linha.
@@ -32,7 +32,7 @@ export interface BarrasPorSemestreProps {
 const TEXTO_MARCA = 'text-[color:var(--gp-brand-strong)] dark:text-[color:var(--gp-brand-on-dark)]';
 
 /**
- * Barras por semestre (P8): sempre as 12 colunas, mesmo vazias. O semestre
+ * Barras por semestre (P8): uma coluna por linha recebida, mesmo com valor zero. O semestre
  * selecionado fica realçado (fundo de seleção) e os demais clareiam.
  */
 export function BarrasPorSemestre({ rotulo, linhas, modo, selecionado = null, onSelecionar, altura = 140 }: BarrasPorSemestreProps) {

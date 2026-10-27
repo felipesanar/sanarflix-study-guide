@@ -176,7 +176,6 @@ export function GavetaConteudos({ dados, consulta, filtros }: GavetaConteudosPro
       mensagemVazio="Nenhum conteúdo consumido neste recorte."
       alturaSkeleton={360}
       bloco="gaveta-conteudos"
-      rodape="Consumo = player ou documento aberto. O SanarFlix não registra tempo assistido. Abrir o mesmo conteúdo várias vezes no mesmo dia conta um consumo. Só há registro de acesso pela web, a partir de janeiro de 2026."
     >
       {dados ? (
         <div className="overflow-x-auto">

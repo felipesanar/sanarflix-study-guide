@@ -54,6 +54,8 @@ export const TooltipRastreabilidade: React.FC<{
   criterio?: string;
   /** Nome do indicador — primeira linha do tooltip, antes da grade de 4 campos. */
   titulo?: string;
+  /** Esconde "Fonte" (nome de tabelas do banco): para telas lidas por gestor, não por time técnico. */
+  ocultarFonte?: boolean;
   /**
    * Aresta do glifo `info`. A referência usa três tamanhos por contexto: 14px
    * no cabeçalho de KPI, 15px no cabeçalho de gráfico, 13px na linha de
@@ -62,7 +64,7 @@ export const TooltipRastreabilidade: React.FC<{
   tamanho?: number;
   className?: string;
   children?: React.ReactNode;
-}> = ({ meta, criterio, titulo, tamanho = 14, className, children }) => {
+}> = ({ meta, criterio, titulo, ocultarFonte = false, tamanho = 14, className, children }) => {
   /**
    * `meta.lowSample` faz parte da resposta à pergunta "de onde vem este
    * número": um indicador calculado sobre amostra pequena não tem a mesma
@@ -88,7 +90,7 @@ export const TooltipRastreabilidade: React.FC<{
   const linhas = [
     ...(titulo ? [titulo] : []),
     `Período: ${meta.periodo}`,
-    `Fonte: ${meta.fonte}`,
+    ...(ocultarFonte ? [] : [`Fonte: ${meta.fonte}`]),
     `Atualizado em: ${formatDataHora(meta.atualizadoEm)}`,
     `Critério: ${criterio ?? meta.criterio}`,
     ...(cobertura ? [`Cobertura: ${cobertura}`] : []),
@@ -151,8 +153,12 @@ export const TooltipRastreabilidade: React.FC<{
           >
             <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Período</dt>
             <dd>{meta.periodo}</dd>
-            <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Fonte</dt>
-            <dd>{meta.fonte}</dd>
+            {ocultarFonte ? null : (
+              <>
+                <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Fonte</dt>
+                <dd>{meta.fonte}</dd>
+              </>
+            )}
             <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Atualizado em</dt>
             <dd>{formatDataHora(meta.atualizadoEm)}</dd>
             <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Critério</dt>

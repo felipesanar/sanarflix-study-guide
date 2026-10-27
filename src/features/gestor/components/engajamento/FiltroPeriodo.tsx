@@ -31,7 +31,7 @@ export const ESTILO_ROTULO_FILTRO: React.CSSProperties = {
 type FiltrosPeriodo = Pick<FiltrosEngajamento, 'periodo' | 'de' | 'ate' | 'setPeriodo'>;
 
 /**
- * Filtro "Período" (spec §12.1): Últimos 6 meses, Últimos 30 dias, Semestre
+ * Filtro "Período" (spec §12.1): Últimos 6 meses, Últimos 3 meses, Últimos 30 dias, Semestre
  * letivo AAAA.S e Personalizado….
  *
  * Em "Personalizado…" aparecem dois campos de data ("De" e "Até") e o botão
@@ -81,6 +81,7 @@ export function FiltroPeriodo({ filtros }: { filtros: FiltrosPeriodo }) {
           style={ESTILO_CONTROLE}
         >
           <option value="6m">Últimos 6 meses</option>
+          <option value="3m">Últimos 3 meses</option>
           <option value="30d">Últimos 30 dias</option>
           <option value="letivo">{rotuloSemestreLetivo(hoje)}</option>
           <option value="custom">Personalizado…</option>
