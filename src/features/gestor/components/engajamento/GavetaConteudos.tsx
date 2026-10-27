@@ -73,6 +73,14 @@ export function participacao(consumos: number, base: number): string {
   return base > 0 ? `${Math.round((100 * consumos) / base)}%` : '—';
 }
 
+/** Minúsculas e sem acento, para a busca achar "Clinica" em "Clínica Médica". */
+const semAcento = (texto: string) =>
+  texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
 const ESTILO_NUM: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
 
 /**
@@ -80,14 +88,21 @@ const ESTILO_NUM: React.CSSProperties = { textAlign: 'right', fontVariantNumeric
  * consumos, alunos e a participação de cada nó no nível acima. Clicar numa linha abre
  * o nível de baixo; clicar num conteúdo abre o pop-up dos alunos que o consumiram.
  * "Materiais gerais" fica sempre por último (a RPC já entrega nessa ordem).
+ *
+ * A busca filtra as especialidades pelo nome (sem diferenciar maiúsculas nem acentos); abrir ou recolher
+ * continua valendo para o que está na lista, e a participação segue sobre o total, não sobre o filtrado.
  */
 export function GavetaConteudos({ dados, consulta, filtros }: GavetaConteudosProps) {
   const linhas = React.useMemo(() => (dados ? montarLinhas(dados) : []), [dados]);
   const [aberto, setAberto] = React.useState<Set<string> | null>(null);
   const [conteudoAberto, setConteudoAberto] = React.useState<ChaveConteudo | null>(null);
 
+  const [busca, setBusca] = React.useState('');
+
   const abertos = aberto ?? abertosIniciais(linhas);
   const totalConsumos = dados?.kpis.consumos ?? 0;
+  const termo = semAcento(busca);
+  const linhasVisiveis = termo === '' ? linhas : linhas.filter((l) => semAcento(l.nome).includes(termo));
 
   const alternar = (chave: string) => {
     const proximo = new Set(abertos);
@@ -178,6 +193,30 @@ export function GavetaConteudos({ dados, consulta, filtros }: GavetaConteudosPro
       bloco="gaveta-conteudos"
     >
       {dados ? (
+        <label className="relative block w-full sm:w-80">
+          <span className="sr-only">Buscar especialidade</span>
+          <span aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--gp-text-3)' }}>
+            <Icon name="search" size={16} />
+          </span>
+          <input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar especialidade"
+            className="w-full bg-transparent"
+            style={{
+              height: 34,
+              padding: '0 10px 0 32px',
+              border: '1px solid var(--gp-border-input)',
+              borderRadius: 'var(--gp-radius-sm)',
+              fontSize: 'var(--gp-font-size-body)',
+              color: 'var(--gp-text-1)',
+            }}
+          />
+        </label>
+      ) : null}
+
+      {dados ? (
         <div className="overflow-x-auto">
           <div
             role="treegrid"
@@ -201,7 +240,12 @@ export function GavetaConteudos({ dados, consulta, filtros }: GavetaConteudosPro
                 </div>
               ))}
             </div>
-            {linhas.map((l) => renderLinha(l, totalConsumos))}
+            {linhasVisiveis.map((l) => renderLinha(l, totalConsumos))}
+            {linhasVisiveis.length === 0 ? (
+              <p role="status" style={{ padding: 24, textAlign: 'center', color: 'var(--gp-text-3)', fontSize: 'var(--gp-font-size-body)' }}>
+                Nenhuma especialidade encontrada para “{busca.trim()}”.
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}

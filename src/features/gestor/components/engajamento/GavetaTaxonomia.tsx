@@ -186,8 +186,14 @@ export function GavetaTaxonomia({ dados, consulta, filtros }: GavetaTaxonomiaPro
       <div role="gridcell" style={{ ...ESTILO_CELULA_NUM, color: 'var(--gp-text-3)' }}>
         {TRACO}
       </div>
-      <div role="gridcell" style={{ ...ESTILO_CELULA_NUM, paddingRight: 8, color: 'var(--gp-text-3)', whiteSpace: 'nowrap' }}>
-        {acertoPct === null ? TRACO : `${formatPct(acertoPct)} de acerto`}
+      {/* Só o percentual: a coluna se chama "Acerto" e tem 88px; "61% de acerto" não cabia e vazava do bloco. */}
+      <div
+        role="gridcell"
+        title={acertoPct === null ? undefined : `${formatPct(acertoPct)} de acerto no ciclo`}
+        className={acertoPct === null ? undefined : TEXTO_MARCA}
+        style={{ ...ESTILO_CELULA_NUM, paddingRight: 8, fontWeight: 'var(--gp-font-weight-medio)', color: acertoPct === null ? 'var(--gp-text-3)' : undefined }}
+      >
+        {acertoPct === null ? TRACO : formatPct(acertoPct)}
       </div>
     </div>
   );

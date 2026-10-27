@@ -70,6 +70,60 @@ describe('GavetaConteudos — estrutura (§12.4)', () => {
     expect(screen.queryByText(/Consumo = player ou documento aberto/)).not.toBeInTheDocument();
   });
 
+  describe('busca de especialidade', () => {
+    const buscar = (texto: string) => fireEvent.change(screen.getByPlaceholderText('Buscar especialidade'), { target: { value: texto } });
+
+    it('campo rotulado; sem termo, todas as especialidades aparecem', () => {
+      montar();
+      expect(screen.getByLabelText('Buscar especialidade')).toBeInTheDocument();
+      expect(existe(CARDIO)).toBe(true);
+      expect(existe(FARMACO)).toBe(true);
+    });
+
+    it('filtra pelo nome, sem diferenciar maiúsculas nem acentos, e acha por pedaço', () => {
+      montar();
+      buscar('FARMA');
+      expect(existe(FARMACO)).toBe(true);
+      expect(existe(CARDIO)).toBe(false);
+      buscar('cardiológ'); // com acento, acha "Cardiologia"
+      expect(existe(CARDIO)).toBe(true);
+      expect(existe(FARMACO)).toBe(false);
+    });
+
+    it('o estado de abertura é preservado: o que estava aberto continua aberto ao achar a especialidade', () => {
+      montar();
+      expect(linha(CARDIO)).toHaveAttribute('aria-expanded', 'true');
+      buscar('cardio');
+      expect(linha(CARDIO)).toHaveAttribute('aria-expanded', 'true');
+      expect(existe(ARRITMIAS)).toBe(true);
+    });
+
+    it('a participação continua sobre o total, não sobre o que sobrou no filtro', () => {
+      montar();
+      const antes = celulas(FARMACO)[3];
+      buscar('farma');
+      expect(celulas(FARMACO)[3]).toBe(antes);
+    });
+
+    it('sem resultado: mensagem com o termo; apagar a busca traz tudo de volta', () => {
+      montar();
+      buscar('  xyz ');
+      expect(screen.getByRole('status')).toHaveTextContent('Nenhuma especialidade encontrada para “xyz”.');
+      expect(existe(CARDIO)).toBe(false);
+      buscar('');
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(existe(CARDIO)).toBe(true);
+      expect(existe(FARMACO)).toBe(true);
+    });
+
+    it('"Recolher tudo" funciona com a busca ativa', () => {
+      montar();
+      buscar('cardio');
+      fireEvent.click(screen.getByRole('button', { name: 'Recolher tudo' }));
+      expect(linha(CARDIO)).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
+
   it('abertura inicial: a 1ª especialidade e o seu 1º módulo', () => {
     montar();
     expect(linha(CARDIO)).toHaveAttribute('aria-expanded', 'true');

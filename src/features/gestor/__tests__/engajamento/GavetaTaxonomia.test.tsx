@@ -58,8 +58,8 @@ describe('GavetaTaxonomia — estrutura (§12.3)', () => {
     montar();
     const faixas = screen.getAllByTestId('faixa-ciclo');
     expect(faixas.map((f) => f.textContent)).toEqual([
-      'Ciclo clínico e residência Grande área › especialidade › tema100.000—66% de acerto',
-      'Ciclo básico Disciplina › assunto45.873—68% de acerto',
+      'Ciclo clínico e residência Grande área › especialidade › tema100.000—66%',
+      'Ciclo básico Disciplina › assunto45.873—68%',
     ]);
     // ordem no documento: faixa clínica, suas linhas, faixa básica, as dela
     const ordem = [...screen.getByRole('treegrid').querySelectorAll('[data-testid]')].map((e) => e.getAttribute('data-testid'));
