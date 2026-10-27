@@ -54,6 +54,8 @@ export interface BlocoEngajamentoProps {
   bloco: string;
   /** Texto abaixo do conteúdo (rodapés da §12). */
   rodape?: React.ReactNode;
+  /** `true`: o cartão cresce até a altura que o grid reservou (blocos lado a lado com a mesma altura). */
+  preencherAltura?: boolean;
   children: React.ReactNode;
 }
 
@@ -79,6 +81,7 @@ export function BlocoEngajamento({
   alturaSkeleton = 240,
   bloco,
   rodape,
+  preencherAltura = false,
   children,
 }: BlocoEngajamentoProps) {
   const base = estadoDaConsulta(consulta);
@@ -95,7 +98,7 @@ export function BlocoEngajamento({
     <div
       data-testid={`bloco-${bloco}`}
       aria-busy={ocupado ? true : undefined}
-      className={cn('min-w-0 transition-opacity', ocupado && 'opacity-60')}
+      className={cn('min-w-0 transition-opacity', ocupado && 'opacity-60', preencherAltura && 'flex h-full flex-col')}
     >
       <BlocoGestor
         estado={estado}
@@ -104,10 +107,11 @@ export function BlocoEngajamento({
         testIdLoading={`${bloco}-loading`}
         mensagemVazio={mensagemVazio}
         aoTentarNovamente={consulta.refetch}
+        preencherAltura={preencherAltura}
       >
-        <section aria-labelledby={idTitulo}>
-          <Card style={{ borderRadius: 'var(--gp-radius-lg)', boxShadow: 'var(--gp-shadow-card)' }}>
-            <CardContent className="flex flex-col" style={{ padding: 18, gap: 14 }}>
+        <section aria-labelledby={idTitulo} className={preencherAltura ? 'h-full' : undefined}>
+          <Card className={preencherAltura ? 'h-full' : undefined} style={{ borderRadius: 'var(--gp-radius-lg)', boxShadow: 'var(--gp-shadow-card)' }}>
+            <CardContent className={cn('flex flex-col', preencherAltura && 'h-full')} style={{ padding: 18, gap: 14 }}>
               <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
                 <div className="min-w-0 flex-1">
                   {sobretitulo ? (

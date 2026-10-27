@@ -75,6 +75,14 @@ export const TooltipRastreabilidade: React.FC<{
    * e inventar um aqui seria pior que omitir. Acrescentar `n` ao envelope exige
    * mudar `get_gestor_visao_geral` — pendência de contrato, não deste arquivo.
    */
+  /**
+   * Controlado para o CLIQUE abrir. O Radix fecha o tooltip no `pointerdown` e
+   * no `click` do gatilho (é o comportamento dele para hover): sem isto, clicar
+   * no "i" — o que o gestor faz de primeira, e o único gesto no toque — só
+   * piscava e fechava. Aqui o `click` reabre e cancela o fechamento do Radix; o
+   * hover, o foco, o ESC e o clique fora continuam como antes.
+   */
+  const [aberto, setAberto] = React.useState(false);
   const cobertura = meta.lowSample ? 'parcial (amostra pequena)' : null;
 
   const linhas = [
@@ -88,12 +96,16 @@ export const TooltipRastreabilidade: React.FC<{
 
   return (
     <span className={cn('inline-flex items-center', className)}>
-      <Tooltip>
+      <Tooltip open={aberto} onOpenChange={setAberto}>
         <TooltipTrigger asChild>
           {children ?? (
             <button
               type="button"
               aria-label="Rastreabilidade do indicador"
+              onClick={(e) => {
+                e.preventDefault();
+                setAberto(true);
+              }}
               className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{ color: 'var(--gp-border-strong)' }}
             >

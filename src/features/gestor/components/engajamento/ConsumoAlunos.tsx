@@ -218,7 +218,7 @@ export function ConsumoAlunos({ dados, consulta, filtros, sem14, onSem14Change, 
             </div>
 
             <div className="min-w-0">
-              <h3 style={{ fontSize: 'var(--gp-font-size-h3)', fontWeight: 'var(--gp-font-weight-forte)', marginBottom: 8 }}>{tituloGrafico}</h3>
+              <h3 style={{ fontSize: 'var(--gp-font-size-h3)', fontWeight: 'var(--gp-font-weight-forte)', marginBottom: 28 }}>{tituloGrafico}</h3>
               <BarrasMensais
                 rotulo={tituloGrafico}
                 corFechada={COR_BARRA_CLARA}

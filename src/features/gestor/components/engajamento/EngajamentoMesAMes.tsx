@@ -10,6 +10,9 @@ export interface EngajamentoMesAMesProps {
   consulta: ConsultaDoBloco;
 }
 
+/** Altura da área das barras: com ela o bloco fica da altura de "Do acesso ao hábito". */
+const ALTURA_BARRAS = 200;
+
 /**
  * "Engajamento mês a mês" (spec §12.2): % da base ativa com ao menos 1 atividade
  * em cada mês, com a quantidade de alunos embaixo. Com aluno filtrado vira "Dias
@@ -48,8 +51,12 @@ export function EngajamentoMesAMes({ dados, consulta }: EngajamentoMesAMesProps)
       alturaSkeleton={260}
       bloco="engajamento-mes-a-mes"
       rodape={rodape}
+      preencherAltura
     >
-      <BarrasMensais rotulo={titulo} pontos={pontos} />
+      {/* Mesma altura do bloco ao lado: a folga fica acima do gráfico, que encosta no rodapé. */}
+      <div className="flex flex-1 flex-col justify-end">
+        <BarrasMensais rotulo={titulo} pontos={pontos} altura={ALTURA_BARRAS} />
+      </div>
     </BlocoEngajamento>
   );
 }

@@ -22,7 +22,9 @@ export type CicloSemestre = 'basico' | 'clinico' | 'internato';
 
 export type NivelEngajamento = 'frequente' | 'esporadico' | 'parou' | 'nunca';
 export type FaixaRecencia = 'ativos30' | 'sumidos30a59' | 'sumidos60' | 'nunca_acessou';
-export type CategoriaLista = NivelEngajamento | FaixaRecencia | 'sumidos30mais';
+/** Faixas de dias ativos no mês de referência de "Do acesso ao hábito". */
+export type FaixaHabito = 'habito_baixo' | 'habito_medio' | 'habito_alto' | 'habito_altissimo';
+export type CategoriaLista = NivelEngajamento | FaixaRecencia | FaixaHabito | 'sumidos30mais';
 /** Aba de "Consumo dos alunos": só escolhe o que a tela realça, não ordena a tabela. */
 export type AbaConsumo = 'questoes' | 'videos' | 'documentos';
 
@@ -252,6 +254,8 @@ export interface LinhaListaEngajamento {
   ultimaAtividade: string | null;
   diasSemAtividade: number | null;
   diasAtivos30: number;
+  /** Dias com atividade no mês de referência do hábito (0 quando nenhum). */
+  diasAtivosMes: number;
   /** `'AAAA-MM'`; `null` quando não houve dia ativo no período. */
   melhorMes: string | null;
   melhorMesDias: number;

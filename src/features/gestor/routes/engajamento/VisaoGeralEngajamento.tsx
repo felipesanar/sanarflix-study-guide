@@ -51,7 +51,7 @@ export default function VisaoGeralEngajamento() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <EngajamentoMesAMes dados={data} consulta={consulta} />
-        <DoAcessoAoHabito dados={data} consulta={consulta} />
+        <DoAcessoAoHabito dados={data} consulta={consulta} filtros={filtros} />
       </div>
 
       <NivelEngajamento dados={data} consulta={consulta} filtros={filtros} />

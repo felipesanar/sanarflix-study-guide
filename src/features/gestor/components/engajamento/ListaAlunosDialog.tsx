@@ -28,14 +28,16 @@ export const PAGE_SIZE_LISTA = 20;
 const CATEGORIAS_FREQUENTE: CategoriaLista[] = ['frequente', 'esporadico'];
 const CATEGORIAS_NIVEL: CategoriaLista[] = ['frequente', 'esporadico', 'parou', 'nunca'];
 
+export type ColunaDetalhe = 'ultima' | 'melhorMes' | 'diasAtivosMes';
+
 export interface ListaAlunosDialogProps {
   categoria: CategoriaLista;
   /** Nome do cartão ou da faixa. */
   titulo: string;
   /** Regra do cartão de nível; as faixas de recência não têm. */
   regra?: string;
-  /** `ultima`: "Última atividade"; `melhorMes`: "Melhor mês" (níveis parou/nunca). */
-  colunaDetalhe: 'ultima' | 'melhorMes';
+  /** `ultima`: "Última atividade"; `melhorMes`: "Melhor mês" (níveis parou/nunca); `diasAtivosMes`: faixas do hábito. */
+  colunaDetalhe: ColunaDetalhe;
   filtros: FiltrosRecorteEngajamento;
   iesNome: string;
   /** Rótulo do período em minúsculas ("últimos 6 meses"), para o subtítulo. */
@@ -66,8 +68,9 @@ export function rotuloRecorteLista({
 export function textoDetalheLinha(
   linha: LinhaListaEngajamento,
   categoria: CategoriaLista,
-  coluna: 'ultima' | 'melhorMes',
+  coluna: ColunaDetalhe,
 ): string {
+  if (coluna === 'diasAtivosMes') return `${formatNumero(linha.diasAtivosMes)} dias ativos no mês`;
   if (coluna === 'melhorMes') {
     if (linha.melhorMes) return `${mesAno(linha.melhorMes)} · ${formatNumero(linha.melhorMesDias)} dias ativos`;
     return linha.diasSemAtividade === null ? '— (nunca acessou)' : '— (sem atividade no período)';
@@ -77,6 +80,12 @@ export function textoDetalheLinha(
   }
   return textoDetalhe(linha.detalhe);
 }
+
+const CABECALHO_DETALHE: Record<ColunaDetalhe, string> = {
+  ultima: 'Última atividade',
+  melhorMes: 'Melhor mês',
+  diasAtivosMes: 'Dias ativos no mês',
+};
 
 function mensagemVazio(categoria: CategoriaLista): string {
   return CATEGORIAS_NIVEL.includes(categoria)
@@ -121,7 +130,7 @@ export function ListaAlunosDialog({
   const inicio = total === 0 ? 0 : (page - 1) * PAGE_SIZE_LISTA + 1;
   const fim = Math.min(page * PAGE_SIZE_LISTA, total);
   const totalPages = lista?.totalPages ?? 1;
-  const cabecalhoDetalhe = colunaDetalhe === 'melhorMes' ? 'Melhor mês' : 'Última atividade';
+  const cabecalhoDetalhe = CABECALHO_DETALHE[colunaDetalhe];
 
   const subtitulo = [
     `${formatNumero(total)} alunos`,
