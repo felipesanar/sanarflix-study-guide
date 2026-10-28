@@ -212,3 +212,64 @@ Erro meu no meio do caminho, corrigido antes de aplicar: um script que gerou a s
 - Ligar o cron faz o incremental rodar com `application_name = 'pg_cron'`, o que grava `disparo = 'cron'`.
 - O `statement_timeout` do job (90 s) não é capturado pelo `EXCEPTION WHEN OTHERS`: a transação inteira volta e **nem a linha de log `rodando` sobra** (só `cron.job_run_details` registra). Isso já está na spec como R4; vale um alerta no acompanhamento.
 - Com o cron ligado, `eng_atualizado_em()` (ainda a versão antiga, `max(terminado_em)` do último `ok`) vai passar a dizer "há 2 min" mesmo que a DAG pare. A Fase 5 corrige. Se a Fase 4 ficar dias em produção antes da Fase 5, o selo "atualizado em" ficará otimista (decisão do João, spec §3.3 item 4).
+
+---
+
+## Fase 4: cron ligado (28/10/2026)
+
+Migration: `supabase/migrations/20261028190000_eng_incremental_fase4_cron.sql`, aplicada com `apply_migration` às 18:29 UTC (15:29 BRT) de 28/10; commit `8fd10c1d`.
+
+Jobs agora no pg_cron (conferido em `cron.job`):
+
+| jobid | nome | agenda (UTC) | comando |
+|---|---|---|---|
+| 15 | eng-refresh-incremental | `2-59/5 * * * *` | `SET statement_timeout TO '90s'; SET lock_timeout TO '5s'; SELECT public.eng_refresh_incremental();` |
+| 16 | eng-refresh-diario | `0 6 * * *` (03:00 BRT) | `SET statement_timeout TO '30min'; SELECT public.eng_refresh('cron');` |
+| 17 | eng-vacuum-diario | `40 6 * * *` (03:40 BRT) | `VACUUM (ANALYZE)` das 4 tabelas eng_* |
+
+O job antigo (jobid 5, `0 9 * * *`) foi substituído: o rebuild total passa a rodar às 06:00 UTC. O teste antigo do cron em `engajamentoMigrations.test.ts` passou a olhar a migration mais recente do job e a agenda nova.
+
+### O que já está provado (primeiros 15 min)
+- [x] **Testes estáticos** (7 da Fase 4 + o teste antigo do cron atualizado): os 3 jobs com nome, agenda e timeouts exatos, o job das 09:00 UTC não existe mais no estado final, cada job é removido pelo nome antes de ser agendado, o VACUUM é um comando único. 138 testes verdes nos dois arquivos de migrations do Engajamento.
+- [x] **Primeiras execuções pelo cron** (18:32, 18:37, 18:42 UTC): `cron.job_run_details` com 3 `succeeded`, 0 falhas; `eng_refresh_log` com 3 linhas `incremental`, `ok`, `disparo = 'cron'` (a detecção por `application_name = 'pg_cron'` funciona), de 7,3 s (a primeira, cache frio), 2,9 s e 2,8 s.
+- [x] **Frescor, amostra 1 (18:37 UTC):** `fonte_carregado_resp` do último `ok` a 35 s da carga mais recente da fonte; último evento de consumo da fonte e `max(ultima_abertura)` das `eng_*` idênticos (17:59:37). Maior `dia` das `eng_*` = maior `response_date` da fonte.
+- [x] **Frescor, amostra 2 (18:43 UTC):** `fonte_carregado_resp` do último `ok` = `max(carregado_em)` da fonte (18:41:54); **oráculo por dia com 0 linhas**. A spec pede 3 amostras em horários diferentes; a terceira (e as de outras horas do dia) ficam para a observação.
+- [x] **Foto antes de ligar o cron (referência para o bloat e as RPCs):**
+
+| Tabela | Bytes | n_dead_tup |
+|---|---|---|
+| eng_atividade_aluno_dia | 20.963.328 | 10 |
+| eng_consumo_aluno_dia_conteudo | 102.825.984 | 0 |
+| eng_questoes_aluno_dia_no | 268.034.048 | 120 |
+| eng_questao_classificacao | 49.438.720 | 8 |
+
+  **Atenção ao bloat:** as 3 tabelas de agregado somam 391,8 MB, **+9,3%** sobre os 358,6 MB da Fase 0 (o teto do DoD é +10% = 394,5 MB), embora as linhas quase não tenham crescido (+0,1%). O crescimento veio dos rebuilds e incrementais das Fases 2 e 3 (atualizações que não são HOT, páginas novas). O VACUUM diário não encolhe o arquivo, só permite reuso do espaço. Vale ficar de olho: se passar de +10%, a regra é parar e perguntar (a spec lista o bloat como medida, não como item de §3.3, então o critério é do João).
+
+  RPCs, snapshot de `pg_stat_statements` antes do cron (acumulado desde o lançamento, para o delta da observação): visão geral 141 chamadas, média 2.497 ms, máx 7.935 ms, 700 mil blocos lidos; questões 32 chamadas, média 1.288 ms; conteúdos 36 chamadas, média 1.948 ms; admin 16 chamadas, média 1.022 ms.
+
+### O que depende da observação de 24 h (pendente)
+A spec exige 24 h com uma madrugada incluída. A primeira madrugada depois da migration é a de 29/10: rebuild às **06:00 UTC (03:00 BRT)** e VACUUM às 06:40 UTC. A janela de 24 h fecha em **29/10 ~18:30 UTC (15:30 BRT)**. Consultas prontas para esse checkpoint (todas de leitura):
+
+```sql
+-- saúde: incremental (>= 280 linhas ok em 24 h; p95 < 5 s; pulado só no horário do rebuild), completo e cron
+SELECT tipo, status, count(*), max(terminado_em),
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM terminado_em - iniciado_em)) p95_s
+FROM eng_refresh_log WHERE iniciado_em > now() - interval '24 hours' GROUP BY 1, 2;
+SELECT j.jobname, d.status, count(*) FROM cron.job_run_details d JOIN cron.job j USING (jobid)
+WHERE j.jobname LIKE 'eng-%' AND d.start_time > now() - interval '24 hours' GROUP BY 1, 2;   -- 0 falhas
+-- bloat: n_dead_tup estável e as 3 tabelas até +10% da Fase 0 (394.521.676 bytes)
+SELECT relname, n_live_tup, n_dead_tup, last_autovacuum, pg_total_relation_size(relid) FROM pg_stat_user_tables WHERE relname LIKE 'eng_%';
+-- rebuild noturno: duração < 20 min; deriva < 0,5% (consumo_deriva, questoes_no_deriva, atividade_deriva no contagens da linha do rebuild das 06:00 UTC)
+SELECT id, status, round(extract(epoch FROM terminado_em - iniciado_em)) dur_s, contagens FROM eng_refresh_log WHERE tipo = 'completo' ORDER BY id DESC LIMIT 2;
+```
+
+- [ ] `cron.job_run_details`: 0 falhas nos 3 jobs em 24 h.
+- [ ] `eng_refresh_log` incremental: >= 280 linhas `ok` em 24 h; p95 < 5 s; `pulado` só no horário do rebuild.
+- [ ] Rebuild noturno: `ok`, duração < 20 min, deriva < 0,5% (§3.3).
+- [ ] Frescor: 3 amostras em horários diferentes (feitas 2, ambas no começo da tarde de 28/10).
+- [ ] Bloat: `n_dead_tup` estável e tamanho das 3 tabelas até +10% da Fase 0.
+- [ ] RPCs: novo snapshot de `pg_stat_statements` com o delta desde a Fase 0 (a média da visão geral não pode piorar).
+- [x] DoD comum já cumprido hoje: commit; advisors e suíte revalidados na seção final abaixo.
+- [ ] OK do João para dar a Fase 4 por fechada.
+
+**A Fase 5 virá logo depois** (aviso do João de 28/10). Pelo que a spec diz, o **código** da Fase 5 (migration escrita mas não aplicada, hook, layout, testes) pode ser feito já, em paralelo à observação; a **aplicação** da migration da Fase 5 espera o DoD da Fase 4.
