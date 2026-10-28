@@ -82,6 +82,7 @@ A leitura de disco é alta porque as varreduras do rebuild expulsam as `eng_*` d
 
 - Repositório `C:\Users\joao.nader\work\sanarflix-engajamento`, branch `feat/engajamento-sanarflix`. Nunca commitar na `main`.
 - Migrations aplicadas em produção pelo MCP `apply_migration`. No modo automático, o classificador bloqueia essa chamada; troque o modo de permissão.
+- **Job avulso do pg_cron:** a receita `* * * * *` da spec mãe (§6.5) **não é segura** para o rebuild (ver o incidente no arquivo de acompanhamento). Use agenda de disparo único (`'M H D MES *'`, minuto fixo ao menos 2 min à frente) e remova o job com `cron.unschedule` **depois** que ele disparar, nunca antes.
 - `execute_sql` tem `statement_timeout` de 2 min. O rebuild total passa disso. Rode-o por um job avulso do cron (receita na spec mãe, §6.5) e acompanhe pelo `eng_refresh_log`.
 - Suíte: `node node_modules/vitest/vitest.mjs run`. Baseline de 40 falhas pré-existentes em 1.722 testes. O critério é **nenhuma falha nova**. Lint não é critério.
 
@@ -175,7 +176,7 @@ ALTER TABLE public.eng_refresh_log ADD CONSTRAINT eng_refresh_log_status_check
 CREATE INDEX IF NOT EXISTS eng_refresh_log_tipo_ok_idx ON public.eng_refresh_log (tipo, terminado_em DESC) WHERE status = 'ok';
 ```
 
-O `fillfactor` só vale para páginas novas. A reescrita das tabelas existentes acontece naturalmente no primeiro rebuild da Fase 2. **Não** rode `VACUUM FULL`.
+O `fillfactor` só vale para páginas novas. **Correção da implementação (Fase 2):** como o rebuild passou a gravar por diff, ele não reescreve as páginas existentes; o `fillfactor` só atua nas páginas que forem criadas dali em diante (autovacuum reaproveita o espaço morto). **Não** rode `VACUUM FULL`; o bloat é medido na Fase 4.
 
 ### 5.2 Funções (Fases 2 e 3)
 

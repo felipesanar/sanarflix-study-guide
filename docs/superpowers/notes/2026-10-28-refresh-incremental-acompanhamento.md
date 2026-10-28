@@ -132,3 +132,37 @@ A receita da spec mãe (§6.5, `cron.schedule('eng-refresh-avulso', '* * * * *',
 
 ### DoD da Fase 1: fechado
 Todos os itens marcados. OK do João para a Fase 2: **pendente** (ver mensagem final da sessão).
+
+---
+
+## Fase 2: pipeline parametrizado com diff (28/10/2026)
+
+Migration: `supabase/migrations/20261028160000_eng_incremental_fase2_pipeline.sql`, aplicada com `apply_migration` (name `eng_incremental_fase2_pipeline`). Observação: a versão aplicada no banco não tem os comentários `--` de dentro dos corpos das funções (o conteúdo executável é o mesmo do arquivo no repositório).
+
+Revisor independente (agente só de leitura) conferiu a migration contra P1–P4 e a spec mãe §6.2/§6.4: **sem achado bloqueante**. Achados menores registrados: (1) `atualizado_em`/`classificado_em` só mudam quando a linha muda, então a comparação de equivalência exclui essas colunas; (2) `EXCEPTION WHEN OTHERS` não pega `query_canceled` (statement_timeout do cron, R4 da spec, já era assim); (3) `fonte_max_*`/`fonte_carregado_*` do incremental vêm de `w_resp`/`w_cons` já filtradas pela janela, então a Fase 3 não deve usá-los como marca d'água de carga tardia anterior à janela; (4) o desempate determinístico dos nós é inerte hoje (0 ids com mais de um nome na fonte).
+
+**Decisões de implementação:** a deriva (`*_deriva`) é calculada sempre (com `p_desde = eng_hoje()-3` dá 0 por construção); `eng_refresh_agregados` também grava `fonte_carregado_resp`/`fonte_carregado_cons` (a Fase 5 lê esses campos de qualquer rebuild); `dim_aluno_b2b` só é lida quando `p_desde IS NULL` (P6); a limpeza de `cron.job_run_details` mira só jobs `eng-%` (não toca no histórico dos outros jobs).
+
+### DoD
+- [x] **Testes estáticos** (33 no arquivo, 22 novos da Fase 2): verdes.
+- [x] **Equivalência com a versão anterior.** Snapshot `eng_qa.antes_*` do estado do rebuild antigo (id 9) tirado antes da migration; rebuild novo = log id 30.
+  - Classificação: 0 linhas só no antes; 2 só no depois (2 questões novas classificadas, `classif_inseridas = 2`). Nós de taxonomia: 0 e 0.
+  - Fora da janela (`dia < eng_hoje()-3`), `EXCEPT` nos dois sentidos: **0 diferenças** em `eng_atividade_aluno_dia`, `eng_questoes_aluno_dia_no` e `eng_consumo_aluno_dia_conteudo`.
+  - Dentro da janela: 34 chaves (aluno, dia) diferentes em atividade, 16 em questões, 16 em consumo; **0 sem explicação** (todas têm linha de fonte com `carregado_em` > 16:04 UTC, início do rebuild 9).
+- [x] **Mais rápido que a mediana antiga.** Rebuild novo (id 30): 17:05:00 a 17:08:31 UTC = **211 s**, contra a mediana de **918 s** das 5 últimas antigas (150, 154, 162, 918, 1103). `pg_stat_statements`, delta de uma chamada nova contra a média das 8 antigas: blocos lidos do disco 824 mil (antigo ~1,42 mi), blocos temporários gravados 24 mil (antigo ~224 mil), WAL 80 MB (antigo ~450 MB).
+- [x] **Segundo rebuild seguido** (id 31, 17:12:00 a 17:16:58, incluindo ~50 s de espera do lock): deriva 0 nas 3 tabelas e 0 `removidas`. Na janela, as mudanças foram só as de cargas novas entre as duas execuções (classificação +2 inseridas; consumo 0/0; questões 6 inseridas e 7 atualizadas; atividade 1 inserida e 10 atualizadas). `questoes_trocaram_folha = 0` nos dois rebuilds.
+- [x] **Lock.**
+  - Rebuild espera: com uma sessão segurando `pg_advisory_xact_lock(hashtext('eng_refresh'))` por ~105 s, o rebuild (log id 31) esperou e depois rodou ok; o log nasce antes do lock (iniciado_em 17:12:00).
+  - Falha com `lock_timeout`: com o lock segurado por ~11,5 min (job temporário), o rebuild (log id 32) falhou ao fim de **10 min exatos** (17:22:00 a 17:32:00) com `status = 'erro'` e `erro = '55P03: canceling statement due to lock timeout'`, e não escreveu nas `eng_*`. Observação: o teste usou o `lock_timeout` real de 10 min (a função define o próprio `SET LOCAL`, então um timeout curto não dá para injetar de fora).
+- [x] **Oráculo por dia** depois do rebuild 31 (17:17 UTC): consumo bate exatamente; questões do dia corrente diferem em 36 respostas, todas de cargas posteriores ao snapshot do rebuild (147 linhas de hoje com `carregado_em` > 17:11:38 UTC, que é o `fonte_carregado_resp` do rebuild). Dias 25 a 27 fecham.
+- [x] **Advisors (security):** os mesmos 5 lints de antes; o único que cita `eng_*` é `rls_enabled_no_policy` (INFO, pré-existente). Funções novas: `anon` e `authenticated` sem EXECUTE.
+- [x] **Suíte:** rodada completa depois da migration: 43 falhas em 2.397 testes. As 42 da baseline mais **1 nova, esperada**: `engajamentoMigrations.test.ts` > "eng_refresh tem exclusão mútua..." exigia `pg_try_advisory_xact_lock`, que a P4 substitui por `pg_advisory_xact_lock` + `lock_timeout`. Atualizei esse teste para a regra nova; os dois arquivos de migrations do Engajamento passam (105 testes). Resultado final: as mesmas 42 falhas da baseline, nenhuma nova (a suíte inteira não foi rodada de novo depois do ajuste de uma linha de teste).
+- [x] `eng_qa` apagado (`DROP SCHEMA eng_qa CASCADE`; confirmado que não existe mais).
+- [x] Commit na branch (ver `git log`).
+- [ ] OK do João para a Fase 3.
+
+**Deslize meu, sem efeito:** um job de disparo único foi removido antes de disparar (era 17:01, o job era 17:03); reagendei para 17:05 e rodou normalmente.
+
+**Estado do pg_cron ao fim da fase:** só `eng-refresh-diario` (0 9 * * *, jobid 5) segue agendado. Todos os jobs temporários foram removidos.
+
+**Atenção para a Fase 3:** o rebuild noturno **já usa as funções novas** a partir de agora; o próximo é o das 06:00 BRT de 29/10 (jobid 5 chama `eng_refresh('cron')`, que existe com a mesma assinatura). Ele roda com a base já quase em dia, então deve ser curto.

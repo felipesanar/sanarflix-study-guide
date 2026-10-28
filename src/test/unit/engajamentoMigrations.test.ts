@@ -328,7 +328,9 @@ describe('pipeline e cron (spec §6)', () => {
   });
 
   it('eng_refresh tem exclusão mútua, log de erro e só aceita cron|manual', () => {
-    expect(refresh).toMatch(/pg_try_advisory_xact_lock\(hashtext\('eng_refresh'\)\)/);
+    // refresh incremental, P4: o rebuild espera o lock (com lock_timeout) em vez de falhar na hora
+    expect(refresh).toMatch(/pg_advisory_xact_lock\(hashtext\('eng_refresh'\)\)/);
+    expect(refresh).toMatch(/SET LOCAL lock_timeout/);
     expect(refresh).toMatch(/EXCEPTION WHEN OTHERS THEN/);
     expect(refresh).toMatch(/p_disparo NOT IN \('cron', 'manual'\)/);
   });
