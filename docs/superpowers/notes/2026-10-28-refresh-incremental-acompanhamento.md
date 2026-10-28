@@ -257,7 +257,7 @@ SELECT tipo, status, count(*), max(terminado_em),
 FROM eng_refresh_log WHERE iniciado_em > now() - interval '24 hours' GROUP BY 1, 2;
 SELECT j.jobname, d.status, count(*) FROM cron.job_run_details d JOIN cron.job j USING (jobid)
 WHERE j.jobname LIKE 'eng-%' AND d.start_time > now() - interval '24 hours' GROUP BY 1, 2;   -- 0 falhas
--- bloat: n_dead_tup estável e as 3 tabelas até +10% da Fase 0 (394.521.676 bytes)
+-- bloat: n_dead_tup estável e as 3 tabelas até +10% da Fase 0 (394.456.269 bytes = 358.596.608 x 1,1)
 SELECT relname, n_live_tup, n_dead_tup, last_autovacuum, pg_total_relation_size(relid) FROM pg_stat_user_tables WHERE relname LIKE 'eng_%';
 -- rebuild noturno: duração < 20 min; deriva < 0,5% (consumo_deriva, questoes_no_deriva, atividade_deriva no contagens da linha do rebuild das 06:00 UTC)
 SELECT id, status, round(extract(epoch FROM terminado_em - iniciado_em)) dur_s, contagens FROM eng_refresh_log WHERE tipo = 'completo' ORDER BY id DESC LIMIT 2;
@@ -269,7 +269,7 @@ SELECT id, status, round(extract(epoch FROM terminado_em - iniciado_em)) dur_s, 
 - [ ] Frescor: 3 amostras em horários diferentes (feitas 2, ambas no começo da tarde de 28/10).
 - [ ] Bloat: `n_dead_tup` estável e tamanho das 3 tabelas até +10% da Fase 0.
 - [ ] RPCs: novo snapshot de `pg_stat_statements` com o delta desde a Fase 0 (a média da visão geral não pode piorar).
-- [x] DoD comum já cumprido hoje: commit; advisors e suíte revalidados na seção final abaixo.
+- [x] DoD comum, verificado hoje: (a) suíte completa depois da Fase 4: 42 falhas em 2.430 testes, a mesma lista da baseline, nenhuma nova; (b) advisors de segurança: os mesmos 5 lints, só `rls_enabled_no_policy` cita `eng_*` (pré-existente); (c) oráculo por dia com 0 linhas às 18:43 UTC; (d) commits `8fd10c1d` e este registro.
 - [ ] OK do João para dar a Fase 4 por fechada.
 
 **A Fase 5 virá logo depois** (aviso do João de 28/10). Pelo que a spec diz, o **código** da Fase 5 (migration escrita mas não aplicada, hook, layout, testes) pode ser feito já, em paralelo à observação; a **aplicação** da migration da Fase 5 espera o DoD da Fase 4.
