@@ -242,7 +242,7 @@ A tabela `w_resp` do passo 6 pode ser reaproveitada no passo 4: montar `w_resp` 
 
 **Oráculo por dia (referência).** Leitura apenas. Compara as `eng_*` com as fontes na janela, numa única consulta (um snapshot).
 ```sql
-WITH d AS (SELECT generate_series(eng_hoje() - 3, eng_hoje(), 1)::date AS dia),
+WITH d AS (SELECT generate_series(eng_hoje() - 3, eng_hoje(), interval '1 day')::date AS dia),
 src_r AS (SELECT response_date dia, count(*) rt,
                  count(*) FILTER (WHERE c.question_id IS NOT NULL) q,
                  count(*) FILTER (WHERE c.question_id IS NOT NULL AND f.acertou) ac
