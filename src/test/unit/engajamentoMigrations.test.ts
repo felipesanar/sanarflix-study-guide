@@ -351,15 +351,17 @@ describe('pipeline e cron (spec §6)', () => {
     }
   });
 
-  it('o cron é idempotente, roda às 09:00 UTC (06:00 BRT) e fixa statement_timeout de 30 min no mesmo comando', () => {
-    const arquivo = migrationsOrdenadas().find((f) => /eng-refresh-diario/.test(readMigration(f)));
+  it('o cron é idempotente, roda às 06:00 UTC (03:00 BRT) e fixa statement_timeout de 30 min no mesmo comando', () => {
+    // refresh incremental, I3: o rebuild total passou das 09:00 UTC para as 06:00 UTC; vale a migration mais recente
+    const arquivos = migrationsOrdenadas().filter((f) => /eng-refresh-diario/.test(readMigration(f)));
+    const arquivo = arquivos[arquivos.length - 1];
     expect(arquivo, 'nenhuma migration agenda eng-refresh-diario').toBeDefined();
     const sql = semComentarios(readMigration(arquivo!));
     const idxUnschedule = sql.indexOf('cron.unschedule');
     const idxSchedule = sql.indexOf('cron.schedule');
     expect(idxUnschedule).toBeGreaterThan(-1);
     expect(idxSchedule).toBeGreaterThan(idxUnschedule);
-    expect(sql).toMatch(/'0 9 \* \* \*'/);
+    expect(sql).toMatch(/'0 6 \* \* \*'/);
     expect(sql).toMatch(/SET statement_timeout TO '30min'; SELECT public\.eng_refresh\('cron'\);/);
   });
 });

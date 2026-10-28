@@ -455,3 +455,86 @@ describe('Fase 3: eng_delta_questoes e eng_refresh_incremental', () => {
     expect(sql).not.toMatch(/\bTRUNCATE\b/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fase 4: cron (spec §3.1 I1 e I3, Fase 4)
+// ---------------------------------------------------------------------------
+describe('Fase 4: jobs do pg_cron', () => {
+  const fase4 = migrationsDaFase(4);
+  const sql = fase4.map((m) => m.sql).join('\n');
+
+  /** Estado final de cada job depois de aplicar todas as migrations em ordem (o último schedule vence). */
+  function jobsVigentes(): Map<string, { agenda: string; comando: string }> {
+    const jobs = new Map<string, { agenda: string; comando: string }>();
+    for (const arquivo of migrationsOrdenadas()) {
+      const texto = semComentarios(readMigration(arquivo)).replace(/--[^\n]*/g, '');
+      const eventos: { pos: number; tipo: 'un' | 'sch'; nome: string; agenda?: string; comando?: string }[] = [];
+      for (const m of texto.matchAll(/cron\.unschedule\(jobid\) FROM cron\.job WHERE jobname = '([^']+)'/g)) {
+        eventos.push({ pos: m.index!, tipo: 'un', nome: m[1] });
+      }
+      for (const m of texto.matchAll(/cron\.schedule\(\s*'([^']+)',\s*'([^']+)',\s*\$\$([\s\S]*?)\$\$\s*\)/g)) {
+        eventos.push({ pos: m.index!, tipo: 'sch', nome: m[1], agenda: m[2], comando: m[3] });
+      }
+      eventos.sort((a, b) => a.pos - b.pos);
+      for (const e of eventos) {
+        if (e.tipo === 'un') jobs.delete(e.nome);
+        else jobs.set(e.nome, { agenda: e.agenda!, comando: e.comando! });
+      }
+    }
+    return jobs;
+  }
+
+  it('existe exatamente uma migration da Fase 4', () => {
+    expect(fase4.length).toBe(1);
+  });
+
+  it('o incremental roda a cada 5 min a partir do minuto 2, com statement_timeout e lock_timeout exatos', () => {
+    const j = jobsVigentes().get('eng-refresh-incremental');
+    expect(j, 'job eng-refresh-incremental ausente').toBeDefined();
+    expect(j!.agenda).toBe('2-59/5 * * * *');
+    expect(j!.comando).toBe("SET statement_timeout TO '90s'; SET lock_timeout TO '5s'; SELECT public.eng_refresh_incremental();");
+  });
+
+  it('o rebuild total roda 1x/dia às 06:00 UTC (03:00 BRT) com statement_timeout de 30 min', () => {
+    const j = jobsVigentes().get('eng-refresh-diario');
+    expect(j, 'job eng-refresh-diario ausente').toBeDefined();
+    expect(j!.agenda).toBe('0 6 * * *');
+    expect(j!.comando).toBe("SET statement_timeout TO '30min'; SELECT public.eng_refresh('cron');");
+  });
+
+  it('o job antigo das 09:00 UTC deixou de existir', () => {
+    for (const [nome, j] of jobsVigentes()) {
+      if (nome.startsWith('eng-')) expect(j.agenda, nome).not.toBe('0 9 * * *');
+    }
+  });
+
+  it('o VACUUM diário roda às 06:40 UTC, num único comando, sobre as 4 tabelas', () => {
+    const j = jobsVigentes().get('eng-vacuum-diario');
+    expect(j, 'job eng-vacuum-diario ausente').toBeDefined();
+    expect(j!.agenda).toBe('40 6 * * *');
+    expect(j!.comando).toMatch(/^VACUUM \(ANALYZE\)/);
+    expect(j!.comando).not.toMatch(/;/); // sem SET antes: VACUUM não roda em bloco de transação
+    for (const t of [
+      'eng_atividade_aluno_dia',
+      'eng_questoes_aluno_dia_no',
+      'eng_consumo_aluno_dia_conteudo',
+      'eng_questao_classificacao',
+    ]) {
+      expect(j!.comando).toContain(`public.${t}`);
+    }
+  });
+
+  it('cada job é removido pelo nome antes de ser agendado (idempotência)', () => {
+    for (const nome of ['eng-refresh-incremental', 'eng-refresh-diario', 'eng-vacuum-diario']) {
+      const iUn = sql.indexOf(`cron.unschedule(jobid) FROM cron.job WHERE jobname = '${nome}'`);
+      const iSch = sql.indexOf(`cron.schedule(\n  '${nome}'`);
+      expect(iUn, `${nome}: unschedule ausente`).toBeGreaterThanOrEqual(0);
+      expect(iSch, `${nome}: schedule ausente`).toBeGreaterThan(iUn);
+    }
+  });
+
+  it('o rebuild noturno não colide com o VACUUM e nenhum job usa TRUNCATE ou VACUUM FULL', () => {
+    expect(sql).not.toMatch(/\bTRUNCATE\b/i);
+    expect(sql).not.toMatch(/\bVACUUM\s+FULL\b/i);
+  });
+});
