@@ -119,8 +119,16 @@ Migration: `supabase/migrations/20261028150000_eng_incremental_fase1_schema.sql`
   - Constraints do log agora: `disparo_check`, `status_check` (com `pulado`), `tipo_check`.
 - [x] **EXPLAIN** de `DELETE FROM eng_questoes_aluno_dia_no WHERE dia >= eng_hoje()-3`: `Index Scan using eng_questoes_aluno_dia_no_dia_idx` (com `enable_seqscan = off`; sem isso o planejador pode preferir seq scan, pois a janela hoje cobre ~2.000 de 331 mil linhas e o planner decide por estatística).
 - [x] **Advisors (security):** 5 lints no projeto; o único que cita `eng_*` é `rls_enabled_no_policy` (INFO), que já existia (RLS ligado sem policy é intencional nas `eng_*`). Nenhum alerta novo.
-- [ ] **Rebuild das 06:00 BRT do dia seguinte roda ok** (29/10): pendente. Ainda não rodei rebuild manual.
-- [ ] **Oráculo por dia = 0 linhas depois do último refresh da fase:** pendente pelo mesmo motivo (o último refresh foi às 09:00 UTC de 28/10, antes da migration; o dia corrente segue defasado, como na Fase 0).
+- [x] **Rebuild roda ok depois da migration:** rodado manualmente em 28/10 (a pedido do João), `eng_refresh_log` id 9, `completo`/`manual`, 16:04:00 a 16:20:17 UTC = **977 s (16m17)**, status `ok`. Contagens: 331.811 linhas em `eng_questoes_aluno_dia_no`, 154.829 em consumo, 70.889 em atividade, 68.408 questões classificadas. O rebuild das 06:00 de 29/10 ainda vale como observação adicional (comportamento não mudou, então o tempo ficou na faixa histórica de 2m30 a 18m23).
+- [x] **Oráculo por dia depois do rebuild:** os dias 25, 26 e 27 fecham. O dia corrente (28/10) ainda difere, só por cargas que chegaram **depois** do início do rebuild: 77 a 121 linhas de questões com `carregado_em` > 16:04 UTC (inclusive UPDATEs do `recent_repair`) e a recarga horária do consumo às ~16:22 UTC. Logo depois do fim do rebuild (16:23), a diferença era 19 respostas e 0 de consumo; às 16:45 era 78 respostas e 23 vídeos, só pelo tempo passado. Isso é a regra de T-equiv (diferença explicada por carga concorrente) e é exatamente o que o incremental vai eliminar.
 - [x] **Suíte:** 42 falhas = baseline atual (ver Fase 0). O arquivo novo adiciona 11 testes verdes.
 - [ ] Commit na branch: ver o commit desta fase.
 - OK do João para a Fase 2: pendente.
+
+### Incidente com o job avulso do pg_cron (lição para as Fases 2 e 3)
+A receita da spec mãe (§6.5, `cron.schedule('eng-refresh-avulso', '* * * * *', ...)`) **não é segura** para um rebuild que dura 16 min. Enquanto a 1ª execução rodava, o pg_cron enfileirou uma rodada por minuto perdido e, mesmo depois do `cron.unschedule` da 1ª execução, o launcher continuou disparando o job removido (cache em memória), cada disparo iniciando um rebuild novo. Resultado: ~13 rebuilds extras iniciados, **todos cancelados por mim** com `pg_cancel_backend` (nenhum chegou a gravar; o log só tem o id 9; o estado das `eng_*` é o do rebuild 9). Parou depois que criei e removi um job temporário (`eng-tmp-invalida-cache`), o que fez o launcher recarregar a lista. Confirmado: nenhuma rodada nova do job 6 depois de 16:40 UTC.
+
+**Para as próximas fases:** rodar rebuilds avulsos com agenda de **disparo único** (dia e minuto fixos, ex. `'15 17 28 10 *'`) em vez de `* * * * *`, e já deixar o `cron.unschedule` dentro do próprio comando. Ao cancelar, lembrar que `pg_stat_activity` dentro de um `DO` fica congelada: chamar `pg_stat_clear_snapshot()` a cada volta do laço.
+
+### DoD da Fase 1: fechado
+Todos os itens marcados. OK do João para a Fase 2: **pendente** (ver mensagem final da sessão).
