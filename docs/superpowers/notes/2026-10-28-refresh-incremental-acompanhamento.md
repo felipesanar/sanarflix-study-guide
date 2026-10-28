@@ -166,3 +166,49 @@ Revisor independente (agente só de leitura) conferiu a migration contra P1–P4
 **Estado do pg_cron ao fim da fase:** só `eng-refresh-diario` (0 9 * * *, jobid 5) segue agendado. Todos os jobs temporários foram removidos.
 
 **Atenção para a Fase 3:** o rebuild noturno **já usa as funções novas** a partir de agora; o próximo é o das 06:00 BRT de 29/10 (jobid 5 chama `eng_refresh('cron')`, que existe com a mesma assinatura). Ele roda com a base já quase em dia, então deve ser curto.
+
+---
+
+## Fase 3: incremental manual, sem cron (28/10/2026)
+
+Migrations (aplicadas com `apply_migration`):
+1. `20261028170000_eng_incremental_fase3_incremental.sql` (name `eng_incremental_fase3_incremental`): `eng_delta_questoes(text[], date, smallint)`, `eng_refresh_incremental()` e `eng_refresh_agregados(date)` com a leitura da dim num `IF`.
+2. `20261028180000_eng_incremental_fase3_leitura_unica.sql` (name `eng_incremental_fase3_leitura_unica`): `eng_monta_w_resp(date)`, e `eng_refresh_agregados`/`eng_refresh_incremental` passam a ler a janela de respostas uma vez só. **Esta segunda migration não estava prevista**: nasceu da medição de custo (abaixo) e segue a opção que a própria spec deixava para a implementação (§5.2, "montar `w_resp` antes do passo 4").
+
+O disparo do log vem de `application_name`: `pg_cron` grava `disparo = 'cron'`, qualquer outra origem grava `'manual'` (a função não tem parâmetro, como na spec).
+
+### Revisor independente (agente só de leitura)
+Sem achado bloqueante. Importantes, todos aceitos:
+- **T-delta da spec está em ordem errada.** O passo 2 apaga a classificação de X antes do `-1` do passo 3, e o `-1` descobre a folha por JOIN com a classificação, então não acharia nada. Executei na ordem **`-1` primeiro, depois apagar a classificação**, que é o que o teste quer simular. (A spec §5.3 deve ser corrigida na revisão do João.)
+- **P6 violado indiretamente:** o `CASE WHEN p_desde IS NULL THEN (SELECT ... dim_aluno_b2b)` dentro do `SELECT jsonb_build_object` é planejado por inteiro, e o planejamento já trava a relação. Passou a ser `IF p_desde IS NULL THEN SELECT ... INTO v_dim ...; END IF;`. Teste estático garante.
+- **Resposta tardia em dia antigo** (fora da janela quente) para uma questão recém-classificada: o `UPDATE` da atividade perderia a contribuição ou quebraria `eng_aad_coerencia_ck`, e o incremental falharia a cada rodada até o rebuild. Agora o delta +1 confere antes de escrever (`respostas_todas >= questoes + delta` para todo (aluno, dia)); se alguma não bate, devolve `delta_adiado = true` e `delta_incoerentes = N` sem escrever (verificado: chamar o `+1` para uma questão já contada devolve `delta_adiado`).
+- Menores: o `UPDATE` de atividade no `+1` (em vez de `INSERT ... ON CONFLICT` da spec) é deliberado, porque criar linha de atividade com `respostas_todas = 0` violaria o CHECK; questão com taxonomia inválida (nunca classifica) é reprocessada a cada rodada (hoje são poucas; custo desprezível, medido junto); `question_id` é NOT NULL (confirmado), então o achado do `array_agg(DISTINCT)` com NULL não se aplica.
+
+Erro meu no meio do caminho, corrigido antes de aplicar: um script que gerou a segunda migration trocou `$$` por `$` (comportamento do `String.replace`). Peguei na revisão da leitura do arquivo e acrescentei um teste estático (cada função tem o seu par `$$ ... $$`).
+
+### DoD
+- [x] **Testes estáticos:** 59 no arquivo `engajamentoRefreshIncremental.test.ts` (26 da Fase 3), verdes.
+- [x] **T-equiv** (a versão de snapshot da spec): rebuild de referência id 33 (17:46:00 a 17:49:35 UTC), snapshot da janela em `eng_qa.snap_*`, incremental logo depois: **0 diferenças** nas 3 tabelas da janela e na classificação. Como não houve carga entre os passos, esse teste sozinho é fraco, então fiz a versão forte:
+  - **T-equiv forte:** depois de ~23 incrementais com dados reais (cargas da DAG a cada 5 min, 2 questões novas classificadas), rodei um rebuild total (id 58, 18:14:00 a 18:17:57 = 237 s, com o incremental `pulado` durante ele) e **todas as contagens de diff do rebuild deram 0** (classificação inseridas/atualizadas/removidas, consumo, questões, atividade, deriva e `questoes_trocaram_folha`). O estado que os incrementais deixaram é idêntico ao do rebuild.
+- [x] **T-idem:** incrementais id 34 e 35 em sequência (sem carga entre eles): todas as contagens de diff = 0 nos dois.
+- [x] **T-delta** (transação com `ROLLBACK`; duas questões, uma `unica` e uma `primeira`, com 153 respostas fora da janela): o `-1` alterou 139 linhas de questões (137 atualizadas e 2 removidas) e 139 de atividade; depois de apagar a classificação, o incremental reclassificou as duas questões **com a mesma folha** e aplicou o `+1`; **0 diferenças em todos os dias** nas duas tabelas. Repetido com o código novo e em `REPEATABLE READ` depois de um incremental em dia: 0/0/0/0. (Uma tentativa intermediária mostrou 7/13/10/11 diferenças: era carga da DAG que chegou depois do rebuild e entrou no recálculo da janela, não falha do delta; a prova foi rodar um incremental antes e repetir.)
+- [x] **Oráculo por dia:** 0 linhas logo depois de um incremental (18:19 UTC).
+- [x] **Lock:** com o rebuild (id 58) rodando, o incremental gravou `pulado` em **15 ms** (id 59).
+- [x] **Custo** (10 execuções; ver abaixo para o que mudou no meio):
+  - Lote 1 (ids 37 a 46, antes da otimização, execuções espaçadas em ~15 min com algumas coladas, atravessando cargas da DAG): durações 0,60 · 1,84 · 2,45 · 2,52 · 2,64 · 3,91 · 4,38 · 5,06 · 9,82 · 12,80 s. **Mediana 3,28 s, p95 ≈ 11,5 s, máximo 12,8 s.** Blocos temporários gravados: **0**. WAL: ~2,7 MB por execução (meta < 20 MB). A meta de 5 s não foi atingida; o teto de 15 s da §3.3 também não foi.
+  - Diagnóstico: o EXPLAIN da leitura da janela (17,4 mil linhas) mostra 7.249 blocos lidos do disco por varredura (0,6 s a quente), e o incremental varria a janela duas vezes (busca de questões novas + `w_resp`). Classificar 1 questão leva ~0,1 s, o delta ~0,06 s e os agregados da janela ~0,3 s a quente. Os 9,8 s e 12,8 s vieram de leitura de disco logo depois de cargas da DAG (cache pequeno), não de uma etapa lenta.
+  - Otimização (migration 2): a janela passa a ser lida uma vez.
+  - Lote 2 (ids 47 a 56, depois da otimização): **mediana 0,77 s, p95 2,35 s, máximo 2,89 s**, 0 blocos temporários, ~0,48 MB de WAL por execução. **Ressalva importante:** esse lote foi rodado colado (cache aquecido) e sem dados novos, então é o melhor caso e não é comparável ao lote 1. Não provei que a otimização resolve os picos com carga real. **O p95 que vale é o da Fase 4**, com 24 h de cron a cada 5 min (DoD: p95 < 5 s; a regra de parar é 15 s).
+- [x] **Advisors (security):** mesmos 5 lints de antes; o único que cita `eng_*` é `rls_enabled_no_policy` (pré-existente). As 6 funções do pipeline com `anon` e `authenticated` sem EXECUTE.
+- [x] **Suíte:** rodada completa depois das migrations: 43 falhas em 2.423 testes. As 42 da baseline mais **1 nova**: `engajamentoMigrations.test.ts` > "toda função public.eng_* revoga de PUBLIC, anon e authenticated na mesma migration". As minhas duas migrations recriavam `eng_refresh_agregados` (e a segunda `eng_refresh_incremental`) sem repetir o `REVOKE` no mesmo arquivo. A ACL no banco já estava certa (`CREATE OR REPLACE` preserva; conferido: `anon` e `authenticated` sem EXECUTE nas 6 funções), mas a regra do teste vale; acrescentei os `REVOKE` aos dois arquivos de migration (no-op no banco, que já tinha esse estado; o texto aplicado e o commitado diferem só por essa linha). Os dois arquivos de migrations do Engajamento passam (131 testes). Resultado final: as mesmas 42 falhas da baseline, nenhuma nova (a suíte inteira não foi rodada de novo depois desse ajuste).
+- [x] `eng_qa` apagado; só `eng-refresh-diario` agendado no pg_cron (todos os jobs de teste removidos).
+- [ ] OK do João para a Fase 4.
+
+**Desvios do protocolo, a seu critério:**
+- A spec pede 10 execuções "espaçadas ao longo de 1 h". Espacei só o primeiro lote (~16 min no total) e fiz o segundo em ~1 min, a pedido do João ("precisa esperar esse tempo todo?"). A amostragem real do p95 fica para a Fase 4.
+- Ordem dos passos do T-delta (acima).
+
+**Para a Fase 4:**
+- Ligar o cron faz o incremental rodar com `application_name = 'pg_cron'`, o que grava `disparo = 'cron'`.
+- O `statement_timeout` do job (90 s) não é capturado pelo `EXCEPTION WHEN OTHERS`: a transação inteira volta e **nem a linha de log `rodando` sobra** (só `cron.job_run_details` registra). Isso já está na spec como R4; vale um alerta no acompanhamento.
+- Com o cron ligado, `eng_atualizado_em()` (ainda a versão antiga, `max(terminado_em)` do último `ok`) vai passar a dizer "há 2 min" mesmo que a DAG pare. A Fase 5 corrige. Se a Fase 4 ficar dias em produção antes da Fase 5, o selo "atualizado em" ficará otimista (decisão do João, spec §3.3 item 4).

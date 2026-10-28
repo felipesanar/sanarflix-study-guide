@@ -108,7 +108,8 @@ describe('Fase 1: suporte de schema (spec §5.1)', () => {
 
 /** Corpo de UMA função: do CREATE até o `END $$;` que a fecha (sem comentários). */
 function corpoDaFuncao(sql: string, nome: string): string {
-  const inicio = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${nome}(`);
+  // a versão vigente é a última definição (a Fase 3 recria funções da Fase 2)
+  const inicio = sql.lastIndexOf(`CREATE OR REPLACE FUNCTION public.${nome}(`);
   expect(inicio, `CREATE de ${nome} ausente`).toBeGreaterThanOrEqual(0);
   const fim = sql.indexOf('END $$;', inicio);
   expect(fim, `fim de ${nome} ausente`).toBeGreaterThan(inicio);
@@ -266,6 +267,190 @@ describe('Fase 2: pipeline parametrizado com diff', () => {
   });
 
   it('nenhum MERGE nem TRUNCATE na migration da fase', () => {
+    expect(sql).not.toMatch(/\bMERGE\b/i);
+    expect(sql).not.toMatch(/\bTRUNCATE\b/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fase 3: incremental manual, sem cron (spec §5.2, P4–P6, I5)
+// ---------------------------------------------------------------------------
+describe('Fase 3: eng_delta_questoes e eng_refresh_incremental', () => {
+  const fase3 = migrationsDaFase(3);
+  const sql = fase3.map((m) => m.sql).join('\n');
+  const incremental = () => corpoDaFuncao(sql, 'eng_refresh_incremental');
+  const delta = () => corpoDaFuncao(sql, 'eng_delta_questoes');
+
+  it('a Fase 3 tem duas migrations: o incremental e a leitura única da janela', () => {
+    expect(fase3.length).toBe(2);
+  });
+
+  it('as assinaturas seguem a spec', () => {
+    expect(sql).toMatch(/FUNCTION public\.eng_delta_questoes\(p_questoes text\[\], p_ate date, p_sinal smallint\)/);
+    expect(sql).toMatch(/FUNCTION public\.eng_refresh_incremental\(\)/);
+  });
+
+  it('REVOKE de PUBLIC, anon e authenticated nas duas funções', () => {
+    const revoke = sql.match(/REVOKE ALL ON FUNCTION[\s\S]*?;/g)?.join('\n') ?? '';
+    expect(revoke).toContain('public.eng_delta_questoes(text[], date, smallint)');
+    expect(revoke).toContain('public.eng_refresh_incremental()');
+    expect(revoke).toMatch(/FROM\s+PUBLIC,\s*anon,\s*authenticated/);
+  });
+
+  it("o incremental tenta o lock sem esperar e grava 'pulado' quando não consegue", () => {
+    const i = incremental();
+    expect(i).toMatch(/pg_try_advisory_xact_lock\(hashtext\('eng_refresh'\)\)/);
+    expect(i).not.toMatch(/PERFORM pg_advisory_xact_lock/);
+    expect(i).toMatch(/'pulado'/);
+    // o 'pulado' é gravado antes de qualquer cálculo
+    expect(i.indexOf("'pulado'")).toBeLessThan(i.indexOf('eng_refresh_agregados'));
+  });
+
+  it('o log do incremental tem tipo incremental', () => {
+    expect(incremental()).toMatch(/'rodando',\s*v_disparo,\s*'incremental'|\(status, disparo, tipo\)\s*VALUES \('rodando', v_disparo, 'incremental'\)/);
+    expect(incremental()).toMatch(/'incremental'/);
+  });
+
+  it('a janela quente é eng_hoje() - 3', () => {
+    expect(incremental()).toMatch(/v_desde\s*:=\s*public\.eng_hoje\(\)\s*-\s*3/);
+  });
+
+  it('o incremental não lê dim_aluno_b2b (P6)', () => {
+    expect(incremental()).not.toMatch(/dim_aluno_b2b/);
+    expect(delta()).not.toMatch(/dim_aluno_b2b/);
+  });
+
+  it('o incremental não chama as funções do rebuild com NULL', () => {
+    const i = incremental();
+    expect(i).not.toMatch(/eng_refresh_classificacao\(\s*NULL\s*\)/i);
+    expect(i).not.toMatch(/eng_refresh_agregados\(\s*NULL\s*\)/i);
+    expect(i).not.toMatch(/eng_refresh\(/);
+  });
+
+  it('os agregados são recalculados com a janela (v_desde)', () => {
+    expect(incremental()).toMatch(/eng_refresh_agregados\(v_desde\)/);
+  });
+
+  it('só questões sem classificação entram na classificação incremental (I5)', () => {
+    const i = incremental();
+    expect(i).toMatch(/NOT EXISTS \(SELECT 1 FROM public\.eng_questao_classificacao/);
+    expect(i).toMatch(/eng_refresh_classificacao\(v_novas\)/);
+  });
+
+  it("a taxonomia ausente só entra se houver de-para e carga recente", () => {
+    const i = incremental();
+    expect(i).toMatch(/taxonomia_status <> 'ausente'/);
+    expect(i).toMatch(/eng_depara_quiz_no/);
+    expect(i).toMatch(/carregado_em >/);
+    expect(i).toMatch(/interval '1 hour'/);
+  });
+
+  it('o delta histórico vai só até v_desde e só para o que ganhou classificação, com sinal +1', () => {
+    expect(incremental()).toMatch(/eng_delta_questoes\(v_classificadas,\s*v_desde,\s*1::smallint\)/);
+  });
+
+  it('a classificação vem antes do delta e o delta antes dos agregados', () => {
+    const i = incremental();
+    const iClass = i.indexOf('eng_refresh_classificacao(v_novas)');
+    const iDelta = i.indexOf('eng_delta_questoes(');
+    const iAgreg = i.indexOf('eng_refresh_agregados(v_desde)');
+    expect(iClass).toBeGreaterThan(0);
+    expect(iDelta).toBeGreaterThan(iClass);
+    expect(iAgreg).toBeGreaterThan(iDelta);
+  });
+
+  it('o incremental grava ok com contagens e erro com SQLSTATE', () => {
+    const i = incremental();
+    expect(i).toMatch(/status = 'ok'[\s\S]*?contagens/);
+    expect(i).toMatch(/EXCEPTION WHEN OTHERS THEN[\s\S]*?status = 'erro'[\s\S]*?SQLSTATE/);
+  });
+
+  it('eng_delta_questoes tem o teto P5 de 20.000 respostas e devolve delta_adiado', () => {
+    const d = delta();
+    expect(d).toMatch(/v_teto\s+constant integer\s*:=\s*20000/);
+    expect(d).toMatch(/v_n\s*>\s*v_teto/);
+    expect(d).toContain("'delta_adiado', true");
+    // o teto é conferido antes de qualquer escrita
+    expect(d.indexOf('v_n > v_teto')).toBeLessThan(d.indexOf('INSERT INTO public.eng_questoes_aluno_dia_no'));
+  });
+
+  it('eng_delta_questoes só aceita sinal +1 ou -1', () => {
+    expect(delta()).toMatch(/p_sinal NOT IN \(1, -1\)/);
+  });
+
+  it('o delta só olha dias anteriores a p_ate', () => {
+    const d = delta();
+    const usos = d.match(/response_date < p_ate/g) ?? [];
+    expect(usos.length).toBe(2); // contagem do teto e agregação
+  });
+
+  it('o +1 soma com ON CONFLICT e o respostas_todas nunca é tocado', () => {
+    const d = delta();
+    expect(d).toMatch(/ON CONFLICT \(sanarflix_user_id, dia, folha_id\) DO UPDATE\s+SET questoes = t\.questoes \+ EXCLUDED\.questoes/);
+    expect(d).not.toMatch(/SET[^;]*respostas_todas/);
+  });
+
+  it('o -1 apaga a linha que chegaria a zero antes de subtrair (CHECK questoes > 0)', () => {
+    const d = delta();
+    const iDel = d.indexOf('DELETE FROM public.eng_questoes_aluno_dia_no');
+    const iSub = d.indexOf('SET questoes = t.questoes - d.questoes');
+    expect(iDel).toBeGreaterThan(0);
+    expect(iSub).toBeGreaterThan(iDel);
+    expect(d).toMatch(/t\.questoes <= d\.questoes/);
+  });
+
+  it('cada função tem o seu par de dollar-quotes ($$ ... $$)', () => {
+    const funcoes = (sql.match(/CREATE OR REPLACE FUNCTION/g) ?? []).length;
+    expect(funcoes).toBe(6);
+    expect((sql.match(/\$\$/g) ?? []).length).toBe(funcoes * 2);
+    expect(sql).not.toMatch(/^AS \$\s*$/m);
+    expect(sql).not.toMatch(/^END \$;/m);
+  });
+
+  it('a dim só é lida num IF p_desde IS NULL, fora de qualquer SELECT maior (P6: o planejamento trava a relação)', () => {
+    const a = corpoDaFuncao(sql, 'eng_refresh_agregados');
+    const usos = a.match(/dim_aluno_b2b/g) ?? [];
+    expect(usos.length).toBe(1);
+    expect(a).toMatch(/IF p_desde IS NULL THEN\s+SELECT max\(snapshot_date\) INTO v_dim FROM public\.dim_aluno_b2b;\s+END IF;/);
+    expect(a).not.toMatch(/CASE WHEN p_desde IS NULL THEN \(SELECT[^)]*dim_aluno_b2b/);
+  });
+
+  it('o delta +1 confere a coerência da atividade antes de escrever e adia em vez de falhar', () => {
+    const d = delta();
+    expect(d).toContain("'delta_incoerentes'");
+    expect(d).toMatch(/t\.respostas_todas < t\.questoes \+ d\.questoes/);
+    expect(d.indexOf("'delta_incoerentes'")).toBeLessThan(d.indexOf('INSERT INTO public.eng_questoes_aluno_dia_no'));
+  });
+
+  it('a janela de respostas é lida uma vez: o incremental monta w_resp e tira as questões novas dele', () => {
+    const i = incremental();
+    expect(i).toMatch(/PERFORM public\.eng_monta_w_resp\(v_desde\)/);
+    expect(i).toMatch(/FROM w_resp r\s+WHERE NOT EXISTS/);
+    // sem uma segunda leitura da fato no incremental
+    expect(i).not.toMatch(/fato_resolucao_questoes_b2b/);
+    expect(i.indexOf('eng_monta_w_resp')).toBeLessThan(i.indexOf('eng_refresh_classificacao(v_novas)'));
+  });
+
+  it('eng_refresh_agregados só reaproveita o w_resp da mesma janela e consome a marca', () => {
+    const a = corpoDaFuncao(sql, 'eng_refresh_agregados');
+    expect(a).toMatch(/to_regclass\('pg_temp\.w_resp'\) IS NULL/);
+    expect(a).toMatch(/current_setting\('eng\.w_resp_desde', true\) IS DISTINCT FROM coalesce\(p_desde::text, 'tudo'\)/);
+    expect(a).toMatch(/set_config\('eng\.w_resp_desde', '', true\)/);
+    // a fonte de respostas é lida só dentro de eng_monta_w_resp
+    expect(a).not.toMatch(/FROM public\.fato_resolucao_questoes_b2b/);
+  });
+
+  it('eng_monta_w_resp tem a leitura estreita filtrada por p_desde e REVOKE', () => {
+    const m = corpoDaFuncao(sql, 'eng_monta_w_resp');
+    expect(m).toMatch(/CREATE TEMP TABLE w_resp ON COMMIT DROP[\s\S]*?p_desde IS NULL OR response_date >= p_desde/);
+    expect(m).toMatch(/set_config\('eng\.w_resp_desde'/);
+    const revoke = sql.match(/REVOKE ALL ON FUNCTION[\s\S]*?;/g)?.join('\n') ?? '';
+    expect(revoke).toContain('public.eng_monta_w_resp(date)');
+    expect(revoke).toMatch(/FROM\s+PUBLIC,\s*anon,\s*authenticated/);
+  });
+
+  it('nenhum DELETE em eng_* sem WHERE, nenhum MERGE e nenhum TRUNCATE', () => {
+    expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.eng_\w+(\s+\w+)?\s*;/i);
     expect(sql).not.toMatch(/\bMERGE\b/i);
     expect(sql).not.toMatch(/\bTRUNCATE\b/i);
   });
