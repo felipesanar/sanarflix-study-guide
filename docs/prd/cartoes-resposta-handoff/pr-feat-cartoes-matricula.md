@@ -44,14 +44,14 @@ Contexto e decisões: `docs/prd/2026-10-07-cartoes-resposta.md` (rev. 9) e `docs
 - **Front:** `npx vitest run src/features/cartoes` → 280 testes (tela, classificação, filtro de semestre, QR com vetores do Python, CSVs); `ProvasTabId.test.tsx`.
 - `npx tsc -p tsconfig.app.json --noEmit` → 0 erros. `npx vite build` → OK.
 - **Suíte inteira do front:** 1.961 passam e 40 falham, **todas as 40 em 11 arquivos do Portal do Gestor** (`features/gestor/*` e `gestorMigrations*`). Conferi numa cópia limpa da `origin/main`: **as mesmas 40 falham lá** (baseline). Este PR não introduz falhas.
-- **Em papel (João, 21/10/2026):** (1) cartões de 5 alunos da UVA, com marcações corretas, em branco, dupla, ✓, X e ponto: 5/5 identificados, nenhuma letra errada, as 18 marcações inválidas foram para revisão; (2) **plano B por e-mail**, com dry-run no app e `--lista`; (3) **página repetida**. Detalhes em `fase-matricula.md`.
+- **Em papel (João, 21/10/2026):** (1) cartões de 5 alunos da UVA, com marcações corretas, em branco, dupla, ✓, X e ponto: 5/5 identificados, nenhuma letra errada, as 18 marcações inválidas foram para revisão; (2) **plano B por e-mail**, com dry-run no app e `--lista`; (3) **página repetida**; (4) **UniAtenas** (matrícula em bolhas, casos de erro e QR). Detalhes em `fase-matricula.md`.
 
 ## Riscos e pontos para o revisor
 1. **Tamanho:** ~80 arquivos e ~45 mil linhas, mas a maior parte é JSON de template/gabarito e fixtures. O que roda no app são os 3 arquivos acima, o `src/features/cartoes/` e dois ajustes de configuração.
 2. **Binários no Git:** os PDFs de fixtures foram regenerados três vezes nesta branch (cada regeneração soma ~5 MB ao histórico). Aceitável hoje; vale squash ao mesclar.
 3. **`vite.config.ts` e `tsconfig.app.json`** mudam para todo o app (só afetam workers e importação de JSON). O `vite build` passa e o chunk do worker sai normal.
 4. **Limiares do leitor sem calibração real:** brancos pontuam até 0,19 (corte 0,20) e marcas válidas a partir de 0,53 (corte 0,50). Falha segura (vira revisão), mas pode gerar mais pendências em outro scanner/papel. A calibração depende de uma turma real escaneada.
-5. **UniAtenas em papel:** ainda sem teste físico (só fixtures sintéticas).
+5. **UniAtenas em papel:** aprovado pelo João em 29/10 (cartão certo identificado e importado no dry-run; duas marcas na mesma coluna e coluna em branco foram para Pendências/Não identificados com recorte; `--simulado` trocado gera `simulado_divergente`).
 6. **Qualidade do cadastro:** muitas IES têm quase todos os alunos sem `matricula_ra` (Famp, Fame, B2C, UEA, Claretiano, USCS, FAI): nelas o **e-mail vira o caminho principal**. Não conferi a qualidade de `users.email`; quem ficar sem e-mail utilizável aparece no painel "fora do PDF".
 7. **Ordem de deploy:** a importação por e-mail já está na `main`; este PR não depende de nada além dela.
 8. **Backlog de segurança do Academy** (F1, F2, F4, F5 em `p8-auditoria-user-id.md`) é independente deste PR: o cartão não carrega mais o `user_id`.
@@ -62,7 +62,7 @@ Contexto e decisões: `docs/prd/2026-10-07-cartoes-resposta.md` (rev. 9) e `docs
 - [x] Sem migration, sem Edge Function, sem escrita no banco
 - [x] Sem dados reais no Git (fixtures sintéticas; `runs/` e `*.pdf` fora de `templates/` e `tests/fixtures/` ignorados)
 - [x] PRD, handoff, runbook e guia das IES atualizados
-- [ ] Teste físico do cartão UniAtenas
+- [x] Teste físico do cartão UniAtenas (aprovado em 29/10)
 - [ ] Calibração dos limiares com uma turma real
 
 ## Checklist do revisor

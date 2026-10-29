@@ -8,7 +8,7 @@ Comece por aqui. Este arquivo responde: **o que é cada sigla, onde está cada c
 > - **Fase 2 sem banco:** `cartao-omr processar <pdf> --simulado <id> [--questoes N] [--lista csv]` gera o xlsx com a matrícula na coluna 1. Não há papel `cartao_omr_reader`, `psycopg` nem `.env`.
 > - **Descartados como bloqueio:** F1, F2, P8 e os achados F1 a F6 (importação por ID, P6, segue na `main`). As branches de F1 e F2 foram apagadas; o código está em `C:\Users\joao.nader\work\_backup\` (bundle `sanarflix-2026-10-20.bundle` e patches `patches-f1`, `patches-f2`).
 > - O PRD foi atualizado na **rev. 8** (20/10) e na **rev. 9** (21/10: plano B por e-mail). As seções 5 a 7 deste arquivo abaixo são **histórico** do plano com `user_id`.
-> - **Aceito em papel pelo João (21/10):** cartão com matrícula (UVA), plano B por e-mail (com dry-run no app) e página repetida. **Falta:** teste físico do UniAtenas e calibração dos limiares com uma turma real (Fase 3). Runbook: README do serviço; guia das IES: `docs/prd/cartoes-resposta-guia-ies.md`.
+> - **Aceito em papel pelo João (21 e 29/10):** cartão com matrícula (UVA), plano B por e-mail (com dry-run no app) e página repetida. UniAtenas também aceito em papel (29/10). **Falta:** calibração dos limiares com uma turma real (Fase 3). P2 confirmada, P3 dispensada, P5 com o João. Runbook: README do serviço; guia das IES: `docs/prd/cartoes-resposta-guia-ies.md`.
 >
 > ### Backlog de segurança do Academy (fora do projeto dos cartões; o João decide quando fazer)
 > Deixaram de bloquear os cartões, mas **continuam sendo falhas reais do Academy**, independentes deles. Detalhes em `p8-auditoria-user-id.md`.

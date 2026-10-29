@@ -103,3 +103,9 @@ Primeiro teste com papel: o João imprimiu cartões de 5 alunos da UVA (1º Simu
 - **Runbook** (README do serviço, seção "Runbook: do cartão à importação") e **guia das IES** (`docs/prd/cartoes-resposta-guia-ies.md`, 1 página).
 - **P2, P3, P5:** P2 (campi do UniAtenas) e P5 (avisar as IES) seguem abertas, e o guia ajuda na P5. **P3 mudou de natureza:** na consulta de 20/10 o UniAtenas tinha só 18 alunos sem matrícula (eram ~246 em 13/10) e o plano B por e-mail cobre quem não tem; deixou de bloquear.
 - **Não coberto ainda:** o cartão UniAtenas em papel (matrícula em bolhas) e a calibração dos limiares (precisa de uma turma real).
+
+## 11. Aceite físico do UniAtenas (29/10/2026)
+- **Cartão preenchido certo:** lido, identificado pela matrícula em bolhas e aceito no dry-run da importação.
+- **Casos de erro:** duas bolhas na mesma coluna e coluna em branco **não entraram** em `Respostas`; foram para `Pendências` (`matricula_invalida`) e `Não identificados`, com recorte em `recortes/` mostrando o problema. O `Resumo` ficou consistente.
+- **QR:** o do UniAtenas (`SFA2:A:<SIM8>`) só escolhe o leitor e confere o simulado; rodar o mesmo PDF com outro `--simulado` fez todas as páginas virarem `simulado_divergente`, como esperado.
+- **Pendências do projeto:** P2 **confirmada** pelo João (os 6 campi); P3 **dispensada** (o plano B por e-mail resolve; o cadastro é atualizado continuamente); P5 (avisar as IES) com o João. Falta só a calibração dos limiares, que depende de uma turma real.

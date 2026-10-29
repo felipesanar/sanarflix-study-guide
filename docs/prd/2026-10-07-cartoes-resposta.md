@@ -393,7 +393,7 @@ A ordem das abas importa: a tela de importação lê **só a primeira**, **por p
 - **Aceite:** testes verdes (atendido); o João abre o xlsx de uma execução real e roda o dry-run da importação (**pendente**, Fase 3).
 
 ### Fase 3 — Piloto real e runbook
-- **Rev. 9 (21/10/2026):** o runbook (seção "Runbook" do `services/cartao-omr/README.md`) e o guia de 1 página para as IES (`docs/prd/cartoes-resposta-guia-ies.md`) já estão escritos. O aceite físico com 5 alunos da UVA, o plano B por e-mail e a página repetida foram aprovados pelo João; falta a calibração dos limiares com uma turma real e o teste físico do UniAtenas.
+- **Rev. 9 (21/10/2026):** o runbook (seção "Runbook" do `services/cartao-omr/README.md`) e o guia de 1 página para as IES (`docs/prd/cartoes-resposta-guia-ies.md`) já estão escritos. O aceite físico com 5 alunos da UVA, o plano B por e-mail e a página repetida foram aprovados pelo João; o cartão UniAtenas foi aceito em papel em 29/10; falta a calibração dos limiares com uma turma real.
 - **Insumos do João:**
   - um simulado de teste;
   - cartões pessoais impressos e preenchidos por voluntários, com **gabarito conhecido**;
