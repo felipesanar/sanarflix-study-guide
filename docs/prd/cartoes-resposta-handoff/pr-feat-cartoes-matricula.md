@@ -1,6 +1,6 @@
 # PR: `feat/cartoes-matricula` → `main`
 
-> Rascunho da descrição e do checklist do pull request. **Não foi aberto.** Para abrir: `gh pr create --base main --head feat/cartoes-matricula --title "<título>" --body-file docs/prd/cartoes-resposta-handoff/pr-feat-cartoes-matricula.md` (apague este bloco e a seção "Checklist do autor" antes, ou cole só o corpo).
+> Descrição e checklists do pull request (o corpo do PR começa em "## Resumo"). Para abrir pela linha de comando: `gh pr create --base main --head feat/cartoes-matricula --title "<título>" --body-file docs/prd/cartoes-resposta-handoff/pr-feat-cartoes-matricula.md` (apague este bloco e a seção "Checklist do autor" antes, ou cole só o corpo).
 
 ## Título sugerido
 `feat(cartoes): cartões-resposta com nome e matrícula (plano B por e-mail), emissão no Academy e leitor local`
@@ -8,7 +8,7 @@
 ## Resumo
 Primeira entrega do projeto de **correção automática de cartões-resposta** (PDF escaneado → planilha de importação), que nunca esteve na `main`. Cobre o ciclo inteiro:
 
-1. **Emissão (Academy):** nova aba **Admin → Simulados → Cartões-resposta** gera, no navegador, um PDF com **um cartão por aluno**, com o **nome e a matrícula impressos** e a matrícula também num **QR**. Quem não tem matrícula utilizável (vazia, fora do formato ou repetida) recebe o **plano B**: cartão identificado pelo **e-mail** no QR, com o campo MATRÍCULA em branco para o aluno escrever. Filtro por **semestre**; lista de quem ficou de fora (sem nenhum dos dois) com CSV; CSV da emissão. O grupo **UniAtenas** segue com o cartão único (matrícula em bolhas).
+1. **Emissão (Academy):** nova aba **Admin → Simulados → Cartões-resposta** gera, no navegador, um PDF com **um cartão por aluno**, com o **nome e a matrícula impressos** e a matrícula também num **QR**. Quem não tem matrícula utilizável (vazia, fora do formato ou repetida) recebe o **plano B**: cartão identificado pelo **e-mail** no QR, com o campo MATRÍCULA em branco para o aluno escrever. A lista traz **todos os usuários da IES** (a equipe, como professores e gestores, aparece com selo e **desmarcada**). Filtro por **semestre**; lista de quem ficou de fora (sem nenhum dos dois) com CSV; CSV da emissão. O grupo **UniAtenas** segue com o cartão único (matrícula em bolhas).
 2. **Leitura (script local, `services/cartao-omr`):** `cartao-omr processar <pdf> --simulado <id>` lê o PDF escaneado (visão computacional determinística, **sem LLM e sem banco**) e gera `respostas_<simulado>.xlsx` com a matrícula (ou o e-mail) na coluna 1, mais pendências, recortes e relatório.
 3. **Importação:** a planilha entra pela tela **Importar respostas** que já existe (1ª coluna aceita Matrícula/RA ou e-mail, já na `main`).
 4. **Provas:** o **ID do simulado** aparece (discreto, selecionável) embaixo do nome em Simulados → Provas, porque é o `--simulado` do script.
@@ -41,7 +41,7 @@ Contexto e decisões: `docs/prd/2026-10-07-cartoes-resposta.md` (rev. 9) e `docs
 
 ## Como foi testado
 - **Python:** `cd services/cartao-omr && .venv/Scripts/python.exe -m pytest` → 229 testes (paridade Python × TypeScript, leitura sobre fixtures sintéticas a 100–300 dpi, `processar`, planilha no formato da importação com espelho do `parseMatrizRespostas`).
-- **Front:** `npx vitest run src/features/cartoes` → 280 testes (tela, classificação, filtro de semestre, QR com vetores do Python, CSVs); `ProvasTabId.test.tsx`.
+- **Front:** `npx vitest run src/features/cartoes` → 290 testes (tela, classificação, filtro de semestre, QR com vetores do Python, CSVs); `ProvasTabId.test.tsx`.
 - `npx tsc -p tsconfig.app.json --noEmit` → 0 erros. `npx vite build` → OK.
 - **Suíte inteira do front:** 1.961 passam e 40 falham, **todas as 40 em 11 arquivos do Portal do Gestor** (`features/gestor/*` e `gestorMigrations*`). Conferi numa cópia limpa da `origin/main`: **as mesmas 40 falham lá** (baseline). Este PR não introduz falhas.
 - **Em papel (João, 21/10/2026):** (1) cartões de 5 alunos da UVA, com marcações corretas, em branco, dupla, ✓, X e ponto: 5/5 identificados, nenhuma letra errada, as 18 marcações inválidas foram para revisão; (2) **plano B por e-mail**, com dry-run no app e `--lista`; (3) **página repetida**; (4) **UniAtenas** (matrícula em bolhas, casos de erro e QR). Detalhes em `fase-matricula.md`.
