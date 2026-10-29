@@ -329,3 +329,15 @@ Erro meu durante o trabalho: o helper de teste ficou com um caractere de control
 - [ ] No banco: com a última linha `ok` tendo `fonte_carregado_cons` 1 h atrás, `eng_atualizado_em()` devolve esse valor; gestor de outra IES recebe erro de acesso na RPC de versão.
 - [ ] QA na PARACATU pelo navegador: com a tela aberta, o selo "atualizado em" avança sozinho em <= 7 min, sem recarregar; uma questão resolvida por um aluno de teste aparece nas contagens em <= 35 min.
 - [ ] DoD comum (advisors, oráculo, suíte) depois de aplicar.
+
+---
+
+## Decisão do João sobre o p95 do incremental (29/10/2026)
+
+O João **aceitou o p95 de ~7 s** como desvio da meta de 5 s do DoD da Fase 4, sem pedir índice ao time de dados. Motivos registrados: o máximo medido (14,2 s) fica abaixo do teto de 15 s da §3.3 item 2, o custo é ~2% do intervalo de 5 min e o incremental não concorre consigo mesmo.
+
+- O índice de cobertura em `fato_resolucao_questoes_b2b(response_date) INCLUDE (...)` fica como **trabalho futuro** (§8 da spec), dependente do time de dados.
+- A regra de parar continua valendo: se o **p95 final das 24 h** passar de **15 s**, ou o rebuild noturno passar de 20 min, ou a deriva noturna passar de 0,5% em 3 noites seguidas, parar e perguntar (§3.3).
+- O item "p95 < 5 s" do DoD da Fase 4 passa a ser registrado como **desvio aceito**, não como cumprido.
+
+Próximo passo combinado: fechar as 24 h da Fase 4 no checkpoint de 29/10 (~18:30 UTC, 15:30 BRT) e, em seguida, aplicar a migration da Fase 5, verificar no banco e fazer o QA na PARACATU.
