@@ -428,10 +428,10 @@ export default function CartoesTab() {
           ) : erroAlunos ? (
             <AdminError message={erroAlunos} title="Falha ao carregar os alunos" onRetry={() => void carregarAlunos(ies.id)} />
           ) : !alunos.length && !excluidos.length ? (
-            <AdminEmpty title="Nenhum aluno nesta IES" description="Nenhum usuário cadastrado nesta IES." />
+            <AdminEmpty title="Nenhum usuário nesta IES" description="Nenhum usuário cadastrado nesta IES." />
           ) : !alunos.length ? (
             <AdminEmpty
-              title="Nenhum aluno com matrícula ou e-mail utilizável nesta IES"
+              title="Nenhum usuário com matrícula ou e-mail utilizável nesta IES"
               description="Corrija o cadastro dos alunos listados abaixo para poder emitir os cartões."
             />
           ) : (
@@ -471,7 +471,7 @@ export default function CartoesTab() {
               </p>
               {porEmailNoFiltro > 0 && (
                 <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100" role="status">
-                  {`${porEmailNoFiltro} ${porEmailNoFiltro === 1 ? 'aluno não tem' : 'alunos não têm'} matrícula utilizável no cadastro e ${porEmailNoFiltro === 1 ? 'será identificado' : 'serão identificados'} pelo e-mail: o campo MATRÍCULA do cartão sai em branco para o aluno escrever.`}
+                  {`${porEmailNoFiltro} ${porEmailNoFiltro === 1 ? 'usuário não tem' : 'usuários não têm'} matrícula utilizável no cadastro e ${porEmailNoFiltro === 1 ? 'será identificado' : 'serão identificados'} pelo e-mail: o campo MATRÍCULA do cartão sai em branco para ser preenchido à mão.`}
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-3">
@@ -531,7 +531,7 @@ export default function CartoesTab() {
                     </label>
                   </li>
                 ))}
-                {!visiveis.length && <li className="px-3 py-6 text-center text-sm text-muted-foreground">Nenhum aluno encontrado.</li>}
+                {!visiveis.length && <li className="px-3 py-6 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</li>}
               </ul>
             </div>
           )}
@@ -543,7 +543,7 @@ export default function CartoesTab() {
           <div className="flex flex-wrap items-center gap-3">
             <TriangleAlert className="h-4 w-4 text-amber-600" aria-hidden />
             <p className="text-sm font-medium" role="status">
-              {`${excluidosNoSemestre.length} ${excluidosNoSemestre.length === 1 ? 'aluno fica' : 'alunos ficam'} fora do PDF`}
+              {`${excluidosNoSemestre.length} ${excluidosNoSemestre.length === 1 ? 'usuário fica' : 'usuários ficam'} fora do PDF`}
             </p>
             <Button variant="outline" size="sm" className="ml-auto" onClick={baixarCsvExcluidos}>
               <Download className="mr-2 h-4 w-4" />

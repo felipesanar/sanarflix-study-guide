@@ -141,7 +141,7 @@ describe('CartoesTab', () => {
     prepararSimulado([IES_A], []);
     render(<CartoesTab />);
     await escolherSimulado();
-    expect(await screen.findByText('Nenhum aluno nesta IES')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum usuário nesta IES')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Gerar PDF \(0 cartões\)/ })).toBeDisabled();
   });
 
@@ -172,7 +172,7 @@ describe('CartoesTab', () => {
     await screen.findByText('Maria Exemplo da Silva');
     expect(screen.getByText('7 de 7 selecionados')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Gerar PDF \(7 cartões\)/ })).toBeEnabled();
-    expect(screen.getByText(/4 alunos não têm matrícula utilizável no cadastro e serão identificados pelo e-mail/)).toBeInTheDocument();
+    expect(screen.getByText(/4 usuários não têm matrícula utilizável no cadastro e serão identificados pelo e-mail/)).toBeInTheDocument();
     expect(screen.getAllByText('por e-mail')).toHaveLength(4);
     expect(screen.getByText('beltrano@x.com', { exact: false })).toBeInTheDocument();
     // a matrícula repetida e a com espaço também caem no plano B
@@ -186,7 +186,7 @@ describe('CartoesTab', () => {
     await escolherSimulado();
     await screen.findByText('Maria Exemplo da Silva');
     expect(screen.getByText('3 de 3 selecionados')).toBeInTheDocument();
-    expect(screen.getByText('2 alunos ficam fora do PDF')).toBeInTheDocument();
+    expect(screen.getByText('2 usuários ficam fora do PDF')).toBeInTheDocument();
     const fora = within(screen.getByLabelText('Alunos fora do PDF'));
     expect(fora.getByText('sem matrícula cadastrada / sem e-mail cadastrado')).toBeInTheDocument();
     expect(fora.getByText('sem matrícula cadastrada / e-mail inválido para o QR')).toBeInTheDocument();
@@ -197,7 +197,7 @@ describe('CartoesTab', () => {
     prepararSimulado([IES_A], [...ALUNOS, SEM_NADA, SEM_NADA_2]);
     render(<CartoesTab />);
     await escolherSimulado();
-    await screen.findByText('2 alunos ficam fora do PDF');
+    await screen.findByText('2 usuários ficam fora do PDF');
     fireEvent.click(screen.getByRole('button', { name: /Baixar CSV/ }));
     const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
     expect(blob.type).toContain('text/csv');
@@ -213,8 +213,8 @@ describe('CartoesTab', () => {
     prepararSimulado([IES_A], [SEM_NADA, SEM_NADA_2]);
     render(<CartoesTab />);
     await escolherSimulado();
-    expect(await screen.findByText('Nenhum aluno com matrícula ou e-mail utilizável nesta IES')).toBeInTheDocument();
-    expect(screen.getByText('2 alunos ficam fora do PDF')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum usuário com matrícula ou e-mail utilizável nesta IES')).toBeInTheDocument();
+    expect(screen.getByText('2 usuários ficam fora do PDF')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Gerar PDF \(0 cartões\)/ })).toBeDisabled();
   });
 
@@ -305,7 +305,7 @@ describe('CartoesTab: filtro de semestre', () => {
     const fora = within(screen.getByLabelText('Alunos fora do PDF'));
     expect(fora.getByText('Fabio Sétimo Sem RA')).toBeInTheDocument();
     expect(fora.queryByText('Gil Oitavo Sem RA')).not.toBeInTheDocument();
-    expect(screen.getByText('1 aluno fica fora do PDF')).toBeInTheDocument();
+    expect(screen.getByText('1 usuário fica fora do PDF')).toBeInTheDocument();
   });
 
   it('vários semestres somam, e "Limpar filtro" volta a todos', async () => {
@@ -410,7 +410,7 @@ describe('CartoesTab: todos os usuários da IES (inclui a equipe)', () => {
     expect(screen.getByTestId('resumo-ies')).toHaveTextContent('6 usuários na IES: 2 alunos e 4 da equipe');
     // aptos na lista (5) + 1 fora do PDF (equipe sem matrícula nem e-mail) = 6
     expect(screen.getAllByLabelText(/^Cartão para /)).toHaveLength(5);
-    expect(screen.getByText('1 aluno fica fora do PDF')).toBeInTheDocument();
+    expect(screen.getByText('1 usuário fica fora do PDF')).toBeInTheDocument();
     expect(screen.getByText('Ana Professora')).toBeInTheDocument();
     expect(screen.getByText('Alberto Professor')).toBeInTheDocument();
     expect(screen.getByText('Aline Gestora')).toBeInTheDocument();
