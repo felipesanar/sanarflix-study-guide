@@ -7,7 +7,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { DangerZone, MonoValue, StatCard } from '@/experiences/admin/ui';
 import { cn } from '@/lib/utils';
-import type { PreviewSummary } from './importar-respostas-types';
+import type { NaoEncontradoItem, PreviewSummary } from './importar-respostas-types';
+import { ImportarNaoEncontrados } from './ImportarNaoEncontrados';
 
 export interface ImportarDryRunStepProps {
   simuladoNome: string;
@@ -16,6 +17,7 @@ export interface ImportarDryRunStepProps {
   casados: number;
   conflitos: number;
   naoEncontrados: number;
+  naoEncontradosLista: NaoEncontradoItem[];
   conflictMode: 'skip' | 'replace';
   onConflictModeChange: (mode: 'skip' | 'replace') => void;
   importing: boolean;
@@ -39,6 +41,7 @@ export function ImportarDryRunStep({
   casados,
   conflitos,
   naoEncontrados,
+  naoEncontradosLista,
   conflictMode,
   onConflictModeChange,
   importing,
@@ -58,6 +61,8 @@ export function ImportarDryRunStep({
         <StatCard label="Conflitos" value={conflitos} accent="amber" />
         <StatCard label="Não encontrados" value={naoEncontrados} accent="red" />
       </div>
+
+      <ImportarNaoEncontrados itens={naoEncontradosLista} simuladoNome={simuladoNome} />
 
       {(previewSummary.text_as_blank_cells ?? 0) > 0 && (
         <Alert>
