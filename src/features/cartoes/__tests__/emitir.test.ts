@@ -221,8 +221,8 @@ describe('plano B em montarSpecs e nos CSVs', () => {
   it('csvDosExcluidos explica o que falta em cada cadastro', () => {
     const { excluidos } = classificarAlunos([{ nome: 'Sem Nada', matricula: null, email: null, semestre: 7 }]);
     const csv = csvDosExcluidos(excluidos);
-    expect(csv).toContain('nome;matricula;email;semestre;motivo');
-    expect(csv).toContain('Sem Nada;;;7;sem matrícula cadastrada / sem e-mail cadastrado');
+    expect(csv).toContain('nome;matricula;email;semestre;papel;motivo');
+    expect(csv).toContain('Sem Nada;;;7;;sem matrícula cadastrada / sem e-mail cadastrado');
   });
 });
 

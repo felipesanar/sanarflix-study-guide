@@ -25,7 +25,7 @@ Contexto e decisões: `docs/prd/2026-10-07-cartoes-resposta.md` (rev. 9) e `docs
 | `vite.config.ts` | `worker.format = "es"` (o worker de emissão usa o jsPDF, que tem imports dinâmicos; sem isso o `vite build` falha) |
 | `tsconfig.app.json` | `resolveJsonModule: true` (os templates do cartão são JSON importados direto de `services/cartao-omr/templates`) |
 
-- **Só leitura no banco:** a tela lê `simulados_admin`, `ies`, `users` (`id, nome, matricula_ra, email, semestre`) e `user_roles`, com a sessão do admin. **Não grava nada**, **não há migration**, **não há Edge Function nova ou alterada** por este PR.
+- **Só leitura no banco:** a tela lê `simulados_admin`, `ies`, `users` (`id, nome, matricula_ra, email, semestre`) e `user_roles` (só `user_id, role`, para o selo de equipe), com a sessão do admin. **Não grava nada**, **não há migration**, **não há Edge Function nova ou alterada** por este PR.
 - **Dados pessoais:** o PDF é gerado no navegador e nada é enviado a servidor. Nomes, matrículas e e-mails não saem do Academy.
 - **Peso:** a aba é um chunk carregado sob demanda (`CartoesTab` 67 kB / 18 kB gzip; worker 45 kB; `jspdf` já era dependência e só carrega ao gerar). Nada entra no bundle inicial.
 
@@ -66,7 +66,7 @@ Contexto e decisões: `docs/prd/2026-10-07-cartoes-resposta.md` (rev. 9) e `docs
 - [ ] Calibração dos limiares com uma turma real
 
 ## Checklist do revisor
-- [ ] Abrir Admin → Simulados → Cartões-resposta com um login de admin e escolher uma IES pequena: a lista de alunos bate com a IES, e quem tem papel de equipe não aparece
+- [x] Abrir Admin → Simulados → Cartões-resposta com um login de admin e escolher uma IES pequena: o total da tela bate com o da IES; a **equipe** (professores, gestores) aparece com selo e desmarcada (corrigido em 29/10 após o teste do João na UVA)
 - [ ] Conferir o painel "fora do PDF" e o CSV; o selo "por e-mail" e o aviso do plano B
 - [ ] Filtrar por semestre e gerar o PDF: só os alunos filtrados entram, e o nome do arquivo traz `_sem-N`
 - [ ] Abrir o PDF: nome, matrícula (ou campo em branco no plano B), QR e rótulo sob o QR

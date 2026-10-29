@@ -203,15 +203,16 @@ function celulaCsv(valor: string): string {
 
 /** CSV (`;`, UTF-8 com BOM, abre direto no Excel) dos alunos que ficaram fora, para o cadastro ser corrigido. */
 export function csvDosExcluidos(
-  excluidos: ClassificacaoAlunos<{ nome: string; matricula: string | null; email?: string | null; semestre?: number | null }>['excluidos'],
+  excluidos: ClassificacaoAlunos<{ nome: string; matricula: string | null; email?: string | null; semestre?: number | null; papeis?: string[] }>['excluidos'],
 ): string {
   const linhas = [
-    ['nome', 'matricula', 'email', 'semestre', 'motivo'],
+    ['nome', 'matricula', 'email', 'semestre', 'papel', 'motivo'],
     ...excluidos.map((e) => [
       e.aluno.nome,
       e.aluno.matricula ?? '',
       e.aluno.email ?? '',
       e.aluno.semestre == null ? '' : String(e.aluno.semestre),
+      (e.aluno.papeis ?? []).join(' '),
       descricaoDaExclusao(e),
     ]),
   ];

@@ -204,9 +204,9 @@ describe('CartoesTab', () => {
     const bytes = new Uint8Array(await blob.arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]); // BOM, para o Excel abrir em UTF-8
     const texto = new TextDecoder().decode(bytes.slice(3));
-    expect(texto.startsWith('nome;matricula;email;semestre;motivo\r\n')).toBe(true);
-    expect(texto).toContain('Sem Nada No Cadastro;;;;sem matrícula cadastrada / sem e-mail cadastrado');
-    expect(texto).toContain('Também Sem Nada;;sem-arroba;;sem matrícula cadastrada / e-mail inválido para o QR');
+    expect(texto.startsWith('nome;matricula;email;semestre;papel;motivo\r\n')).toBe(true);
+    expect(texto).toContain('Sem Nada No Cadastro;;;;;sem matrícula cadastrada / sem e-mail cadastrado');
+    expect(texto).toContain('Também Sem Nada;;sem-arroba;;;sem matrícula cadastrada / e-mail inválido para o QR');
   });
 
   it('IES em que ninguém tem matrícula nem e-mail utilizáveis: explica e não deixa gerar', async () => {
@@ -360,7 +360,7 @@ describe('CartoesTab: filtro de semestre', () => {
     fireEvent.click(screen.getByRole('button', { name: /Baixar CSV/ }));
     const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
     const texto = new TextDecoder().decode((await blob.arrayBuffer()).slice(3));
-    expect(texto).toContain('Gil Oitavo Sem RA;;;8;sem matrícula cadastrada / sem e-mail cadastrado');
+    expect(texto).toContain('Gil Oitavo Sem RA;;;8;;sem matrícula cadastrada / sem e-mail cadastrado');
     expect(texto).not.toContain('Fabio');
   });
 
@@ -385,5 +385,87 @@ describe('CartoesTab: filtro de semestre', () => {
     fireEvent.change(screen.getByLabelText('IES'), { target: { value: IES_A.id } });
     await screen.findByText('Ana Sexto');
     expect(screen.getByText('5 de 5 selecionados')).toBeInTheDocument();
+  });
+});
+
+const UVA = [
+  { userId: 'b1000000-0000-4000-8000-000000000001', nome: 'Aluno Sétimo Um', matricula: '1', email: 'um@x.com', semestre: 7, papeis: [] },
+  { userId: 'b1000000-0000-4000-8000-000000000002', nome: 'Aluno Sétimo Dois', matricula: '2', email: 'dois@x.com', semestre: 7, papeis: [] },
+  { userId: 'b1000000-0000-4000-8000-000000000003', nome: 'Ana Professora', matricula: null, email: 'ana.prof@x.com', semestre: null, papeis: ['professor'] },
+  { userId: 'b1000000-0000-4000-8000-000000000004', nome: 'Alberto Professor', matricula: '4', email: 'alberto@x.com', semestre: null, papeis: ['professor'] },
+  { userId: 'b1000000-0000-4000-8000-000000000005', nome: 'Aline Gestora', matricula: null, email: 'aline@x.com', semestre: null, papeis: ['gestor', 'professor'] },
+  { userId: 'b1000000-0000-4000-8000-000000000006', nome: 'Sem Nada Equipe', matricula: null, email: null, semestre: null, papeis: ['professor'] },
+];
+
+describe('CartoesTab: todos os usuários da IES (inclui a equipe)', () => {
+  async function abrir() {
+    prepararSimulado([IES_A], UVA);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Aluno Sétimo Um');
+  }
+
+  it('lista todo mundo, e o total da tela bate com o da IES', async () => {
+    await abrir();
+    expect(screen.getByTestId('resumo-ies')).toHaveTextContent('6 usuários na IES: 2 alunos e 4 da equipe');
+    // aptos na lista (5) + 1 fora do PDF (equipe sem matrícula nem e-mail) = 6
+    expect(screen.getAllByLabelText(/^Cartão para /)).toHaveLength(5);
+    expect(screen.getByText('1 aluno fica fora do PDF')).toBeInTheDocument();
+    expect(screen.getByText('Ana Professora')).toBeInTheDocument();
+    expect(screen.getByText('Alberto Professor')).toBeInTheDocument();
+    expect(screen.getByText('Aline Gestora')).toBeInTheDocument();
+  });
+
+  it('a equipe vem com selo e desmarcada: só os alunos entram no PDF por padrão', async () => {
+    await abrir();
+    expect(screen.getByText('2 de 5 selecionados')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ })).toBeEnabled();
+    expect(within(screen.getByLabelText('Alunos da IES')).getAllByText('equipe: professor')).toHaveLength(2);
+    expect(screen.getByText('equipe: gestor, professor')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cartão para Ana Professora')).not.toBeChecked();
+    expect(screen.getByLabelText('Cartão para Aluno Sétimo Um')).toBeChecked();
+  });
+
+  it('dá para marcar a equipe e emitir o cartão dela (matrícula ou e-mail)', async () => {
+    await abrir();
+    fireEvent.click(screen.getByLabelText('Cartão para Ana Professora'));
+    fireEvent.click(screen.getByLabelText('Cartão para Alberto Professor'));
+    expect(screen.getByRole('button', { name: /Gerar PDF \(4 cartões\)/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF/ }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.error).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: /Baixar lista da emissão/ }));
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    const texto = new TextDecoder().decode((await blob.arrayBuffer()).slice(3));
+    expect(texto).toContain('ana.prof@x.com;email;Ana Professora');
+    expect(texto).toContain('4;matricula;Alberto Professor');
+    expect(texto).not.toContain('Aline');
+  });
+
+  it('"Marcar todos" marca também a equipe', async () => {
+    await abrir();
+    fireEvent.click(screen.getByLabelText('Marcar todos os alunos listados'));
+    expect(screen.getByText('5 de 5 selecionados')).toBeInTheDocument();
+  });
+
+  it('usuários sem semestre aparecem (é o caso de toda a equipe) e o filtro "Sem semestre" os pega', async () => {
+    await abrir();
+    const grupo = screen.getByRole('group', { name: 'Filtrar por semestre' });
+    expect(within(grupo).getByRole('button', { name: 'Sem semestre (4)' })).toBeInTheDocument();
+    fireEvent.click(within(grupo).getByRole('button', { name: '7º (2)' }));
+    // o filtro remarca só alunos: a equipe do filtro fica desmarcada
+    expect(screen.getByText('2 de 2 selecionados')).toBeInTheDocument();
+    fireEvent.click(within(grupo).getByRole('button', { name: '7º (2)' }));
+    fireEvent.click(within(grupo).getByRole('button', { name: 'Sem semestre (4)' }));
+    expect(screen.getByText('0 de 3 selecionados')).toBeInTheDocument();
+    expect(screen.getByText('Ana Professora')).toBeInTheDocument();
+  });
+
+  it('o CSV dos excluídos traz o papel de quem é equipe', async () => {
+    await abrir();
+    fireEvent.click(screen.getByRole('button', { name: /Baixar CSV/ }));
+    const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    const texto = new TextDecoder().decode((await blob.arrayBuffer()).slice(3));
+    expect(texto).toContain('Sem Nada Equipe;;;;professor;sem matrícula cadastrada / sem e-mail cadastrado');
   });
 });

@@ -26,8 +26,10 @@ export interface AlunoOpt {
   matricula: string | null;
   /** `users.email`: identifica o aluno no cartão quando não há matrícula utilizável (plano B). */
   email: string | null;
-  /** `users.semestre`; `null` quando não está cadastrado. */
+  /** `users.semestre`; `null` quando não está cadastrado (professores e gestores não têm semestre). */
   semestre: number | null;
+  /** Papéis em `user_roles` (professor, gestor, admin...). Vazio = aluno; preenchido = equipe da IES. */
+  papeis: string[];
 }
 
 /** O PostgREST devolve no máximo 1.000 linhas por pedido. */
@@ -68,12 +70,16 @@ export async function listarIes(client: Client, ids: string[]): Promise<IesOpt[]
   return (data ?? []).map((i) => ({ id: i.id, nome: i.nome }));
 }
 
-/** Quem tem algum papel (admin, gestor, professor...) é equipe, não aluno. */
-export function semEquipe<T extends { userId: string }>(alunos: T[], comPapel: Set<string>): T[] {
-  return alunos.filter((a) => !comPapel.has(a.userId));
+/** `true` para quem tem algum papel em `user_roles` (professor, gestor, admin...): é equipe da IES, não aluno. */
+export function ehEquipe(u: { papeis?: string[] }): boolean {
+  return (u.papeis?.length ?? 0) > 0;
 }
 
-/** Alunos de uma IES (usuários sem papel de equipe), ordenados por nome. */
+/**
+ * **Todos** os usuários de uma IES, ordenados por nome. Quem tem papel (professor, gestor...) vem com `papeis`
+ * preenchido para a tela marcá-lo como equipe e deixá-lo desmarcado por padrão; nada é escondido, então o total
+ * da tela bate com o total de usuários da IES.
+ */
 export async function listarAlunosDaIes(client: Client, iesId: string): Promise<AlunoOpt[]> {
   const linhas = await paginar(async (de, ate) => {
     const { data, error } = await client
@@ -86,20 +92,21 @@ export async function listarAlunosDaIes(client: Client, iesId: string): Promise<
     if (error) throw error;
     return data ?? [];
   });
-  const alunos: AlunoOpt[] = linhas.map((u) => ({
+
+  const papeis = new Map<string, string[]>();
+  for (let i = 0; i < linhas.length; i += LOTE_PAPEIS) {
+    const lote = linhas.slice(i, i + LOTE_PAPEIS).map((u) => u.id);
+    const { data, error } = await client.from('user_roles').select('user_id, role').in('user_id', lote);
+    if (error) throw error;
+    for (const r of data ?? []) papeis.set(r.user_id, [...(papeis.get(r.user_id) ?? []), String(r.role)]);
+  }
+
+  return linhas.map((u) => ({
     userId: u.id,
     nome: u.nome,
     matricula: u.matricula_ra?.trim() || null,
     email: u.email?.trim() || null,
     semestre: u.semestre ?? null,
+    papeis: (papeis.get(u.id) ?? []).sort(),
   }));
-
-  const comPapel = new Set<string>();
-  for (let i = 0; i < alunos.length; i += LOTE_PAPEIS) {
-    const lote = alunos.slice(i, i + LOTE_PAPEIS).map((a) => a.userId);
-    const { data, error } = await client.from('user_roles').select('user_id').in('user_id', lote);
-    if (error) throw error;
-    for (const r of data ?? []) comPapel.add(r.user_id);
-  }
-  return semEquipe(alunos, comPapel);
 }

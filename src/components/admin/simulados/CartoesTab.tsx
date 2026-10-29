@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminEmpty, AdminError, AdminLoading } from '@/experiences/admin/ui';
 import { Logger } from '@/utils/logger';
 import {
+  ehEquipe,
   listarAlunosDaIes,
   listarIes,
   listarSimulados,
@@ -160,7 +161,8 @@ export default function CartoesTab() {
       const { aptos, excluidos: fora } = classificarAlunos(await listarAlunosDaIes(supabase, id));
       setAlunos(aptos);
       setExcluidos(fora);
-      setSelecionados(new Set(aptos.map((a) => a.userId))); // padrão: todos os que podem receber cartão
+      // padrão: os alunos que podem receber cartão; a equipe (professores, gestores) aparece, mas desmarcada
+      setSelecionados(new Set(aptos.filter((a) => !ehEquipe(a)).map((a) => a.userId)));
     } catch (err) {
       Logger.error('[Cartoes] listarAlunosDaIes:', err);
       setErroAlunos(mensagemDeErro(err));
@@ -203,6 +205,12 @@ export default function CartoesTab() {
     [alunosNoSemestre, selecionados],
   );
 
+  // Total da IES: todo usuário aparece, na lista (pode receber cartão) ou no painel "fora do PDF".
+  const totalIes = alunos.length + excluidos.length;
+  const equipeIes = useMemo(
+    () => alunos.filter((a) => ehEquipe(a)).length + excluidos.filter((e) => ehEquipe(e.aluno)).length,
+    [alunos, excluidos],
+  );
   const porEmailNoFiltro = useMemo(() => alunosNoSemestre.filter((a) => a.via === 'email').length, [alunosNoSemestre]);
 
   const visiveis = useMemo(() => {
@@ -211,7 +219,7 @@ export default function CartoesTab() {
     return alunosNoSemestre.filter((a) => normalizar(a.nome).includes(q) || (a.matricula ?? '').toLowerCase().includes(q) || (a.email ?? '').toLowerCase().includes(q));
   }, [alunosNoSemestre, busca]);
 
-  /** Muda o filtro e remarca todos os alunos dos semestres escolhidos (as desmarcações manuais voltam ao padrão). */
+  /** Muda o filtro e remarca os alunos dos semestres escolhidos (a equipe segue desmarcada; as desmarcações manuais voltam ao padrão). */
   const alternarSemestre = (chave: string | null) => {
     const novo = new Set(chave === null ? [] : semestres);
     if (chave !== null) {
@@ -219,7 +227,7 @@ export default function CartoesTab() {
       else novo.add(chave);
     }
     setSemestres(novo);
-    setSelecionados(new Set(filtrarPorSemestre(alunos, novo).map((a) => a.userId)));
+    setSelecionados(new Set(filtrarPorSemestre(alunos, novo).filter((a) => !ehEquipe(a)).map((a) => a.userId)));
     setResultado(null);
   };
 
@@ -420,7 +428,7 @@ export default function CartoesTab() {
           ) : erroAlunos ? (
             <AdminError message={erroAlunos} title="Falha ao carregar os alunos" onRetry={() => void carregarAlunos(ies.id)} />
           ) : !alunos.length && !excluidos.length ? (
-            <AdminEmpty title="Nenhum aluno nesta IES" description="Só alunos (sem papel de equipe) aparecem aqui." />
+            <AdminEmpty title="Nenhum aluno nesta IES" description="Nenhum usuário cadastrado nesta IES." />
           ) : !alunos.length ? (
             <AdminEmpty
               title="Nenhum aluno com matrícula ou e-mail utilizável nesta IES"
@@ -458,6 +466,9 @@ export default function CartoesTab() {
                   </p>
                 </div>
               )}
+              <p className="text-xs text-muted-foreground" role="status" data-testid="resumo-ies">
+                {`${totalIes} ${totalIes === 1 ? 'usuário' : 'usuários'} na IES: ${totalIes - equipeIes} ${totalIes - equipeIes === 1 ? 'aluno' : 'alunos'}${equipeIes ? ` e ${equipeIes} da equipe (professores, gestores)` : ''}.${equipeIes ? ' A equipe aparece na lista com um selo e vem desmarcada: marque quem também precisar de cartão.' : ''}`}
+              </p>
               {porEmailNoFiltro > 0 && (
                 <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100" role="status">
                   {`${porEmailNoFiltro} ${porEmailNoFiltro === 1 ? 'aluno não tem' : 'alunos não têm'} matrícula utilizável no cadastro e ${porEmailNoFiltro === 1 ? 'será identificado' : 'serão identificados'} pelo e-mail: o campo MATRÍCULA do cartão sai em branco para o aluno escrever.`}
@@ -498,6 +509,11 @@ export default function CartoesTab() {
                         aria-label={`Cartão para ${a.nome}`}
                       />
                       <span className="flex-1 truncate">{a.nome}</span>
+                      {ehEquipe(a) && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                          {`equipe: ${a.papeis.join(', ')}`}
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground">{a.semestre == null ? '' : `${a.semestre}º sem.`}</span>
                       {a.via === 'matricula' ? (
                         <span className="font-mono text-xs text-muted-foreground">{a.matricula}</span>
@@ -544,6 +560,7 @@ export default function CartoesTab() {
               return (
               <li key={aluno.userId} className="flex items-center gap-3 px-3 py-2 text-sm">
                 <span className="flex-1 truncate">{aluno.nome}</span>
+                {ehEquipe(aluno) && <span className="text-[10px] text-muted-foreground">{`equipe: ${aluno.papeis.join(', ')}`}</span>}
                 <span className="text-xs text-muted-foreground">{aluno.semestre == null ? '' : `${aluno.semestre}º sem.`}</span>
                 <span className="font-mono text-xs text-muted-foreground">{aluno.matricula ?? '—'}</span>
                 <span className="text-xs text-muted-foreground">{descricaoDaExclusao(e)}</span>
