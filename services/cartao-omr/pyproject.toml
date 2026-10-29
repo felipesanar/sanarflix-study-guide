@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cartao-omr"
+version = "0.1.0"
+description = "Correção automática de cartões-resposta do SanarFlix Academy (V0, sem LLM)"
+requires-python = ">=3.11"
+dependencies = [
+  "pymupdf",
+  "opencv-python-headless",
+  "numpy",
+  "zxing-cpp",
+  "segno",
+  "reportlab",
+  "openpyxl",
+  "typer",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pillow"]
+
+[project.scripts]
+cartao-omr = "cartao_omr.cli:app"
+
+[tool.setuptools]
+packages = ["cartao_omr", "cartao_omr.pipeline"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
