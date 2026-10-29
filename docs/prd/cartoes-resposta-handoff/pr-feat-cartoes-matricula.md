@@ -1,6 +1,4 @@
-# PR: `feat/cartoes-matricula` → `main`
-
-> Descrição e checklists do pull request (o corpo do PR começa em "## Resumo"). Para abrir pela linha de comando: `gh pr create --base main --head feat/cartoes-matricula --title "<título>" --body-file docs/prd/cartoes-resposta-handoff/pr-feat-cartoes-matricula.md` (apague este bloco e a seção "Checklist do autor" antes, ou cole só o corpo).
+## Resumo"). Para abrir pela linha de comando: `gh pr create --base main --head feat/cartoes-matricula --title "<título>" --body-file docs/prd/cartoes-resposta-handoff/pr-feat-cartoes-matricula.md` (apague este bloco e a seção "Checklist do autor" antes, ou cole só o corpo).
 
 ## Título sugerido
 `feat(cartoes): cartões-resposta com nome e matrícula (plano B por e-mail), emissão no Academy e leitor local`
