@@ -111,9 +111,13 @@ function corpoDaFuncao(sql: string, nome: string): string {
   // a versão vigente é a última definição (a Fase 3 recria funções da Fase 2)
   const inicio = sql.lastIndexOf(`CREATE OR REPLACE FUNCTION public.${nome}(`);
   expect(inicio, `CREATE de ${nome} ausente`).toBeGreaterThanOrEqual(0);
-  const fim = sql.indexOf('END $$;', inicio);
+  // o dollar-quote que abre o corpo (`$$` ou `$function$`) é o mesmo que o fecha
+  const abertura = /\bAS\s+(\$[A-Za-z_]*\$)/.exec(sql.slice(inicio));
+  expect(abertura, `dollar-quote de ${nome} ausente`).not.toBeNull();
+  const tag = abertura![1];
+  const fim = sql.indexOf(tag, inicio + abertura!.index + abertura![0].length);
   expect(fim, `fim de ${nome} ausente`).toBeGreaterThan(inicio);
-  return sql.slice(inicio, fim + 'END $$;'.length);
+  return sql.slice(inicio, fim + tag.length);
 }
 
 describe('Fase 2: pipeline parametrizado com diff', () => {
@@ -536,5 +540,118 @@ describe('Fase 4: jobs do pg_cron', () => {
   it('o rebuild noturno não colide com o VACUUM e nenhum job usa TRUNCATE ou VACUUM FULL', () => {
     expect(sql).not.toMatch(/\bTRUNCATE\b/i);
     expect(sql).not.toMatch(/\bVACUUM\s+FULL\b/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fase 5: "atualizado em" honesto e RPC de versão (spec §5.4)
+// ---------------------------------------------------------------------------
+describe('Fase 5: eng_atualizado_em e get_gestor_engajamento_versao', () => {
+  const fase5 = migrationsDaFase(5);
+  const sql = fase5.map((m) => m.sql).join('\n');
+  const atualizadoEm = () => corpoDaFuncao(sql, 'eng_atualizado_em');
+  const rpc = () => corpoDaFuncao(sql, 'get_gestor_engajamento_versao');
+
+  it('existe exatamente uma migration da Fase 5', () => {
+    expect(fase5.length).toBe(1);
+  });
+
+  it('eng_atualizado_em devolve o MENOR entre o fim do último ok e as duas cargas de fonte da MESMA linha', () => {
+    const f = atualizadoEm();
+    expect(f).toMatch(/least\(\s*l\.terminado_em,\s*\(l\.contagens->>'fonte_carregado_resp'\)::timestamptz,\s*\(l\.contagens->>'fonte_carregado_cons'\)::timestamptz\)/);
+    // a linha é a última ok, de qualquer tipo (sem filtro por tipo)
+    expect(f).toMatch(/WHERE l\.status = 'ok'\s+ORDER BY l\.terminado_em DESC\s+LIMIT 1/);
+    expect(f).not.toMatch(/\btipo\b/);
+  });
+
+  it('eng_atualizado_em não varre fonte nem agrega tabela na hora da RPC', () => {
+    const f = atualizadoEm();
+    expect(f).not.toMatch(/\bfato_/);
+    expect(f).not.toMatch(/count\(\*\)|max\(|min\(/i);
+    expect(f).toMatch(/\bSTABLE\b/);
+    expect(f).toMatch(/SET search_path = public, pg_temp/);
+  });
+
+  it('eng_atualizado_em mantém o REVOKE de PUBLIC, anon e authenticated', () => {
+    expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.eng_atualizado_em\(\)\s+FROM PUBLIC, anon, authenticated;/);
+  });
+
+  it('a RPC de versão é SECURITY DEFINER, STABLE e SET search_path TO public', () => {
+    const r = rpc();
+    expect(r).toMatch(/SECURITY DEFINER/);
+    expect(r).toMatch(/\bSTABLE\b/);
+    expect(r).toMatch(/SET search_path TO 'public'/);
+  });
+
+  it('a RPC de versão segue papel → resolução de v_ies → gestor_pode_acessar_ies', () => {
+    const r = rpc();
+    const iPapel = r.indexOf("has_role(v_uid,'admin'::app_role)");
+    const iResolucao = r.indexOf('IES not resolved');
+    const iAutorizacao = r.indexOf('gestor_pode_acessar_ies(v_ies)');
+    const iRetorno = r.indexOf('RETURN jsonb_build_object(');
+    expect(iPapel).toBeGreaterThan(-1);
+    expect(r).toMatch(/has_role\(v_uid,'gestor'::app_role\)/);
+    expect(r).toMatch(/has_role\(v_uid,'gestor_grupo'::app_role\)/);
+    expect(iResolucao).toBeGreaterThan(iPapel);
+    expect(iAutorizacao).toBeGreaterThan(iResolucao);
+    expect(iRetorno).toBeGreaterThan(iAutorizacao);
+    expect(r).toMatch(/Permission denied: cannot access this IES/);
+  });
+
+  it('a RPC de versão não tem período, não lê fatos nem aluno e devolve só a versão', () => {
+    const r = rpc();
+    expect(r).not.toMatch(/eng_validar_periodo/);
+    expect(r).not.toMatch(/\bfato_|eng_alunos_recorte|eng_base_ativa|\bdim_aluno_b2b/);
+    expect(r).not.toMatch(/'email'|'nome'/);
+    expect(r).toMatch(/'data', jsonb_build_object\('atualizadoEm', public\.eng_atualizado_em\(\)\)/);
+    expect(r).toMatch(/'meta',\s*public\.eng_meta\(/);
+  });
+
+  it('a RPC de versão revoga de PUBLIC e anon e concede a authenticated', () => {
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.get_gestor_engajamento_versao(uuid) FROM PUBLIC, anon;');
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.get_gestor_engajamento_versao(uuid) TO authenticated;');
+  });
+
+  it('nenhum TRUNCATE e nenhum DELETE/UPDATE em tabela nesta migration', () => {
+    expect(sql).not.toMatch(/\bTRUNCATE\b/i);
+    expect(sql).not.toMatch(/\b(DELETE FROM|UPDATE)\s+public\./i);
+  });
+});
+
+describe('Fase 5: o front liga a atualização automática', () => {
+  const lerSrc = (...partes: string[]) => readFileSync(join(process.cwd(), 'src', ...partes), 'utf8').replace(/\r\n/g, '\n');
+  const api = lerSrc('features', 'gestor', 'api', 'engajamento.ts');
+  const layout = lerSrc('features', 'gestor', 'routes', 'engajamento', 'EngajamentoLayout.tsx');
+  const tipos = lerSrc('features', 'gestor', 'api', 'types-engajamento.ts');
+
+  it('o hook consulta a cada 2 min e só com a aba visível', () => {
+    expect(api).toMatch(/INTERVALO_VERSAO_ENGAJAMENTO_MS\s*=\s*120_000/);
+    expect(api).toMatch(/refetchInterval:\s*INTERVALO_VERSAO_ENGAJAMENTO_MS/);
+    expect(api).toMatch(/refetchIntervalInBackground:\s*false/);
+    expect(api).toContain("'get_gestor_engajamento_versao'");
+  });
+
+  it('o hook invalida o Engajamento do usuário, menos a própria chave de versão', () => {
+    expect(api).toMatch(/invalidateQueries\(\{\s*queryKey:\s*\['gestor',\s*userId,\s*'engajamento'\],\s*predicate:/);
+    expect(api).toMatch(/q\.queryKey\[POSICAO_BLOCO\]\s*!==\s*BLOCO_VERSAO/);
+  });
+
+  it('o layout chama useEngajamentoVersao uma vez e nenhuma outra tela o usa', () => {
+    expect((layout.match(/useEngajamentoVersao\(/g) ?? []).length).toBe(1);
+    const telas = ['VisaoGeral', 'Questoes', 'Conteudos'];
+    for (const t of telas) {
+      const arquivo = (() => {
+        try {
+          return lerSrc('features', 'gestor', 'routes', 'engajamento', `${t}.tsx`);
+        } catch {
+          return '';
+        }
+      })();
+      expect(arquivo, t).not.toMatch(/useEngajamentoVersao/);
+    }
+  });
+
+  it('o tipo VersaoEngajamento existe com a chave atualizadoEm', () => {
+    expect(tipos).toMatch(/export interface VersaoEngajamento\s*\{\s*atualizadoEm: string \| null;\s*\}/);
   });
 });

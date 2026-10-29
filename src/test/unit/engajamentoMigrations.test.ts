@@ -87,8 +87,12 @@ const RPCS_DO_GESTOR = [
   'get_gestor_engajamento_lista',
   'get_gestor_engajamento_questoes',
   'get_gestor_engajamento_questoes_alunos',
+  'get_gestor_engajamento_versao',
   'get_gestor_engajamento_visao_geral',
 ];
+
+/** Refresh incremental, Fase 5: a RPC de versão não recebe período, então não valida datas. */
+const SEM_PERIODO = new Set(['get_gestor_engajamento_versao']);
 
 /** Assinatura (tipos) de cada RPC, §8.11 — a mesma que o REVOKE/GRANT precisa citar. */
 const ASSINATURAS: Record<string, string> = {
@@ -101,10 +105,11 @@ const ASSINATURAS: Record<string, string> = {
   get_gestor_engajamento_conteudos: 'uuid, date, date, smallint, text',
   get_gestor_engajamento_conteudo_alunos: 'uuid, date, date, smallint, text, text, text',
   get_gestor_engajamento_export_alunos: 'uuid, date, date, smallint, text, text, boolean, text',
+  get_gestor_engajamento_versao: 'uuid',
 };
 
 describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
-  it('descobre as 9 RPCs do Engajamento — se este número mudar, o escopo dos testes mudou', () => {
+  it('descobre as 10 RPCs do Engajamento — se este número mudar, o escopo dos testes mudou', () => {
     const nomes = new Set<string>();
     for (const arquivo of migrationsOrdenadas()) {
       for (const m of readMigration(arquivo).matchAll(
@@ -126,7 +131,7 @@ describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
       expect(corpo).toMatch(/SET search_path TO 'public'/);
     });
 
-    it('mantém a ordem papel → resolução de v_ies → gestor_pode_acessar_ies → validação de período', () => {
+    it('mantém a ordem papel → resolução de v_ies → gestor_pode_acessar_ies → validação de período (se a RPC tem período)', () => {
       const idxPapel = corpo.indexOf("has_role(v_uid,'admin'::app_role)");
       const idxResolucao = corpo.indexOf('IES not resolved');
       const idxAutorizacao = corpo.indexOf('gestor_pode_acessar_ies(v_ies)');
@@ -136,7 +141,8 @@ describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
       expect(corpo).toMatch(/has_role\(v_uid,'gestor_grupo'::app_role\)/);
       expect(idxResolucao).toBeGreaterThan(idxPapel);
       expect(idxAutorizacao).toBeGreaterThan(idxResolucao);
-      expect(idxPeriodo).toBeGreaterThan(idxAutorizacao);
+      if (SEM_PERIODO.has(nome)) expect(idxPeriodo, `${nome} não tem período`).toBe(-1);
+      else expect(idxPeriodo).toBeGreaterThan(idxAutorizacao);
       expect(corpo).toMatch(/Permission denied: cannot access this IES/);
     });
 

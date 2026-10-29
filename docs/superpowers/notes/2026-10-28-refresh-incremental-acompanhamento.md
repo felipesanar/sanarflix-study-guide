@@ -88,13 +88,13 @@ São as 40 falhas conhecidas mais **2 novas que já existiam antes desta spec**,
 | Arquivo | Falhas |
 |---|---|
 | gestor/__tests__/CascataDiagnostico.test.tsx | 17 |
-| test/unit/gestorMigrationsAcessoPorPapel.test.ts | 11 |
+| test/unit/gestorMigrationsAcessoPorPapel.test.ts | 8 |
 | test/unit/gestorMigrationsAvisosAlunoContatoContexto.test.ts | 5 |
 | gestor/__tests__/contratoEnvelopeRpc.test.ts | 4 (2 delas são as novas de 27/10) |
 | gestor/__tests__/VisaoGeral.test.tsx | 2 |
 | Detalhamento, Direcionadores, GestorShell, a11y, regua-unica, gestorMigrationsGetUserIesIdFallback | 1 cada |
 
-Observação: a baseline de 22/10 listava 8 falhas em `gestorMigrationsAcessoPorPapel`; agora são 11 (e 4 em `contratoEnvelopeRpc`, 2 em `VisaoGeral`). Não investiguei a causa dessas diferenças; nenhuma toca a camada `eng_*` nem esta spec (todas já falhavam antes da Fase 1). Vale reconciliar a lista exata com o João antes da Fase 4.
+Correção (29/10): a tabela acima tinha "11" em `gestorMigrationsAcessoPorPapel` por causa de linhas duplicadas na minha primeira contagem. Contando testes únicos por arquivo, são **8** (igual à baseline de 22/10) e o total fecha em 42 (17 + 8 + 5 + 4 + 2 + 6 de 1 falha cada). Nenhuma falha toca a camada `eng_*` além das 2 de `contratoEnvelopeRpc` herdadas do commit `65b74723` de 27/10. A lista é a mesma nas execuções das Fases 0, 2 (depois do ajuste), 3, 4 e 5.
 
 ### DoD da Fase 0
 - [x] Drift = nenhum.
@@ -273,3 +273,59 @@ SELECT id, status, round(extract(epoch FROM terminado_em - iniciado_em)) dur_s, 
 - [ ] OK do João para dar a Fase 4 por fechada.
 
 **A Fase 5 virá logo depois** (aviso do João de 28/10). Pelo que a spec diz, o **código** da Fase 5 (migration escrita mas não aplicada, hook, layout, testes) pode ser feito já, em paralelo à observação; a **aplicação** da migration da Fase 5 espera o DoD da Fase 4.
+
+---
+
+## Fase 4: leitura parcial da observação (29/10/2026, 12:12 UTC, 17,7 h de 24)
+
+Janela: de 28/10 18:29 UTC (cron ligado) até agora. **A observação de 24 h só fecha em 29/10 ~18:30 UTC**; esta é uma leitura intermediária, não o DoD.
+
+| Item do DoD | Parcial | Situação |
+|---|---|---|
+| `cron.job_run_details`: 0 falhas | 213 incrementais + 1 rebuild + 1 VACUUM, todos `succeeded` | ok até agora |
+| Incremental: >= 280 `ok` em 24 h | 213 em 17,7 h (12 por hora, nenhuma perdida) → ~288 em 24 h | no ritmo |
+| Incremental: p95 < 5 s | **p95 = 6,98 s**, mediana ~4 s, máximo 14,2 s | **acima da meta**, abaixo do teto de 15 s da §3.3 |
+| `pulado` só no horário do rebuild | **0 `pulado`**; o incremental das 06:02 foi **adiado**, não pulado (ver abaixo) | ok |
+| Rebuild noturno: ok, < 20 min | id 202, 06:00:00 a 06:02:43 UTC = **163 s**, `ok` | ok |
+| Rebuild noturno: deriva < 0,5% (§3.3) | `questoes_no_deriva = 10` de ~332 mil linhas = **0,003%**; consumo e atividade 0 | ok |
+| VACUUM diário | rodou às 06:40 UTC, `succeeded` | ok |
+
+**Rebuild noturno (id 202):** reclassificou **11 questões** que já estavam classificadas (`questoes_trocaram_folha = 11`, `classif_atualizadas = 11`), o que gerou as 10 linhas de deriva. É exatamente o papel do rebuild de rede de segurança (decisão I5: o incremental nunca reclassifica); não é defeito.
+
+**Incremental das 06:02:** o `cron.job_run_details` mostra que o pg_cron só **iniciou** o job às 06:02:47.131, meio segundo depois de o rebuild (jobid 16) terminar (06:02:46.649). Ou seja, o pg_cron segurou a rodada das 06:02 até o rebuild acabar e ela rodou normalmente (3,5 s). Não houve rodada perdida e nenhuma linha `pulado` (a spec previa `pulado` nesse horário; o resultado é melhor).
+
+**p95 do incremental acima de 5 s.** Distribuição das 213 execuções por faixa de duração (s): 2 a 3: 2 · 3 a 4: 55 · 4 a 5: 88 · 5 a 6: 42 · 6 a 7: 11 · acima de 7: 15 (máximo 14,2 s). Por hora, a média fica em 3,1 a 4,9 s, com picos de 11,9 s (23h), 14,2 s (01h) e 12,3 s (02h UTC). Por minuto da hora, a média vai de 3,5 s a 4,6 s em todos os minutos, **sem relação com o horário das cargas da DAG** (:01/:06 das questões, :25 do consumo): não é colisão com a carga. É leitura de disco a frio (~23 mil blocos por rodada; o cache de 256 MB é expulso entre uma rodada e outra). O lote de laboratório da Fase 3, com cache aquecido, deu mediana de 0,8 s; em produção, com 5 min entre rodadas, o custo típico é ~3,5 a 4 s.
+- Não passa do teto de 15 s da §3.3 item 2 (máximo 14,2 s, **apertado**), então não é "parar e perguntar" pela regra; o que falha é a meta de 5 s do DoD da Fase 4.
+- Folga: 7 s é ~2% do intervalo de 5 min; o incremental não concorre consigo mesmo.
+- Caminho para ficar < 5 s: um índice **de cobertura** em `fato_resolucao_questoes_b2b(response_date) INCLUDE (...)` permitiria varrer a janela sem ler a linha inteira (jsonb pesado). É tabela da DAG: §3.3 item 5 manda perguntar ao João e ao time de dados antes de qualquer índice. Já está na lista de trabalho futuro da spec (§8, "BRIN"), mas um índice de cobertura rende mais.
+
+**Pendente para o checkpoint de 29/10 ~18:30 UTC:** fechar as 24 h (contagem de 280 `ok`, p95 final), o bloat (foto das tabelas contra o teto de 394.456.269 bytes; estava em +9,3% às 18:29 do dia 28), o snapshot de `pg_stat_statements` das RPCs com o delta desde a Fase 0 e a terceira amostra de frescor. A decisão sobre o p95 é do João.
+
+---
+
+## Fase 5: código pronto, migration NÃO aplicada (29/10/2026)
+
+Por decisão do João (28/10: "Sim, código da Fase 5"), o código da Fase 5 foi escrito em paralelo à observação da Fase 4. A **migration só será aplicada depois do DoD da Fase 4** (spec §7). Nada da Fase 5 foi aplicado em produção.
+
+Arquivos:
+- `supabase/migrations/20261029120000_eng_incremental_fase5_versao.sql` (**não aplicada**): `eng_atualizado_em()` nova (o menor entre `terminado_em` do último `ok` e `fonte_carregado_resp`/`fonte_carregado_cons` da mesma linha; `LEAST` ignora NULL, então linhas antigas valem pelo `terminado_em`) e a RPC `get_gestor_engajamento_versao(p_ies_id uuid)` com `{ data: { atualizadoEm }, meta }`, na ordem papel → `v_ies` → `gestor_pode_acessar_ies`, sem período, `GRANT` a `authenticated`.
+- `src/features/gestor/api/engajamento.ts`: `useEngajamentoVersao(iesId)` e `INTERVALO_VERSAO_ENGAJAMENTO_MS = 120_000`. Consulta a cada 2 min, só com a aba visível (`refetchIntervalInBackground: false`), e quando `atualizadoEm` muda invalida `['gestor', user.id, 'engajamento']` **menos** a chave de versão (via `predicate`). A primeira leitura de cada IES só é memorizada; trocar de IES não conta como mudança.
+- `src/features/gestor/api/types-engajamento.ts`: `VersaoEngajamento`.
+- `src/features/gestor/routes/engajamento/EngajamentoLayout.tsx`: chama o hook uma vez, com `filtros.iesId`.
+
+Testes:
+- **Unitário** (`useEngajamentoVersao.test.tsx`, relógio falso, 10 casos): consulta a cada 2 min; não consulta com a aba oculta; invalida quando `atualizadoEm` muda; não invalida quando não muda; não invalida a própria chave; não invalida outros módulos nem outro usuário; versão nula depois preenchida conta como mudança; sem IES ou sem usuário não consulta; trocar de IES não conta como mudança. **Teste de mutação:** removi o `predicate` e o caso "não invalida a própria chave" falhou (a primeira versão desse caso era vazia: uma consulta ativa invalidada é refeita na hora e o `isInvalidated` volta a `false`, então o sinal certo é contar chamadas à RPC; corrigido).
+- **Estático** (`engajamentoRefreshIncremental.test.ts`, 15 casos novos): a função e a RPC da migration, mais o front (intervalo, `predicate`, uso único no layout, tipo).
+- **Enumeração de RPCs** (`engajamentoMigrations.test.ts`): passou de 9 para 10 RPCs; a de versão tem `SEM_PERIODO` (não valida datas) e assinatura `uuid`.
+- **Contrato** (`contratoEnvelopeRpc.test.ts`): `get_gestor_engajamento_versao` × `VersaoEngajamento` = `['atualizadoEm']`.
+- **Layout** (`EngajamentoLayout.test.tsx`): o mock do módulo passou a expor o hook novo e há um caso novo (o layout chama o hook com a IES do recorte). Os demais casos do layout seguem verdes.
+
+Verificação: TypeScript sem erros (`tsc --noEmit -p tsconfig.app.json`); conjunto do Engajamento 21 arquivos / 613 testes verdes; suíte completa: **42 falhas em 2.462 testes, a mesma lista da baseline, nenhuma nova**.
+
+Erro meu durante o trabalho: o helper de teste ficou com um caractere de controle (backspace, código 8) na regex por causa do escape do heredoc; peguei porque os testes da Fase 2 passaram a falhar em massa, corrigi e confirmei que não restam caracteres de controle no arquivo.
+
+**Falta para fechar a Fase 5 (depende da Fase 4):**
+- [ ] Aplicar a migration (`apply_migration`) depois do DoD da Fase 4.
+- [ ] No banco: com a última linha `ok` tendo `fonte_carregado_cons` 1 h atrás, `eng_atualizado_em()` devolve esse valor; gestor de outra IES recebe erro de acesso na RPC de versão.
+- [ ] QA na PARACATU pelo navegador: com a tela aberta, o selo "atualizado em" avança sozinho em <= 7 min, sem recarregar; uma questão resolvida por um aluno de teste aparece nas contagens em <= 35 min.
+- [ ] DoD comum (advisors, oráculo, suíte) depois de aplicar.

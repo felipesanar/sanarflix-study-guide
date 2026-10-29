@@ -20,8 +20,8 @@
  * A busca já chega com debounce de 300 ms do componente; aqui só se normaliza
  * (vazia vira `null`).
  */
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { chamarRpcGestor, useEnvelope, type ResultadoGestor } from '@/features/gestor/api/queries';
 import type {
@@ -38,6 +38,7 @@ import type {
   OrdemAlunos,
   QuestoesAlunosEngajamento,
   QuestoesEngajamento,
+  VersaoEngajamento,
   VisaoGeralEngajamento,
 } from '@/features/gestor/api/types-engajamento';
 import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
@@ -283,4 +284,52 @@ export async function buscarListaCompleta(
     p_page_size: PAGE_SIZE_EXPORTACAO,
   });
   return data;
+}
+
+/** A tela consulta a versão dos dados a cada 2 min (refresh incremental, Fase 5). */
+export const INTERVALO_VERSAO_ENGAJAMENTO_MS = 120_000;
+
+/** Posição do bloco na `queryKey` `['gestor', <user.id>, 'engajamento', <bloco>, …]`. */
+const POSICAO_BLOCO = 3;
+const BLOCO_VERSAO = 'versao';
+
+/**
+ * Mantém a tela do Engajamento em dia sem recarregar (refresh incremental, Fase 5).
+ *
+ * O pipeline atualiza as `eng_*` a cada 5 min. Este hook pergunta, a cada 2 min e só com a aba visível, qual é a
+ * versão dos dados (`get_gestor_engajamento_versao`, uma chamada barata). Quando `atualizadoEm` muda em relação ao
+ * que a tela já viu, invalida todas as consultas do Engajamento: as que estão na tela são refeitas e as outras
+ * ficam velhas para a próxima visita. A consulta de versão NÃO se invalida a si mesma.
+ *
+ * A primeira versão lida só é memorizada: os dados da tela acabaram de ser buscados e não há o que refazer.
+ * Usado uma vez, em `EngajamentoLayout`. Cada IES tem a sua versão, então a referência zera ao trocar de IES.
+ */
+export function useEngajamentoVersao(iesId: string | null): void {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const userId = user?.id;
+
+  const { data } = useQuery({
+    queryKey: ['gestor', userId, 'engajamento', BLOCO_VERSAO, iesId],
+    queryFn: () => chamarRpcGestor<VersaoEngajamento>('get_gestor_engajamento_versao', { p_ies_id: iesId }),
+    enabled: iesId !== null && userId !== undefined,
+    refetchInterval: INTERVALO_VERSAO_ENGAJAMENTO_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
+
+  const atualizadoEm = data?.data?.atualizadoEm;
+  const visto = useRef<{ iesId: string | null; valor: string | null | undefined }>({ iesId: null, valor: undefined });
+
+  useEffect(() => {
+    if (atualizadoEm === undefined) return; // ainda sem resposta
+    const anterior = visto.current;
+    visto.current = { iesId, valor: atualizadoEm };
+    if (anterior.iesId !== iesId || anterior.valor === undefined) return; // primeira leitura desta IES
+    if (anterior.valor === atualizadoEm) return;
+    void queryClient.invalidateQueries({
+      queryKey: ['gestor', userId, 'engajamento'],
+      predicate: (q) => q.queryKey[POSICAO_BLOCO] !== BLOCO_VERSAO,
+    });
+  }, [atualizadoEm, iesId, queryClient, userId]);
 }

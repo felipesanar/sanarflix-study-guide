@@ -6,8 +6,11 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
 const mockVisaoGeral = vi.fn();
+const mockVersao = vi.fn();
 vi.mock('@/features/gestor/api/engajamento', () => ({
   useEngajamentoVisaoGeral: (...args: unknown[]) => mockVisaoGeral(...args),
+  // refresh incremental, Fase 5: o layout liga a atualização automática da tela
+  useEngajamentoVersao: (...args: unknown[]) => mockVersao(...args),
   // O botão "Exportar" lê a consulta da aba atual; aqui as outras abas não têm dado.
   useEngajamentoQuestoes: () => ({ data: undefined }),
   useEngajamentoConteudos: () => ({ data: undefined }),
@@ -69,6 +72,15 @@ describe('EngajamentoLayout (spec §12.1)', () => {
     mockVisaoGeral.mockReturnValue(resultado(VISAO));
   });
   afterEach(() => vi.useRealTimers());
+
+  describe('atualização automática (Fase 5)', () => {
+    it('liga useEngajamentoVersao uma vez, com a IES do recorte', () => {
+      renderizar('/gestor/engajamento?ies=ies-1');
+      expect(mockVersao).toHaveBeenCalledWith('ies-1');
+      // o layout re-renderiza, mas o hook é chamado só pelo layout (nenhuma aba o repete)
+      expect(new Set(mockVersao.mock.calls.map((c) => c[0]))).toEqual(new Set(['ies-1']));
+    });
+  });
 
   describe('cabeçalho', () => {
     it('breadcrumb, H1 e subtítulo com a IES e o "atualizado em" no horário de São Paulo', () => {

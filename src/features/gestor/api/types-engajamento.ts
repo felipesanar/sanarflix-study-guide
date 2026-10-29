@@ -551,3 +551,12 @@ export interface AdminEngajamento {
     conteudos: number;
   }[];
 }
+
+/**
+ * `get_gestor_engajamento_versao`: a versão dos dados do Engajamento (refresh incremental, Fase 5).
+ * `atualizadoEm` é o MENOR entre o fim do último refresh ok e as cargas das fontes que ele leu; é `null`
+ * até o pipeline rodar a primeira vez. O front só compara o valor com o anterior: mudou, os dados mudaram.
+ */
+export interface VersaoEngajamento {
+  atualizadoEm: string | null;
+}

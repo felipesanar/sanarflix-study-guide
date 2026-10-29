@@ -9,7 +9,7 @@ import { BotaoExportarAba } from '@/features/gestor/components/engajamento/Botao
 import { FaixaFiltroPagina } from '@/features/gestor/components/engajamento/FaixaFiltroPagina';
 import { FiltroPeriodo } from '@/features/gestor/components/engajamento/FiltroPeriodo';
 import { FiltroSemestreEngajamento } from '@/features/gestor/components/engajamento/FiltroSemestreEngajamento';
-import { useEngajamentoVisaoGeral } from '@/features/gestor/api/engajamento';
+import { useEngajamentoVersao, useEngajamentoVisaoGeral } from '@/features/gestor/api/engajamento';
 import { useFiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
 import { formatarAtualizadoEm } from '@/features/gestor/lib/engajamento';
 
@@ -33,6 +33,8 @@ export default function EngajamentoLayout() {
   const filtros = useFiltrosEngajamento();
   const { pathname } = useLocation();
   const visao = useEngajamentoVisaoGeral(filtros);
+  // Refaz as consultas do Engajamento sozinho quando o pipeline entrega dado novo (a cada 5 min no máximo).
+  useEngajamentoVersao(filtros.iesId);
 
   const dados = visao.data;
   const naVisaoGeral = pathname.replace(/\/+$/, '') === ROTA_VISAO_GERAL;
