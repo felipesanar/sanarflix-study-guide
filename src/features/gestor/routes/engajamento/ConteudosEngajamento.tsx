@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { BarrasPorSemestre } from '@/features/gestor/components/engajamento/BarrasPorSemestre';
+import { ComCarregamentoInicial, ROTEIRO_CONTEUDOS } from '@/features/gestor/components/engajamento/CarregamentoEngajamento';
 import { BlocoEngajamento, estadoDaConsulta } from '@/features/gestor/components/engajamento/BlocoEngajamento';
 import { FiltroTipoConteudo } from '@/features/gestor/components/engajamento/FiltroTipoConteudo';
 import { GavetaConteudos } from '@/features/gestor/components/engajamento/GavetaConteudos';
@@ -45,50 +46,52 @@ export default function ConteudosEngajamento() {
     <div className="flex min-w-0 flex-col gap-4" data-testid="conteudos-engajamento">
       <FiltroTipoConteudo tipo={filtros.tipo} setTipo={filtros.setTipo} />
 
-      <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-        <KpisConteudos dados={data} meta={meta} tipo={filtros.tipo} estado={estadoDaConsulta(consulta)} onTentarNovamente={consulta.refetch} />
-      </div>
+      <ComCarregamentoInicial carregando={estadoDaConsulta(consulta) === 'loading'} roteiro={ROTEIRO_CONTEUDOS}>
+        <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+          <KpisConteudos dados={data} meta={meta} tipo={filtros.tipo} estado={estadoDaConsulta(consulta)} onTentarNovamente={consulta.refetch} />
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <BlocoEngajamento
-          titulo="Evolução dos conteúdos consumidos"
-          descricao={`Total por ${porDia ? 'dia' : 'mês'}${parcial}`}
-          consulta={consulta}
-          alturaSkeleton={300}
-          bloco="conteudos-evolucao"
-          preencherAltura
-        >
-          <LinhaMensal
-            rotulo="Evolução dos conteúdos consumidos"
-            modo="quantidade"
-            formatar={formatNumero}
-            passoQuantidade={porDia ? 'auto' : 500}
-            pontos={pontosEvolucao}
-          />
-        </BlocoEngajamento>
-
-        <BlocoEngajamento
-          titulo="Conteúdos por semestre"
-          descricao="Total consumido no período por alunos de cada semestre"
-          consulta={consulta}
-          alturaSkeleton={300}
-          bloco="conteudos-por-semestre"
-          preencherAltura
-        >
-          {/* Mesma altura da Evolução ao lado: a folga fica acima das barras. */}
-          <div className="flex flex-1 flex-col justify-end">
-            <BarrasPorSemestre
-              rotulo="Conteúdos por semestre"
+        <div className="grid gap-4 lg:grid-cols-2">
+          <BlocoEngajamento
+            titulo="Evolução dos conteúdos consumidos"
+            descricao={`Total por ${porDia ? 'dia' : 'mês'}${parcial}`}
+            consulta={consulta}
+            alturaSkeleton={300}
+            bloco="conteudos-evolucao"
+            preencherAltura
+          >
+            <LinhaMensal
+              rotulo="Evolução dos conteúdos consumidos"
               modo="quantidade"
-              selecionado={filtros.semestre}
-              altura={ALTURA_BARRAS}
-              linhas={semestresDaIes.map((s) => ({ semestre: s.semestre, valor: s.consumos, texto: formatNumero(s.consumos) }))}
+              formatar={formatNumero}
+              passoQuantidade={porDia ? 'auto' : 500}
+              pontos={pontosEvolucao}
             />
-          </div>
-        </BlocoEngajamento>
-      </div>
+          </BlocoEngajamento>
 
-      <GavetaConteudos dados={data} consulta={consulta} filtros={filtros} />
+          <BlocoEngajamento
+            titulo="Conteúdos por semestre"
+            descricao="Total consumido no período por alunos de cada semestre"
+            consulta={consulta}
+            alturaSkeleton={300}
+            bloco="conteudos-por-semestre"
+            preencherAltura
+          >
+            {/* Mesma altura da Evolução ao lado: a folga fica acima das barras. */}
+            <div className="flex flex-1 flex-col justify-end">
+              <BarrasPorSemestre
+                rotulo="Conteúdos por semestre"
+                modo="quantidade"
+                selecionado={filtros.semestre}
+                altura={ALTURA_BARRAS}
+                linhas={semestresDaIes.map((s) => ({ semestre: s.semestre, valor: s.consumos, texto: formatNumero(s.consumos) }))}
+              />
+            </div>
+          </BlocoEngajamento>
+        </div>
+
+        <GavetaConteudos dados={data} consulta={consulta} filtros={filtros} />
+      </ComCarregamentoInicial>
     </div>
   );
 }

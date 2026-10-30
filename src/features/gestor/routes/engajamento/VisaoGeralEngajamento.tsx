@@ -5,6 +5,10 @@ import { DoAcessoAoHabito } from '@/features/gestor/components/engajamento/DoAce
 import { DrawerAlunoEngajamento } from '@/features/gestor/components/engajamento/DrawerAlunoEngajamento';
 import { EngajamentoMesAMes } from '@/features/gestor/components/engajamento/EngajamentoMesAMes';
 import { estadoDaConsulta } from '@/features/gestor/components/engajamento/BlocoEngajamento';
+import {
+  ComCarregamentoInicial,
+  ROTEIRO_VISAO_GERAL,
+} from '@/features/gestor/components/engajamento/CarregamentoEngajamento';
 import { NivelEngajamento } from '@/features/gestor/components/engajamento/NivelEngajamento';
 import { EspecialidadesPraticadas } from '@/features/gestor/components/engajamento/EspecialidadesPraticadas';
 import { KpisEngajamento } from '@/features/gestor/components/engajamento/KpisEngajamento';
@@ -17,6 +21,10 @@ import { useFiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajam
  * listas e o drawer, vêm da RPC de visão geral, a mesma que o layout já consulta
  * (mesma chave de cache). O filtro "Sem atividade há 14 dias" da tabela fica aqui
  * porque "Quem não voltou" também o liga.
+ *
+ * Primeira abertura (a visão geral ainda sem dado): `CarregamentoEngajamento`
+ * no lugar dos blocos. Troca de filtro com dado anterior em tela não passa por
+ * ele: o dado fica, a 60% de opacidade, como antes.
  */
 export default function VisaoGeralEngajamento() {
   const filtros = useFiltrosEngajamento();
@@ -39,42 +47,44 @@ export default function VisaoGeralEngajamento() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-testid="visao-geral-engajamento">
-      <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-        <KpisEngajamento
+      <ComCarregamentoInicial carregando={estadoKpis === 'loading'} roteiro={ROTEIRO_VISAO_GERAL}>
+        <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+          <KpisEngajamento
+            dados={data}
+            meta={meta}
+            periodo={filtros.periodo}
+            estado={estadoKpis}
+            onTentarNovamente={consulta.refetch}
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <EngajamentoMesAMes dados={data} consulta={consulta} />
+          <DoAcessoAoHabito dados={data} consulta={consulta} filtros={filtros} />
+        </div>
+
+        <NivelEngajamento dados={data} consulta={consulta} filtros={filtros} />
+
+        <ConsumoAlunos
           dados={data}
-          meta={meta}
-          periodo={filtros.periodo}
-          estado={estadoKpis}
-          onTentarNovamente={consulta.refetch}
+          consulta={consulta}
+          filtros={filtros}
+          sem14={sem14}
+          onSem14Change={setSem14}
+          onAbrirDetalhes={setAlunoDrawer}
         />
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <EngajamentoMesAMes dados={data} consulta={consulta} />
-        <DoAcessoAoHabito dados={data} consulta={consulta} filtros={filtros} />
-      </div>
+        {alunoDrawer ? (
+          <DrawerAlunoEngajamento alunoId={alunoDrawer} filtros={filtros} onFechar={() => setAlunoDrawer(null)} />
+        ) : null}
 
-      <NivelEngajamento dados={data} consulta={consulta} filtros={filtros} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <QuemNaoVoltou dados={data} consulta={consulta} filtros={filtros} onFiltrarTabela={filtrarNaTabela} />
+          <EspecialidadesPraticadas dados={data} consulta={consulta} />
+        </div>
 
-      <ConsumoAlunos
-        dados={data}
-        consulta={consulta}
-        filtros={filtros}
-        sem14={sem14}
-        onSem14Change={setSem14}
-        onAbrirDetalhes={setAlunoDrawer}
-      />
-
-      {alunoDrawer ? (
-        <DrawerAlunoEngajamento alunoId={alunoDrawer} filtros={filtros} onFechar={() => setAlunoDrawer(null)} />
-      ) : null}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <QuemNaoVoltou dados={data} consulta={consulta} filtros={filtros} onFiltrarTabela={filtrarNaTabela} />
-        <EspecialidadesPraticadas dados={data} consulta={consulta} />
-      </div>
-
-      <ComparativoSemestres dados={data} consulta={consulta} filtros={filtros} />
+        <ComparativoSemestres dados={data} consulta={consulta} filtros={filtros} />
+      </ComCarregamentoInicial>
     </div>
   );
 }

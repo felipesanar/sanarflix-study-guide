@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { BlocoEngajamento, estadoDaConsulta, type ConsultaDoBloco } from '@/features/gestor/components/engajamento/BlocoEngajamento';
 import { BarrasPorSemestre } from '@/features/gestor/components/engajamento/BarrasPorSemestre';
+import { ComCarregamentoInicial, ROTEIRO_QUESTOES } from '@/features/gestor/components/engajamento/CarregamentoEngajamento';
 import { GavetaTaxonomia } from '@/features/gestor/components/engajamento/GavetaTaxonomia';
 import { KpisQuestoes } from '@/features/gestor/components/engajamento/KpisQuestoes';
 import { eixoPct, LinhaMensal } from '@/features/gestor/components/engajamento/LinhaMensal';
@@ -144,16 +145,18 @@ export default function QuestoesEngajamento() {
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-testid="questoes-engajamento">
-      <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-        <KpisQuestoes dados={data} meta={meta} estado={estadoDaConsulta(consulta)} onTentarNovamente={consulta.refetch} />
-      </div>
+      <ComCarregamentoInicial carregando={estadoDaConsulta(consulta) === 'loading'} roteiro={ROTEIRO_QUESTOES}>
+        <div aria-busy={ocupado ? true : undefined} className={ocupado ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+          <KpisQuestoes dados={data} meta={meta} estado={estadoDaConsulta(consulta)} onTentarNovamente={consulta.refetch} />
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <EvolucaoMensal dados={data} consulta={consulta} inicio={filtros.inicio} fim={filtros.fim} />
-        <PorSemestre dados={data} consulta={consulta} semestre={filtros.semestre} semestresDaIes={semestresDaIes} />
-      </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <EvolucaoMensal dados={data} consulta={consulta} inicio={filtros.inicio} fim={filtros.fim} />
+          <PorSemestre dados={data} consulta={consulta} semestre={filtros.semestre} semestresDaIes={semestresDaIes} />
+        </div>
 
-      <GavetaTaxonomia dados={data} consulta={consulta} filtros={filtros} />
+        <GavetaTaxonomia dados={data} consulta={consulta} filtros={filtros} />
+      </ComCarregamentoInicial>
     </div>
   );
 }
