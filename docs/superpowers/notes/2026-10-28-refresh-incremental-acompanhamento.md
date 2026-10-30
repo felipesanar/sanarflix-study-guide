@@ -461,3 +461,29 @@ O João entrou no app no painel. Medições na aba visível, sem recarregar a p�
 - **Pendente fora desta spec:** o código do front (hook, tipo, layout) e as migrations estão na branch `feat/engajamento-sanarflix`, **sem push nem PR**. Em produção o banco já está com tudo; a tela publicada só passa a se atualizar sozinha depois do merge e do deploy do front.
 - Dois testes de contrato (`get_gestor_engajamento_conteudos` e `_questoes`, chave `dias`) seguem quebrados desde 27/10, fora do escopo; vale uma tarefa à parte.
 - Trabalho futuro (§8): chamar `eng_refresh_incremental()` do fim da carga da DAG, índice de cobertura na fato de questões, instância maior, painel de saúde do pipeline.
+
+---
+
+## Teste do João com a própria conta (30/10/2026, depois do fechamento das Fases 4 e 5)
+
+Conta: `sanarflix_user_id` 69dfc07ce754b0a3abdbcd9f (Aluno, 12º semestre, PARACATU, ativo, na base ativa). O João fez questões e consumo no navegador e perguntou por que não apareciam no app.
+
+### 1. O que aconteceu com a atividade de ~14:02 BRT (17:02 a 17:05 UTC)
+- **Consumo** (2 vídeos da mesma aula de Cardiologia e 1 documento): entrou no banco às **18:21:27 UTC** e o incremental das 18:22:07 já o gravou (2 linhas de consumo, 1 de atividade). A DAG de consumo só entrega eventos até a **hora cheia anterior** à carga (a carga das 17:51 cobriu até 17:00; a das 18:21 cobriu até 18:00), então o consumo leva de ~60 a ~90 min. É o previsto na spec ("consumo em ~30–90 min"). A DAG de consumo recarrega a janela inteira, então pegou a conta mesmo ela só ter entrado na coorte depois.
+- **Questões dessa mesma hora: NÃO chegaram** e continuam ausentes (mais de 1 h depois). Hipótese bem sustentada: a DAG de questões só puxa respostas **dentro dos intervalos de acesso** (`b2b_question_access_intervals`). O intervalo novo da conta (`valid_from` 2026-10-30 03:00 UTC, até 2031) só entrou na coorte publicada às **17:50:44 UTC**, ~47 min depois da atividade. A leitura das questões anda para a frente e passou pelos eventos antes de o intervalo existir; não houve recuperação. Só essa conta tinha um intervalo novo hoje, então não deu para comparar com outro aluno.
+- Evidência de que o canal está certo: depois da coorte, as questões novas entraram (item 2). Mas **não está provado** que a causa é a coorte; é a única diferença conhecida entre os dois momentos.
+- Consequência prática: só afeta aluno que ganha acesso e usa **no mesmo dia, antes da publicação da coorte** (a coorte publica a cada ~30 min a 1 h junto com a dim). Quem tem acesso provisionado com antecedência não é afetado. É assunto do time de dados (a DAG não está neste repositório).
+
+### 2. Teste novo: 20 questões às ~15:41 a 15:43 BRT (18:41:34 a 18:43:40 UTC)
+- 5 avulsas do banco de questões (`contexto_status = ausente`) e 15 de um quiz (`candidato_unico`), **todas com taxonomia completa e classificadas** (`eng_questao_classificacao`). Os dois canais funcionam.
+- No banco: 20 respostas; na atividade (`eng_atividade_aluno_dia`) do dia: 20 questões, 7 acertos, 13 erros, 1 vídeo, 1 documento.
+- **Pipeline:** em `eng_questoes_aluno_dia_no` as 20 questões formam 6 linhas (por tema) e `eng_atividade_aluno_dia` mostrava as 20 às **18:51:13 UTC**, **antes** de o incremental das 18:52 rodar; logo, quem as gravou foi um incremental anterior, no máximo o das **18:47:06**. Isso dá **evento → `eng_*` em ≤ ~3,5 min** depois da última resposta (18:43:40). A contagem do log (12 + 1 linhas de nó no incremental das 18:47) não serve de prova, porque esse incremental atendeu outros alunos também. A tela, com a consulta de versão a cada 2 min, mostrou em seguida; o João confirmou que apareceu no site.
+
+### 3. Correção: `carregado_em` NÃO mede a latência da primeira carga
+Neste teste, as 20 linhas aparecem com `carregado_em = 18:51:04` (todas iguais), **depois** de o incremental das 18:47 já as ter lido: a DAG (provavelmente o `recent_repair`) **reescreve `carregado_em`** das linhas recentes. A carga das 18:51 teve 230 respostas, com eventos de 1,6 a 25,2 min antes. Portanto:
+- A "latência da DAG de 21 a 25 min" que usei na Fase 1, no QA da Fase 5 e nesta conversa (calculada como `carregado_em − response_timestamp`) **superestima** o atraso da primeira carga das respostas em alguns casos. Para as 20 questões do teste, o caminho real foi ≤ ~3,5 min até as `eng_*`.
+- O que é medido pelo pipeline continua certo: a `versao` (maior `carregado_em` da janela, que o incremental lê) muda quando há carga **ou reescrita**, então a tela pode refazer a consulta por uma reescrita sem dado novo. Isso custa uma chamada a mais por rodada, não um erro.
+- Os números do QA da Fase 5 ("evento → tela ~23 a 26 min", "atraso da DAG 21 a 25 min") devem ser lidos como **limite superior**, não como medida do atraso real. Os demais resultados do QA (selo em ~5,5 min depois da carga de consumo, tela só refaz com a versão nova, 2 min de cadência da consulta) não dependem disso.
+- Frescor "<= 10 min da fonte" da Fase 4: a conclusão não muda (comparou `fonte_carregado_resp` do log com `max(carregado_em)` da fonte, ambos afetados do mesmo jeito).
+
+Pendente (decisão do João): levar ao time de dados o caso das questões de ~14:02 BRT perdidas (usuário, horários, coorte publicada às 17:50:44 UTC, intervalo de acesso de hoje) e perguntar se a leitura de questões deveria recuperar respostas de quem entra na coorte no meio do dia.
