@@ -341,3 +341,74 @@ O João **aceitou o p95 de ~7 s** como desvio da meta de 5 s do DoD da Fase 4, s
 - O item "p95 < 5 s" do DoD da Fase 4 passa a ser registrado como **desvio aceito**, não como cumprido.
 
 Próximo passo combinado: fechar as 24 h da Fase 4 no checkpoint de 29/10 (~18:30 UTC, 15:30 BRT) e, em seguida, aplicar a migration da Fase 5, verificar no banco e fazer o QA na PARACATU.
+
+---
+
+## Fase 4: checkpoint das 24 h (feito em 30/10/2026, ~15:10 UTC)
+
+O agendamento da conferência automática (29/10 15:33) não rodou, porque a sessão não estava aberta; o checkpoint foi feito a pedido do João em 30/10, com a janela das 24 h recortada em 28/10 18:29 UTC a 29/10 18:29 UTC e os dados seguintes registrados à parte.
+
+| Item do DoD | Resultado | Situação |
+|---|---|---|
+| Testes estáticos, DoD comum (suíte, advisors, oráculo, commit) | feitos em 28/10 e revalidados nas Fases 5 | ok |
+| `cron.job_run_details`: 0 falhas nos 3 jobs | desde 28/10 18:29: incremental 536 `succeeded`, rebuild 2, VACUUM 2; **0 falhas** | ok |
+| Incremental: >= 280 `ok` em 24 h | **288** `ok` na janela das 24 h; 0 `erro`, 0 `pulado` | ok |
+| Incremental: p95 < 5 s | janela das 24 h: mediana 3,63 s, **p95 6,74 s**, máx 14,2 s. Desde o início (535 execuções): p95 6,82 s, **máx 20,2 s** (uma execução, fora da janela das 24 h) | **desvio aceito pelo João em 29/10** |
+| Rebuild noturno ok, < 20 min | 29/10: 163 s; 30/10: 174 s | ok |
+| Deriva do rebuild < 0,5% | 29/10: 10 linhas de ~558 mil = 0,0018% (11 questões reclassificadas); 30/10: 0 | ok (a regra "3 noites seguidas" não disparou) |
+| Frescor, 3 amostras | 28/10 18:37 e 18:43, 30/10 15:07 UTC: `fonte_carregado_resp` do último `ok` = `max(carregado_em)` da fonte (diferença de 35 s, 0 s e 0 s); consumo das `eng_*` = último evento da fonte; **oráculo com 0 linhas nas 3** | ok |
+| Bloat: `n_dead_tup` estável e <= +10% | 3 tabelas de agregado somam 391.946.240 bytes = **+9,30%** sobre a Fase 0 (teto 394.456.269); era 391.823.360 em 28/10 (+122.880 bytes em 2 dias). `n_dead_tup`: 25 / 0 / 76 / 19. VACUUM diário rodou 2 vezes | ok |
+| RPCs: a média da visão geral não piora | **não atendido** pelos dados disponíveis (ver abaixo) | **pendente de decisão do João** |
+
+Nota sobre a interpretação do frescor "a no máximo 10 min da fonte": usei o `fonte_carregado_resp` do log do último incremental contra `max(carregado_em)` da fonte (mede o atraso do pipeline) e `max(ultima_abertura)` das `eng_*` contra o último evento de consumo da fonte. O horário do próprio evento de consumo é anterior à carga (a DAG de consumo carrega de hora em hora), e isso é atraso da DAG, não do pipeline.
+
+### RPCs: o critério "a média da visão geral não piora" NÃO foi atendido
+`pg_stat_statements` (acumulado desde o lançamento) para `get_gestor_engajamento_visao_geral`:
+
+| Momento | Chamadas | Média | Blocos lidos |
+|---|---|---|---|
+| Fase 0 (28/10, antes de tudo) | 128 | 2.259 ms | 579.009 |
+| Antes de ligar o cron (28/10 18:29 UTC) | 141 | 2.497 ms | 700.064 |
+| Agora (30/10) | 146 | **2.611 ms** (+15,6% sobre a Fase 0) | 753.568 |
+
+As 5 chamadas feitas depois de o cron ligar somam ~29 s, **~5,8 s por chamada** e ~10,7 mil blocos por chamada (histórico: ~4,5 mil). Outras RPCs: `alunos` 168 → 239 ms; `questoes` 1.288 → 1.270 ms; `conteudos` 1.948 → 1.909 ms; `admin` 1.022 → 1.013 ms.
+
+Limites da evidência: são só 5 chamadas, o uso do painel é baixo e os logs do Supabase só guardam 24 h (sem nenhuma chamada dessas RPCs nesse período), então não há tempo por chamada para separar antes e depois do cron.
+
+Medição controlada (simulando um admin autenticado, PARACATU, 01/05 a 30/10, sem escrever nada): 1ª chamada **6,8 s** (frio), 2ª 1,4 s, 3ª a 5ª **~155 ms** (quente). Dentro da mesma transação de um incremental os números ficaram ruidosos (0,26 s a 16 s) e não valem.
+
+Explicação provável: cada incremental lê ~16 mil blocos (~123 MB) com `shared_buffers` de 256 MB, então expulsa páginas das `eng_*` entre uma consulta do gestor e outra. A spec previa o contrário ("espera-se que melhore"), porque o rebuild diário expulsava o cache só 1x/dia. Com o incremental a cada 5 min, a primeira consulta depois de uma rodada tende a pegar cache frio (~7 s); com cache quente é ~0,15 s.
+
+Opções (decisão do João):
+1. **Aceitar** como desvio: uso baixo, a 2ª consulta já é rápida, e o ganho de frescor (tela de até 5 min, não de até 24 h) é o objetivo da spec.
+2. **Reduzir a pegada de cache do incremental** (menos blocos por rodada): possível mexendo na consulta de questões novas e no `w_cons`, ganho incerto.
+3. **Instância maior** (já listada na §8 da spec): resolve de vez, tem custo.
+
+Importante para a Fase 5: o hook novo faz a tela aberta refazer as consultas do Engajamento quando a versão muda (até a cada ~5 min por aba aberta), o que aumenta o número de chamadas à visão geral. A decisão acima pesa mais agora.
+
+**Status da Fase 4:** todos os itens do DoD cumpridos, **com dois desvios**: o p95 (aceito pelo João) e a média da visão geral (aguardando decisão). Não marco a Fase 4 como fechada até a decisão sobre o segundo.
+
+---
+
+## Fase 5: migration aplicada e verificada no banco (30/10/2026)
+
+Migration `20261029120000_eng_incremental_fase5_versao.sql` aplicada com `apply_migration` (name `eng_incremental_fase5_versao`) em 30/10, a pedido do João ("já podemos fechar a Fase 4 e 5"). Isso foi feito **antes de a decisão sobre a média da visão geral** (item acima), que não bloqueia a Fase 5 tecnicamente.
+
+Verificação no banco (tudo em transações revertidas, sem deixar dado):
+- [x] **`eng_atualizado_em()`**: com uma linha `ok` simulada com `fonte_carregado_cons` 1 h atrás, devolve exatamente esse valor (diferença de 8 µs da referência); com uma linha sem as chaves `fonte_carregado_*`, devolve o `terminado_em` dela. **Valor real hoje:** 14:20:59 UTC (a carga de consumo), não 15:07 (o fim do último refresh): o selo agora mostra o horário da fonte mais atrasada, como a spec manda.
+- [x] **`get_gestor_engajamento_versao`**, simulando cada papel:
+  - gestor, própria IES: OK, devolve `{ data: { atualizadoEm }, meta }`;
+  - gestor, `p_ies_id` nulo: OK (resolve a IES dele);
+  - **gestor, outra IES: `Permission denied: cannot access this IES`**;
+  - admin, qualquer IES: OK;
+  - usuário sem papel: `Access denied`; sem login: `Access denied`.
+- [x] Privilégios: `get_gestor_engajamento_versao` com `authenticated` sim e `anon` não; `eng_atualizado_em` sem EXECUTE para ambos.
+- [x] **Advisors (security):** 5 lints, os mesmos tipos de antes, nenhum novo. A lint "SECURITY DEFINER executável por `authenticated`" lista as RPCs de Engajamento: eram 10 (115 achados), agora são 11 (116), porque a nova RPC entra no mesmo padrão das outras 9, por desenho.
+- [x] **Oráculo por dia: 0 linhas** depois de aplicar.
+- [x] **Suíte:** sem mudança de código depois da última rodada completa (42 falhas, a mesma lista da baseline).
+
+**Correção de uma afirmação minha nas Fases 1 a 4:** escrevi que "o único alerta que cita `eng_*` é `rls_enabled_no_policy`". O filtro que usei procurava a string `eng_`, que não casa com `get_gestor_engajamento_*` (as RPCs de Engajamento não começam com `eng_`). Elas já apareciam na lint de `SECURITY DEFINER` desde o Bloco B (10 funções, 115 achados). O resultado "nenhum alerta novo" continua verdadeiro: as contagens por tipo de lint eram as mesmas.
+
+Falta para fechar a Fase 5:
+- [ ] **QA na PARACATU pelo navegador**: com a tela aberta, o selo "atualizado em" avança sozinho em <= 7 min, sem recarregar; uma questão resolvida por um aluno de teste aparece nas contagens em <= 35 min. O servidor de desenvolvimento (`dev-node`, porta 8080, aponta para o Supabase de produção) está no ar e a aba do painel abriu na tela de login: **o QA depende de o João entrar no app** (não digito credenciais). O front da Fase 5 ainda não está em produção (não foi mergeado), então o QA é no servidor local.
+- [ ] OK do João para dar a Fase 5 por fechada.
