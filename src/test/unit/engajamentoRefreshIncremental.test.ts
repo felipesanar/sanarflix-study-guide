@@ -552,8 +552,8 @@ describe('Fase 5: eng_atualizado_em e get_gestor_engajamento_versao', () => {
   const atualizadoEm = () => corpoDaFuncao(sql, 'eng_atualizado_em');
   const rpc = () => corpoDaFuncao(sql, 'get_gestor_engajamento_versao');
 
-  it('existe exatamente uma migration da Fase 5', () => {
-    expect(fase5.length).toBe(1);
+  it('a Fase 5 tem duas migrations: a versão e a versão dos dados (achado do QA)', () => {
+    expect(fase5.length).toBe(2);
   });
 
   it('eng_atualizado_em devolve o MENOR entre o fim do último ok e as duas cargas de fonte da MESMA linha', () => {
@@ -574,6 +574,30 @@ describe('Fase 5: eng_atualizado_em e get_gestor_engajamento_versao', () => {
 
   it('eng_atualizado_em mantém o REVOKE de PUBLIC, anon e authenticated', () => {
     expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.eng_atualizado_em\(\)\s+FROM PUBLIC, anon, authenticated;/);
+  });
+
+  // Achado do QA (PARACATU, 30/10): eng_atualizado_em() é o MENOR entre as fontes e fica parado até a próxima carga de
+  // consumo (de hora em hora); o sinal para a tela refazer as consultas tem de ser a MAIOR carga.
+  it('eng_versao_dados devolve a MAIOR carga de fonte da última linha ok e o fim do último rebuild total', () => {
+    const f = corpoDaFuncao(sql, 'eng_versao_dados');
+    expect(f).toMatch(/greatest\(\s*\(SELECT greatest\(\(l\.contagens->>'fonte_carregado_resp'\)::timestamptz,\s*\(l\.contagens->>'fonte_carregado_cons'\)::timestamptz\)/);
+    expect(f).toMatch(/WHERE l\.status = 'ok'\s+ORDER BY l\.terminado_em DESC\s+LIMIT 1/);
+    expect(f).toMatch(/max\(l\.terminado_em\)\s+FROM public\.eng_refresh_log l\s+WHERE l\.status = 'ok' AND l\.tipo = 'completo'/);
+    // não é o menor, que é o selo
+    expect(f).not.toMatch(/least\(/);
+  });
+
+  it('eng_versao_dados é STABLE, não varre fonte e revoga de PUBLIC, anon e authenticated', () => {
+    const f = corpoDaFuncao(sql, 'eng_versao_dados');
+    expect(f).toMatch(/\bSTABLE\b/);
+    expect(f).not.toMatch(/\bfato_|count\(\*\)/);
+    expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.eng_versao_dados\(\)\s+FROM PUBLIC, anon, authenticated;/);
+  });
+
+  it('a RPC de versão continua devolvendo atualizadoEm (o selo) ao lado de versao', () => {
+    const r = rpc();
+    expect(r).toContain("'atualizadoEm', public.eng_atualizado_em()");
+    expect(r).toContain("'versao', public.eng_versao_dados()");
   });
 
   it('a RPC de versão é SECURITY DEFINER, STABLE e SET search_path TO public', () => {
@@ -603,7 +627,7 @@ describe('Fase 5: eng_atualizado_em e get_gestor_engajamento_versao', () => {
     expect(r).not.toMatch(/eng_validar_periodo/);
     expect(r).not.toMatch(/\bfato_|eng_alunos_recorte|eng_base_ativa|\bdim_aluno_b2b/);
     expect(r).not.toMatch(/'email'|'nome'/);
-    expect(r).toMatch(/'data', jsonb_build_object\('atualizadoEm', public\.eng_atualizado_em\(\)\)/);
+    expect(r).toMatch(/'data', jsonb_build_object\('atualizadoEm', public\.eng_atualizado_em\(\), 'versao', public\.eng_versao_dados\(\)\)/);
     expect(r).toMatch(/'meta',\s*public\.eng_meta\(/);
   });
 
@@ -631,6 +655,10 @@ describe('Fase 5: o front liga a atualização automática', () => {
     expect(api).toContain("'get_gestor_engajamento_versao'");
   });
 
+  it('o hook compara a versao (a maior carga), com o atualizadoEm só como reserva', () => {
+    expect(api).toMatch(/resposta\.versao \?\? resposta\.atualizadoEm/);
+  });
+
   it('o hook invalida o Engajamento do usuário, menos a própria chave de versão', () => {
     expect(api).toMatch(/invalidateQueries\(\{\s*queryKey:\s*\['gestor',\s*userId,\s*'engajamento'\],\s*predicate:/);
     expect(api).toMatch(/q\.queryKey\[POSICAO_BLOCO\]\s*!==\s*BLOCO_VERSAO/);
@@ -652,6 +680,6 @@ describe('Fase 5: o front liga a atualização automática', () => {
   });
 
   it('o tipo VersaoEngajamento existe com a chave atualizadoEm', () => {
-    expect(tipos).toMatch(/export interface VersaoEngajamento\s*\{\s*atualizadoEm: string \| null;\s*\}/);
+    expect(tipos).toMatch(/export interface VersaoEngajamento\s*\{\s*atualizadoEm: string \| null;\s*versao: string \| null;\s*\}/);
   });
 });

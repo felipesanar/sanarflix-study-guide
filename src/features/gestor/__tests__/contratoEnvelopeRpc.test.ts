@@ -224,7 +224,7 @@ describe('contrato do envelope do Engajamento: o que o tipo declara é o que o S
     ['get_gestor_engajamento_conteudos', 'ConteudosEngajamento', ['kpis', 'meses', 'semestres', 'arvore']],
     ['get_gestor_engajamento_conteudo_alunos', 'ConteudoAlunosEngajamento', ['conteudo', 'resumo', 'alunos']],
     ['get_gestor_engajamento_export_alunos', 'ExportAlunosEngajamento', ['alunos']],
-    ['get_gestor_engajamento_versao', 'VersaoEngajamento', ['atualizadoEm']],
+    ['get_gestor_engajamento_versao', 'VersaoEngajamento', ['atualizadoEm', 'versao']],
     ['get_admin_engajamento', 'AdminEngajamento', ['periodo', 'recorte', 'rede', 'ranking', 'meses', 'semestres']],
   ];
 

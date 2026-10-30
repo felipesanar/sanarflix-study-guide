@@ -554,9 +554,13 @@ export interface AdminEngajamento {
 
 /**
  * `get_gestor_engajamento_versao`: a versão dos dados do Engajamento (refresh incremental, Fase 5).
- * `atualizadoEm` é o MENOR entre o fim do último refresh ok e as cargas das fontes que ele leu; é `null`
- * até o pipeline rodar a primeira vez. O front só compara o valor com o anterior: mudou, os dados mudaram.
+ * - `atualizadoEm` é o MENOR entre o fim do último refresh ok e as cargas das fontes que ele leu: é o horário
+ *   do selo "atualizado em" (a fonte mais atrasada). Fica parado até a próxima carga de consumo (de hora em hora).
+ * - `versao` é a MAIOR carga de fonte lida (mais o último rebuild total): anda a cada carga nova, então é o
+ *   sinal para refazer as consultas da tela. O front só compara `versao` com a anterior: mudou, os dados mudaram.
+ * Os dois são `null` até o pipeline rodar a primeira vez.
  */
 export interface VersaoEngajamento {
   atualizadoEm: string | null;
+  versao: string | null;
 }

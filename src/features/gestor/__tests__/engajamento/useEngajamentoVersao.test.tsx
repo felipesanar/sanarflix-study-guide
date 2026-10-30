@@ -23,7 +23,11 @@ import {
  */
 
 const META = { periodo: '', fonte: '', atualizadoEm: null, criterio: '', partial: true, lowSample: false };
-const versao = (atualizadoEm: string | null) => ({ data: { data: { atualizadoEm }, meta: META }, error: null });
+/** Resposta da RPC. Sem o 2º argumento, simula a RPC ANTIGA, que não trazia `versao`. */
+const versao = (atualizadoEm: string | null, v?: string | null) => ({
+  data: { data: v === undefined ? { atualizadoEm } : { atualizadoEm, versao: v }, meta: META },
+  error: null,
+});
 
 const V1 = '2026-10-29T12:00:00+00:00';
 const V2 = '2026-10-29T12:05:00+00:00';
@@ -119,6 +123,43 @@ describe('useEngajamentoVersao (Fase 5)', () => {
     expect(invalidar.mock.calls[0][0]).toMatchObject({ queryKey: ['gestor', 'u1', 'engajamento'] });
     expect(invalidada(CHAVE_VISAO)).toBe(true);
     expect(invalidada(CHAVE_QUESTOES)).toBe(true);
+  });
+
+  // Achado do QA da Fase 5 (PARACATU, 30/10): `atualizadoEm` é o MENOR entre as fontes e ficou parado em 14:20:59
+  // por 6 rodadas, enquanto a carga de questões avançava a cada 5 min e os dados mudavam. O sinal é `versao`.
+  it('invalida quando só a versao muda, com atualizadoEm parado (o achado do QA)', async () => {
+    mockRpc
+      .mockResolvedValueOnce(versao('2026-10-30T14:20:59+00:00', '2026-10-30T15:06:51+00:00'))
+      .mockResolvedValue(versao('2026-10-30T14:20:59+00:00', '2026-10-30T15:11:54+00:00'));
+    semearConsultas();
+    renderHook(() => useEngajamentoVersao('ies-1'), { wrapper });
+    await avancar(0);
+    expect(invalidada(CHAVE_VISAO)).toBe(false);
+    await avancar(120_000);
+    expect(invalidada(CHAVE_VISAO)).toBe(true);
+    expect(invalidada(CHAVE_QUESTOES)).toBe(true);
+  });
+
+  it('não invalida quando só o atualizadoEm muda e a versao é a mesma', async () => {
+    mockRpc
+      .mockResolvedValueOnce(versao('2026-10-30T14:20:59+00:00', '2026-10-30T15:06:51+00:00'))
+      .mockResolvedValue(versao('2026-10-30T15:20:59+00:00', '2026-10-30T15:06:51+00:00'));
+    semearConsultas();
+    const invalidar = vi.spyOn(queryClient, 'invalidateQueries');
+    renderHook(() => useEngajamentoVersao('ies-1'), { wrapper });
+    await avancar(0);
+    await avancar(120_000);
+    expect(chamadasDaVersao()).toBe(2);
+    expect(invalidar).not.toHaveBeenCalled();
+  });
+
+  it('com a RPC antiga (sem versao), cai para o atualizadoEm', async () => {
+    mockRpc.mockResolvedValueOnce(versao(V1)).mockResolvedValue(versao(V2)); // versao(x) sem 2º argumento = shape antigo
+    semearConsultas();
+    renderHook(() => useEngajamentoVersao('ies-1'), { wrapper });
+    await avancar(0);
+    await avancar(120_000);
+    expect(invalidada(CHAVE_VISAO)).toBe(true);
   });
 
   it('não invalida quando atualizadoEm não muda', async () => {

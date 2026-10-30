@@ -412,3 +412,52 @@ Verificação no banco (tudo em transações revertidas, sem deixar dado):
 Falta para fechar a Fase 5:
 - [ ] **QA na PARACATU pelo navegador**: com a tela aberta, o selo "atualizado em" avança sozinho em <= 7 min, sem recarregar; uma questão resolvida por um aluno de teste aparece nas contagens em <= 35 min. O servidor de desenvolvimento (`dev-node`, porta 8080, aponta para o Supabase de produção) está no ar e a aba do painel abriu na tela de login: **o QA depende de o João entrar no app** (não digito credenciais). O front da Fase 5 ainda não está em produção (não foi mergeado), então o QA é no servidor local.
 - [ ] OK do João para dar a Fase 5 por fechada.
+
+---
+
+## Decisão do João sobre a média da visão geral (30/10/2026)
+
+O João **aceitou o desvio** do critério "a média da visão geral não piora" (média global +15,6% sobre a Fase 0; a 1ª consulta depois de uma rodada do incremental pega cache frio, ~7 s, e as seguintes levam ~0,15 s). Opções 2 (reduzir a leitura do incremental) e 3 (instância maior) ficam como trabalho futuro (§8 da spec).
+
+**Fase 4: FECHADA**, com dois desvios aceitos pelo João: o p95 do incremental (6,74 s contra a meta de 5 s, decisão de 29/10) e a média da visão geral (+15,6%, decisão de 30/10). Os demais itens do DoD foram cumpridos (ver o checkpoint acima).
+
+---
+
+## Fase 5: achado no QA, correção e fechamento (30/10/2026)
+
+### Achado: o sinal de invalidação da spec não funciona sozinho
+No QA da PARACATU, com o hook como a spec descreve (comparar `atualizadoEm`), a tela **não se atualizava**: `atualizadoEm` é o MENOR entre o fim do refresh e as cargas das fontes, e o consumo só carrega de hora em hora, então ele ficou em **14:20:59 por 6 rodadas seguidas (15:02 a 15:27 UTC)** enquanto a carga de questões avançava a cada 5 min e os dados da PARACATU mudavam (147.871 → 147.885 questões no banco; a tela ficou em 147.871 até um refetch por foco da aba). Do jeito que a spec define (§5.4), a tela só se atualizaria sozinha 1x por hora e o critério "questão em <= 35 min" não fecharia.
+
+**Correção** (migration `20261030170000_eng_incremental_fase5_versao_dos_dados.sql`, aplicada em 30/10; só acrescenta uma chave, então é compatível com o hook anterior):
+- `eng_versao_dados()` (nova): a **maior** carga de fonte lida pela última linha ok e o `terminado_em` do último rebuild total (que pode reclassificar). Só lê a última linha ok e o índice parcial `(tipo, terminado_em) WHERE status = 'ok'`; `STABLE`, sem EXECUTE para `anon`/`authenticated`.
+- `get_gestor_engajamento_versao` passa a devolver `{ data: { atualizadoEm, versao }, meta }`. O selo continua sendo o `atualizadoEm` (a fonte mais atrasada, R6); só o sinal da tela mudou.
+- Hook `useEngajamentoVersao` compara `versao` (reserva: `atualizadoEm`, se a RPC não trouxer `versao`). Tipo `VersaoEngajamento` ganhou `versao`.
+- A spec (§5.4) e a ordem dos passos do T-delta (§5.3, achado do revisor da Fase 3) foram corrigidas.
+
+Testes do achado: 3 casos novos no unitário do hook (13 no total): invalida quando só a `versao` muda com `atualizadoEm` parado; não invalida quando só o `atualizadoEm` muda; com a RPC antiga cai para o `atualizadoEm`. **Mutação:** com o hook voltando a comparar `atualizadoEm`, 2 testes falham. Estáticos: `eng_versao_dados` (maior carga, não o menor; sem varrer fonte; REVOKE) e a RPC devolvendo os dois campos; contrato do envelope com `['atualizadoEm', 'versao']`.
+
+### QA na PARACATU no navegador (servidor `dev-node` local, Supabase de produção, 30/10)
+O João entrou no app no painel. Medições na aba visível, sem recarregar a página:
+- **Consulta de versão:** a cada 2 min (15:46:25 e 15:48:25 no relógio da página, que fica ~70 s atrás do banco), ~115 a 235 ms cada.
+- **Tela atualiza sozinha só quando a versão muda:** no ciclo observado, a `versao` passou de 15:41:36 para 15:46:54, a tela refez alunos e visão geral **uma vez** (a visão geral levou 7 a 8 s, cache frio) e a consulta seguinte, com a mesma versão, não fez nada além da chamada de versão.
+- **Selo "atualizado em" avança sozinho em <= 7 min:** a carga de consumo da DAG caiu às **15:37:10** e o selo passou de "30/10/2026, 11:20" para **"12:37"** às ~15:42:40 (página): **~5,5 min** depois, sem recarregar. Como o selo é o menor das fontes, ele só anda quando o consumo carrega; o critério vale a partir de uma carga de consumo.
+- **Questão resolvida aparece nas contagens em <= 35 min:** em vez de um aluno de teste, usei respostas reais da PARACATU. Duas respostas, dadas às 15:21:32 e 15:24:59 UTC, entraram no banco às 15:46:18 (atraso da DAG de 21,3 a 24,8 min, no padrão documentado) e o KPI "Questões resolvidas" subiu na tela por volta das 15:47:40: **evento → tela em ~23 a 26 min**, dos quais **~1,5 min são do nosso pipeline** (incremental + consulta de versão). A tela e o banco bateram em todas as leituras (147.885, 147.891, 147.897).
+- Observação: o painel automatizado alterna a visibilidade da aba (`hidden`/`visible`) quando recebe comandos, e a janela fica sem foco. Isso pode causar refetches por foco que não são do hook; não afetam o resultado acima. O front da Fase 5 só roda no servidor local (ainda não foi mergeado), então o QA não foi feito em produção.
+
+### DoD da Fase 5
+- [x] **Testes** (13 do hook, 83 no arquivo estático da refresh incremental, enumeração e contrato atualizados, layout verde): verdes.
+- [x] **No banco:** `eng_atualizado_em()` com `fonte_carregado_cons` 1 h atrás devolve esse valor; gestor de outra IES recebe `Permission denied: cannot access this IES`; sem papel e sem login recebem `Access denied` (verificado antes e depois da correção; a correção só acrescenta uma chave).
+- [x] **QA na PARACATU** (acima): selo avança em ~5,5 min; evento → tela em ~23 a 26 min.
+- [x] **DoD comum:** suíte completa depois da correção: **42 falhas em 2.469 testes**, o mesmo perfil da baseline (17 + 8 + 5 + 4 + 2 + 6 de uma falha cada, contado por teste único), nenhuma nova. As únicas falhas de Engajamento são as 2 de `contratoEnvelopeRpc` herdadas de 27/10 (chave `dias`). TypeScript sem erros nos arquivos da fase na rodada anterior. Advisors (segurança): os mesmos 5 tipos, sem alerta novo; oráculo com 0 linhas depois de aplicar.
+- [x] Migrations aplicadas: `20261029120000_eng_incremental_fase5_versao` e `20261030170000_eng_incremental_fase5_versao_dos_dados`.
+
+**Fase 5: FECHADA**, com a correção acima em relação à spec.
+
+---
+
+## Estado final (30/10/2026)
+- Cron em produção: `eng-refresh-incremental` (a cada 5 min, minuto 2), `eng-refresh-diario` (06:00 UTC) e `eng-vacuum-diario` (06:40 UTC). Nenhum job temporário restou.
+- Funções do pipeline: `eng_refresh`, `eng_refresh_classificacao(text[])`, `eng_refresh_agregados(date)`, `eng_monta_w_resp(date)`, `eng_delta_questoes`, `eng_refresh_incremental`, `eng_atualizado_em`, `eng_versao_dados`; RPC `get_gestor_engajamento_versao`.
+- **Pendente fora desta spec:** o código do front (hook, tipo, layout) e as migrations estão na branch `feat/engajamento-sanarflix`, **sem push nem PR**. Em produção o banco já está com tudo; a tela publicada só passa a se atualizar sozinha depois do merge e do deploy do front.
+- Dois testes de contrato (`get_gestor_engajamento_conteudos` e `_questoes`, chave `dias`) seguem quebrados desde 27/10, fora do escopo; vale uma tarefa à parte.
+- Trabalho futuro (§8): chamar `eng_refresh_incremental()` do fim da carga da DAG, índice de cobertura na fato de questões, instância maior, painel de saúde do pipeline.

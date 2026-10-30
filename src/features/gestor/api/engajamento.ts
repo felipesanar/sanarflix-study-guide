@@ -297,9 +297,14 @@ const BLOCO_VERSAO = 'versao';
  * Mantém a tela do Engajamento em dia sem recarregar (refresh incremental, Fase 5).
  *
  * O pipeline atualiza as `eng_*` a cada 5 min. Este hook pergunta, a cada 2 min e só com a aba visível, qual é a
- * versão dos dados (`get_gestor_engajamento_versao`, uma chamada barata). Quando `atualizadoEm` muda em relação ao
- * que a tela já viu, invalida todas as consultas do Engajamento: as que estão na tela são refeitas e as outras
- * ficam velhas para a próxima visita. A consulta de versão NÃO se invalida a si mesma.
+ * versão dos dados (`get_gestor_engajamento_versao`, uma chamada barata). Quando `versao` (a maior carga de fonte
+ * lida) muda em relação ao que a tela já viu, invalida todas as consultas do Engajamento: as que estão na tela são
+ * refeitas e as outras ficam velhas para a próxima visita. A consulta de versão NÃO se invalida a si mesma.
+ *
+ * Por que `versao` e não `atualizadoEm` (o selo): `atualizadoEm` é o MENOR entre as fontes e só anda quando o
+ * consumo carrega (de hora em hora); as questões entram a cada 5 min. Achado no QA da Fase 5: comparando
+ * `atualizadoEm`, a tela só se atualizaria sozinha 1x por hora. Se a RPC não trouxer `versao` (versão antiga),
+ * cai para `atualizadoEm`.
  *
  * A primeira versão lida só é memorizada: os dados da tela acabaram de ser buscados e não há o que refazer.
  * Usado uma vez, em `EngajamentoLayout`. Cada IES tem a sua versão, então a referência zera ao trocar de IES.
@@ -318,18 +323,20 @@ export function useEngajamentoVersao(iesId: string | null): void {
     refetchOnWindowFocus: true,
   });
 
-  const atualizadoEm = data?.data?.atualizadoEm;
+  // `versao` é o sinal; `atualizadoEm` só entra como reserva se a RPC não trouxer `versao`
+  const resposta = data?.data;
+  const versao = resposta === undefined ? undefined : (resposta.versao ?? resposta.atualizadoEm);
   const visto = useRef<{ iesId: string | null; valor: string | null | undefined }>({ iesId: null, valor: undefined });
 
   useEffect(() => {
-    if (atualizadoEm === undefined) return; // ainda sem resposta
+    if (versao === undefined) return; // ainda sem resposta
     const anterior = visto.current;
-    visto.current = { iesId, valor: atualizadoEm };
+    visto.current = { iesId, valor: versao };
     if (anterior.iesId !== iesId || anterior.valor === undefined) return; // primeira leitura desta IES
-    if (anterior.valor === atualizadoEm) return;
+    if (anterior.valor === versao) return;
     void queryClient.invalidateQueries({
       queryKey: ['gestor', userId, 'engajamento'],
       predicate: (q) => q.queryKey[POSICAO_BLOCO] !== BLOCO_VERSAO,
     });
-  }, [atualizadoEm, iesId, queryClient, userId]);
+  }, [versao, iesId, queryClient, userId]);
 }

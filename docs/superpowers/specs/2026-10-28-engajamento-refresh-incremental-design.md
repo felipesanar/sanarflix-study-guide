@@ -272,8 +272,8 @@ WHERE (s.rt, s.q, s.ac, c.vi, c.dc) IS DISTINCT FROM (e.rt, e.q, e.ac, e.vi, e.d
 
 **Delta histórico (T-delta)**, numa transação que termina em `ROLLBACK`:
 1. Escolha uma questão X classificada, com `taxonomia_status <> 'ausente'` e respostas dentro e fora da janela. Guarde os totais por dia de `eng_atividade_aluno_dia` e as linhas de `eng_questoes_aluno_dia_no` de X.
-2. `DELETE FROM eng_questao_classificacao WHERE question_id = X`.
-3. `eng_delta_questoes('{X}', v_desde, -1)`, que simula "X nunca foi classificada" fora da janela.
+2. `eng_delta_questoes('{X}', v_desde, -1)`, que simula "X nunca foi classificada" fora da janela. **Vem antes do passo 3:** a função descobre a folha de cada resposta por JOIN com `eng_questao_classificacao`; com a classificação já apagada ela não acharia nada (correção da Fase 3).
+3. `DELETE FROM eng_questao_classificacao WHERE question_id = X`.
 4. `eng_refresh_incremental()`: deve reclassificar X e aplicar o `+1`.
 5. Os totais por dia devem ser iguais aos do passo 1, em **todos** os dias.
 6. `ROLLBACK`.
@@ -298,10 +298,11 @@ FROM pg_stat_user_tables WHERE relname LIKE 'eng_%';
   - `contagens->>'fonte_carregado_cons'`, da mesma linha.
 
   Se a DAG parar, o selo envelhece em vez de dizer "há 2 min". Sem varrer fonte na hora da RPC. O texto do selo não muda.
-- **RPC nova `get_gestor_engajamento_versao(p_ies_id uuid) → jsonb`** `{ data: { atualizadoEm }, meta }`. Mesma ordem de autorização das RPCs do gestor (spec mãe §7.1: papel → `v_ies` → `gestor_pode_acessar_ies`). Grant para `authenticated`.
+- **`eng_versao_dados()`** (achado do QA da Fase 5): o instante do dado mais novo que as `eng_*` já incorporaram, isto é, o **maior** entre `fonte_carregado_resp` e `fonte_carregado_cons` da última linha ok e o `terminado_em` do último rebuild total. É o sinal para a tela refazer as consultas. **Não pode ser o `atualizadoEm` do selo:** esse é o menor e só anda quando o consumo carrega (de hora em hora), enquanto as questões entram a cada 5 min; comparando o selo, a tela só se atualizaria sozinha 1x por hora (medido na PARACATU em 30/10: o selo ficou em 14:20:59 por 6 rodadas enquanto os dados mudavam).
+- **RPC nova `get_gestor_engajamento_versao(p_ies_id uuid) → jsonb`** `{ data: { atualizadoEm, versao }, meta }`: `atualizadoEm` é o do selo (o menor) e `versao` é `eng_versao_dados()` (o maior). Mesma ordem de autorização das RPCs do gestor (spec mãe §7.1: papel → `v_ies` → `gestor_pode_acessar_ies`). Grant para `authenticated`.
 - **Hook `useEngajamentoVersao(iesId)`** em `src/features/gestor/api/engajamento.ts`:
   - consulta a cada 2 min (`refetchInterval: 120_000`), só com a aba visível (`refetchIntervalInBackground: false`);
-  - quando `atualizadoEm` muda, `invalidateQueries({ queryKey: ['gestor', user.id, 'engajamento'] })`, exceto a própria chave de versão;
+  - quando `versao` muda (reserva: `atualizadoEm`, se a RPC não trouxer `versao`), `invalidateQueries({ queryKey: ['gestor', user.id, 'engajamento'] })`, exceto a própria chave de versão;
   - usado uma vez, em `EngajamentoLayout.tsx`.
 
 ---
