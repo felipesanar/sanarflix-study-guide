@@ -6,6 +6,7 @@ import {
   rotuloSemestreLetivo,
   type OpcaoPeriodo,
 } from '@/features/gestor/lib/engajamento';
+import { SelectFiltroGestor } from '@/features/gestor/components/SelectFiltroGestor';
 import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
 
 /**
@@ -13,13 +14,13 @@ import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngaj
  * botão): só tokens do tema do gestor, nenhum literal de cor (spec §13).
  */
 export const ESTILO_CONTROLE: React.CSSProperties = {
-  height: 32,
-  padding: '0 10px',
+  height: 30,
+  padding: '0 11px',
   borderRadius: 'var(--gp-radius-sm)',
   border: '1px solid var(--gp-border-input)',
   background: 'var(--gp-surface-1)',
   color: 'var(--gp-text-1)',
-  fontSize: 'var(--gp-font-size-body)',
+  fontSize: 12.5,
 };
 
 export const ESTILO_ROTULO_FILTRO: React.CSSProperties = {
@@ -70,23 +71,19 @@ export function FiltroPeriodo({ filtros }: { filtros: FiltrosPeriodo }) {
 
   return (
     <div className="flex flex-wrap items-end gap-2">
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-periodo`} style={ESTILO_ROTULO_FILTRO}>
-          Período
-        </label>
-        <select
-          id={`${id}-periodo`}
-          value={modoPersonalizado ? 'custom' : periodo}
-          onChange={(e) => aoEscolher(e.target.value)}
-          style={ESTILO_CONTROLE}
-        >
-          <option value="6m">Últimos 6 meses</option>
-          <option value="3m">Últimos 3 meses</option>
-          <option value="30d">Últimos 30 dias</option>
-          <option value="letivo">{rotuloSemestreLetivo(hoje)}</option>
-          <option value="custom">Personalizado…</option>
-        </select>
-      </div>
+      <SelectFiltroGestor
+        ariaLabel="Período"
+        prefixo="Período"
+        valor={modoPersonalizado ? 'custom' : periodo}
+        onChange={aoEscolher}
+        opcoes={[
+          { valor: '6m', rotulo: 'Últimos 6 meses' },
+          { valor: '3m', rotulo: 'Últimos 3 meses' },
+          { valor: '30d', rotulo: 'Últimos 30 dias' },
+          { valor: 'letivo', rotulo: rotuloSemestreLetivo(hoje) },
+          { valor: 'custom', rotulo: 'Personalizado…' },
+        ]}
+      />
 
       {modoPersonalizado ? (
         <>
