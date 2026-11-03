@@ -61,8 +61,20 @@ const renderizar = (url = '/gestor/engajamento?ies=ies-1') =>
   );
 
 const params = () => new URLSearchParams(screen.getByTestId('search').textContent ?? '');
-const rotulos = (select: HTMLElement) =>
-  within(select).getAllByRole('option').map((o) => o.textContent);
+// Filtros são Select do Radix: abre o gatilho e lê/clica as opções do menu.
+const abrir = (rotulo: string) =>
+  fireEvent.pointerDown(screen.getByLabelText(rotulo), { button: 0, ctrlKey: false, pointerType: 'mouse' });
+const rotulos = (rotulo: string) => {
+  abrir(rotulo);
+  const lista = screen.getAllByRole('option').map((o) => o.textContent);
+  fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+  return lista;
+};
+const escolher = (rotulo: string, opcao: string) => {
+  abrir(rotulo);
+  fireEvent.click(screen.getByRole('option', { name: opcao }));
+};
+const textoDe = (rotulo: string) => screen.getByLabelText(rotulo).textContent;
 
 describe('EngajamentoLayout (spec §12.1)', () => {
   beforeEach(() => {
@@ -121,32 +133,32 @@ describe('EngajamentoLayout (spec §12.1)', () => {
   describe('filtro Período', () => {
     it('opções: Últimos 6 meses, Últimos 3 meses, Últimos 30 dias, Semestre letivo AAAA.S e Personalizado…', () => {
       renderizar();
-      expect(rotulos(screen.getByLabelText('Período'))).toEqual([
+      expect(rotulos('Período')).toEqual([
         'Últimos 6 meses',
         'Últimos 3 meses',
         'Últimos 30 dias',
         'Semestre letivo 2026.2',
         'Personalizado…',
       ]);
-      expect(screen.getByLabelText('Período')).toHaveValue('6m');
+      expect(textoDe('Período')).toContain('Últimos 6 meses');
     });
 
     it('escolher uma opção grava periodo na URL', () => {
       renderizar();
-      fireEvent.change(screen.getByLabelText('Período'), { target: { value: '30d' } });
+      escolher('Período', 'Últimos 30 dias');
       expect(params().get('periodo')).toBe('30d');
-      expect(screen.getByLabelText('Período')).toHaveValue('30d');
-      fireEvent.change(screen.getByLabelText('Período'), { target: { value: '3m' } });
+      expect(textoDe('Período')).toContain('Últimos 30 dias');
+      escolher('Período', 'Últimos 3 meses');
       expect(params().get('periodo')).toBe('3m');
-      expect(screen.getByLabelText('Período')).toHaveValue('3m');
-      fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'letivo' } });
+      expect(textoDe('Período')).toContain('Últimos 3 meses');
+      escolher('Período', 'Semestre letivo 2026.2');
       expect(params().get('periodo')).toBe('letivo');
     });
 
     it('"Personalizado…" mostra De, Até e Aplicar, sem mexer na URL até aplicar', () => {
       renderizar();
       expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'custom' } });
+      escolher('Período', 'Personalizado…');
 
       const de = screen.getByLabelText('De');
       const ate = screen.getByLabelText('Até');
@@ -162,7 +174,7 @@ describe('EngajamentoLayout (spec §12.1)', () => {
 
     it('Aplicar só habilita com datas válidas e grava periodo, de e ate', () => {
       renderizar();
-      fireEvent.change(screen.getByLabelText('Período'), { target: { value: 'custom' } });
+      escolher('Período', 'Personalizado…');
       const aplicar = screen.getByRole('button', { name: 'Aplicar' });
       expect(aplicar).toBeDisabled();
 
@@ -181,14 +193,14 @@ describe('EngajamentoLayout (spec §12.1)', () => {
 
     it('com período personalizado na URL, já abre com as datas preenchidas', () => {
       renderizar('/gestor/engajamento?ies=ies-1&periodo=custom&de=2026-03-01&ate=2026-04-15');
-      expect(screen.getByLabelText('Período')).toHaveValue('custom');
+      expect(textoDe('Período')).toContain('Personalizado…');
       expect(screen.getByLabelText('De')).toHaveValue('2026-03-01');
       expect(screen.getByLabelText('Até')).toHaveValue('2026-04-15');
     });
 
     it('voltar para uma opção fixa esconde as datas e remove de/ate da URL', () => {
       renderizar('/gestor/engajamento?ies=ies-1&periodo=custom&de=2026-03-01&ate=2026-04-15');
-      fireEvent.change(screen.getByLabelText('Período'), { target: { value: '6m' } });
+      escolher('Período', 'Últimos 6 meses');
       expect(screen.queryByLabelText('De')).not.toBeInTheDocument();
       expect(params().has('de')).toBe(false);
       expect(params().has('ate')).toBe(false);
@@ -198,30 +210,30 @@ describe('EngajamentoLayout (spec §12.1)', () => {
   describe('filtro Semestre do aluno', () => {
     it('opções: "Todos (1º ao 12º)" e "{n}º semestre · {ciclo}"', () => {
       renderizar();
-      const opcoes = rotulos(screen.getByLabelText('Semestre do aluno'));
+      const opcoes = rotulos('Semestre do aluno');
       expect(opcoes).toHaveLength(13);
       expect(opcoes[0]).toBe('Todos (1º ao 12º)');
       expect(opcoes[1]).toBe('1º semestre · básico');
       expect(opcoes[8]).toBe('8º semestre · clínico');
       expect(opcoes[12]).toBe('12º semestre · internato');
-      expect(screen.getByLabelText('Semestre do aluno')).toHaveValue('');
+      expect(textoDe('Semestre do aluno')).toContain('Todos (1º ao 12º)');
     });
 
     it('escolher um semestre grava eng_sem; voltar a "Todos" remove', () => {
       renderizar();
-      fireEvent.change(screen.getByLabelText('Semestre do aluno'), { target: { value: '8' } });
+      escolher('Semestre do aluno', '8º semestre · clínico');
       expect(params().get('eng_sem')).toBe('8');
-      expect(screen.getByLabelText('Semestre do aluno')).toHaveValue('8');
-      fireEvent.change(screen.getByLabelText('Semestre do aluno'), { target: { value: '' } });
+      expect(textoDe('Semestre do aluno')).toContain('8º semestre · clínico');
+      escolher('Semestre do aluno', 'Todos (1º ao 12º)');
       expect(params().has('eng_sem')).toBe(false);
     });
 
     it('com aluno filtrado, o select mostra "Todos", fica habilitado e escolher um semestre troca o filtro (regra 1)', () => {
       renderizar('/gestor/engajamento?ies=ies-1&aluno=aluno-7');
       const select = screen.getByLabelText('Semestre do aluno');
-      expect(select).toHaveValue('');
+      expect(select).toHaveTextContent('Todos (1º ao 12º)');
       expect(select).toBeEnabled();
-      fireEvent.change(select, { target: { value: '5' } });
+      escolher('Semestre do aluno', '5º semestre · clínico');
       expect(params().get('eng_sem')).toBe('5');
       expect(params().has('aluno')).toBe(false);
     });
