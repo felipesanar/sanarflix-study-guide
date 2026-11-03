@@ -78,6 +78,9 @@ const textoDe = (rotulo: string) => screen.getByLabelText(rotulo).textContent;
 
 describe('EngajamentoLayout (spec §12.1)', () => {
   beforeEach(() => {
+    Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
+    Element.prototype.releasePointerCapture = vi.fn();
+    Element.prototype.scrollIntoView = vi.fn();
     vi.clearAllMocks();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-22T15:00:00Z'));
