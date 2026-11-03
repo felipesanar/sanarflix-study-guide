@@ -219,7 +219,7 @@ describe('contrato do envelope do Engajamento: o que o tipo declara é o que o S
     ['get_gestor_engajamento_alunos', 'AlunosEngajamento', ['data', 'page', 'pageSize', 'total', 'totalPages']],
     ['get_gestor_engajamento_lista', 'ListaEngajamento', ['categoria', 'data', 'page', 'pageSize', 'total', 'totalPages']],
     ['get_gestor_engajamento_aluno', 'AlunoEngajamento', ['aluno', 'resumo', 'meses', 'especialidades', 'timeline']],
-    // 'dias' = série diária da Evolução (migration 20261027140000): só vem preenchida em período de até 31 dias.
+    // 'dias' = série diária da Evolução (migration 20261027185035): só vem preenchida em período de até 31 dias.
     ['get_gestor_engajamento_questoes', 'QuestoesEngajamento', ['kpis', 'meses', 'dias', 'semestres', 'arvore']],
     ['get_gestor_engajamento_questoes_alunos', 'QuestoesAlunosEngajamento', ['no', 'resumo', 'alunos']],
     ['get_gestor_engajamento_conteudos', 'ConteudosEngajamento', ['kpis', 'meses', 'dias', 'semestres', 'arvore']],

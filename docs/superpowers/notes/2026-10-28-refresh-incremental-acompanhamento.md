@@ -83,7 +83,7 @@ Só o dia corrente difere (defasagem do refresh das 06:00 BRT); os dias 25 a 27 
 ### Baseline da suíte (28/10, antes de qualquer mudança desta spec)
 `node node_modules/vitest/vitest.mjs run`: **42 falhas** em 2.364 testes (11 arquivos falham de 162; 2.319 passam, 3 ignorados).
 
-São as 40 falhas conhecidas mais **2 novas que já existiam antes desta spec**, vindas do commit `65b74723` (27/10, série diária de Conteúdos/Questões): `contratoEnvelopeRpc.test.ts` > `get_gestor_engajamento_conteudos` e `..._questoes` esperam as chaves `arvore, kpis, meses, ...` mas o SQL agora emite também `dias`. Ou seja, o teste e `types-engajamento.ts` ficaram atrás da migration `20261027140000`. **Não é regressão desta spec; fica fora do escopo.** Critério de "nenhuma falha nova" passa a ser: 42 falhas, nenhuma fora desta lista.
+São as 40 falhas conhecidas mais **2 novas que já existiam antes desta spec**, vindas do commit `65b74723` (27/10, série diária de Conteúdos/Questões): `contratoEnvelopeRpc.test.ts` > `get_gestor_engajamento_conteudos` e `..._questoes` esperam as chaves `arvore, kpis, meses, ...` mas o SQL agora emite também `dias`. Ou seja, o teste e `types-engajamento.ts` ficaram atrás da migration `20261027185035`. **Não é regressão desta spec; fica fora do escopo.** Critério de "nenhuma falha nova" passa a ser: 42 falhas, nenhuma fora desta lista.
 
 | Arquivo | Falhas |
 |---|---|
@@ -106,7 +106,7 @@ Correção (29/10): a tabela acima tinha "11" em `gestorMigrationsAcessoPorPapel
 
 ## Fase 1: suporte de schema (28/10/2026)
 
-Migration: `supabase/migrations/20261028150000_eng_incremental_fase1_schema.sql`, aplicada em produção com `apply_migration` (name `eng_incremental_fase1_schema`).
+Migration: `supabase/migrations/20261028150116_eng_incremental_fase1_schema.sql`, aplicada em produção com `apply_migration` (name `eng_incremental_fase1_schema`).
 
 **Decisão de implementação:** o CHECK de `disparo` (`cron`/`manual`) fica como está. O incremental grava `disparo = 'cron'` ou `'manual'` e se distingue pela coluna `tipo`. A spec não pede mudar o `disparo`.
 
@@ -137,7 +137,7 @@ Todos os itens marcados. OK do João para a Fase 2: **pendente** (ver mensagem f
 
 ## Fase 2: pipeline parametrizado com diff (28/10/2026)
 
-Migration: `supabase/migrations/20261028160000_eng_incremental_fase2_pipeline.sql`, aplicada com `apply_migration` (name `eng_incremental_fase2_pipeline`). Observação: a versão aplicada no banco não tem os comentários `--` de dentro dos corpos das funções (o conteúdo executável é o mesmo do arquivo no repositório).
+Migration: `supabase/migrations/20261028165954_eng_incremental_fase2_pipeline.sql`, aplicada com `apply_migration` (name `eng_incremental_fase2_pipeline`). Observação: a versão aplicada no banco não tem os comentários `--` de dentro dos corpos das funções (o conteúdo executável é o mesmo do arquivo no repositório).
 
 Revisor independente (agente só de leitura) conferiu a migration contra P1–P4 e a spec mãe §6.2/§6.4: **sem achado bloqueante**. Achados menores registrados: (1) `atualizado_em`/`classificado_em` só mudam quando a linha muda, então a comparação de equivalência exclui essas colunas; (2) `EXCEPTION WHEN OTHERS` não pega `query_canceled` (statement_timeout do cron, R4 da spec, já era assim); (3) `fonte_max_*`/`fonte_carregado_*` do incremental vêm de `w_resp`/`w_cons` já filtradas pela janela, então a Fase 3 não deve usá-los como marca d'água de carga tardia anterior à janela; (4) o desempate determinístico dos nós é inerte hoje (0 ids com mais de um nome na fonte).
 
@@ -172,8 +172,8 @@ Revisor independente (agente só de leitura) conferiu a migration contra P1–P4
 ## Fase 3: incremental manual, sem cron (28/10/2026)
 
 Migrations (aplicadas com `apply_migration`):
-1. `20261028170000_eng_incremental_fase3_incremental.sql` (name `eng_incremental_fase3_incremental`): `eng_delta_questoes(text[], date, smallint)`, `eng_refresh_incremental()` e `eng_refresh_agregados(date)` com a leitura da dim num `IF`.
-2. `20261028180000_eng_incremental_fase3_leitura_unica.sql` (name `eng_incremental_fase3_leitura_unica`): `eng_monta_w_resp(date)`, e `eng_refresh_agregados`/`eng_refresh_incremental` passam a ler a janela de respostas uma vez só. **Esta segunda migration não estava prevista**: nasceu da medição de custo (abaixo) e segue a opção que a própria spec deixava para a implementação (§5.2, "montar `w_resp` antes do passo 4").
+1. `20261028174821_eng_incremental_fase3_incremental.sql` (name `eng_incremental_fase3_incremental`): `eng_delta_questoes(text[], date, smallint)`, `eng_refresh_incremental()` e `eng_refresh_agregados(date)` com a leitura da dim num `IF`.
+2. `20261028181015_eng_incremental_fase3_leitura_unica.sql` (name `eng_incremental_fase3_leitura_unica`): `eng_monta_w_resp(date)`, e `eng_refresh_agregados`/`eng_refresh_incremental` passam a ler a janela de respostas uma vez só. **Esta segunda migration não estava prevista**: nasceu da medição de custo (abaixo) e segue a opção que a própria spec deixava para a implementação (§5.2, "montar `w_resp` antes do passo 4").
 
 O disparo do log vem de `application_name`: `pg_cron` grava `disparo = 'cron'`, qualquer outra origem grava `'manual'` (a função não tem parâmetro, como na spec).
 
@@ -217,7 +217,7 @@ Erro meu no meio do caminho, corrigido antes de aplicar: um script que gerou a s
 
 ## Fase 4: cron ligado (28/10/2026)
 
-Migration: `supabase/migrations/20261028190000_eng_incremental_fase4_cron.sql`, aplicada com `apply_migration` às 18:29 UTC (15:29 BRT) de 28/10; commit `8fd10c1d`.
+Migration: `supabase/migrations/20261028182906_eng_incremental_fase4_cron.sql`, aplicada com `apply_migration` às 18:29 UTC (15:29 BRT) de 28/10; commit `8fd10c1d`.
 
 Jobs agora no pg_cron (conferido em `cron.job`):
 
@@ -308,7 +308,7 @@ Janela: de 28/10 18:29 UTC (cron ligado) até agora. **A observação de 24 h s�
 Por decisão do João (28/10: "Sim, código da Fase 5"), o código da Fase 5 foi escrito em paralelo à observação da Fase 4. A **migration só será aplicada depois do DoD da Fase 4** (spec §7). Nada da Fase 5 foi aplicado em produção.
 
 Arquivos:
-- `supabase/migrations/20261029120000_eng_incremental_fase5_versao.sql` (**não aplicada**): `eng_atualizado_em()` nova (o menor entre `terminado_em` do último `ok` e `fonte_carregado_resp`/`fonte_carregado_cons` da mesma linha; `LEAST` ignora NULL, então linhas antigas valem pelo `terminado_em`) e a RPC `get_gestor_engajamento_versao(p_ies_id uuid)` com `{ data: { atualizadoEm }, meta }`, na ordem papel → `v_ies` → `gestor_pode_acessar_ies`, sem período, `GRANT` a `authenticated`.
+- `supabase/migrations/20261030151133_eng_incremental_fase5_versao.sql` (**não aplicada**): `eng_atualizado_em()` nova (o menor entre `terminado_em` do último `ok` e `fonte_carregado_resp`/`fonte_carregado_cons` da mesma linha; `LEAST` ignora NULL, então linhas antigas valem pelo `terminado_em`) e a RPC `get_gestor_engajamento_versao(p_ies_id uuid)` com `{ data: { atualizadoEm }, meta }`, na ordem papel → `v_ies` → `gestor_pode_acessar_ies`, sem período, `GRANT` a `authenticated`.
 - `src/features/gestor/api/engajamento.ts`: `useEngajamentoVersao(iesId)` e `INTERVALO_VERSAO_ENGAJAMENTO_MS = 120_000`. Consulta a cada 2 min, só com a aba visível (`refetchIntervalInBackground: false`), e quando `atualizadoEm` muda invalida `['gestor', user.id, 'engajamento']` **menos** a chave de versão (via `predicate`). A primeira leitura de cada IES só é memorizada; trocar de IES não conta como mudança.
 - `src/features/gestor/api/types-engajamento.ts`: `VersaoEngajamento`.
 - `src/features/gestor/routes/engajamento/EngajamentoLayout.tsx`: chama o hook uma vez, com `filtros.iesId`.
@@ -392,7 +392,7 @@ Importante para a Fase 5: o hook novo faz a tela aberta refazer as consultas do 
 
 ## Fase 5: migration aplicada e verificada no banco (30/10/2026)
 
-Migration `20261029120000_eng_incremental_fase5_versao.sql` aplicada com `apply_migration` (name `eng_incremental_fase5_versao`) em 30/10, a pedido do João ("já podemos fechar a Fase 4 e 5"). Isso foi feito **antes de a decisão sobre a média da visão geral** (item acima), que não bloqueia a Fase 5 tecnicamente.
+Migration `20261030151133_eng_incremental_fase5_versao.sql` aplicada com `apply_migration` (name `eng_incremental_fase5_versao`) em 30/10, a pedido do João ("já podemos fechar a Fase 4 e 5"). Isso foi feito **antes de a decisão sobre a média da visão geral** (item acima), que não bloqueia a Fase 5 tecnicamente.
 
 Verificação no banco (tudo em transações revertidas, sem deixar dado):
 - [x] **`eng_atualizado_em()`**: com uma linha `ok` simulada com `fonte_carregado_cons` 1 h atrás, devolve exatamente esse valor (diferença de 8 µs da referência); com uma linha sem as chaves `fonte_carregado_*`, devolve o `terminado_em` dela. **Valor real hoje:** 14:20:59 UTC (a carga de consumo), não 15:07 (o fim do último refresh): o selo agora mostra o horário da fonte mais atrasada, como a spec manda.
@@ -428,7 +428,7 @@ O João **aceitou o desvio** do critério "a média da visão geral não piora" 
 ### Achado: o sinal de invalidação da spec não funciona sozinho
 No QA da PARACATU, com o hook como a spec descreve (comparar `atualizadoEm`), a tela **não se atualizava**: `atualizadoEm` é o MENOR entre o fim do refresh e as cargas das fontes, e o consumo só carrega de hora em hora, então ele ficou em **14:20:59 por 6 rodadas seguidas (15:02 a 15:27 UTC)** enquanto a carga de questões avançava a cada 5 min e os dados da PARACATU mudavam (147.871 → 147.885 questões no banco; a tela ficou em 147.871 até um refetch por foco da aba). Do jeito que a spec define (§5.4), a tela só se atualizaria sozinha 1x por hora e o critério "questão em <= 35 min" não fecharia.
 
-**Correção** (migration `20261030170000_eng_incremental_fase5_versao_dos_dados.sql`, aplicada em 30/10; só acrescenta uma chave, então é compatível com o hook anterior):
+**Correção** (migration `20261030153103_eng_incremental_fase5_versao_dos_dados.sql`, aplicada em 30/10; só acrescenta uma chave, então é compatível com o hook anterior):
 - `eng_versao_dados()` (nova): a **maior** carga de fonte lida pela última linha ok e o `terminado_em` do último rebuild total (que pode reclassificar). Só lê a última linha ok e o índice parcial `(tipo, terminado_em) WHERE status = 'ok'`; `STABLE`, sem EXECUTE para `anon`/`authenticated`.
 - `get_gestor_engajamento_versao` passa a devolver `{ data: { atualizadoEm, versao }, meta }`. O selo continua sendo o `atualizadoEm` (a fonte mais atrasada, R6); só o sinal da tela mudou.
 - Hook `useEngajamentoVersao` compara `versao` (reserva: `atualizadoEm`, se a RPC não trouxer `versao`). Tipo `VersaoEngajamento` ganhou `versao`.
@@ -449,7 +449,7 @@ O João entrou no app no painel. Medições na aba visível, sem recarregar a p�
 - [x] **No banco:** `eng_atualizado_em()` com `fonte_carregado_cons` 1 h atrás devolve esse valor; gestor de outra IES recebe `Permission denied: cannot access this IES`; sem papel e sem login recebem `Access denied` (verificado antes e depois da correção; a correção só acrescenta uma chave).
 - [x] **QA na PARACATU** (acima): selo avança em ~5,5 min; evento → tela em ~23 a 26 min.
 - [x] **DoD comum:** suíte completa depois da correção: **42 falhas em 2.469 testes**, o mesmo perfil da baseline (17 + 8 + 5 + 4 + 2 + 6 de uma falha cada, contado por teste único), nenhuma nova. As únicas falhas de Engajamento são as 2 de `contratoEnvelopeRpc` herdadas de 27/10 (chave `dias`). TypeScript sem erros nos arquivos da fase na rodada anterior. Advisors (segurança): os mesmos 5 tipos, sem alerta novo; oráculo com 0 linhas depois de aplicar.
-- [x] Migrations aplicadas: `20261029120000_eng_incremental_fase5_versao` e `20261030170000_eng_incremental_fase5_versao_dos_dados`.
+- [x] Migrations aplicadas: `20261030151133_eng_incremental_fase5_versao` e `20261030153103_eng_incremental_fase5_versao_dos_dados`.
 
 **Fase 5: FECHADA**, com a correção acima em relação à spec.
 

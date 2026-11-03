@@ -7,7 +7,7 @@
 --
 -- A assinatura muda (10 parâmetros, o novo no fim), então a anterior sai antes: com as duas no banco, uma
 -- chamada só com parâmetros nomeados ficaria ambígua no PostgREST. O corpo é o da migration
--- 20261027130000_engajamento_lista_faixas_do_habito.sql, sem outra mudança além do 'email' condicional.
+-- 20261027180927_engajamento_lista_faixas_do_habito.sql, sem outra mudança além do 'email' condicional.
 -- Aplicar ANTES de publicar o front: o front antigo não envia p_com_email e continua funcionando.
 
 DROP FUNCTION IF EXISTS public.get_gestor_engajamento_lista(uuid, date, date, smallint, text, text, text, integer, integer);

@@ -1841,7 +1841,7 @@ Alimenta o drawer do aluno. `p_aluno` é obrigatório; se faltar, `aluno_fora_do
 
 Alimenta a aba Questões inteira, exceto o pop-up de alunos do tema.
 
-> **Acréscimo de 27/10 (migration `20261027140000`):** o envelope ganhou `dias`, a série diária da Evolução (`dia`, `questoes`, `acertoPct`). Só vem preenchida quando o período tem até 31 dias; acima disso vem `[]` e a tela usa `meses`. O SQL abaixo é o original de 22/10 e não mostra essa chave.
+> **Acréscimo de 27/10 (migration `20261027185035`):** o envelope ganhou `dias`, a série diária da Evolução (`dia`, `questoes`, `acertoPct`). Só vem preenchida quando o período tem até 31 dias; acima disso vem `[]` e a tela usa `meses`. O SQL abaixo é o original de 22/10 e não mostra essa chave.
 
 ```sql
   WITH b AS MATERIALIZED (SELECT * FROM public.eng_base_ativa(v_ies)),
@@ -1983,7 +1983,7 @@ Pop-up "alunos que resolveram" de um tema (clínico) ou assunto (básico): os 12
 
 `p_tipo` ∈ `todos` | `video` | `document` (o valor do banco, não o rótulo). Recalcula tudo pelo tipo.
 
-> **Acréscimo de 27/10 (migration `20261027140000`):** o envelope ganhou `dias`, a série diária da Evolução (`dia`, `consumos`). Só vem preenchida quando o período tem até 31 dias; acima disso vem `[]` e a tela usa `meses`. O SQL abaixo é o original de 22/10 e não mostra essa chave.
+> **Acréscimo de 27/10 (migration `20261027185035`):** o envelope ganhou `dias`, a série diária da Evolução (`dia`, `consumos`). Só vem preenchida quando o período tem até 31 dias; acima disso vem `[]` e a tela usa `meses`. O SQL abaixo é o original de 22/10 e não mostra essa chave.
 
 ```sql
   IF p_tipo NOT IN ('todos', 'video', 'document') THEN RAISE EXCEPTION 'tipo_invalido' USING ERRCODE = '22023'; END IF;

@@ -209,19 +209,19 @@ describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
 
   it('a assinatura antiga da lista (9 parâmetros) sai do banco, senão o PostgREST fica ambíguo', () => {
     // O DROP mora na migration que mudou a assinatura (p_com_email), não na vigente: a de acesso por IES
-    // (20261103180000) recria a lista com a assinatura nova, sem DROP.
-    expect(readMigration('20261103120000_engajamento_lista_exporta_email.sql')).toContain(
+    // (20261103165906) recria a lista com a assinatura nova, sem DROP.
+    expect(readMigration('20261103145848_engajamento_lista_exporta_email.sql')).toContain(
       'DROP FUNCTION IF EXISTS public.get_gestor_engajamento_lista(uuid, date, date, smallint, text, text, text, integer, integer);',
     );
   });
 });
 
 /**
- * Liberação do Engajamento por IES (migration 20261103180000): a chave `gestao.engajamento` nasce desligada em
+ * Liberação do Engajamento por IES (migration 20261103165906): a chave `gestao.engajamento` nasce desligada em
  * todas as IES (só admin acessa, fase de testes do time interno) e as RPCs a checam no servidor.
  */
 describe('Engajamento liberado por IES (gestao.engajamento)', () => {
-  const ARQUIVO = '20261103180000_engajamento_acesso_por_ies.sql';
+  const ARQUIVO = '20261103165906_engajamento_acesso_por_ies.sql';
   const sql = readMigration(ARQUIVO);
   const sqlSemComentarios = semComentarios(sql);
 
