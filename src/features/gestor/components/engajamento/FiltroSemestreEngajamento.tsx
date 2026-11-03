@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { rotuloOpcaoSemestre } from '@/features/gestor/lib/engajamento';
 import type { FiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
-import { ESTILO_CONTROLE, ESTILO_ROTULO_FILTRO } from '@/features/gestor/components/engajamento/FiltroPeriodo';
+import { SelectFiltroGestor } from '@/features/gestor/components/SelectFiltroGestor';
 
 const SEMESTRES = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -19,27 +19,18 @@ export function FiltroSemestreEngajamento({
 }: {
   filtros: Pick<FiltrosEngajamento, 'semestre' | 'alunoId' | 'setSemestre'>;
 }) {
-  const id = React.useId();
-  const valor = filtros.alunoId !== null || filtros.semestre === null ? '' : String(filtros.semestre);
+  const valor = filtros.alunoId !== null || filtros.semestre === null ? 'todos' : String(filtros.semestre);
 
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} style={ESTILO_ROTULO_FILTRO}>
-        Semestre do aluno
-      </label>
-      <select
-        id={id}
-        value={valor}
-        onChange={(e) => filtros.setSemestre(e.target.value === '' ? null : Number(e.target.value))}
-        style={ESTILO_CONTROLE}
-      >
-        <option value="">Todos (1º ao 12º)</option>
-        {SEMESTRES.map((n) => (
-          <option key={n} value={n}>
-            {rotuloOpcaoSemestre(n)}
-          </option>
-        ))}
-      </select>
-    </div>
+    <SelectFiltroGestor
+      ariaLabel="Semestre do aluno"
+      prefixo="Semestre"
+      valor={valor}
+      onChange={(v) => filtros.setSemestre(v === 'todos' ? null : Number(v))}
+      opcoes={[
+        { valor: 'todos', rotulo: 'Todos (1º ao 12º)' },
+        ...SEMESTRES.map((n) => ({ valor: String(n), rotulo: rotuloOpcaoSemestre(n) })),
+      ]}
+    />
   );
 }
