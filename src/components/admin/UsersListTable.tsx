@@ -859,7 +859,17 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
 
                 <TableCell className={adminTableCellClass}>
                   {isEditing ? (
-                    <Input value={editing.nome} onChange={(e) => setEditing({ ...editing, nome: e.target.value })} className="h-8" autoFocus />
+                    <div className="space-y-1">
+                      <Input value={editing.nome} onChange={(e) => setEditing({ ...editing, nome: e.target.value })} className="h-8" autoFocus />
+                      <div className="flex items-center gap-2">
+                        <MonoValue className="text-xs truncate" muted>{user.email}</MonoValue>
+                        {canManage && !user.roles.some(r => r === 'admin' || r === 'atendimento') && user.id !== authUser?.id && (
+                          <Button type="button" size="sm" variant="link" className="h-auto p-0 text-xs" onClick={() => setEmailTarget(user)}>
+                            <Mail className="h-3 w-3 mr-1" /> Alterar e-mail
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   ) : (
                     <div>
                       <div className="font-medium">{user.nome}</div>
