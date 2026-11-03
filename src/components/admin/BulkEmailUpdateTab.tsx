@@ -115,7 +115,7 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
-export const REASON_LABELS: Record<string, string> = {
+const REASON_LABELS: Record<string, string> = {
   user_not_found: 'Usuário não encontrado',
   cannot_update_self: 'Você não pode alterar o próprio email',
   protected_role: 'Usuário é admin ou atendimento (protegido)',

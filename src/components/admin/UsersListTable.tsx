@@ -71,6 +71,7 @@ import {
 } from '@/experiences/admin/ui';
 import { logAdminAction } from '@/services/admin/logAction';
 import { UserSupportPanel } from './UserSupportPanel';
+import { UpdateUserEmailDialog } from './usuarios/UpdateUserEmailDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
@@ -158,7 +159,8 @@ const BATCH_CHUNK_SIZE = 3; // Deve casar com MAX_BATCH_SIZE da edge function
 const EMPTY_DELETE_PROGRESS: DeleteProgress = { total: 0, done: 0, ok: 0, failed: [], active: false };
 
 export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, canEdit, canSupport, refreshKey, onOpenBulkEmail }) => {
-  const { startImpersonation, access } = useAuth();
+  const { startImpersonation, access, user: authUser } = useAuth();
+  const [emailTarget, setEmailTarget] = useState<UserRow | null>(null);
   const navigate = useNavigate();
   const canImpersonate = can(access, 'impersonate');
 
@@ -1022,6 +1024,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                                     <><Shield className="h-4 w-4 mr-2" />Promover a Admin</>
                                   )}
                                 </DropdownMenuItem>
+                                {!user.roles.some(r => r === 'admin' || r === 'atendimento') && user.id !== authUser?.id && (
+                                  <DropdownMenuItem onClick={() => setEmailTarget(user)}>
+                                    <Mail className="h-4 w-4 mr-2" /> Alterar e-mail
+                                  </DropdownMenuItem>
+                                )}
                                 {/* A edge recusa exclusão de admin server-side, mas a UI já
                                     oculta a opção para não sugerir uma ação que vai falhar. */}
                                 {!isAdmin && (
@@ -1113,6 +1120,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         actionLabel="Excluir"
         onConfirm={confirmDeleteTargets}
       />
+
+      <UpdateUserEmailDialog user={emailTarget} onOpenChange={(o) => { if (!o) setEmailTarget(null); }} onUpdated={fetchUsers} />
 
       <UserSupportPanel userId={supportUserId} userName={supportUserName} open={supportOpen} onOpenChange={setSupportOpen} />
     </div>
