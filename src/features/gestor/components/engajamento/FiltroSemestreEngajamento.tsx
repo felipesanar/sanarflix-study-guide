@@ -16,9 +16,16 @@ const SEMESTRES = Array.from({ length: 12 }, (_, i) => i + 1);
  */
 export function FiltroSemestreEngajamento({
   filtros,
+  semestresDisponiveis,
 }: {
   filtros: Pick<FiltrosEngajamento, 'semestre' | 'alunoId' | 'setSemestre'>;
+  /** Semestres com alunos na IES. `undefined` = ainda carregando: só "Todos". */
+  semestresDisponiveis?: number[];
 }) {
+  const lista = new Set(semestresDisponiveis ?? []);
+  // O semestre do link continua na lista mesmo sem alunos, para não sumir do gatilho.
+  if (filtros.semestre !== null) lista.add(filtros.semestre);
+  const semestres = SEMESTRES.filter((n) => lista.has(n));
   const valor = filtros.alunoId !== null || filtros.semestre === null ? 'todos' : String(filtros.semestre);
 
   return (
@@ -29,7 +36,7 @@ export function FiltroSemestreEngajamento({
       onChange={(v) => filtros.setSemestre(v === 'todos' ? null : Number(v))}
       opcoes={[
         { valor: 'todos', rotulo: 'Todos (1º ao 12º)' },
-        ...SEMESTRES.map((n) => ({ valor: String(n), rotulo: rotuloOpcaoSemestre(n) })),
+        ...semestres.map((n) => ({ valor: String(n), rotulo: rotuloOpcaoSemestre(n) })),
       ]}
     />
   );

@@ -34,6 +34,8 @@ const VISAO = {
   ies: { id: 'ies-1', nome: 'PARACATU' },
   temDados: true,
   recorte: { semestre: null, aluno: null },
+  // Todos os 12 semestres com alunos, exceto quando o teste diz o contrário.
+  semestres: Array.from({ length: 12 }, (_, i) => ({ semestre: i + 1, base: 10 })),
 };
 
 const resultado = (data: unknown, meta: unknown = { atualizadoEm: '2026-10-22T09:02:41.5+00:00' }) => ({
@@ -211,6 +213,23 @@ describe('EngajamentoLayout (spec §12.1)', () => {
   });
 
   describe('filtro Semestre do aluno', () => {
+    it('só lista os semestres em que a IES tem alunos (ex.: só 11º e 12º)', () => {
+      mockVisaoGeral.mockReturnValue(resultado({
+        ...VISAO,
+        semestres: Array.from({ length: 12 }, (_, i) => ({ semestre: i + 1, base: i >= 10 ? 5 : 0 })),
+      }));
+      renderizar();
+      expect(rotulos('Semestre do aluno')).toEqual([
+        'Todos (1º ao 12º)', '11º semestre · internato', '12º semestre · internato',
+      ]);
+    });
+
+    it('carregando: só "Todos"', () => {
+      mockVisaoGeral.mockReturnValue({ ...resultado(undefined, undefined), isLoading: true });
+      renderizar();
+      expect(rotulos('Semestre do aluno')).toEqual(['Todos (1º ao 12º)']);
+    });
+
     it('opções: "Todos (1º ao 12º)" e "{n}º semestre · {ciclo}"', () => {
       renderizar();
       const opcoes = rotulos('Semestre do aluno');
