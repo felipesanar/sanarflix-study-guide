@@ -444,6 +444,42 @@ export type Database = {
         }
         Relationships: []
       }
+      b2b_questions_access_recovery: {
+        Row: {
+          id: number
+          replay_from: string
+          replay_until: string
+          sanarflix_user_id: string
+          updated_at: string
+          valid_from: string
+          valid_until: string
+          version: number
+          watermark: string
+        }
+        Insert: {
+          id?: never
+          replay_from: string
+          replay_until: string
+          sanarflix_user_id: string
+          updated_at?: string
+          valid_from: string
+          valid_until: string
+          version?: number
+          watermark: string
+        }
+        Update: {
+          id?: never
+          replay_from?: string
+          replay_until?: string
+          sanarflix_user_id?: string
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string
+          version?: number
+          watermark?: string
+        }
+        Relationships: []
+      }
       b2b_questions_cohort_state: {
         Row: {
           published_at: string
@@ -1409,6 +1445,7 @@ export type Database = {
           iniciado_em: string
           status: string
           terminado_em: string | null
+          tipo: string
         }
         Insert: {
           contagens?: Json | null
@@ -1418,6 +1455,7 @@ export type Database = {
           iniciado_em?: string
           status: string
           terminado_em?: string | null
+          tipo?: string
         }
         Update: {
           contagens?: Json | null
@@ -1427,6 +1465,7 @@ export type Database = {
           iniciado_em?: string
           status?: string
           terminado_em?: string | null
+          tipo?: string
         }
         Relationships: []
       }
@@ -3816,6 +3855,7 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      eng_acesso_liberado: { Args: { p_ies: string }; Returns: boolean }
       eng_alunos_recorte: {
         Args: { p_fim: string; p_ies: string; p_inicio: string }
         Returns: {
@@ -3857,6 +3897,10 @@ export type Database = {
           semestre: number
         }[]
       }
+      eng_delta_questoes: {
+        Args: { p_ate: string; p_questoes: string[]; p_sinal: number }
+        Returns: Json
+      }
       eng_detalhe_atividade: {
         Args: { p_dia: string; p_user: string }
         Returns: Json
@@ -3871,19 +3915,25 @@ export type Database = {
         }
         Returns: Json
       }
+      eng_monta_w_resp: { Args: { p_desde?: string }; Returns: undefined }
       eng_norm_busca: { Args: { p: string }; Returns: string }
       eng_norm_rotulo: { Args: { p: string }; Returns: string }
       eng_norm_texto: { Args: { p: string }; Returns: string }
       eng_pct: { Args: { d: number; n: number }; Returns: number }
       eng_razao: { Args: { d: number; n: number }; Returns: number }
       eng_refresh: { Args: { p_disparo?: string }; Returns: Json }
-      eng_refresh_agregados: { Args: never; Returns: Json }
-      eng_refresh_classificacao: { Args: never; Returns: Json }
+      eng_refresh_agregados: { Args: { p_desde?: string }; Returns: Json }
+      eng_refresh_classificacao: {
+        Args: { p_questoes?: string[] }
+        Returns: Json
+      }
+      eng_refresh_incremental: { Args: never; Returns: Json }
       eng_rotulo_curso: { Args: { p: string }; Returns: string }
       eng_validar_periodo: {
         Args: { p_fim: string; p_inicio: string }
         Returns: undefined
       }
+      eng_versao_dados: { Args: never; Returns: string }
       gestor_pode_acessar_ies: { Args: { p_ies_id: string }; Returns: boolean }
       get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
@@ -4002,6 +4052,7 @@ export type Database = {
       get_gestor_engajamento_alunos: {
         Args: {
           p_busca?: string
+          p_direcao?: string
           p_fim: string
           p_ies_id: string
           p_inicio: string
@@ -4038,6 +4089,7 @@ export type Database = {
       get_gestor_engajamento_export_alunos: {
         Args: {
           p_busca?: string
+          p_direcao?: string
           p_fim: string
           p_ies_id: string
           p_inicio: string
@@ -4079,6 +4131,10 @@ export type Database = {
           p_inicio: string
           p_semestre?: number
         }
+        Returns: Json
+      }
+      get_gestor_engajamento_versao: {
+        Args: { p_ies_id?: string }
         Returns: Json
       }
       get_gestor_engajamento_visao_geral: {
@@ -4316,6 +4372,7 @@ export type Database = {
       mentor_aluno: { Args: { p_email: string }; Returns: Json }
       mentor_aluno_conteudos: { Args: { p_email: string }; Returns: Json }
       mentor_aluno_notas: { Args: { p_email: string }; Returns: Json }
+      mentor_aluno_questoes: { Args: { p_email: string }; Returns: Json }
       mentor_ativo_id: { Args: never; Returns: string }
       mentor_definir_link_agendamento: {
         Args: { p_url: string }
