@@ -115,10 +115,10 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
-const REASON_LABELS: Record<string, string> = {
+export const REASON_LABELS: Record<string, string> = {
   user_not_found: 'Usuário não encontrado',
   cannot_update_self: 'Você não pode alterar o próprio email',
-  protected_role: 'Usuário tem role protegida (admin/gestor/professor/atendimento)',
+  protected_role: 'Usuário é admin ou atendimento (protegido)',
   email_already_in_use: 'Novo email já está em uso',
   auth_update_failed: 'Falha ao atualizar no Auth',
   public_update_failed: 'Falha ao atualizar no banco',
@@ -207,7 +207,8 @@ export const BulkEmailUpdateTab: React.FC = () => {
         <ShieldAlert className="h-4 w-4" />
         <AlertTitle>Comportamento e segurança</AlertTitle>
         <AlertDescription className="space-y-1 text-sm">
-          <p>• <strong>Apenas alunos</strong> podem ter o email alterado — admins, gestores, professores e atendimento são bloqueados pelo servidor.</p>
+          <p>• Alunos, professores e gestores podem ter o email alterado. <strong>Admins e atendimento</strong> são bloqueados pelo servidor.</p>
+          <p>• Professores e gestores também recebem um <strong>alerta no email antigo</strong>.</p>
           <p>• <strong>Nenhum dado é perdido</strong>: progresso, simulados, calendário e histórico são vinculados ao ID interno, não ao email.</p>
           <p>• O usuário recebe um email no <strong>novo endereço</strong> avisando a mudança. Todas as sessões ativas são encerradas.</p>
           <p>• Limite de <strong>{MAX_CSV_ROWS} linhas</strong> por CSV. Processado em lotes de {CHUNK_SIZE}.</p>

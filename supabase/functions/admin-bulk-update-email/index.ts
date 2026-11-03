@@ -28,13 +28,10 @@ const corsHeaders = {
 };
 
 const MAX_ROWS_PER_INVOCATION = 50;
-const PROTECTED_ROLES = new Set([
-  "admin",
-  "gestor",
-  "gestor_grupo",
-  "professor",
-  "atendimento",
-]);
+// Contas de staff Sanar continuam protegidas. Professores e gestores podem
+// ter o e-mail trocado, mas o e-mail antigo também recebe um alerta.
+const PROTECTED_ROLES = new Set(["admin", "atendimento"]);
+const ALERT_OLD_EMAIL_ROLES = new Set(["gestor", "gestor_grupo", "professor", "mentor"]);
 
 const rowSchema = z.object({
   email_antigo: z.string().trim().toLowerCase().email().max(255),
@@ -87,6 +84,48 @@ function buildNotificationHtml(emailAntigo: string, emailNovo: string): string {
     </td></tr>
   </table>
 </body></html>`;
+}
+
+function buildOldEmailAlertHtml(emailNovo: string): string {
+  return `<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"/><title>Alerta de segurança</title></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#111;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 0;"><tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #f1f1f1;border-radius:14px;">
+      <tr><td style="padding:32px;">
+        <h1 style="margin:0 0 16px 0;font-size:22px;color:#111;">O e-mail de acesso da sua conta foi alterado</h1>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#444;">
+          Um administrador alterou o e-mail de acesso da sua conta no <strong>SanarFlix Academy</strong> para <strong>${emailNovo}</strong>. Este endereço não dá mais acesso à conta.
+        </p>
+        <p style="margin:0;font-size:15px;line-height:1.6;color:#444;">
+          Se você não reconhece esta mudança, fale imediatamente com o suporte em <a href="mailto:atendimento@sanar.com.br" style="color:#dc2626;">atendimento@sanar.com.br</a>.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+}
+
+async function notifyOldEmail(userId: string, nome: string, emailAntigo: string, emailNovo: string) {
+  const parts = (nome || "").trim().split(/\s+/);
+  const result = await triggerNovuEvent({
+    name: "workflow-email",
+    payload: { name: nome || "Usuário", email: emailAntigo, emailAntigo, emailNovo },
+    // subscriberId distinto para não sobrescrever o e-mail do assinante principal no Novu.
+    to: [{ subscriberId: `${userId}-old-email-alert`, firstName: parts[0] || "Usuário", lastName: parts.slice(1).join(" "), email: emailAntigo }],
+    disableTracking: true,
+    overrides: {
+      email: {
+        from: "<atendimento@sanar.com.br>",
+        replyTo: "atendimento@sanar.com.br",
+        subject: "Alerta de segurança: o e-mail da sua conta foi alterado",
+        html: buildOldEmailAlertHtml(emailNovo),
+      },
+    },
+  });
+  if (!result.ok) {
+    console.log("[admin-bulk-update-email] old-email alert failed for", maskEmail(emailAntigo), ":", result.error);
+  }
 }
 
 async function notifyUser(
@@ -349,6 +388,7 @@ Deno.serve(async (req) => {
           metadata: {
             email_antigo,
             email_novo,
+            target_roles: rolesList,
             ip: req.headers.get("x-forwarded-for") ?? null,
             user_agent: req.headers.get("user-agent") ?? null,
           },
@@ -360,6 +400,12 @@ Deno.serve(async (req) => {
         notifyUser(target.id, target.nome ?? "", email_antigo, email_novo).catch((e) => {
           console.warn("[admin-bulk-update-email] notify warn:", e?.message);
         });
+
+        if (rolesList.some((r) => ALERT_OLD_EMAIL_ROLES.has(r))) {
+          notifyOldEmail(target.id, target.nome ?? "", email_antigo, email_novo).catch((e) => {
+            console.warn("[admin-bulk-update-email] old-email alert warn:", e?.message);
+          });
+        }
 
         results.push({ email_antigo, email_novo, status: "updated", user_id: target.id });
       } catch (err) {
