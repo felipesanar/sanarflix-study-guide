@@ -5,7 +5,7 @@ import { ComCarregamentoInicial, ROTEIRO_QUESTOES } from '@/features/gestor/comp
 import { GavetaTaxonomia } from '@/features/gestor/components/engajamento/GavetaTaxonomia';
 import { KpisQuestoes } from '@/features/gestor/components/engajamento/KpisQuestoes';
 import { eixoPct, LinhaMensal } from '@/features/gestor/components/engajamento/LinhaMensal';
-import { SeletorMetrica, type OpcaoMetrica } from '@/features/gestor/components/engajamento/SeletorMetrica';
+import { SeletorMetrica, type OpcaoMetrica, type SeletorMetricaProps } from '@/features/gestor/components/engajamento/SeletorMetrica';
 import { useEngajamentoQuestoes, useEngajamentoVisaoGeral } from '@/features/gestor/api/engajamento';
 import type { QuestoesEngajamento as Dados } from '@/features/gestor/api/types-engajamento';
 import { useFiltrosEngajamento } from '@/features/gestor/hooks/useFiltrosEngajamento';
@@ -18,6 +18,9 @@ const OPCOES: ReadonlyArray<OpcaoMetrica<Metrica>> = [
   { valor: 'quantidade', rotulo: 'Quantidade' },
   { valor: 'pct', rotulo: '% de acerto' },
 ];
+
+/** Versão já tipada do seletor: evita o genérico explícito dentro do JSX, que quebra o build do preview. */
+const SeletorMetricaQuestoes: (props: SeletorMetricaProps<Metrica>) => React.ReactElement | null = SeletorMetrica;
 
 const pctInteiro = (v: number) => `${Math.round(v)}%`;
 
@@ -58,7 +61,7 @@ function EvolucaoMensal({
     <BlocoEngajamento
       titulo={titulo}
       descricao={descricao}
-      acao={<SeletorMetrica rotulo="Métrica da evolução" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
+      acao={<SeletorMetricaQuestoes rotulo="Métrica da evolução" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
       consulta={consulta}
       alturaSkeleton={300}
       bloco="questoes-evolucao"
@@ -99,7 +102,7 @@ function PorSemestre({
           ? 'Acerto médio dos alunos de cada semestre (barra cheia = 100%)'
           : 'Total resolvido no período por alunos de cada semestre'
       }
-      acao={<SeletorMetrica rotulo="Métrica por semestre" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
+      acao={<SeletorMetricaQuestoes rotulo="Métrica por semestre" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
       consulta={consulta}
       alturaSkeleton={300}
       bloco="questoes-por-semestre"
