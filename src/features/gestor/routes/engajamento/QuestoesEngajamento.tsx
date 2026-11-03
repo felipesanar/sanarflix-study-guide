@@ -58,7 +58,7 @@ function EvolucaoMensal({
     <BlocoEngajamento
       titulo={titulo}
       descricao={descricao}
-      acao={<SeletorMetrica<Metrica> rotulo="Métrica da evolução" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
+      acao={<SeletorMetrica rotulo="Métrica da evolução" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
       consulta={consulta}
       alturaSkeleton={300}
       bloco="questoes-evolucao"
@@ -99,7 +99,7 @@ function PorSemestre({
           ? 'Acerto médio dos alunos de cada semestre (barra cheia = 100%)'
           : 'Total resolvido no período por alunos de cada semestre'
       }
-      acao={<SeletorMetrica<Metrica> rotulo="Métrica por semestre" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
+      acao={<SeletorMetrica rotulo="Métrica por semestre" valor={metrica} opcoes={OPCOES} onChange={setMetrica} />}
       consulta={consulta}
       alturaSkeleton={300}
       bloco="questoes-por-semestre"
