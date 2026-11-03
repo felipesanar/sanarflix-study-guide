@@ -309,13 +309,13 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
   });
 
   describe('funções assíncronas (não são hooks)', () => {
-    it('buscarListaCompleta chama a lista com p_page_size 5000 e devolve a página inteira', async () => {
-      const pagina = { categoria: 'parou', data: [{ id: 'a1' }], page: 1, pageSize: 5000, total: 1, totalPages: 1 };
+    it('buscarListaCompleta chama a lista com p_page_size 5000, pede o e-mail e devolve a página inteira', async () => {
+      const pagina = { categoria: 'parou', data: [{ id: 'a1', email: 'a1@x.com' }], page: 1, pageSize: 5000, total: 1, totalPages: 1 };
       mockRpc.mockResolvedValue(envelope(pagina));
       const resultado = await buscarListaCompleta({ ...F, semestre: 8 }, 'parou', 'ana');
       expect(mockRpc).toHaveBeenCalledWith('get_gestor_engajamento_lista', {
         p_ies_id: 'ies-1', p_inicio: '2026-05-01', p_fim: '2026-10-22', p_semestre: 8, p_aluno: null,
-        p_categoria: 'parou', p_busca: 'ana', p_page: 1, p_page_size: 5000,
+        p_categoria: 'parou', p_busca: 'ana', p_page: 1, p_page_size: 5000, p_com_email: true,
       });
       expect(resultado).toEqual(pagina);
     });

@@ -146,6 +146,7 @@ export function ListaAlunosDialog({
       const completa = await buscarListaCompleta(filtros, categoria, buscaAtrasada);
       const colunas: ColunaCsv<LinhaListaEngajamento>[] = [
         { cabecalho: 'Aluno', valor: (l) => l.nome },
+        { cabecalho: 'E-mail cadastrado', valor: (l) => l.email ?? '' },
         { cabecalho: 'Semestre', valor: (l) => l.semestre },
         { cabecalho: cabecalhoDetalhe, valor: (l) => textoDetalheLinha(l, categoria, colunaDetalhe) },
         { cabecalho: 'Dias sem consumo', valor: (l) => l.diasSemAtividade },

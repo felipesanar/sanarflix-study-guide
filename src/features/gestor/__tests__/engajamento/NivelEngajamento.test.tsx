@@ -341,9 +341,16 @@ describe('ListaAlunosDialog — busca, paginação e exportação', () => {
     expect(within(dialog).getByText('Mostrando 21–40 de 45')).toBeInTheDocument();
   });
 
-  it('"Exportar CSV" baixa a lista completa (5.000) com o cabeçalho da §10.7', async () => {
+  it('"Exportar CSV" baixa a lista completa (5.000) com o cabeçalho da §10.7 e o e-mail de cada aluno', async () => {
     mockBuscarListaCompleta.mockResolvedValue(
-      listaEngajamento('esporadico', [linhaLista(), linhaLista({ id: 'u-2', nome: 'Bruno Alves', semestre: 7, diasSemAtividade: 0, diasAtivos30: 12 })], { pageSize: 5000 }),
+      listaEngajamento(
+        'esporadico',
+        [
+          linhaLista({ email: 'ana@exemplo.com' }),
+          linhaLista({ id: 'u-2', nome: 'Bruno Alves', email: 'bruno@exemplo.com', semestre: 7, diasSemAtividade: 0, diasAtivos30: 12 }),
+        ],
+        { pageSize: 5000 },
+      ),
     );
     const dialog = abrirSemUserEvent();
     fireEvent.click(within(dialog).getByRole('button', { name: /Exportar CSV/ }));
@@ -353,9 +360,22 @@ describe('ListaAlunosDialog — busca, paginação e exportação', () => {
     expect(mockBaixarCsv).toHaveBeenCalledTimes(1);
     const [nome, colunas, linhas] = mockBaixarCsv.mock.calls[0];
     expect(nome).toMatch(/^gestor-engajamento-esporadico-paracatu-\d{4}-\d{2}-\d{2}\.csv$/);
-    expect(colunas.map((c: { cabecalho: string }) => c.cabecalho)).toEqual(['Aluno', 'Semestre', 'Última atividade', 'Dias sem consumo']);
+    expect(colunas.map((c: { cabecalho: string }) => c.cabecalho)).toEqual([
+      'Aluno',
+      'E-mail cadastrado',
+      'Semestre',
+      'Última atividade',
+      'Dias sem consumo',
+    ]);
     expect(linhas).toHaveLength(2);
-    expect(colunas[2].valor(linhas[1])).toBe('última: hoje · 12 dias ativos em 30');
+    expect(colunas[1].valor(linhas[0])).toBe('ana@exemplo.com');
+    expect(colunas[1].valor(linhas[1])).toBe('bruno@exemplo.com');
+    expect(colunas[3].valor(linhas[1])).toBe('última: hoje · 12 dias ativos em 30');
+  });
+
+  it('a lista paginada da tela não pede nem mostra o e-mail (só o "Exportar CSV" pede)', () => {
+    const dialog = abrirSemUserEvent();
+    expect(within(dialog).queryByRole('columnheader', { name: /e-?mail/i })).not.toBeInTheDocument();
   });
 
   it('sem podeExportar o botão não aparece', () => {

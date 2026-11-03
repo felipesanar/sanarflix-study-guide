@@ -265,7 +265,8 @@ export async function buscarExportAlunos(
 
 /**
  * Lista completa de uma categoria para o "Exportar CSV" dos pop-ups (§8.3 com
- * `p_page_size = 5000`). Função assíncrona, não hook.
+ * `p_page_size = 5000` e `p_com_email`, para a coluna de e-mail do arquivo).
+ * Função assíncrona, não hook.
  */
 export async function buscarListaCompleta(
   f: FiltrosRecorteEngajamento,
@@ -282,6 +283,7 @@ export async function buscarListaCompleta(
     p_busca: buscaOuNull(busca),
     p_page: 1,
     p_page_size: PAGE_SIZE_EXPORTACAO,
+    p_com_email: true,
   });
   return data;
 }

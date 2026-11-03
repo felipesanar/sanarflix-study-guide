@@ -4052,6 +4052,7 @@ export type Database = {
           p_aluno?: string
           p_busca?: string
           p_categoria?: string
+          p_com_email?: boolean
           p_fim: string
           p_ies_id: string
           p_inicio: string

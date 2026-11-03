@@ -260,6 +260,8 @@ export interface LinhaListaEngajamento {
   melhorMes: string | null;
   melhorMesDias: number;
   detalhe: DetalheAtividade | null;
+  /** E-mail cadastrado. Só vem quando a lista é pedida para exportação (`p_com_email`); a lista paginada da tela não o traz. */
+  email?: string;
 }
 
 export interface ListaEngajamento {
@@ -466,7 +468,7 @@ export interface ChaveConteudo {
 
 export interface LinhaExportAluno {
   nome: string;
-  /** A única RPC que devolve e-mail. */
+  /** Só as exportações devolvem e-mail: esta RPC e a lista completa (`get_gestor_engajamento_lista` com `p_com_email`). */
   email: string;
   semestre: number;
   questoes: number;

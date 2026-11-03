@@ -98,7 +98,7 @@ const SEM_PERIODO = new Set(['get_gestor_engajamento_versao']);
 const ASSINATURAS: Record<string, string> = {
   get_gestor_engajamento_visao_geral: 'uuid, date, date, smallint, text',
   get_gestor_engajamento_alunos: 'uuid, date, date, smallint, text, text, boolean, integer, integer, text',
-  get_gestor_engajamento_lista: 'uuid, date, date, smallint, text, text, text, integer, integer',
+  get_gestor_engajamento_lista: 'uuid, date, date, smallint, text, text, text, integer, integer, boolean',
   get_gestor_engajamento_aluno: 'uuid, date, date, text',
   get_gestor_engajamento_questoes: 'uuid, date, date, smallint',
   get_gestor_engajamento_questoes_alunos: 'uuid, date, date, smallint, text',
@@ -174,14 +174,29 @@ describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
     });
   });
 
-  it('só get_gestor_engajamento_export_alunos devolve e-mail', () => {
+  /** As duas RPCs que alimentam um "Exportar" de lista de alunos: as demais nunca carregam e-mail. */
+  const EMITEM_EMAIL = ['get_gestor_engajamento_export_alunos', 'get_gestor_engajamento_lista'];
+
+  it('só as RPCs de exportação devolvem e-mail (export_alunos e a lista, esta só com p_com_email)', () => {
     for (const nome of RPCS_DO_GESTOR) {
       const corpo = corpoVigente(nome);
       const emiteEmail = /'email'\s*,/.test(corpo);
-      expect(emiteEmail, `${nome}: e-mail só é permitido na exportação`).toBe(
-        nome === 'get_gestor_engajamento_export_alunos',
-      );
+      expect(emiteEmail, `${nome}: e-mail só é permitido na exportação`).toBe(EMITEM_EMAIL.includes(nome));
     }
+  });
+
+  it('get_gestor_engajamento_lista só inclui o e-mail quando p_com_email = true (a lista paginada da tela não o carrega)', () => {
+    const corpo = corpoVigente('get_gestor_engajamento_lista');
+    expect(corpo).toMatch(/p_com_email\s+boolean\s+DEFAULT false/);
+    expect(corpo).toMatch(/CASE WHEN p_com_email THEN jsonb_build_object\('email', pg\.email\) ELSE '\{\}'::jsonb END/);
+    // O único 'email' do corpo é o do ramo condicional.
+    expect(corpo.match(/'email'\s*,/g)).toHaveLength(1);
+  });
+
+  it('a assinatura antiga da lista (9 parâmetros) sai do banco, senão o PostgREST fica ambíguo', () => {
+    expect(vigente('get_gestor_engajamento_lista').sql).toContain(
+      'DROP FUNCTION IF EXISTS public.get_gestor_engajamento_lista(uuid, date, date, smallint, text, text, text, integer, integer);',
+    );
   });
 });
 
