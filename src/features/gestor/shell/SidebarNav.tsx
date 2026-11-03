@@ -3,10 +3,12 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveFeatures } from '@/hooks/useEffectiveFeatures';
 import { Icon } from '@/features/gestor/components/Icon';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import { cn } from '@/lib/utils';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
+import { FEATURE_ENGAJAMENTO } from '@/features/gestor/lib/engajamento';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import { usePrefersReducedMotion } from '@/features/gestor/hooks/usePrefersReducedMotion';
 
@@ -27,6 +29,12 @@ export interface GestorV2NavItem {
   grupo?: string;
   /** Selo ao lado do título (hoje só "NOVO", no Engajamento). */
   badge?: 'NOVO';
+  /**
+   * Feature da IES (`ies_features`) que libera o item. Sem ela o item é sempre mostrado. Com ela, só aparece
+   * quando `useEffectiveFeatures().hasFeature(featureKey)` — admin sempre tem (o servidor decide), gestor só
+   * se a IES ligou a chave em /admin/ies.
+   */
+  featureKey?: string;
 }
 
 /** Navegação canônica do Portal do Gestor v2 — 4 itens em 2 grupos (spec 2026-10-22-engajamento §10.2). */
@@ -34,7 +42,14 @@ export const GESTOR_V2_NAV: GestorV2NavItem[] = [
   { title: 'Início', url: '/gestor', icon: 'home' },
   { title: 'Visão Geral', url: '/gestor/visao-geral', icon: 'equalizer', grupo: 'Desempenho Institucional' },
   { title: 'Detalhamento por Simulados', url: '/gestor/detalhamento', icon: 'insights', grupo: 'Desempenho Institucional' },
-  { title: 'Engajamento', url: '/gestor/engajamento', icon: 'timeline', grupo: 'Uso da plataforma', badge: 'NOVO' },
+  {
+    title: 'Engajamento',
+    url: '/gestor/engajamento',
+    icon: 'timeline',
+    grupo: 'Uso da plataforma',
+    badge: 'NOVO',
+    featureKey: FEATURE_ENGAJAMENTO,
+  },
 ];
 
 /**
@@ -169,8 +184,13 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { hasFeature } = useEffectiveFeatures();
   const { iesId, semestre } = useFiltrosGestor();
   const reduzido = usePrefersReducedMotion();
+
+  // Itens com `featureKey` só aparecem para quem tem a feature. Filtrar ANTES do map mantém o título de grupo
+  // certo: se todos os itens de um grupo somem, o título do grupo some junto.
+  const itens = GESTOR_V2_NAV.filter((item) => item.featureKey === undefined || hasFeature(item.featureKey));
 
   /**
    * Prefetch no hover/foco de cada item (Parte VIII/§22 do handoff): só a
@@ -217,7 +237,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
       className="flex flex-col"
       style={{ padding: '16px 12px', gap: 2 }}
     >
-      {GESTOR_V2_NAV.map(({ title, url, icon, grupo, badge }, indice) => {
+      {itens.map(({ title, url, icon, grupo, badge }, indice) => {
         const aoPassarMouse = () => {
           aquecerChunk(url);
           if (url === '/gestor/visao-geral') aquecerVisaoGeral();
@@ -226,7 +246,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ onNavegar }) => {
 
         return (
         <React.Fragment key={url}>
-          {grupo !== undefined && grupo !== GESTOR_V2_NAV[indice - 1]?.grupo && (
+          {grupo !== undefined && grupo !== itens[indice - 1]?.grupo && (
             <div style={{ ...TITULO_GRUPO_NAV, padding: '18px 12px 8px' }}>
               {grupo}
             </div>

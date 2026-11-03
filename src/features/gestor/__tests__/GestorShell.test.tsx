@@ -21,6 +21,11 @@ vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'
 const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Features efetivas: a nav só mostra o Engajamento com a feature `gestao.engajamento` (aqui, ligada).
+vi.mock('@/hooks/useEffectiveFeatures', () => ({
+  useEffectiveFeatures: () => ({ hasFeature: () => true }),
+}));
+
 // O shell não busca dado de IES — o SidebarIes busca. Aqui ele é neutralizado.
 vi.mock('@/features/gestor/shell/SidebarIes', () => ({
   SidebarIes: () => <div>IES Alfa</div>,

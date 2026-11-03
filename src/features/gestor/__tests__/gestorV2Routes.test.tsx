@@ -5,12 +5,22 @@ import { gestorV2Routes } from '@/features/gestor/gestorV2Routes';
 import { useGestorPortalVersao } from '@/features/gestor/hooks/useGestorPortalVersao';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
+import { useEffectiveFeatures } from '@/hooks/useEffectiveFeatures';
+
+/** Features efetivas do usuário no teste: `ligadas` são as chaves com valor true; o resto é false. */
+function mockFeatures(ligadas: string[], loading = false) {
+  vi.mocked(useEffectiveFeatures).mockReturnValue({
+    hasFeature: (chave: string) => ligadas.includes(chave),
+    loading,
+  } as ReturnType<typeof useEffectiveFeatures>);
+}
 
 // Router real: o mock global de react-router-dom faria `useLocation` devolver "/" no shell mockado abaixo.
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 vi.mock('@/features/gestor/hooks/useGestorPortalVersao');
 vi.mock('@/contexts/AuthContext');
 vi.mock('@/hooks/useAccessRules');
+vi.mock('@/hooks/useEffectiveFeatures');
 
 // Os módulos de tela (GestorShell/Inicio/VisaoGeral, GestorLayout/analytics-v2)
 // puxam data-fetching real — mockar como componentes triviais para isolar só
@@ -60,6 +70,7 @@ describe('gestorV2Routes - decisão console antigo x portal novo', () => {
     vi.mocked(useAccessRules).mockReturnValue({
       accessRules: { desempenhoInstitucional: true } as ReturnType<typeof useAccessRules>['accessRules'],
     } as ReturnType<typeof useAccessRules>);
+    mockFeatures([]);
   });
 
   it('monta o portal novo quando get_gestor_portal_versao devolve true', async () => {
@@ -113,6 +124,7 @@ describe('gestorV2Routes - Engajamento (spec 2026-10-22-engajamento §10.2)', ()
       accessRules: { desempenhoInstitucional: true } as ReturnType<typeof useAccessRules>['accessRules'],
     } as ReturnType<typeof useAccessRules>);
     vi.mocked(useGestorPortalVersao).mockReturnValue({ portalNovo: true, loading: false, error: null });
+    mockFeatures(['gestao.engajamento']);
   });
 
   it('registra engajamento como rota-filha de /gestor, com índice, questoes e conteudos, ANTES das telas legadas', () => {
@@ -150,5 +162,31 @@ describe('gestorV2Routes - Engajamento (spec 2026-10-22-engajamento §10.2)', ()
     await screen.findByTestId('console-antigo');
     expect(screen.queryByTestId('portal-novo')).not.toBeInTheDocument();
     expect(screen.queryByTestId('engajamento-layout')).not.toBeInTheDocument();
+  });
+
+  it.each(['/gestor/engajamento', '/gestor/engajamento/questoes', '/gestor/engajamento/conteudos'])(
+    '%s sem a feature gestao.engajamento da IES NÃO monta a tela: volta ao index de /gestor (portal novo)',
+    async (url) => {
+      mockFeatures([]); // IES sem a chave (e usuário que não é admin)
+      renderGestor(url);
+      await screen.findByTestId('portal-novo');
+      expect(screen.queryByTestId('engajamento-layout')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('engajamento-visao-geral')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('engajamento-questoes')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('engajamento-conteudos')).not.toBeInTheDocument();
+    },
+  );
+
+  it('enquanto as features carregam, não monta o Engajamento nem redireciona (evita expulsar o admin no F5)', () => {
+    mockFeatures([], true);
+    renderGestor('/gestor/engajamento');
+    expect(screen.queryByTestId('engajamento-layout')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('console-antigo')).not.toBeInTheDocument();
+  });
+
+  it('as outras telas do portal novo não dependem da feature do Engajamento', async () => {
+    mockFeatures([]);
+    renderGestor('/gestor');
+    expect(await screen.findByTestId('portal-novo')).toBeInTheDocument();
   });
 });

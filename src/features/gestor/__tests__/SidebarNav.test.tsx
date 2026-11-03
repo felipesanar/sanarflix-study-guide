@@ -18,6 +18,13 @@ vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'
 const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Features efetivas do usuário: admin (bypass) tem todas; gestor só as que a IES ligou. Por padrão tudo ligado;
+// os casos "sem a feature" desligam a chave do Engajamento.
+const mockHasFeature = vi.fn<(chave: string) => boolean>(() => true);
+vi.mock('@/hooks/useEffectiveFeatures', () => ({
+  useEffectiveFeatures: () => ({ hasFeature: (chave: string) => mockHasFeature(chave) }),
+}));
+
 const mockPrefetchVisaoGeral = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/features/gestor/api/prefetch', () => ({
   prefetchVisaoGeral: (...args: unknown[]) => mockPrefetchVisaoGeral(...args),
@@ -47,6 +54,7 @@ const renderizar = (rota: string) => {
 describe('SidebarNav — motion e prefetch (Onda 2/B1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasFeature.mockImplementation(() => true);
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
   });
 
@@ -101,6 +109,7 @@ describe('SidebarNav — motion e prefetch (Onda 2/B1)', () => {
 describe('SidebarNav — item Engajamento e grupos (spec 2026-10-22-engajamento §10.2)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasFeature.mockImplementation(() => true);
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
   });
 
@@ -183,5 +192,42 @@ describe('SidebarNav — item Engajamento e grupos (spec 2026-10-22-engajamento 
     await waitFor(() => expect(mockChunkEngajamentoCarregado).toHaveBeenCalled());
     // Não há função de prefetch de DADO para o Engajamento: só o chunk é aquecido.
     expect(mockPrefetchVisaoGeral).not.toHaveBeenCalled();
+  });
+});
+
+/** Liberação por IES: o Engajamento só aparece com a feature `gestao.engajamento` (admin sempre tem). */
+describe('SidebarNav — Engajamento liberado por feature da IES', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
+  });
+
+  it('a chave do Engajamento é gestao.engajamento e é a única do menu com featureKey', () => {
+    expect(GESTOR_V2_NAV.filter((i) => i.featureKey !== undefined).map((i) => [i.title, i.featureKey])).toEqual([
+      ['Engajamento', 'gestao.engajamento'],
+    ]);
+  });
+
+  it('com a feature ligada o item aparece, e a pergunta é feita com a chave certa', () => {
+    mockHasFeature.mockImplementation(() => true);
+    renderizar('/gestor');
+    expect(screen.getByRole('link', { name: 'Engajamento novo' })).toBeInTheDocument();
+    expect(mockHasFeature).toHaveBeenCalledWith('gestao.engajamento');
+  });
+
+  it('sem a feature o item some, e o título do grupo "Uso da plataforma" some junto (sem grupo vazio)', () => {
+    mockHasFeature.mockImplementation((chave) => chave !== 'gestao.engajamento');
+    renderizar('/gestor');
+    const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+    expect(within(nav).queryByRole('link', { name: /Engajamento/ })).not.toBeInTheDocument();
+    expect(within(nav).queryByText('Uso da plataforma')).not.toBeInTheDocument();
+    expect(screen.queryAllByLabelText('novo')).toHaveLength(0);
+    // O resto do menu não muda.
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual([
+      'Início',
+      'Visão Geral',
+      'Detalhamento por Simulados',
+    ]);
+    expect(within(nav).getByText('Desempenho Institucional')).toBeInTheDocument();
   });
 });

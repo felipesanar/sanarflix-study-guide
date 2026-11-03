@@ -29,15 +29,15 @@ export interface IesFeatureCardProps {
 }
 
 /**
- * Card de uma IES: seção "Experiência do Aluno", header com badge de
- * pendências, "Copiar de...", "Histórico" e "Salvar". Renderiza a partir do
- * catálogo do banco — nada de lista hardcoded de features.
+ * Card de uma IES: seções "Experiência do Aluno" e "Portal do Gestor", header
+ * com badge de pendências, "Copiar de...", "Histórico" e "Salvar". Renderiza a
+ * partir do catálogo do banco — nada de lista hardcoded de features.
  *
- * O Portal do Gestor deixou de ser liberado por feature de IES (acesso
- * passou a depender de papel) — a seção "Experiência do Gestor" e o master
- * switch de `gestao.enabled` foram removidos daqui. `catalog.gestao` segue
- * no tipo só porque `CopyFeaturesDialog` soma `catalog.aluno` + `catalog.gestao`
- * de forma genérica; hoje chega vazio.
+ * O Portal do Gestor em si deixou de ser liberado por feature de IES (acesso
+ * depende de papel) — a seção "Experiência do Gestor" e o master switch de
+ * `gestao.enabled` saíram daqui. A seção "Portal do Gestor" volta só com as
+ * chaves de `GESTAO_FEATURES_NO_PAINEL` (hoje `gestao.engajamento`), que o
+ * orquestrador entrega em `catalog.gestao`; vazio = a seção não aparece.
  */
 export const IesFeatureCard: React.FC<IesFeatureCardProps> = ({
   ies,
@@ -58,6 +58,34 @@ export const IesFeatureCard: React.FC<IesFeatureCardProps> = ({
   const getEffective = (featureKey: string): boolean => pending?.[featureKey] ?? ies.features[featureKey] ?? false;
 
   const alunoEnabled = catalog.aluno.filter((f) => getEffective(f.key)).length;
+  const gestaoEnabled = catalog.gestao.filter((f) => getEffective(f.key)).length;
+
+  const renderFeature = (feature: FeatureCatalogEntry) => {
+    const isEnabled = getEffective(feature.key);
+    const changed = pending?.[feature.key] !== undefined;
+    return (
+      <div
+        key={feature.key}
+        className={cn(
+          'flex items-start justify-between gap-3 rounded-lg border p-3',
+          changed ? 'border-primary/40 bg-primary/5' : 'bg-muted/30',
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <Label htmlFor={`${ies.id}-${feature.key}`} className="cursor-pointer text-sm font-medium">
+            {feature.label}
+          </Label>
+          <p className="truncate text-xs text-muted-foreground">{feature.description}</p>
+        </div>
+        <Switch
+          id={`${ies.id}-${feature.key}`}
+          checked={isEnabled}
+          disabled={saving}
+          onCheckedChange={(checked) => onToggle(feature.key, checked)}
+        />
+      </div>
+    );
+  };
 
   return (
     <div
@@ -99,35 +127,20 @@ export const IesFeatureCard: React.FC<IesFeatureCardProps> = ({
             {alunoEnabled}/{catalog.aluno.length}
           </MonoValue>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {catalog.aluno.map((feature) => {
-            const isEnabled = getEffective(feature.key);
-            const changed = pending?.[feature.key] !== undefined;
-            return (
-              <div
-                key={feature.key}
-                className={cn(
-                  'flex items-start justify-between gap-3 rounded-lg border p-3',
-                  changed ? 'border-primary/40 bg-primary/5' : 'bg-muted/30',
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <Label htmlFor={`${ies.id}-${feature.key}`} className="cursor-pointer text-sm font-medium">
-                    {feature.label}
-                  </Label>
-                  <p className="truncate text-xs text-muted-foreground">{feature.description}</p>
-                </div>
-                <Switch
-                  id={`${ies.id}-${feature.key}`}
-                  checked={isEnabled}
-                  disabled={saving}
-                  onCheckedChange={(checked) => onToggle(feature.key, checked)}
-                />
-              </div>
-            );
-          })}
-        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{catalog.aluno.map(renderFeature)}</div>
       </div>
+
+      {catalog.gestao.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-medium">Portal do Gestor</h4>
+            <MonoValue muted className="text-xs">
+              {gestaoEnabled}/{catalog.gestao.length}
+            </MonoValue>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{catalog.gestao.map(renderFeature)}</div>
+        </div>
+      )}
 
       <Collapsible open={historyOpen}>
         <CollapsibleContent>

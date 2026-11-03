@@ -22,6 +22,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { FEATURE_ENGAJAMENTO } from '@/features/gestor/lib/engajamento';
+import { GESTAO_FEATURES_NO_PAINEL } from '@/services/admin/featureCatalog';
 
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations');
 
@@ -157,6 +159,18 @@ describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
       expect(corpo).not.toMatch(/contextos_candidatos/);
     });
 
+    it('só responde para IES com o Engajamento liberado (ou admin): eng_acesso_liberado(v_ies) vem depois de gestor_pode_acessar_ies e antes do período', () => {
+      const idxAutorizacao = corpo.indexOf('gestor_pode_acessar_ies(v_ies)');
+      const idxLiberacao = corpo.indexOf('public.eng_acesso_liberado(v_ies)');
+      const idxPeriodo = corpo.indexOf('eng_validar_periodo');
+      expect(idxLiberacao, `${nome} não chama eng_acesso_liberado(v_ies)`).toBeGreaterThan(idxAutorizacao);
+      if (!SEM_PERIODO.has(nome)) expect(idxPeriodo).toBeGreaterThan(idxLiberacao);
+      expect(corpo.match(/eng_acesso_liberado\(/g), `${nome}: uma checagem só`).toHaveLength(1);
+      expect(corpo).toMatch(
+        /IF NOT public\.eng_acesso_liberado\(v_ies\) THEN\s+RAISE EXCEPTION 'Permission denied: engajamento not enabled for this IES';\s+END IF;/,
+      );
+    });
+
     it("devolve o envelope { data, meta }: o literal 'data', jsonb_build_object( existe e meta vem de eng_meta", () => {
       expect(corpo).toContain("'data', jsonb_build_object(");
       expect(corpo).toMatch(/'meta',\s*public\.eng_meta\(/);
@@ -194,9 +208,69 @@ describe('RPCs get_gestor_engajamento_* (spec §7.1)', () => {
   });
 
   it('a assinatura antiga da lista (9 parâmetros) sai do banco, senão o PostgREST fica ambíguo', () => {
-    expect(vigente('get_gestor_engajamento_lista').sql).toContain(
+    // O DROP mora na migration que mudou a assinatura (p_com_email), não na vigente: a de acesso por IES
+    // (20261103180000) recria a lista com a assinatura nova, sem DROP.
+    expect(readMigration('20261103120000_engajamento_lista_exporta_email.sql')).toContain(
       'DROP FUNCTION IF EXISTS public.get_gestor_engajamento_lista(uuid, date, date, smallint, text, text, text, integer, integer);',
     );
+  });
+});
+
+/**
+ * Liberação do Engajamento por IES (migration 20261103180000): a chave `gestao.engajamento` nasce desligada em
+ * todas as IES (só admin acessa, fase de testes do time interno) e as RPCs a checam no servidor.
+ */
+describe('Engajamento liberado por IES (gestao.engajamento)', () => {
+  const ARQUIVO = '20261103180000_engajamento_acesso_por_ies.sql';
+  const sql = readMigration(ARQUIVO);
+  const sqlSemComentarios = semComentarios(sql);
+
+  it('a chave é a mesma no front (rota e menu), no painel /admin/ies e na migration — um typo em qualquer ponta separa os três', () => {
+    expect(FEATURE_ENGAJAMENTO).toBe('gestao.engajamento');
+    expect(GESTAO_FEATURES_NO_PAINEL).toContain(FEATURE_ENGAJAMENTO);
+    expect(sql).toContain(`'${FEATURE_ENGAJAMENTO}'`);
+    expect(corpoDaFuncao(sql, 'eng_acesso_liberado')).toContain(`'${FEATURE_ENGAJAMENTO}'`);
+  });
+
+  it('cadastra a chave no catálogo (experiência gestao, ativa, não master) sem ligá-la em IES alguma', () => {
+    expect(sqlSemComentarios).toMatch(/INSERT INTO public\.feature_catalog[\s\S]*?\('gestao\.engajamento', 'gestao', /);
+    expect(sqlSemComentarios).toMatch(/'gestao\.engajamento', 'gestao', '[^']+', '[^']+', \d+, false, true\)/);
+    // Ausência de linha em ies_features = desligada: nenhuma IES ganha a chave nesta migration.
+    expect(sqlSemComentarios).not.toMatch(/INSERT INTO public\.ies_features/);
+    expect(sqlSemComentarios).not.toMatch(/UPDATE public\.ies_features/);
+    expect(sqlSemComentarios).not.toMatch(/DELETE FROM public\.(?:feature_catalog|ies_features)/);
+  });
+
+  describe('eng_acesso_liberado(uuid)', () => {
+    const corpo = semComentarios(corpoDaFuncao(sql, 'eng_acesso_liberado'));
+
+    it('é SECURITY DEFINER, STABLE, com search_path fixo', () => {
+      expect(corpo).toMatch(/SECURITY DEFINER/);
+      expect(corpo).toMatch(/\bSTABLE\b/);
+      expect(corpo).toMatch(/SET search_path TO 'public'/);
+    });
+
+    it('libera admin OU IES com gestao.engajamento ligada — e nada além disso (nenhum papel de gestor passa sozinho)', () => {
+      expect(corpo).toMatch(/has_role\(auth\.uid\(\), 'admin'::app_role\)/);
+      expect(corpo).toMatch(
+        /FROM public\.ies_features f\s+WHERE f\.ies_id = p_ies AND f\.feature_key = 'gestao\.engajamento' AND f\.enabled/,
+      );
+      expect(corpo).not.toMatch(/has_role\(auth\.uid\(\), 'gestor/);
+      // Não reintroduz o master gestao.enabled nem o rollout gestao.portal_v2 (decisões anteriores).
+      expect(corpo).not.toMatch(/gestao\.enabled|gestao\.portal_v2|user_has_feature/);
+    });
+
+    it('é interna: revoga de PUBLIC, anon e authenticated e não é concedida a ninguém', () => {
+      expect(sql).toContain('REVOKE ALL ON FUNCTION public.eng_acesso_liberado(uuid) FROM PUBLIC, anon, authenticated;');
+      expect(sqlSemComentarios).not.toMatch(/GRANT EXECUTE ON FUNCTION public\.eng_acesso_liberado/);
+    });
+  });
+
+  it('recria as 10 RPCs do gestor e cada uma é a vigente do repositório (nenhuma migration posterior a desfaz)', () => {
+    for (const nome of RPCS_DO_GESTOR) {
+      expect(sql, `${nome} ausente da migration de acesso por IES`).toContain(cabecalhoDe(nome));
+      expect(vigente(nome).arquivo, `${nome}: vigente deveria ser ${ARQUIVO}`).toBe(ARQUIVO);
+    }
   });
 });
 

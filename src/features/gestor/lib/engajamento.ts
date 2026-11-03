@@ -12,6 +12,13 @@
 import { TRACO } from './rotulos';
 import { formatNumero } from './formatters';
 
+/**
+ * Chave de `feature_catalog`/`ies_features` que libera o Engajamento por IES. Nasce desligada em todas as IES:
+ * enquanto estiver assim só admin acessa (fase de testes do time interno). Ligue em /admin/ies, seção
+ * "Portal do Gestor". As RPCs checam a mesma chave no servidor (`eng_acesso_liberado`).
+ */
+export const FEATURE_ENGAJAMENTO = 'gestao.engajamento';
+
 export type OpcaoPeriodo = '3m' | '6m' | '30d' | 'letivo' | 'custom';
 export type OpcaoPeriodoAdmin = '6m' | '30d' | 'ano';
 export type TipoConteudo = 'todos' | 'video' | 'document';
