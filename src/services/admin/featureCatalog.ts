@@ -58,6 +58,12 @@ export async function fetchFeatureCatalog(): Promise<FeatureCatalogEntry[]> {
   });
 }
 
+/**
+ * Chaves `gestao.*` que /admin/ies mostra, na seção "Portal do Gestor" do card. As demais (master, módulos do
+ * console antigo, rollout) saíram do painel de propósito e não voltam por aqui: o card só desenha a lista abaixo.
+ */
+export const GESTAO_FEATURES_NO_PAINEL: readonly string[] = ['gestao.engajamento'];
+
 /** Catálogo agrupado por experiência (preservando a ordem de sort_order). */
 export function groupCatalogByExperience(
   catalog: FeatureCatalogEntry[],

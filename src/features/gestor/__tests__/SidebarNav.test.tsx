@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -18,12 +18,27 @@ vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'
 const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
+// Features efetivas do usuário: admin (bypass) tem todas; gestor só as que a IES ligou. Por padrão tudo ligado;
+// os casos "sem a feature" desligam a chave do Engajamento.
+const mockHasFeature = vi.fn<(chave: string) => boolean>(() => true);
+vi.mock('@/hooks/useEffectiveFeatures', () => ({
+  useEffectiveFeatures: () => ({ hasFeature: (chave: string) => mockHasFeature(chave) }),
+}));
+
 const mockPrefetchVisaoGeral = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/features/gestor/api/prefetch', () => ({
   prefetchVisaoGeral: (...args: unknown[]) => mockPrefetchVisaoGeral(...args),
 }));
 
-import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
+// O layout do Engajamento é carregado sob demanda (`lazy`). A fábrica abaixo só roda quando o módulo é
+// importado de fato — é o que o teste de prefetch do chunk observa (spec 2026-10-22-engajamento §10.2).
+const mockChunkEngajamentoCarregado = vi.fn();
+vi.mock('@/features/gestor/routes/engajamento/EngajamentoLayout', () => {
+  mockChunkEngajamentoCarregado();
+  return { default: () => null };
+});
+
+import { SidebarNav, GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
 
 const renderizar = (rota: string) => {
   const queryClient = new QueryClient();
@@ -39,6 +54,7 @@ const renderizar = (rota: string) => {
 describe('SidebarNav — motion e prefetch (Onda 2/B1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasFeature.mockImplementation(() => true);
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
   });
 
@@ -86,5 +102,132 @@ describe('SidebarNav — motion e prefetch (Onda 2/B1)', () => {
     );
 
     expect(mockPrefetchVisaoGeral).not.toHaveBeenCalled();
+  });
+});
+
+/** Spec 2026-10-22-engajamento §10.2: 4 itens em 2 grupos, selo NOVO e prefetch do chunk. */
+describe('SidebarNav — item Engajamento e grupos (spec 2026-10-22-engajamento §10.2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasFeature.mockImplementation(() => true);
+    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
+  });
+
+  it('tem 4 itens: Início solto e dois grupos, "Desempenho Institucional" (2 telas) e "Uso da plataforma" (Engajamento)', () => {
+    expect(GESTOR_V2_NAV.map((i) => [i.title, i.url, i.grupo ?? null])).toEqual([
+      ['Início', '/gestor', null],
+      ['Visão Geral', '/gestor/visao-geral', 'Desempenho Institucional'],
+      ['Detalhamento por Simulados', '/gestor/detalhamento', 'Desempenho Institucional'],
+      ['Engajamento', '/gestor/engajamento', 'Uso da plataforma'],
+    ]);
+    renderizar('/gestor');
+    expect(screen.getAllByRole('link')).toHaveLength(4);
+  });
+
+  it('cada título de grupo aparece UMA vez, na ordem, como texto (não link) e no mesmo estilo', () => {
+    renderizar('/gestor');
+    const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+    const desempenho = within(nav).getByText('Desempenho Institucional');
+    const uso = within(nav).getByText('Uso da plataforma');
+    for (const titulo of [desempenho, uso]) {
+      expect(titulo.tagName).not.toBe('A');
+      expect(titulo.style.fontSize).toBe('10px');
+      expect(titulo.style.textTransform).toBe('uppercase');
+      expect(titulo.style.padding).toBe('18px 12px 8px');
+    }
+
+    // Ordem na tela: Início, [Desempenho], Visão Geral, Detalhamento, [Uso], Engajamento.
+    const todos = Array.from(nav.querySelectorAll('a, div')).filter(
+      (n) => n.tagName === 'A' || n === desempenho || n === uso,
+    );
+    const nomes = todos.map((n) => (n === desempenho ? 'G:desempenho' : n === uso ? 'G:uso' : n.textContent));
+    expect(nomes).toEqual([
+      'Início',
+      'G:desempenho',
+      'Visão Geral',
+      'Detalhamento por Simulados',
+      'G:uso',
+      'Engajamento NOVO',
+    ]);
+  });
+
+  it('o selo NOVO fica no item Engajamento, com aria-label "novo", e muda o nome acessível do link para "Engajamento novo"', () => {
+    renderizar('/gestor');
+    const link = screen.getByRole('link', { name: 'Engajamento novo' });
+    expect(link).toHaveAttribute('href', '/gestor/engajamento');
+    const selo = within(link).getByLabelText('novo');
+    expect(selo).toHaveTextContent('NOVO');
+    expect(selo.style.marginLeft).toBe('auto');
+    expect(selo.style.fontSize).toBe('10px');
+    expect(selo.style.fontWeight).toBe('700');
+    expect(selo.style.letterSpacing).toBe('0.04em');
+    expect(selo.style.padding).toBe('2px 6px');
+    expect(selo.style.background).toBe('var(--gp-brand)');
+    expect(selo.style.color).toBe('var(--gp-on-brand)');
+
+    // Só o Engajamento leva selo.
+    expect(screen.queryAllByLabelText('novo')).toHaveLength(1);
+  });
+
+  it('o link do Engajamento carrega a query string atual (o recorte sobrevive à troca de tela)', () => {
+    renderizar('/gestor/visao-geral?ies=ies-1&semestre=geral');
+    expect(screen.getByRole('link', { name: 'Engajamento novo' })).toHaveAttribute(
+      'href',
+      '/gestor/engajamento?ies=ies-1&semestre=geral',
+    );
+  });
+
+  it('o Engajamento fica ativo em /gestor/engajamento e nas abas filhas', () => {
+    renderizar('/gestor/engajamento/questoes?ies=ies-1');
+    expect(screen.getByRole('link', { name: 'Engajamento novo' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Início' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('hover em "Engajamento" aquece o chunk do layout, e só nele (antes do hover o módulo nem é carregado)', async () => {
+    renderizar('/gestor?ies=ies-1');
+    expect(mockChunkEngajamentoCarregado).not.toHaveBeenCalled();
+
+    fireEvent.mouseEnter(screen.getByRole('link', { name: 'Engajamento novo' }));
+
+    await waitFor(() => expect(mockChunkEngajamentoCarregado).toHaveBeenCalled());
+    // Não há função de prefetch de DADO para o Engajamento: só o chunk é aquecido.
+    expect(mockPrefetchVisaoGeral).not.toHaveBeenCalled();
+  });
+});
+
+/** Liberação por IES: o Engajamento só aparece com a feature `gestao.engajamento` (admin sempre tem). */
+describe('SidebarNav — Engajamento liberado por feature da IES', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } });
+  });
+
+  it('a chave do Engajamento é gestao.engajamento e é a única do menu com featureKey', () => {
+    expect(GESTOR_V2_NAV.filter((i) => i.featureKey !== undefined).map((i) => [i.title, i.featureKey])).toEqual([
+      ['Engajamento', 'gestao.engajamento'],
+    ]);
+  });
+
+  it('com a feature ligada o item aparece, e a pergunta é feita com a chave certa', () => {
+    mockHasFeature.mockImplementation(() => true);
+    renderizar('/gestor');
+    expect(screen.getByRole('link', { name: 'Engajamento novo' })).toBeInTheDocument();
+    expect(mockHasFeature).toHaveBeenCalledWith('gestao.engajamento');
+  });
+
+  it('sem a feature o item some, e o título do grupo "Uso da plataforma" some junto (sem grupo vazio)', () => {
+    mockHasFeature.mockImplementation((chave) => chave !== 'gestao.engajamento');
+    renderizar('/gestor');
+    const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+    expect(within(nav).queryByRole('link', { name: /Engajamento/ })).not.toBeInTheDocument();
+    expect(within(nav).queryByText('Uso da plataforma')).not.toBeInTheDocument();
+    expect(screen.queryAllByLabelText('novo')).toHaveLength(0);
+    // O resto do menu não muda.
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual([
+      'Início',
+      'Visão Geral',
+      'Detalhamento por Simulados',
+    ]);
+    expect(within(nav).getByText('Desempenho Institucional')).toBeInTheDocument();
   });
 });

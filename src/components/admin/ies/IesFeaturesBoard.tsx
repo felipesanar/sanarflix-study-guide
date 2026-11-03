@@ -9,6 +9,7 @@ import { Logger } from '@/utils/logger';
 import { setIesFeatures } from '@/services/admin/iesFeatures';
 import {
   fetchFeatureCatalog,
+  GESTAO_FEATURES_NO_PAINEL,
   groupCatalogByExperience,
   type FeatureCatalogEntry,
 } from '@/services/admin/featureCatalog';
@@ -190,7 +191,11 @@ export const IesFeaturesBoard: React.FC = () => {
     toast.success(`${Object.keys(diff).length} feature(s) marcada(s) como pendente(s).`);
   };
 
-  const groupedCatalog = useMemo(() => groupCatalogByExperience(catalog), [catalog]);
+  // `gestao` só com as chaves que o painel expõe: o card e o "Copiar de…" (CopyFeaturesDialog) somam aluno + gestao.
+  const groupedCatalog = useMemo(() => {
+    const agrupado = groupCatalogByExperience(catalog);
+    return { ...agrupado, gestao: agrupado.gestao.filter((f) => GESTAO_FEATURES_NO_PAINEL.includes(f.key)) };
+  }, [catalog]);
 
   const filteredIesList = useMemo(() => {
     if (!iesList) return [];

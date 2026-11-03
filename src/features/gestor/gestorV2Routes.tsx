@@ -2,6 +2,8 @@ import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
 import { gestorRoutes } from '@/experiences/gestor/gestorRoutes';
+import { GestorFeatureGate } from '@/experiences/gestor/GestorFeatureGate';
+import { FEATURE_ENGAJAMENTO } from '@/features/gestor/lib/engajamento';
 import {
   GestorPortalShell,
   GestorIndexSwitch,
@@ -11,6 +13,10 @@ import {
 
 const VisaoGeral = lazy(() => import('@/features/gestor/routes/VisaoGeral'));
 const Detalhamento = lazy(() => import('@/features/gestor/routes/Detalhamento'));
+const EngajamentoLayout = lazy(() => import('@/features/gestor/routes/engajamento/EngajamentoLayout'));
+const VisaoGeralEngajamento = lazy(() => import('@/features/gestor/routes/engajamento/VisaoGeralEngajamento'));
+const QuestoesEngajamento = lazy(() => import('@/features/gestor/routes/engajamento/QuestoesEngajamento'));
+const ConteudosEngajamento = lazy(() => import('@/features/gestor/routes/engajamento/ConteudosEngajamento'));
 
 /**
  * Árvore de rotas da experiência Gestão durante o rollout faseado por IES
@@ -47,6 +53,26 @@ export const gestorV2Routes = (): RouteObject[] => {
         { index: true, element: <GestorIndexSwitch /> },
         { path: 'visao-geral', element: <PortalV2Gate><VisaoGeral /></PortalV2Gate> },
         { path: 'detalhamento', element: <PortalV2Gate><Detalhamento /></PortalV2Gate> },
+        // Engajamento SanarFlix (spec 2026-10-22-engajamento §10.2): fica ANTES de `telasLegadas`
+        // (nenhuma tela legada usa `engajamento`). Além do PortalV2Gate (portal novo da IES), exige a feature
+        // `gestao.engajamento` da IES (admin sempre tem): é a liberação por IES, desligada em todas no início para
+        // o time interno testar antes de abrir (substitui a decisão D9, "sem gate novo"). As RPCs checam a mesma
+        // chave no servidor (eng_acesso_liberado).
+        {
+          path: 'engajamento',
+          element: (
+            <PortalV2Gate>
+              <GestorFeatureGate featureKey={FEATURE_ENGAJAMENTO}>
+                <EngajamentoLayout />
+              </GestorFeatureGate>
+            </PortalV2Gate>
+          ),
+          children: [
+            { index: true, element: <VisaoGeralEngajamento /> },
+            { path: 'questoes', element: <QuestoesEngajamento /> },
+            { path: 'conteudos', element: <ConteudosEngajamento /> },
+          ],
+        },
         ...telasLegadas,
       ],
     },

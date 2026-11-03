@@ -11,6 +11,7 @@ import {
   BarChart3,
   History,
   FileSignature,
+  TrendingUp,
 } from 'lucide-react';
 import type { NavItem } from '@/experiences/types';
 import { can, type Access } from '@/experiences/access';
@@ -38,9 +39,9 @@ export interface AdminNavGroup {
 }
 
 /**
- * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 12 itens.
+ * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 13 itens.
  *
- * - Operação: Command Center, Simulados, Monitoramento.
+ * - Operação: Command Center, Simulados, Monitoramento, Engajamento SanarFlix.
  * - Contas & acesso: Usuários, IES, Contratos & cronograma.
  * - Conteúdo & comunicação: Guia de Estudos, Avisos, SanarClass.
  * - Suporte & dados: Feedbacks, Analytics, Auditoria.
@@ -58,6 +59,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         badgeKey: 'simuladosEncerrandoHoje',
       },
       { title: 'Monitoramento', url: '/admin/monitoramento', icon: Activity, capability: 'simulados.manage' },
+      { title: 'Engajamento SanarFlix', url: '/admin/engajamento', icon: TrendingUp, capability: 'simulados.manage' },
     ],
   },
   {

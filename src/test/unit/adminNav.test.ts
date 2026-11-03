@@ -5,7 +5,7 @@ import { deriveAccessFromRoles } from '@/experiences/access';
 const urlsOf = (groups: typeof ADMIN_NAV_GROUPS) => groups.flatMap((g) => g.items.map((i) => i.url));
 
 describe('experiences/admin/AdminNav', () => {
-  it('expõe os 4 grupos e as 12 seções do Portal do Admin nas URLs /admin/*', () => {
+  it('expõe os 4 grupos e as 13 seções do Portal do Admin nas URLs /admin/*', () => {
     expect(ADMIN_NAV_GROUPS.map((g) => g.label)).toEqual([
       'Operação',
       'Contas & acesso',
@@ -16,6 +16,7 @@ describe('experiences/admin/AdminNav', () => {
       '/admin',
       '/admin/simulados',
       '/admin/monitoramento',
+      '/admin/engajamento',
       '/admin/usuarios',
       '/admin/ies',
       '/admin/contratos',
@@ -34,16 +35,16 @@ describe('experiences/admin/AdminNav', () => {
     expect(commandCenter?.capability).toBeUndefined();
   });
 
-  it('as demais 11 seções declaram capability', () => {
+  it('as demais 12 seções declaram capability', () => {
     const items = ADMIN_NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.url !== '/admin');
-    expect(items).toHaveLength(11);
+    expect(items).toHaveLength(12);
     expect(items.every((i) => i.capability != null)).toBe(true);
   });
 
-  it('admin vê todas as 12 seções (tem todas as capabilities)', () => {
+  it('admin vê todas as 13 seções (tem todas as capabilities)', () => {
     const access = deriveAccessFromRoles(['admin']);
     const filtered = filterAdminNav(ADMIN_NAV_GROUPS, access);
-    expect(urlsOf(filtered)).toHaveLength(12);
+    expect(urlsOf(filtered)).toHaveLength(13);
   });
 
   it('Atendimento (CX) só enxerga o Command Center em ADMIN_NAV_GROUPS (não tem as capabilities de admin)', () => {
