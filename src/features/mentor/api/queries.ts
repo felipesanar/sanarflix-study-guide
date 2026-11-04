@@ -42,7 +42,7 @@
  * useQuestao(questaoId, simulados)          QuestaoMentor com quem marcou cada alternativa
  * useAlunoDetalhe(email)                    AlunoDetalheB2c (drawer: aluno, notas, consumo, questões, log)
  * useTurmaAcademy()                         AlunoTurmaAcademy[] (segmento, consumo e questões 7/30 dias)
- * ── DAG B2B · TODO(contrato-b2b) ──
+ * ── DAG B2B ──
  * useVisaoGeralB2b(periodo)                 VisaoGeralB2b (conceito/TRI projetados + observados)
  * useAlunosB2b(periodo)                     AlunoB2b[] (proficiências, perfil, grupo)
  * useTemasTurmaB2b(periodo)                 TemaTurmaMentor[]
@@ -501,7 +501,7 @@ export function useTurmaAcademy(): ResultadoMentor<AlunoTurmaAcademy[]> {
   return useDag(chavesMentor.turma, (d) => d.turma());
 }
 
-// B2B · TODO(contrato-b2b): só dispara para mentor B2B (as RPCs recusam B2C).
+// B2B: só dispara para mentor B2B (as RPCs recusam B2C).
 export function useVisaoGeralB2b(periodo: PeriodoB2b): ResultadoMentor<VisaoGeralB2b> {
   const b2b = useModalidade() === 'b2b';
   return useDag(chavesMentor.visaoGeralB2b(periodo), (d) => d.visaoGeralB2b(periodo), { enabled: b2b });

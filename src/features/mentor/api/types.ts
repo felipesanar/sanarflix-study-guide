@@ -1,5 +1,5 @@
 /** Domínio do Portal do Mentor; conceitos compartilhados vêm do Gestor. */
-import type { GrupoEvolucao, NivelDesempenho, PontoSerie } from '@/features/gestor/api/types';
+import type { AcertoPorAreaESemestre, GrupoEvolucao, MetricasSimulado, NivelDesempenho, PontoSerie, Tendencia } from '@/features/gestor/api/types';
 export type { GrupoEvolucao, NivelDesempenho, PontoSerie };
 
 export type Modalidade = 'b2c' | 'b2b';
@@ -51,6 +51,9 @@ export interface SimuladoMentor {
   data: string | null;
   status: StatusSimulado;
   participantes: number | null;
+  statusOriginal?: string;
+  modalidade?: 'online' | 'presencial' | null;
+  indisponivelPorque?: string | null;
 }
 
 /** null = não fez; nunca preencher com zero. */
@@ -280,6 +283,9 @@ export interface EngajamentoAluno {
 
 /** Tema de `mentor_temas_turma` / `mentor_temas_turma_b2b`. Prevalência null = não cadastrada. */
 export interface TemaTurmaMentor {
+  impacto?: number | null;
+  amostra?: number | null;
+  lowSample?: boolean;
   id: string;
   tema: string;
   especialidade: string | null;
@@ -297,10 +303,10 @@ export interface TemaTurmaMentor {
 
 export interface AcertoTema { tema: string; acertoPct: number | null; respostas: number }
 export interface AcertoEspecialidade { especialidade: string | null; acertoPct: number | null; respostas: number; temas: AcertoTema[] }
-export interface AcertoArea { grandeArea: string; acertoPct: number | null; respostas: number; especialidades: AcertoEspecialidade[]; temas: AcertoTema[] }
+export interface AcertoArea { grandeArea: string; acertoPct: number | null; respostas: number | null; especialidades: AcertoEspecialidade[]; temas: AcertoTema[]; id?: string; critica?: boolean }
 
 export interface QuestaoResumoMentor {
-  questaoId: string;
+  questaoId: string | null;
   numero: number | null;
   ordem: number | null;
   grandeArea: string;
@@ -312,11 +318,18 @@ export interface QuestaoResumoMentor {
   temImagem: boolean;
   corretaLabel: string | null;
   acertoPct: number | null;
-  respostas: number;
+  respostas: number | null;
   /** label → nº de respostas ('branco' incluso). */
   distribuicao: Record<string, number>;
   /** label errada → e-mails de quem marcou. */
   emailsPorAlternativa: Record<string, string[]>;
+  simuladoId?: string | null;
+  distribuicaoPct?: Record<string, number | null>;
+  alternativas?: { letra: string; texto: string | null; correta: boolean | null; marcadaPct: number | null }[];
+  imagemEnunciado?: string | null;
+  imagemEnunciado2?: string | null;
+  imagemComentario?: string | null;
+  distratorDominante?: string | null;
 }
 export interface SimuladoBloqueado { simuladoId: string; ordem: number | null; liberaEm: string | null }
 export interface DetalhamentoMentor { areas: AcertoArea[]; questoes: QuestaoResumoMentor[]; bloqueados: SimuladoBloqueado[] }
@@ -397,10 +410,12 @@ export interface ItemRotinaAcademy extends ItemRotina { id: string; semana: stri
 export interface Perola { id: string; texto: string; tema: string | null; criadaEm: string }
 export interface SinalizacaoCriada { id: string; sinalizadoEm: string }
 
-// ─── B2B · TODO(contrato-b2b): formas provisórias até a migration 20261104140000_mentor_b2b_v2 ───
+// ─── B2B · adaptadores das RPCs reais para o contrato publico dos hooks ───
 export type PeriodoB2b = '30d' | '90d' | '6m' | 'ciclo';
 export interface IndicadorB2b { valor: number | null; delta: number | null; serie: PontoSerie[] }
 export interface VisaoGeralB2b {
+  comTri?: number | null;
+  faltamParaProximoConceito?: number | null;
   simulados: SimuladoMentor[];
   /** Simulado mais recente do período (referência dos indicadores). */
   simuladoReferenciaId: string | null;
@@ -418,6 +433,9 @@ export interface VisaoGeralB2b {
 }
 export interface ProficienciaSimulado { simuladoId: string; ordem: number | null; valor: number | null }
 export interface AlunoB2b {
+  id?: string | null;
+  perfis?: PerfilB2B[];
+  tendencia?: Tendencia | null;
   email: string;
   nome: string | null;
   semestre: number | null;
@@ -431,15 +449,17 @@ export interface AlunoB2b {
   sinalizadoEm: string | null;
 }
 export interface DetalhamentoB2b extends DetalhamentoMentor {
+  metricas?: MetricasSimulado[];
+  acertoPorAreaESemestre?: AcertoPorAreaESemestre;
   acertoMedioPct: number | null;
   conceitoEnamed: IndicadorB2b;
   triProjetado: IndicadorB2b;
   proficientesPct: number | null;
 }
-export interface RespondenteB2b { email: string; nome: string | null; alternativa: string }
+export interface RespondenteB2b { email: string; nome: string | null; alternativa: string; alunoId?: string | null }
 export interface AlunoB2bDetalhe {
   aluno: AlunoB2b | null;
-  simulados: { simuladoId: string; ordem: number | null; titulo: string | null; proficiencia: number | null; acertoPct: number | null; participou: boolean }[];
+  simulados: { simuladoId: string; ordem: number | null; titulo: string | null; proficiencia: number | null; acertoPct: number | null; participou: boolean; data?: string | null; acertos?: number | null; situacao?: string | null; posicao?: { lugar: number; total: number; percentil: number } | null; acertoPorArea?: { area: string; acertoPct: number; critica: boolean }[]; variacao?: number | null }[];
   consumo30d: { questoes: number | null; acertoQuestoesPct: number | null; aulas: number | null; pdfs: number | null } | null;
   intervencoes: IntervencaoResumo[];
   log: LogAluno[];

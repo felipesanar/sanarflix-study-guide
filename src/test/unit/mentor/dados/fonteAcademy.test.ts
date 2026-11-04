@@ -472,13 +472,13 @@ describe('dadosAcademy · kanban, rotina, pérolas', () => {
     expect(chamadas.at(-1)).toEqual({ fn: 'mentor_perola_salvar', args: { p_texto: 'Pérola', p_tema: null } });
   });
 
-  it('B2B (provisório): envelope { data, meta } é desembrulhado e repassado', async () => {
+  it('B2B: envelope paginado real e meta sao repassados', async () => {
     const meta = { periodo: '6m', fonte: 'DAG', atualizadoEm: '2026-11-04', criterio: 'x', partial: false, lowSample: false };
-    const { rpc, chamadas } = rpcFalso({ mentor_alunos_b2b: { data: [{ email: 'a@x.com', nome: 'A', semestre: 11, perfil: 'bom', proficiencias: [{ simulado_id: 's4', sequence_number: 4, valor: 66 }] }], meta } });
-    const r = await criarDadosAcademy(rpc).alunosB2b('6m');
-    expect(chamadas[0]).toEqual({ fn: 'mentor_alunos_b2b', args: { p_periodo: '6m' } });
+    const { rpc, chamadas } = rpcFalso({ mentor_alunos_b2b: { data: { data: [{ email: 'a@x.com', nome: 'A', semestre: 11, perfil: ['bom'], proficiencias: [{ simuladoId: 's4', valor: 66 }] }] }, meta } });
+    const r = await criarDadosAcademy(rpc).alunosB2b('ciclo');
+    expect(chamadas[0]).toEqual({ fn: 'mentor_alunos_b2b', args: { p_inicio: null, p_fim: null } });
     expect(r.meta).toEqual(meta);
-    expect(r.data[0]).toMatchObject({ email: 'a@x.com', semestre: 11, perfil: 'muito_bom', proficiencias: [{ simuladoId: 's4', ordem: 4, valor: 66 }], acertoUltimoPct: null });
+    expect(r.data[0]).toMatchObject({ email: 'a@x.com', semestre: 11, perfil: 'muito_bom', proficiencias: [{ simuladoId: 's4', ordem: null, valor: 66 }], acertoUltimoPct: null });
   });
 });
 

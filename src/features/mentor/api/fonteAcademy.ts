@@ -14,7 +14,7 @@
  * 20261014205241 (aluno_conteudos), 20261015201557 (mentor_questao), 20261026184129 (aluno_questoes).
  */
 import { supabase } from '@/integrations/supabase/client';
-import type { Meta } from '@/features/gestor/api/types';
+import type { AcertoPorAreaESemestre, Meta, MetricasSimulado } from '@/features/gestor/api/types';
 import { identidadeTribo } from '../tema/contexto';
 import type { EventoMentor } from '../lib/eventosIntervencao';
 import {
@@ -161,7 +161,7 @@ export function semestreDe(v: unknown): number | null {
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-/** snake_case → camelCase, profundo (formas B2B ainda provisórias). */
+/** snake_case → camelCase, profundo. */
 export function paraCamel<T = unknown>(v: unknown): T {
   if (Array.isArray(v)) return v.map((x) => paraCamel(x)) as T;
   if (v && typeof v === 'object') {
@@ -721,23 +721,113 @@ export function mapearAlunoDetalhe(email: string, aluno: unknown, notas: unknown
   };
 }
 
-// ─── B2B · TODO(contrato-b2b): nomes de RPC/argumentos e formas provisórias ──
+// ─── B2B · contratos das migrations 20261104185935 e 20261104192114 ──
+
+/** Janela em datas civis de SP; seis meses de calendario, com ajuste de fim de mes. */
+export function periodoB2bParaDatas(periodo: PeriodoB2b, agora = new Date()): { p_inicio: string | null; p_fim: string | null } {
+  if (periodo === 'ciclo') return { p_inicio: null, p_fim: null };
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(agora);
+  const parte = (tipo: string) => Number(partes.find((p) => p.type === tipo)!.value);
+  const fim = new Date(Date.UTC(parte('year'), parte('month') - 1, parte('day')));
+  const inicio = new Date(fim);
+  if (periodo === '6m') {
+    inicio.setUTCDate(1);
+    inicio.setUTCMonth(inicio.getUTCMonth() - 6);
+    const ultimoDia = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth() + 1, 0)).getUTCDate();
+    inicio.setUTCDate(Math.min(fim.getUTCDate(), ultimoDia));
+  } else inicio.setUTCDate(inicio.getUTCDate() - (periodo === '30d' ? 30 : 90));
+  return { p_inicio: inicio.toISOString().slice(0, 10), p_fim: fim.toISOString().slice(0, 10) };
+}
+
+function mapearCronogramaB2b(raw: unknown): SimuladoMentor[] {
+  const linhas = lista(raw).map(obj);
+  const cronologicas = [...linhas].sort((a, b) => {
+    const data = (r: Linha) => str(r.data) ? Date.parse(String(r.data)) : Infinity;
+    return data(a) - data(b) || strOu(a.nome, '').localeCompare(strOu(b.nome, '')) || strOu(a.id, '').localeCompare(strOu(b.id, ''));
+  });
+  return linhas.map((s) => ({
+    id: strOu(s.id, ''), ordem: cronologicas.indexOf(s) + 1, nome: strOu(s.nome, ''), data: str(s.data),
+    status: s.status === 'processing' ? 'processando' : s.status === 'reagendado' ? 'agendado' : s.status as SimuladoMentor['status'],
+    participantes: num(s.participantes), statusOriginal: strOu(s.status, ''),
+    modalidade: (str(s.modalidade) as SimuladoMentor['modalidade']) ?? null, indisponivelPorque: str(s.indisponivelPorque),
+  }));
+}
+
+function indicadorB2b(raw: unknown, nomes = new Map<string, string>()) {
+  const k = obj(raw);
+  return { valor: num(k.valor), delta: num(k.delta), serie: lista(k.serie).map(obj).map((p) => ({ rotulo: str(p.rotulo) ?? nomes.get(String(p.simuladoId)) ?? strOu(p.simuladoId, ''), valor: num(p.valor) })) };
+}
+
+function mapearVisaoB2b(raw: unknown, cronograma: SimuladoMentor[]): VisaoGeralB2b {
+  const d = obj(raw), k = obj(d.kpis), evolucao = lista(d.evolucao).map(obj);
+  const nomes = new Map(evolucao.map((e) => [String(e.simuladoId), strOu(e.nome, '')]));
+  const ultimo = evolucao.at(-1);
+  return {
+    simulados: cronograma.filter((s) => evolucao.some((e) => e.simuladoId === s.id)),
+    simuladoReferenciaId: str(ultimo?.simuladoId), conceitoEnamed: indicadorB2b(k.enamedProjetado, nomes),
+    triProjetado: indicadorB2b(k.triProjetado, nomes), proficientesPct: indicadorB2b(k.proficientesPct, nomes),
+    proficientes: num(d.n_prof), participantes: num(ultimo?.participantes), totalAlunos: num(d.alunosMatriculadosNoRecorte),
+    acertoPct: num(obj(k.acertoPct).valor), simuladosRealizados: num(obj(k.simulados).realizados), simuladosContratados: num(obj(k.simulados).contratados),
+    comTri: num(d.n_tri), faltamParaProximoConceito: num(d.faltam_para_proximo_conceito),
+  };
+}
 
 export function mapearAlunoB2b(raw: unknown): AlunoB2b {
   const a = obj(raw);
-  const c = paraCamel<Linha>(a);
+  const perfis = strs(a.perfil).map((p) => PERFIL_SQL[p]).filter((p): p is PerfilB2B => Boolean(p));
   return {
+    id: str(a.id), perfis, tendencia: (str(a.tendencia) as AlunoB2b['tendencia']) ?? null,
     email: strOu(a.email, ''),
     nome: str(a.nome),
     semestre: semestreDe(a.semestre),
     telefone: str(a.telefone),
-    proficiencias: lista(a.proficiencias).map(obj).map((p) => ({ simuladoId: String(p.simulado_id), ordem: num(p.sequence_number ?? p.ordem), valor: num(p.valor ?? p.proficiencia) })),
-    acertoUltimoPct: num(a.acerto_ultimo_pct),
+    proficiencias: lista(a.proficiencias).map(obj).map((p) => ({ simuladoId: strOu(p.simuladoId, ''), ordem: null, valor: num(p.valor) })),
+    acertoUltimoPct: null,
     ultimaAtividade: str(a.ultima_atividade),
     diasSemAtividade: num(a.dias_sem_atividade),
-    perfil: PERFIL_SQL[String(a.perfil)] ?? null,
-    grupo: (str(c.grupo) as AlunoB2b['grupo']) ?? null,
+    perfil: (['muito_baixo', 'virada', 'muito_bom'] as const).find((p) => perfis.includes(p)) ?? null,
+    grupo: (str(a.grupo) as AlunoB2b['grupo']) ?? null,
     sinalizadoEm: str(a.sinalizado_em),
+  };
+}
+
+function mapearQuestaoB2b(raw: unknown): QuestaoResumoMentor {
+  const q = obj(raw);
+  const alternativas = lista(q.alternativas).map(obj).map((a) => ({ letra: strOu(a.letra, ''), texto: str(a.texto), correta: boolOuNull(a.correta), marcadaPct: num(a.marcadaPct) }));
+  return {
+    questaoId: str(q.id), numero: num(q.numero), ordem: null, grandeArea: strOu(q.grandeArea, 'Sem área'),
+    especialidade: str(q.especialidade), tema: strOu(q.tema, 'Sem tema'), temaCurto: null, dificuldade: null,
+    enunciadoInicio: str(q.enunciado), temImagem: Boolean(q.imagemEnunciado || q.imagemEnunciado2),
+    corretaLabel: alternativas.find((a) => a.correta === true)?.letra ?? null,
+    acertoPct: num(q.acertoPct), respostas: null, distribuicao: {}, emailsPorAlternativa: {},
+    simuladoId: str(q.simuladoId), alternativas, distribuicaoPct: Object.fromEntries(alternativas.map((a) => [a.letra, a.marcadaPct])),
+    imagemEnunciado: str(q.imagemEnunciado), imagemEnunciado2: str(q.imagemEnunciado2), imagemComentario: str(q.imagemComentario), distratorDominante: str(q.distratorDominante),
+  };
+}
+
+function mapearDetalhamentoB2b(raw: unknown, questoes: QuestaoResumoMentor[]): DetalhamentoB2b {
+  const d = obj(raw), metricas = lista(d.metricas).map(obj);
+  // A RPC so fornece metricas por simulado: nao ha agregado ponderado do recorte.
+  const unica = metricas.length === 1 ? metricas[0] : {};
+  const indicador = (campo: string) => ({ valor: num(unica[campo]), delta: null, serie: metricas.map((m) => ({ rotulo: strOu(m.nome, ''), valor: num(m[campo]) })) });
+  return {
+    areas: lista(obj(d.acertoPorAreaESemestre).areas).map(obj).map((a) => ({ id: strOu(a.id, ''), grandeArea: strOu(a.nome, 'Sem área'), acertoPct: num(a.acertoPct), respostas: null, critica: bool(a.critica), especialidades: [], temas: [] })),
+    questoes: lista(obj(d.questoes).data).map((rawQuestao) => {
+      const q = mapearQuestaoB2b(rawQuestao);
+      const candidatas = questoes.filter((c) => q.numero !== null && c.numero === q.numero && (!q.simuladoId || c.simuladoId === q.simuladoId));
+      return { ...q, questaoId: q.questaoId ?? (candidatas.length === 1 ? candidatas[0].questaoId : null) };
+    }),
+    bloqueados: [], acertoMedioPct: num(unica.acertoMedioPct), conceitoEnamed: indicador('enamedProjetado'), triProjetado: indicador('proficienciaMedia'), proficientesPct: num(unica.proficientesPct),
+    metricas: metricas as unknown as MetricasSimulado[], acertoPorAreaESemestre: d.acertoPorAreaESemestre as AcertoPorAreaESemestre | undefined,
+  };
+}
+
+function mapearAlunoB2bDetalhe(email: string, raw: unknown): AlunoB2bDetalhe {
+  const linhas = lista(raw).map(obj), primeiro = linhas[0];
+  return {
+    aluno: primeiro ? mapearAlunoB2b({ ...primeiro, email, proficiencias: linhas.map((s) => ({ simuladoId: s.simuladoId, valor: s.proficiencia })) }) : null,
+    simulados: linhas.map((s) => ({ simuladoId: strOu(s.simuladoId, ''), ordem: null, titulo: str(s.simuladoNome), proficiencia: num(s.proficiencia), acertoPct: null, participou: bool(s.participou), data: str(s.simuladoData), acertos: num(s.acertos), situacao: str(s.situacao), posicao: (s.posicao as AlunoB2bDetalhe['simulados'][number]['posicao']) ?? null, acertoPorArea: lista(s.acertoPorArea) as NonNullable<AlunoB2bDetalhe['simulados'][number]['acertoPorArea']>, variacao: num(s.variacao) })),
+    consumo30d: null, intervencoes: [], log: [], sinalizadoEm: null,
   };
 }
 
@@ -824,7 +914,7 @@ export interface DadosAcademy {
   detalhamento(simulados: string[], emails?: string[] | null): Promise<ComMeta<DetalhamentoMentor>>;
   questao(questaoId: string, simulados: string[] | null): Promise<ComMeta<QuestaoMentor>>;
   alunoDetalhe(email: string): Promise<ComMeta<AlunoDetalheB2c>>;
-  // DAG B2B · TODO(contrato-b2b)
+  // DAG B2B
   visaoGeralB2b(periodo: PeriodoB2b): Promise<ComMeta<VisaoGeralB2b>>;
   alunosB2b(periodo: PeriodoB2b): Promise<ComMeta<AlunoB2b[]>>;
   temasTurmaB2b(periodo: PeriodoB2b): Promise<ComMeta<TemaTurmaMentor[]>>;
@@ -873,23 +963,27 @@ export function criarDadosAcademy(rpc: ChamadorRpc = rpcSupabase, modalidade: ()
       ]);
       return semMeta(mapearAlunoDetalhe(email, aluno, notas, conteudos, questoes, m));
     },
-    // TODO(contrato-b2b): argumentos e formas a confirmar na migration 20261104140000_mentor_b2b_v2.sql.
-    visaoGeralB2b: (periodo) => b2b('mentor_visao_geral_b2b', { p_periodo: periodo }, (d) => paraCamel<VisaoGeralB2b>(d)),
-    alunosB2b: (periodo) => b2b('mentor_alunos_b2b', { p_periodo: periodo }, (d) => lista(d).map(mapearAlunoB2b)),
-    temasTurmaB2b: (periodo) => b2b('mentor_temas_turma_b2b', { p_periodo: periodo }, mapearTemas),
-    detalhamentoB2b: (s) => b2b('mentor_detalhamento_b2b', { p_simulados: s }, (d) => {
-      const o = obj(d);
-      const c = paraCamel<Linha>(o);
-      return { ...mapearDetalhamento(o), acertoMedioPct: num(o.acerto_medio_pct), conceitoEnamed: c.conceitoEnamed, triProjetado: c.triProjetado, proficientesPct: num(o.proficientes_pct) } as DetalhamentoB2b;
-    }),
-    questoesB2b: (s) => b2b('mentor_questoes_b2b', { p_simulados: s }, (d) => lista(d).map(mapearQuestaoResumo)),
-    respondentesB2b: (id, s) => b2b('mentor_questao_respondentes_b2b', { p_questao_id: id, p_simulados: s }, (d) => paraCamel<RespondenteB2b[]>(lista(d))),
-    cronogramaB2b: () => b2b('mentor_cronograma_b2b', {}, (d) => paraCamel<SimuladoMentor[]>(lista(d))),
-    alunoB2b: (email) => b2b('mentor_aluno_b2b', { p_email: email }, (d) => {
-      const o = obj(d);
-      const c = paraCamel<AlunoB2bDetalhe>(o);
-      return { ...c, aluno: o.aluno ? mapearAlunoB2b(o.aluno) : null, intervencoes: lista(o.intervencoes).map(mapearIntervencaoResumo) };
-    }),
+    visaoGeralB2b: async (periodo) => {
+      const { data, meta } = desembrulhar(await rpc('mentor_visao_geral_b2b', periodoB2bParaDatas(periodo)));
+      const cronograma = desembrulhar(await rpc('mentor_cronograma_b2b', {}));
+      return { data: mapearVisaoB2b(data, mapearCronogramaB2b(cronograma.data)), meta };
+    },
+    alunosB2b: (periodo) => b2b('mentor_alunos_b2b', periodoB2bParaDatas(periodo), (d) => lista(obj(d).data).map(mapearAlunoB2b)),
+    temasTurmaB2b: (periodo) => b2b('mentor_temas_turma_b2b', periodoB2bParaDatas(periodo), (d) => mapearTemas(d).map((t, i) => {
+      const raw = obj(lista(d)[i]);
+      return { ...t, peso: t.prevalencia ? { alta: 3, media: 2, baixa: 1 }[t.prevalencia] : null, impacto: num(raw.impacto), amostra: num(raw.amostra), lowSample: bool(raw.lowSample) };
+    })),
+    detalhamentoB2b: async (s) => {
+      const { data, meta } = desembrulhar(await rpc('mentor_detalhamento_b2b', { p_simulados: s }));
+      const embutidas = lista(obj(obj(data).questoes).data);
+      const questoes = embutidas.some((q) => obj(q).id == null)
+        ? lista(obj(desembrulhar(await rpc('mentor_questoes_b2b', { p_simulados: s })).data).data).map(mapearQuestaoB2b) : [];
+      return { data: mapearDetalhamentoB2b(data, questoes), meta };
+    },
+    questoesB2b: (s) => b2b('mentor_questoes_b2b', { p_simulados: s }, (d) => lista(obj(d).data).map(mapearQuestaoB2b)),
+    respondentesB2b: (id, s) => b2b('mentor_questao_respondentes_b2b', { p_questao_id: id, p_simulados: s }, (d) => lista(d).map(obj).map((r) => ({ email: strOu(r.email, ''), nome: str(r.nome), alternativa: strOu(r.alternativa, ''), alunoId: str(r.alunoId) }))),
+    cronogramaB2b: () => b2b('mentor_cronograma_b2b', {}, mapearCronogramaB2b),
+    alunoB2b: (email) => b2b('mentor_aluno_b2b', { p_email: email }, (d) => mapearAlunoB2bDetalhe(email, d)),
     intervencoes: async (p) => mapearQuadro(await rpc('mentor_intervencoes_listar', { p_de: p.de, p_ate: p.ate })),
     criarIntervencao: async (n) => {
       const ids = n.destino.alunoIds ?? [];
