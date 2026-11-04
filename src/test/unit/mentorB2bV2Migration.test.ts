@@ -156,7 +156,9 @@ describe('Mentor B2B V2 migration textual contract', () => {
     it(`${name} population and return anchors match the checked-in source offline`, () => {
       const source = readFileSync(join(process.cwd(), 'supabase/migrations', file), 'utf8');
       const body = source.match(new RegExp(`create (?:or replace )?function public\\.${name}\\([^]*?as \\$function\\$([^]*?)\\$function\\$`, 'i'))?.[1] ?? '';
-      const normalized = body.replace(/--[^\n]*/g, '').replace(/\s+/g, ' ');
+      // Mesma normalização da migration: tira comentário de linha, preserva '--' dentro de literal.
+      const normalized = body.replace(/('(?:[^']|'')*')|--[^\n]*/g, (_m, lit?: string) => lit ?? '').replace(/\s+/g, ' ');
+      expect((normalized.match(/'/g) ?? []).length % 2).toBe(0);
       const core = normalized.match(/\bWITH (?:sims|alunos|grupo) AS \([^]*/i)?.[0] ?? '';
       const pattern = sql.match(/v_padrao_populacao text := \$rx\$([^]*?)\$rx\$/)?.[1] ?? '(?!)';
       expect(core).not.toBe('');
@@ -178,4 +180,14 @@ describe('Mentor B2B V2 migration textual contract', () => {
       }
     });
   }
+});
+
+describe('normalização dos corpos copiados do Gestor', () => {
+  it('remove comentários de linha sem cortar literais que contêm --', () => {
+    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20261104190000_mentor_b2b_v2.sql'), 'utf8');
+    expect(sql).toContain(String.raw`regexp_replace(v_src, $re$('(?:[^']|'')*')|--[^\n]*$re$, '\1', 'g')`);
+    const normalizar = (s: string) => s.replace(/('(?:[^']|'')*')|--[^\n]*/g, (_m, lit?: string) => lit ?? '');
+    const origem = "v := 'pelo menos um registro -- inclui prova aberta'; -- comentário\nx := 1; -- outro";
+    expect(normalizar(origem)).toBe("v := 'pelo menos um registro -- inclui prova aberta'; \nx := 1; ");
+  });
 });

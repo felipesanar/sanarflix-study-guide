@@ -136,7 +136,10 @@ begin
     v_original := pg_get_functiondef(v_oid);
     SELECT p.prosrc INTO v_src FROM pg_proc p WHERE p.oid = v_oid;
     -- As ancoras abaixo trabalham sobre tokens normalizados, nao sobre indentacao.
-    v_src := regexp_replace(regexp_replace(v_src, '--[^\n]*', '', 'g'), '\s+', ' ', 'g');
+    -- Remove comentarios de linha sem tocar em '--' dentro de literais entre aspas simples
+    -- (get_gestor_cronograma tem '--' no texto de 'criterio'): a alternancia casa o literal
+    -- inteiro (grupo 1, devolvido como esta) ou o comentario (substituido por nada).
+    v_src := regexp_replace(regexp_replace(v_src, $re$('(?:[^']|'')*')|--[^\n]*$re$, '\1', 'g'), '\s+', ' ', 'g');
     v_declaracoes := split_part(v_src, 'BEGIN', 1);
     v_sql := substring(v_src from '(?i)\mWITH (?:sims|alunos|grupo) AS \(.*');
     IF v_sql IS NULL OR v_declaracoes !~ '(?i)^\s*DECLARE\s' THEN
