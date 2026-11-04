@@ -45,6 +45,22 @@ export function ordenarAlunosNoSimulado(
   });
 }
 
+/** Ordenação das colunas por prop: mesma regra de nulos no fim, desempate por nome. */
+function ordenarPorValor<T extends AlunoNoSimulado>(
+  alunos: T[],
+  valor: (aluno: T) => number | null,
+  ordem: Ordem,
+): T[] {
+  return [...alunos].sort((a, b) => {
+    const va = valor(a);
+    const vb = valor(b);
+    if (va === null && vb === null) return a.nome.localeCompare(b.nome, 'pt-BR');
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return ordem === 'desc' ? vb - va : va - vb;
+  });
+}
+
 /**
  * Cor do nome/semestre de quem não participou (achado F1 da revisão final).
  *
@@ -119,22 +135,49 @@ const ORDEM_PROFICIENCIA: FiltroProficiencia[] = ['proficiente', 'proximo', 'nao
  * não sobre a lista já filtrada — trocar de faixa não pode zerar a contagem
  * das outras.
  */
-function FiltroProficienciaAlunos({
+/**
+ * Faixa do filtro da tabela. As 3 de proficiência do Gestor são o padrão
+ * (`FAIXAS_PROFICIENCIA`); o Portal do Mentor passa as suas (corte da meta no
+ * B2C, limiar 60 + potencial de virada no B2B) pela prop `faixas`.
+ */
+export interface FaixaAlunoSimulado<T extends AlunoNoSimulado = AlunoNoSimulado> {
+  chave: string;
+  rotulo: string;
+  /** Cor semântica da bolinha (sucesso/aviso/perigo). */
+  cor: string;
+  contem: (aluno: T) => boolean;
+}
+
+const FAIXAS_PROFICIENCIA: FaixaAlunoSimulado[] = ORDEM_PROFICIENCIA.map((faixa) => ({
+  chave: faixa,
+  rotulo: ROTULO_PROFICIENCIA[faixa],
+  cor: COR_PROFICIENCIA[faixa],
+  contem: (aluno: AlunoNoSimulado) => classificarProficiencia(aluno.proficiencia) === faixa,
+}));
+
+function FiltroProficienciaAlunos<T extends AlunoNoSimulado>({
   alunos,
+  faixas,
   ativo,
   onSelecionar,
+  rotulo,
+  totalTodos,
 }: {
-  alunos: AlunoNoSimulado[];
-  ativo: FiltroProficiencia | null;
-  onSelecionar: (faixa: FiltroProficiencia | null) => void;
+  alunos: T[];
+  faixas: FaixaAlunoSimulado<T>[];
+  ativo: string | null;
+  onSelecionar: (faixa: string | null) => void;
+  rotulo: string;
+  /** Contagem do "Todos"; ausente = soma das faixas (Gestor). */
+  totalTodos?: number;
 }) {
-  const porFaixa = new Map<FiltroProficiencia, number>();
+  const porFaixa = new Map<string, number>();
   for (const aluno of alunos) {
-    const faixa = classificarProficiencia(aluno.proficiencia);
-    if (faixa === null) continue;
-    porFaixa.set(faixa, (porFaixa.get(faixa) ?? 0) + 1);
+    const faixa = faixas.find((f) => f.contem(aluno));
+    if (!faixa) continue;
+    porFaixa.set(faixa.chave, (porFaixa.get(faixa.chave) ?? 0) + 1);
   }
-  const totalClassificado = ORDEM_PROFICIENCIA.reduce((soma, faixa) => soma + (porFaixa.get(faixa) ?? 0), 0);
+  const totalClassificado = totalTodos ?? faixas.reduce((soma, faixa) => soma + (porFaixa.get(faixa.chave) ?? 0), 0);
 
   /**
    * Anatomia de SEGMENTED CONTROL, e não de 4 chips soltos: as quatro opções
@@ -214,7 +257,7 @@ function FiltroProficienciaAlunos({
   return (
     <div
       role="group"
-      aria-label="Filtrar alunos por proficiência"
+      aria-label={rotulo}
       className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl p-1"
       style={{
         background: 'var(--gp-surface-2)',
@@ -229,14 +272,14 @@ function FiltroProficienciaAlunos({
         onClick={() => onSelecionar(null)}
       />
       <span aria-hidden="true" className="h-4 w-px" style={{ background: 'var(--gp-border-strong)' }} />
-      {ORDEM_PROFICIENCIA.map((faixa) => (
+      {faixas.map((faixa) => (
         <Opcao
-          key={faixa}
-          selecionado={ativo === faixa}
-          rotulo={ROTULO_PROFICIENCIA[faixa]}
-          contagem={porFaixa.get(faixa) ?? 0}
-          corBolinha={COR_PROFICIENCIA[faixa]}
-          onClick={() => onSelecionar(ativo === faixa ? null : faixa)}
+          key={faixa.chave}
+          selecionado={ativo === faixa.chave}
+          rotulo={faixa.rotulo}
+          contagem={porFaixa.get(faixa.chave) ?? 0}
+          corBolinha={faixa.cor}
+          onClick={() => onSelecionar(ativo === faixa.chave ? null : faixa.chave)}
         />
       ))}
     </div>
@@ -244,8 +287,24 @@ function FiltroProficienciaAlunos({
 }
 
 
-export interface TabelaAlunosSimuladoProps {
-  alunos: AlunoNoSimulado[];
+/**
+ * Coluna da tabela (depois de "Aluno", que é fixa). Sem a prop `colunas`, a
+ * tabela usa as do Gestor (Semestre · Número de acertos · Proficiência ·
+ * Situação · Variação).
+ */
+export interface ColunaAlunoSimulado<T extends AlunoNoSimulado = AlunoNoSimulado> {
+  id: string;
+  rotulo: string;
+  numerica?: boolean;
+  valor: (aluno: T) => React.ReactNode;
+  /** Valor ausente (traço em `--gp-text-3`). */
+  ausente?: (aluno: T) => boolean;
+  /** Presente = coluna ordenável por este número (nulos sempre no fim). */
+  ordenarPor?: (aluno: T) => number | null;
+}
+
+export interface TabelaAlunosSimuladoProps<T extends AlunoNoSimulado = AlunoNoSimulado> {
+  alunos: T[];
   multiSimulado: boolean;
   /**
    * Nome do simulado que serve de BASE da coluna "Variação" — o penúltimo do
@@ -257,6 +316,16 @@ export interface TabelaAlunosSimuladoProps {
   pageSize?: number;
   alunoSelecionadoId?: string | null;
   onSelecionarAluno?: (id: string) => void;
+  /** Colunas no lugar das do Gestor (Portal do Mentor). */
+  colunas?: ColunaAlunoSimulado<T>[];
+  /** Faixas do filtro no lugar das 3 de proficiência (Portal do Mentor). */
+  faixas?: FaixaAlunoSimulado<T>[];
+  /** Rótulo acessível do filtro de faixas. Padrão: "Filtrar alunos por proficiência". */
+  rotuloFaixas?: string;
+  /** Ordenação de abertura (id de coluna). Padrão: proficiência desc. */
+  ordenacaoInicial?: { coluna: string; ordem: Ordem };
+  /** `true` = abre com "Ocultar não participantes" ligado. */
+  ocultarNaoParticipantesInicial?: boolean;
 }
 
 /**
@@ -282,20 +351,28 @@ function normalizarBusca(texto: string): string {
     .toLowerCase();
 }
 
-export function TabelaAlunosSimulado({
+export function TabelaAlunosSimulado<T extends AlunoNoSimulado = AlunoNoSimulado>({
   alunos,
   multiSimulado,
   simuladoBase,
   pageSize = 20,
   alunoSelecionadoId = null,
   onSelecionarAluno,
-}: TabelaAlunosSimuladoProps) {
-  const [ordenacao, setOrdenacao] = React.useState<{ coluna: ColunaOrdenavel; ordem: Ordem }>({
-    coluna: 'proficiencia',
-    ordem: 'desc',
-  });
-  const [ocultarNaoParticipantes, setOcultarNaoParticipantes] = React.useState(false);
-  const [filtroProficiencia, setFiltroProficiencia] = React.useState<FiltroProficiencia | null>(null);
+  colunas,
+  faixas,
+  rotuloFaixas = 'Filtrar alunos por proficiência',
+  ordenacaoInicial,
+  ocultarNaoParticipantesInicial = false,
+}: TabelaAlunosSimuladoProps<T>) {
+  const [ordenacao, setOrdenacao] = React.useState<{ coluna: string; ordem: Ordem }>(
+    ordenacaoInicial ?? { coluna: 'proficiencia', ordem: 'desc' },
+  );
+  const [ocultarNaoParticipantes, setOcultarNaoParticipantes] = React.useState(ocultarNaoParticipantesInicial);
+  const [filtroProficiencia, setFiltroProficiencia] = React.useState<string | null>(null);
+  const faixasEfetivas = React.useMemo(
+    () => (faixas ?? FAIXAS_PROFICIENCIA) as FaixaAlunoSimulado<T>[],
+    [faixas],
+  );
   const [busca, setBusca] = React.useState('');
   const [page, setPage] = React.useState(1);
 
@@ -304,16 +381,22 @@ export function TabelaAlunosSimulado({
   const visiveis = React.useMemo(() => {
     let filtrados = ocultarNaoParticipantes ? alunos.filter((a) => a.participou) : alunos;
     if (filtroProficiencia !== null) {
-      filtrados = filtrados.filter((a) => classificarProficiencia(a.proficiencia) === filtroProficiencia);
+      const faixa = faixasEfetivas.find((f) => f.chave === filtroProficiencia);
+      if (faixa) filtrados = filtrados.filter((a) => faixa.contem(a));
     }
     if (termo.length > 0) {
       filtrados = filtrados.filter((a) => normalizarBusca(a.nome).includes(termo));
     }
-    return ordenarAlunosNoSimulado(filtrados, ordenacao.coluna, ordenacao.ordem);
-  }, [alunos, ocultarNaoParticipantes, filtroProficiencia, termo, ordenacao]);
+    if (colunas) {
+      const coluna = colunas.find((c) => c.id === ordenacao.coluna);
+      return coluna?.ordenarPor ? ordenarPorValor(filtrados, coluna.ordenarPor, ordenacao.ordem) : filtrados;
+    }
+    // Ordena os mesmos objetos: o tipo da linha (T) continua o do chamador.
+    return ordenarAlunosNoSimulado(filtrados, ordenacao.coluna as ColunaOrdenavel, ordenacao.ordem) as T[];
+  }, [alunos, ocultarNaoParticipantes, filtroProficiencia, faixasEfetivas, termo, ordenacao, colunas]);
 
   /** Trocar de faixa de proficiência também volta para a página 1 — mesmo motivo de `ocultarNaoParticipantes`. */
-  const selecionarProficiencia = (faixa: FiltroProficiencia | null) => {
+  const selecionarProficiencia = (faixa: string | null) => {
     setFiltroProficiencia(faixa);
     setPage(1);
   };
@@ -335,16 +418,14 @@ export function TabelaAlunosSimulado({
   const participantes = alunos.filter((a) => a.participou).length;
   const semParticipacao = alunos.length - participantes;
 
-  const alternarOrdenacao = (coluna: ColunaOrdenavel) => {
+  const alternarOrdenacao = (coluna: string) => {
     setPage(1);
     setOrdenacao((atual) =>
       atual.coluna === coluna ? { coluna, ordem: atual.ordem === 'desc' ? 'asc' : 'desc' } : { coluna, ordem: 'desc' },
     );
   };
 
-  const ordemDe = (coluna: ColunaOrdenavel) => (ordenacao.coluna === coluna ? ordenacao.ordem : null);
-
-  const colunas = multiSimulado ? 6 : 5;
+  const ordemDe = (coluna: string) => (ordenacao.coluna === coluna ? ordenacao.ordem : null);
 
   return (
     <section
@@ -419,7 +500,14 @@ export function TabelaAlunosSimulado({
         />
       </div>
 
-      <FiltroProficienciaAlunos alunos={alunos} ativo={filtroProficiencia} onSelecionar={selecionarProficiencia} />
+      <FiltroProficienciaAlunos
+        alunos={alunos}
+        faixas={faixasEfetivas}
+        ativo={filtroProficiencia}
+        onSelecionar={selecionarProficiencia}
+        rotulo={rotuloFaixas}
+        totalTodos={faixas ? participantes : undefined}
+      />
 
       {visiveis.length === 0 ? (
         <div className="flex flex-col items-center gap-3">
@@ -488,6 +576,19 @@ export function TabelaAlunosSimulado({
             <CabecalhoTabela>
               <tr>
                 <CelulaCabecalho>Aluno</CelulaCabecalho>
+                {colunas ? (
+                  colunas.map((coluna) => (
+                    <CelulaCabecalho
+                      key={coluna.id}
+                      numerica={coluna.numerica}
+                      ordem={coluna.ordenarPor ? ordemDe(coluna.id) : undefined}
+                      onOrdenar={coluna.ordenarPor ? () => alternarOrdenacao(coluna.id) : undefined}
+                    >
+                      {coluna.rotulo}
+                    </CelulaCabecalho>
+                  ))
+                ) : (
+                <>
                 <CelulaCabecalho numerica ordem={ordemDe('semestre')} onOrdenar={() => alternarOrdenacao('semestre')}>
                   Semestre
                 </CelulaCabecalho>
@@ -506,6 +607,8 @@ export function TabelaAlunosSimulado({
                   <CelulaCabecalho numerica ordem={ordemDe('variacao')} onOrdenar={() => alternarOrdenacao('variacao')}>
                     Variação
                   </CelulaCabecalho>
+                )}
+                </>
                 )}
               </tr>
             </CabecalhoTabela>
@@ -552,6 +655,19 @@ export function TabelaAlunosSimulado({
                         )}
                       </span>
                     </Celula>
+                    {colunas ? (
+                      colunas.map((coluna) => (
+                        <Celula
+                          key={coluna.id}
+                          numerica={coluna.numerica}
+                          ausente={coluna.ausente?.(a) ?? false}
+                          data-testid={`celula-${coluna.id}`}
+                        >
+                          {coluna.valor(a)}
+                        </Celula>
+                      ))
+                    ) : (
+                    <>
                     <Celula
                       numerica
                       ausente={a.semestre === null || !a.participou}
@@ -596,6 +712,8 @@ export function TabelaAlunosSimulado({
                           </span>
                         ) : null}
                       </Celula>
+                    )}
+                    </>
                     )}
 
                   </LinhaTabela>
