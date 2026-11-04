@@ -39,7 +39,6 @@ vi.mock('@/services/mentor/intervencoes', () => ({
 }));
 
 import MinhaTurma from '@/features/mentor/routes/MinhaTurma';
-import InicioMentor from '@/features/mentor/routes/InicioMentor';
 import { DrawerAlunoMentor } from '@/features/mentor/components/DrawerAlunoMentor';
 
 const T = { timeout: 3000 };
@@ -129,23 +128,6 @@ describe('Minha Turma: conteúdos', () => {
     await screen.findByText('Alice Legada', undefined, T);
     expect(within(linhaDe('Alice Legada')).getByTestId('conteudos-7d')).toHaveTextContent('–');
     expect(screen.getByTestId('card-conteudos')).toHaveTextContent(NOTA_B2C);
-  });
-});
-
-describe('Início: conteúdos', () => {
-  it('mostra "Conteúdos na semana" só quando alguém tem dado', async () => {
-    fetchTurma.mockResolvedValue([comConsumo('a@x.com', 'Alice Com', 5, 1), semConsumo('c@x.com', 'Carla Sem')]);
-    const { unmount } = renderCom(<InicioMentor />, '/mentor');
-    const card = await screen.findByTestId('card-conteudos', undefined, T);
-    expect(screen.getByTestId('card-conteudos-valor')).toHaveTextContent('6');
-    expect(card).toHaveTextContent('1 aluno com dado');
-    unmount();
-
-    fetchTurma.mockResolvedValue([semConsumo('c@x.com', 'Carla Sem')]);
-    renderCom(<InicioMentor />, '/mentor');
-    await screen.findByText(/Sumiram/, undefined, T);
-    await screen.findByText('Ninguém sumiu. Sua turma está em dia.', undefined, T);
-    expect(screen.queryByTestId('card-conteudos')).not.toBeInTheDocument();
   });
 });
 

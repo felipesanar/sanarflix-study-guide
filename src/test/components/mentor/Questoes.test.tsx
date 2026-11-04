@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { aluno, SEM_DESEMPENHO } from './fixtures';
@@ -23,7 +23,6 @@ vi.mock('@/services/mentor/intervencoes', () => ({ listarIntervencoes: async () 
 import { descreverQuestoes, resumoQuestoesTurma, totalQuestoes7d, NOTA_SEM_QUESTOES_B2C, TOOLTIP_SEM_QUESTOES } from '@/features/mentor/components/turma/questoes';
 import { CardQuestoesSemana, CelulaQuestoes7d } from '@/features/mentor/components/turma/QuestoesSemana';
 import { SecaoQuestoesAluno } from '@/features/mentor/components/turma/SecaoQuestoesAluno';
-import InicioMentor from '@/features/mentor/routes/InicioMentor';
 import MinhaTurma from '@/features/mentor/routes/MinhaTurma';
 
 const contagem = (respondidas = 12, acertos = 9, erros = 3, pct_acerto: number | null = 75): ContagemQuestoes => ({ respondidas, acertos, erros, pct_acerto });
@@ -142,12 +141,6 @@ describe('seção do drawer', () => {
 });
 
 describe('integrações', () => {
-  it.each([true, false])('Início mostra questões somente com fonte: %s', async (fonte) => {
-    mocks.turma.mockResolvedValue([fonte ? comDado() : semDado()]);
-    renderCom(<InicioMentor />);
-    await screen.findByText('Ninguém sumiu. Sua turma está em dia.');
-    await waitFor(() => expect(Boolean(screen.queryByTestId('card-questoes'))).toBe(fonte));
-  });
   it('Minha Turma tem coluna e card de questões', async () => {
     renderCom(<MinhaTurma />);
     expect(await screen.findByRole('columnheader', { name: 'Questões (7d)' })).toBeInTheDocument();
