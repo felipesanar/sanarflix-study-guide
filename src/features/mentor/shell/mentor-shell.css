@@ -45,7 +45,8 @@
 .mentor-notificacoes { display: inline-flex; min-width: 32px; min-height: 32px; align-items: center; justify-content: center; border-radius: 8px; color: var(--gp-text-2); }
 .mentor-conteudo { flex: 1; min-width: 0; }
 .mentor-main { width: 100%; max-width: 1240px; margin: 0 auto; padding: 28px 32px 64px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-.mentor-main h1 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+/* Padrão do H1 de tela (docs/01: 24px); :where() zera a especificidade para a classe do componente prevalecer (ex.: saudação de 22px na faixa do Início). */
+:where(.mentor-main) h1 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
 .mentor-header-mobile { display: none; }
 .mentor-sidebar-drawer { display: flex; flex-direction: column; gap: 0; width: 248px; max-width: calc(100vw - 44px); padding: 0; background: var(--gp-surface-1); box-shadow: 0 0 40px rgba(0,0,0,.2); }
 .mentor-sidebar-scrim { background: var(--gp-scrim); }
