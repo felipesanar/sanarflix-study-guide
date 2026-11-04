@@ -93,7 +93,7 @@ export function VisaoAlunos(p: VisaoAlunosProps) {
     ocultarNaoParticipantesInicial: true,
   };
   return p.modalidade === 'b2c' ? (
-    <TabelaAlunosSimulado<AlunoVisaoB2c>
+    <TabelaAlunosSimulado
       {...comum}
       alunos={p.alunos}
       colunas={COLUNAS_B2C}
@@ -101,7 +101,7 @@ export function VisaoAlunos(p: VisaoAlunosProps) {
       ordenacaoInicial={{ coluna: 'acerto-pct', ordem: 'desc' }}
     />
   ) : (
-    <TabelaAlunosSimulado<AlunoVisaoB2b>
+    <TabelaAlunosSimulado
       {...comum}
       alunos={p.alunos}
       colunas={COLUNAS_B2B}

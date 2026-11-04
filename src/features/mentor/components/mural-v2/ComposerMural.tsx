@@ -7,6 +7,9 @@ import { ACCEPT_ANEXO, erroDoArquivo } from './anexoMural';
 import { GrupoRadio } from './GrupoRadio';
 import { rotuloAlunos, TAGS_MURAL, TEXTOS_MURAL } from './rotulosMural';
 import type { ComposerMural as Composer } from './useComposerMural';
+
+// Tipo explícito fora do JSX: o lovable-tagger (dev) injeta atributos em elemento JSX com argumento de tipo e quebra a sintaxe.
+const GrupoRadioPara = GrupoRadio<'turma' | 'selecionados'>;
 import type { CampoMural } from './validacaoMural';
 
 const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -74,7 +77,7 @@ export function ComposerMural({ composer: c, alunos, grupos, totalTurma, refs, o
 
       <div className="mural-campo">
         <span id={ids.tag} className="mural-rotulo">Tag</span>
-        <GrupoRadio<TagMural>
+        <GrupoRadio
           rotuloId={ids.tag}
           valor={form.tag}
           opcoes={TAGS_MURAL.map((t) => ({ valor: t.tag, rotulo: t.rotulo }))}
@@ -87,7 +90,7 @@ export function ComposerMural({ composer: c, alunos, grupos, totalTurma, refs, o
 
       <div className="mural-campo">
         <span id={ids.para} className="mural-rotulo">Para quem</span>
-        <GrupoRadio<'turma' | 'selecionados'>
+        <GrupoRadioPara
           rotuloId={ids.para}
           valor={form.para}
           opcoes={[{ valor: 'turma', rotulo: 'Toda a turma' }, { valor: 'selecionados', rotulo: 'Selecionados' }]}

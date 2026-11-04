@@ -79,7 +79,7 @@ export function InicioB2c({ me }: { me: MeFlix }) {
           />
           <div className="flex flex-wrap items-start gap-4">
             <div className="min-w-0 flex-[2_1_520px]">
-              <ListaPrioridades<AlertaB2C>
+              <ListaPrioridades
                 titulo="Quem precisa de você" resumo={resumoLista(alertas, 'alerta', 'alertas', horario)} itens={alertas} estado="ok"
                 icone={(k) => ICONE_ALERTA[k]}
                 iniciais={(ids) => ids.slice(0, 3).map((id) => iniciaisDe(nomes.get(id), id))}

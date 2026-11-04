@@ -11,6 +11,9 @@ import { useTelaSessoes } from './useTelaSessoes';
 import { ehColetiva } from './util';
 
 type TipoFiltroB2c = 'todas' | 'coletivas' | 'individuais';
+// Tipo explícito fora do JSX: o lovable-tagger (dev) injeta atributos em elemento JSX com argumento de tipo e quebra a sintaxe.
+const Filtros = FiltrosSessoes<TipoFiltroB2c>;
+
 const OPCOES: OpcaoFiltro<TipoFiltroB2c>[] = [
   { valor: 'todas', rotulo: 'Todas' },
   { valor: 'coletivas', rotulo: 'Encontros da tribo' },
@@ -43,7 +46,7 @@ export function SessoesB2c() {
       </header>
 
       <section ref={bloco} className="ms-bloco" tabIndex={-1} aria-label="Sessões">
-        <FiltrosSessoes<TipoFiltroB2c> opcoes={OPCOES} tipo={t.tipo} onTipo={t.setTipo} aba={t.aba} onAba={t.setAba} painelId={PAINEL} />
+        <Filtros opcoes={OPCOES} tipo={t.tipo} onTipo={t.setTipo} aba={t.aba} onAba={t.setAba} painelId={PAINEL} />
         {t.formAberto && (
           <div id="ms-form-sessao">
             <FormNovaSessaoB2c

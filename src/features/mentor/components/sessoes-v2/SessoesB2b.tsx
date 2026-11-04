@@ -11,6 +11,9 @@ import { useTelaSessoes } from './useTelaSessoes';
 import { cicloContrato, ehColetiva } from './util';
 
 type TipoFiltroB2b = 'todas' | 'pos_simulado' | 'oficina' | 'individual';
+// Tipo explícito fora do JSX: o lovable-tagger (dev) injeta atributos em elemento JSX com argumento de tipo e quebra a sintaxe.
+const Filtros = FiltrosSessoes<TipoFiltroB2b>;
+
 const OPCOES: OpcaoFiltro<TipoFiltroB2b>[] = [
   { valor: 'todas', rotulo: 'Todas' },
   { valor: 'pos_simulado', rotulo: 'Pós-simulado' },
@@ -94,7 +97,7 @@ export function SessoesB2b({ tribo }: { tribo: TriboMe | null }) {
       )}
 
       <section ref={bloco} className="ms-bloco" tabIndex={-1} aria-label="Sessões">
-        <FiltrosSessoes<TipoFiltroB2b> opcoes={OPCOES} tipo={t.tipo} onTipo={t.setTipo} aba={t.aba} onAba={t.setAba} painelId={PAINEL} />
+        <Filtros opcoes={OPCOES} tipo={t.tipo} onTipo={t.setTipo} aba={t.aba} onAba={t.setAba} painelId={PAINEL} />
         <div id={PAINEL} role="tabpanel" aria-labelledby={`${PAINEL}-aba-${t.aba}`}>
           <EstadosLista consulta={t.sessoes} vazio={t.lista.length === 0} filtrado={t.tipo !== 'todas'} onLimparFiltro={() => t.setTipo('todas')} linhas={4} alturaLinha={64}>
             <ListaSessoesB2b
