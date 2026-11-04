@@ -68,7 +68,7 @@ const EsqueletoDeRota: React.FC = () => (
  * inicial do Context, nem de esconder consumidores enquanto o ref ainda não
  * resolveu.
  */
-const GestorPortalContainerContext = React.createContext<HTMLDivElement | null>(null);
+export const GestorPortalContainerContext = React.createContext<HTMLDivElement | null>(null);
 
 /**
  * Container do Portal do Radix ancorado dentro de `.gestor-portal` — ver
