@@ -104,6 +104,8 @@ export interface NovaSessao {
   meetUrl?: string | null;
   avisarTribo?: boolean;
   pauta?: { texto: string; origem: 'tema_critico' | 'mais_erradas' | 'livre'; referenciaId?: string; ordem: number }[];
+  /** fonteAcademy exige título; sem ele, usa o tema ou o rótulo do tipo. */
+  titulo?: string | null;
 }
 
 /**
