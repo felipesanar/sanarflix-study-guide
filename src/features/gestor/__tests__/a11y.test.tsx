@@ -652,7 +652,7 @@ describe('acessibilidade — Engajamento: as três abas (spec §15.2)', () => {
     vi.mocked(useEngajamentoVisaoGeral).mockReturnValue(resultadoGestor(visaoGeralParacatu()) as unknown as ReturnType<typeof useEngajamentoVisaoGeral>);
     vi.mocked(useEngajamentoAlunos).mockReturnValue(resultadoGestor(alunosEngajamento(TRES_ALUNOS)) as unknown as ReturnType<typeof useEngajamentoAlunos>);
     vi.mocked(useEngajamentoLista).mockReturnValue(
-      resultadoGestor(listaEngajamento('frequente', [linhaLista()], { total: 4 })) as unknown as ReturnType<typeof useEngajamentoLista>,
+      resultadoGestor(listaEngajamento('sumidos30mais', [linhaLista()], { total: 4 })) as unknown as ReturnType<typeof useEngajamentoLista>,
     );
     vi.mocked(useEngajamentoQuestoes).mockReturnValue(resultadoGestor(questoesParacatu()) as unknown as ReturnType<typeof useEngajamentoQuestoes>);
     vi.mocked(useEngajamentoQuestoesAlunos).mockReturnValue(resultadoGestor(questoesAlunosTema()) as unknown as ReturnType<typeof useEngajamentoQuestoesAlunos>);

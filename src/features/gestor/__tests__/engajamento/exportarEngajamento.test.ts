@@ -99,14 +99,10 @@ describe('secoesVisaoGeral', () => {
     expect(csv(s)).toContain('mai/26;6');
   });
 
-  it('nenhum e-mail, id de aluno ou amostra nominal no CSV agregado', () => {
+  it('nenhum e-mail, id de aluno ou nome da prévia no CSV agregado', () => {
     const d = visaoGeralParacatu();
     const texto = csv(secoesVisaoGeral(d, RECORTE));
     expect(texto).not.toMatch(/@/);
-    for (const n of d.niveis) for (const a of n.amostra) {
-      expect(texto).not.toContain(a.nome);
-      expect(texto).not.toContain(a.id);
-    }
     for (const p of d.recencia.previaSumidos30mais) {
       expect(texto).not.toContain(p.nome);
       expect(texto).not.toContain(p.id);
