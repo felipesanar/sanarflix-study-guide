@@ -107,7 +107,7 @@ export interface ResultadoGestor<T> {
  * `useEffectiveFeatures.ts`, aqui escopado só às queries do gestor em vez de
  * mudar a configuração global.
  */
-function useEnvelope<T>(
+export function useEnvelope<T>(
   queryKey: readonly unknown[],
   fn: string,
   args?: ArgsRpc,

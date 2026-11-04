@@ -410,6 +410,14 @@ export default function ProvasTab() {
               <TableRow key={simulado.id}>
                 <TableCell className={adminTableCellClass}>
                   <span className="font-medium">{simulado.nome}</span>
+                  {/* ID discreto e selecionável com um clique: é o `--simulado` do script de leitura dos cartões */}
+                  <span
+                    className="block select-all font-mono text-[11px] leading-tight text-muted-foreground/60"
+                    title="ID do simulado (clique para selecionar e copiar)"
+                    data-testid="simulado-id"
+                  >
+                    {simulado.id}
+                  </span>
                 </TableCell>
                 <TableCell className={adminTableCellClass}>
                   {simulado.ies_ids.length === 0 ? (

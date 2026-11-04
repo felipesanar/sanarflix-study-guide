@@ -1,0 +1,5560 @@
+{
+ "generator": "tools/make_fixtures.py",
+ "generator_version": 1,
+ "seed": 2026,
+ "file": "sfa_personalizado_limpo.pdf",
+ "layout": "sfa",
+ "template": "sfa_v4",
+ "simulado_id": "9f43fad7-7ff1-5764-a1bd-f4e79acddb65",
+ "profile": "limpo",
+ "pages": [
+  {
+   "page": 1,
+   "kind": "cartao",
+   "legible": true,
+   "defect": null,
+   "model": "personalizado",
+   "qr": "SFA2:M:9F43FAD7:2023001000",
+   "qr_legivel": true,
+   "matricula_qr": "2023001000",
+   "email_qr": null,
+   "aluno": "Ana Fictício 001",
+   "matricula": null,
+   "answers": {
+    "1": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "B",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.94,
+      0.0,
+      0.97
+     ]
+    },
+    "2": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.85,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "3": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.79,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "4": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.87,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "5": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.88,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "6": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.88,
+      0.0
+     ]
+    },
+    "7": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.83,
+      0.0
+     ]
+    },
+    "8": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "9": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.92,
+      0.0
+     ]
+    },
+    "10": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "11": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "12": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.9,
+      0.0
+     ]
+    },
+    "13": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.9,
+      0.0
+     ]
+    },
+    "14": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.86
+     ]
+    },
+    "15": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.98,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "16": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "17": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "18": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.87,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "19": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.87,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "20": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.84,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "21": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.89,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "22": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "23": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.82,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "24": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.92
+     ]
+    },
+    "25": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.89,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "26": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "27": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.9,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "28": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.78
+     ]
+    },
+    "29": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.97
+     ]
+    },
+    "30": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.76
+     ]
+    },
+    "31": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "32": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.94,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "33": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "34": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "35": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.91,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "36": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.92,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "37": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "38": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "39": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.95,
+      0.0,
+      0.0
+     ]
+    },
+    "40": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.83,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "41": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.98,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "42": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    },
+    "43": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "44": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.88,
+      0.0
+     ]
+    },
+    "45": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "46": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "47": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.88
+     ]
+    },
+    "48": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.97,
+      0.0
+     ]
+    },
+    "49": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "B",
+      "C"
+     ],
+     "cov": [
+      0.0,
+      0.92,
+      0.86,
+      0.0
+     ]
+    },
+    "50": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.9,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "51": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "52": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.82,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "53": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.99,
+      0.0,
+      0.0
+     ]
+    },
+    "54": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "55": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.9,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "56": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.9,
+      0.0
+     ]
+    },
+    "57": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "58": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.87,
+      0.0,
+      0.0
+     ]
+    },
+    "59": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.79
+     ]
+    },
+    "60": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.82,
+      0.0
+     ]
+    },
+    "61": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.8,
+      0.0
+     ]
+    },
+    "62": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.81,
+      0.0
+     ]
+    },
+    "63": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.81,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "64": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    },
+    "65": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.76,
+      0.0
+     ]
+    },
+    "66": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "67": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "68": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.9,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "69": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.85,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "70": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.86,
+      0.0
+     ]
+    },
+    "71": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.97,
+      0.0
+     ]
+    },
+    "72": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.68,
+      0.0,
+      0.0
+     ]
+    },
+    "73": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.87,
+      0.0,
+      0.0
+     ]
+    },
+    "74": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "75": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.83
+     ]
+    },
+    "76": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "77": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.94,
+      0.0,
+      0.0
+     ]
+    },
+    "78": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.96,
+      0.0
+     ]
+    },
+    "79": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.85,
+      0.0,
+      0.0
+     ]
+    },
+    "80": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.94,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "81": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.89,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "82": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "83": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.8,
+      0.0,
+      0.0
+     ]
+    },
+    "84": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.83
+     ]
+    },
+    "85": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.91,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "86": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.99,
+      0.0,
+      0.0
+     ]
+    },
+    "87": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.92,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "88": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.93,
+      0.0,
+      0.0
+     ]
+    },
+    "89": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.91,
+      0.0
+     ]
+    },
+    "90": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.93
+     ]
+    },
+    "91": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "92": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "B"
+     ],
+     "cov": [
+      0.9,
+      0.9,
+      0.0,
+      0.0
+     ]
+    },
+    "93": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "94": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "95": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.83,
+      0.0,
+      0.0
+     ]
+    },
+    "96": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "97": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.7,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "98": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.81,
+      0.0,
+      0.0
+     ]
+    },
+    "99": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.81,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "100": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.99,
+      0.0
+     ]
+    }
+   },
+   "scan": {
+    "dpi": 200,
+    "size_px": [
+     1654,
+     2339
+    ],
+    "rotation_deg": 0.374,
+    "flip180": false,
+    "scale": 0.9991,
+    "translate_mm": [
+     -0.121,
+     1.683
+    ],
+    "perspective_mm": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "pad_mm": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "canvas_mm": [
+     210.0,
+     297.0
+    ],
+    "background": "claro",
+    "color": "cinza",
+    "pen": "preta",
+    "jpeg_quality": 56,
+    "blur_sigma_px": 0.41,
+    "paper_tone": 0.936,
+    "mm_to_px": [
+     [
+      7.866792,
+      -0.051374,
+      7.43163
+     ],
+     [
+      0.051374,
+      7.866792,
+      8.933544
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ]
+   }
+  },
+  {
+   "page": 2,
+   "kind": "cartao",
+   "legible": true,
+   "defect": null,
+   "model": "personalizado",
+   "qr": "SFA2:M:9F43FAD7:2023001001",
+   "qr_legivel": true,
+   "matricula_qr": "2023001001",
+   "email_qr": null,
+   "aluno": "Fábio Modelo 002",
+   "matricula": null,
+   "answers": {
+    "1": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.79
+     ]
+    },
+    "2": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.93,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "3": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.89,
+      0.0
+     ]
+    },
+    "4": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "B"
+     ],
+     "cov": [
+      0.98,
+      0.95,
+      0.0,
+      0.0
+     ]
+    },
+    "5": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.89,
+      0.0
+     ]
+    },
+    "6": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.86
+     ]
+    },
+    "7": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "D"
+     ],
+     "cov": [
+      0.86,
+      0.0,
+      0.0,
+      0.78
+     ]
+    },
+    "8": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "9": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.84,
+      0.0
+     ]
+    },
+    "10": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.89,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "11": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.99,
+      0.0,
+      0.0
+     ]
+    },
+    "12": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.94
+     ]
+    },
+    "13": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "14": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "15": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "16": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "17": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.71,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "18": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "19": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "20": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "21": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.77,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "22": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "23": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.86,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "24": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.9
+     ]
+    },
+    "25": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.94,
+      0.0
+     ]
+    },
+    "26": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "B"
+     ],
+     "cov": [
+      0.86,
+      0.9,
+      0.0,
+      0.0
+     ]
+    },
+    "27": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.99
+     ]
+    },
+    "28": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.89,
+      0.0
+     ]
+    },
+    "29": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.94,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "30": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "31": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "32": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.87
+     ]
+    },
+    "33": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.84
+     ]
+    },
+    "34": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.84,
+      0.0,
+      0.0
+     ]
+    },
+    "35": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    "36": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "37": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.93,
+      0.0,
+      0.0
+     ]
+    },
+    "38": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "39": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "40": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "41": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.87
+     ]
+    },
+    "42": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "43": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.99,
+      0.0,
+      0.0
+     ]
+    },
+    "44": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.95
+     ]
+    },
+    "45": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "46": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "47": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.85,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "48": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.91,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "49": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "B",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.79,
+      0.0,
+      0.88
+     ]
+    },
+    "50": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.76,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "51": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.97
+     ]
+    },
+    "52": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.99
+     ]
+    },
+    "53": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "54": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "55": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.79,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "56": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.84,
+      0.0,
+      0.0
+     ]
+    },
+    "57": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.93,
+      0.0
+     ]
+    },
+    "58": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "59": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.98,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "60": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.99,
+      0.0,
+      0.0
+     ]
+    },
+    "61": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.93,
+      0.0
+     ]
+    },
+    "62": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "C",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.0,
+      0.81,
+      0.94
+     ]
+    },
+    "63": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "64": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.98,
+      0.0
+     ]
+    },
+    "65": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "B",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.81,
+      0.0,
+      0.89
+     ]
+    },
+    "66": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.84,
+      0.0
+     ]
+    },
+    "67": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.91,
+      0.0
+     ]
+    },
+    "68": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.94
+     ]
+    },
+    "69": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.8
+     ]
+    },
+    "70": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    "71": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.93,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "72": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.83,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "73": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.96,
+      0.0
+     ]
+    },
+    "74": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.86,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "75": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "76": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.98,
+      0.0
+     ]
+    },
+    "77": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "C",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.0,
+      0.83,
+      0.98
+     ]
+    },
+    "78": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.88,
+      0.0,
+      0.0
+     ]
+    },
+    "79": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.82,
+      0.0
+     ]
+    },
+    "80": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.79,
+      0.0
+     ]
+    },
+    "81": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.99,
+      0.0
+     ]
+    },
+    "82": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.99
+     ]
+    },
+    "83": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.92,
+      0.0,
+      0.0
+     ]
+    },
+    "84": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.92,
+      0.0,
+      0.0
+     ]
+    },
+    "85": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.89,
+      0.0,
+      0.0
+     ]
+    },
+    "86": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.74,
+      0.0,
+      0.0
+     ]
+    },
+    "87": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "88": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    "89": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.77,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "90": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.98,
+      0.0
+     ]
+    },
+    "91": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.9
+     ]
+    },
+    "92": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.94,
+      0.0
+     ]
+    },
+    "93": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "94": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.83,
+      0.0
+     ]
+    },
+    "95": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.98,
+      0.0
+     ]
+    },
+    "96": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.81,
+      0.0
+     ]
+    },
+    "97": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "98": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "99": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.93,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "100": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.94,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "scan": {
+    "dpi": 200,
+    "size_px": [
+     1654,
+     2339
+    ],
+    "rotation_deg": -1.182,
+    "flip180": false,
+    "scale": 0.994,
+    "translate_mm": [
+     -0.889,
+     0.222
+    ],
+    "perspective_mm": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "pad_mm": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "canvas_mm": [
+     210.0,
+     297.0
+    ],
+    "background": "claro",
+    "color": "cinza",
+    "pen": "azul",
+    "jpeg_quality": 65,
+    "blur_sigma_px": 0.52,
+    "paper_tone": 0.948,
+    "mm_to_px": [
+     [
+      7.825064,
+      0.161406,
+      -25.8283
+     ],
+     [
+      -0.161406,
+      7.825064,
+      25.964257
+     ],
+     [
+      -0.0,
+      -0.0,
+      1.0
+     ]
+    ]
+   }
+  },
+  {
+   "page": 3,
+   "kind": "branco",
+   "legible": false,
+   "defect": null,
+   "expected": "pagina_em_branco",
+   "scan": {
+    "dpi": 200,
+    "size_px": [
+     1653,
+     2338
+    ]
+   }
+  },
+  {
+   "page": 4,
+   "kind": "cartao",
+   "legible": true,
+   "defect": null,
+   "model": "personalizado",
+   "qr": "SFA2:M:9F43FAD7:2023001002",
+   "qr_legivel": true,
+   "matricula_qr": "2023001002",
+   "email_qr": null,
+   "aluno": "Otávio Teste 003",
+   "matricula": null,
+   "answers": {
+    "1": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "2": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "C"
+     ],
+     "cov": [
+      0.75,
+      0.0,
+      0.99,
+      0.0
+     ]
+    },
+    "3": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.83
+     ]
+    },
+    "4": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.97,
+      0.0
+     ]
+    },
+    "5": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "B"
+     ],
+     "cov": [
+      0.97,
+      0.94,
+      0.0,
+      0.0
+     ]
+    },
+    "6": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "D"
+     ],
+     "cov": [
+      0.93,
+      0.0,
+      0.0,
+      0.79
+     ]
+    },
+    "7": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.84,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "8": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.95
+     ]
+    },
+    "9": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.99
+     ]
+    },
+    "10": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.84,
+      0.0,
+      0.0
+     ]
+    },
+    "11": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "12": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    "13": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.86
+     ]
+    },
+    "14": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.97,
+      0.0
+     ]
+    },
+    "15": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.78
+     ]
+    },
+    "16": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "17": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "18": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.93,
+      0.0
+     ]
+    },
+    "19": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.79
+     ]
+    },
+    "20": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    },
+    "21": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "22": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.99
+     ]
+    },
+    "23": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "24": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.88
+     ]
+    },
+    "25": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "26": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.84,
+      0.0
+     ]
+    },
+    "27": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "D"
+     ],
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "28": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "29": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.98,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "30": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "31": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.93,
+      0.0,
+      0.0
+     ]
+    },
+    "32": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "C",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.0,
+      0.95,
+      0.97
+     ]
+    },
+    "33": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "34": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.86,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "35": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.86
+     ]
+    },
+    "36": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "37": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.76,
+      0.0
+     ]
+    },
+    "38": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.81
+     ]
+    },
+    "39": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "40": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.93
+     ]
+    },
+    "41": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "42": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "43": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.87,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "44": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.76,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "45": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "46": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "47": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.84,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "48": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.89,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "49": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    "50": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.92,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "51": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.88,
+      0.0
+     ]
+    },
+    "52": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "53": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "54": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.87,
+      0.0
+     ]
+    },
+    "55": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.95
+     ]
+    },
+    "56": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.84,
+      0.0
+     ]
+    },
+    "57": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.92,
+      0.0
+     ]
+    },
+    "58": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.9
+     ]
+    },
+    "59": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "60": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.86,
+      0.0,
+      0.0
+     ]
+    },
+    "61": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.85,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "62": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.93,
+      0.0
+     ]
+    },
+    "63": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.95,
+      0.0
+     ]
+    },
+    "64": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.86,
+      0.0
+     ]
+    },
+    "65": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "66": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.91,
+      0.0,
+      0.0
+     ]
+    },
+    "67": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.98,
+      0.0
+     ]
+    },
+    "68": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    },
+    "69": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "70": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    "71": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.88,
+      0.0
+     ]
+    },
+    "72": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "73": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "B"
+     ],
+     "cov": [
+      0.78,
+      0.75,
+      0.0,
+      0.0
+     ]
+    },
+    "74": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.92,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "75": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "76": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.89,
+      0.0
+     ]
+    },
+    "77": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.96
+     ]
+    },
+    "78": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.76,
+      0.0
+     ]
+    },
+    "79": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.92,
+      0.0
+     ]
+    },
+    "80": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.77,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "81": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.95,
+      0.0
+     ]
+    },
+    "82": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.97
+     ]
+    },
+    "83": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.86,
+      0.0,
+      0.0
+     ]
+    },
+    "84": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "85": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.88,
+      0.0,
+      0.0
+     ]
+    },
+    "86": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.85,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "87": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.96,
+      0.0
+     ]
+    },
+    "88": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.95
+     ]
+    },
+    "89": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.88,
+      0.0,
+      0.0
+     ]
+    },
+    "90": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.92,
+      0.0
+     ]
+    },
+    "91": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.8
+     ]
+    },
+    "92": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.88
+     ]
+    },
+    "93": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.79,
+      0.0,
+      0.0
+     ]
+    },
+    "94": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "95": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.83,
+      0.0
+     ]
+    },
+    "96": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.92
+     ]
+    },
+    "97": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.86,
+      0.0,
+      0.0
+     ]
+    },
+    "98": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "99": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "100": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.98,
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "scan": {
+    "dpi": 200,
+    "size_px": [
+     1654,
+     2339
+    ],
+    "rotation_deg": -0.036,
+    "flip180": false,
+    "scale": 1.0013,
+    "translate_mm": [
+     0.785,
+     -0.305
+    ],
+    "perspective_mm": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "pad_mm": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "canvas_mm": [
+     210.0,
+     297.0
+    ],
+    "background": "claro",
+    "color": "cinza",
+    "pen": "preta",
+    "jpeg_quality": 57,
+    "blur_sigma_px": 0.67,
+    "paper_tone": 0.947,
+    "mm_to_px": [
+     [
+      7.884158,
+      0.004988,
+      4.376565
+     ],
+     [
+      -0.004988,
+      7.884158,
+      -3.383175
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ]
+   }
+  },
+  {
+   "page": 5,
+   "kind": "cartao",
+   "legible": true,
+   "defect": null,
+   "model": "personalizado",
+   "qr": "SFA2:M:9F43FAD7:AB-0004.X",
+   "qr_legivel": true,
+   "matricula_qr": "AB-0004.X",
+   "email_qr": null,
+   "aluno": "Tiago Teste 004",
+   "matricula": null,
+   "answers": {
+    "1": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.82,
+      0.0
+     ]
+    },
+    "2": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.93,
+      0.0,
+      0.0
+     ]
+    },
+    "3": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.93,
+      0.0
+     ]
+    },
+    "4": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "5": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.9
+     ]
+    },
+    "6": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.95
+     ]
+    },
+    "7": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.86,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "8": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.92,
+      0.0,
+      0.0
+     ]
+    },
+    "9": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.84,
+      0.0,
+      0.0
+     ]
+    },
+    "10": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.87
+     ]
+    },
+    "11": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.88,
+      0.0,
+      0.0
+     ]
+    },
+    "12": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.8,
+      0.0
+     ]
+    },
+    "13": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.68,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "14": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.89,
+      0.0
+     ]
+    },
+    "15": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.96,
+      0.0,
+      0.0
+     ]
+    },
+    "16": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.79,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "17": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.8
+     ]
+    },
+    "18": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "19": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.82,
+      0.0
+     ]
+    },
+    "20": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "21": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.93,
+      0.0,
+      0.0
+     ]
+    },
+    "22": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.84,
+      0.0,
+      0.0
+     ]
+    },
+    "23": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.8,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "24": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.91
+     ]
+    },
+    "25": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    "26": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "27": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    },
+    "28": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.93,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "29": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.9,
+      0.0
+     ]
+    },
+    "30": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    },
+    "31": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "32": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "B",
+      "D"
+     ],
+     "cov": [
+      0.0,
+      0.99,
+      0.0,
+      0.88
+     ]
+    },
+    "33": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.97,
+      0.0
+     ]
+    },
+    "34": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.99
+     ]
+    },
+    "35": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "36": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.97
+     ]
+    },
+    "37": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.91,
+      0.0,
+      0.0
+     ]
+    },
+    "38": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "39": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.92,
+      0.0,
+      0.0
+     ]
+    },
+    "40": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.99,
+      0.0
+     ]
+    },
+    "41": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+     ]
+    },
+    "42": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "43": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.95,
+      0.0
+     ]
+    },
+    "44": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "45": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.91,
+      0.0
+     ]
+    },
+    "46": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.89,
+      0.0,
+      0.0
+     ]
+    },
+    "47": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.91
+     ]
+    },
+    "48": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.97,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "49": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "50": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.98
+     ]
+    },
+    "51": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "52": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "53": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.97
+     ]
+    },
+    "54": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.76
+     ]
+    },
+    "55": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.95,
+      0.0,
+      0.0
+     ]
+    },
+    "56": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.76
+     ]
+    },
+    "57": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.88,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "58": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "59": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.91,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "60": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.86
+     ]
+    },
+    "61": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.93,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "62": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.79
+     ]
+    },
+    "63": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.86,
+      0.0
+     ]
+    },
+    "64": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.92
+     ]
+    },
+    "65": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.93,
+      0.0
+     ]
+    },
+    "66": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.89,
+      0.0
+     ]
+    },
+    "67": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.92,
+      0.0
+     ]
+    },
+    "68": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.81,
+      0.0
+     ]
+    },
+    "69": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.75,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "70": {
+     "kind": "multipla",
+     "truth": "multipla",
+     "strict": true,
+     "tolerated": [],
+     "letters": [
+      "A",
+      "B"
+     ],
+     "cov": [
+      0.99,
+      0.97,
+      0.0,
+      0.0
+     ]
+    },
+    "71": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.94,
+      0.0,
+      0.0
+     ]
+    },
+    "72": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.94,
+      0.0,
+      0.0
+     ]
+    },
+    "73": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "74": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "75": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.93
+     ]
+    },
+    "76": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.9
+     ]
+    },
+    "77": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.99,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "78": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.95,
+      0.0,
+      0.0
+     ]
+    },
+    "79": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.9,
+      0.0
+     ]
+    },
+    "80": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.83,
+      0.0,
+      0.0
+     ]
+    },
+    "81": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    "82": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.9,
+      0.0
+     ]
+    },
+    "83": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.92,
+      0.0,
+      0.0
+     ]
+    },
+    "84": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "85": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.94,
+      0.0
+     ]
+    },
+    "86": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.91,
+      0.0
+     ]
+    },
+    "87": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.83,
+      0.0
+     ]
+    },
+    "88": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "89": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "90": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.84,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "91": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "92": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.99,
+      0.0
+     ]
+    },
+    "93": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.96,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "94": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "C",
+     "cov": [
+      0.0,
+      0.0,
+      0.92,
+      0.0
+     ]
+    },
+    "95": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.92,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "96": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      0.95,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "97": {
+     "kind": "branco",
+     "truth": "branco",
+     "strict": true,
+     "tolerated": [],
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "98": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "D",
+     "cov": [
+      0.0,
+      0.0,
+      0.0,
+      0.81
+     ]
+    },
+    "99": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "A",
+     "cov": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "100": {
+     "kind": "marcada",
+     "truth": "marcada",
+     "strict": true,
+     "tolerated": [],
+     "letter": "B",
+     "cov": [
+      0.0,
+      0.98,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "scan": {
+    "dpi": 200,
+    "size_px": [
+     1654,
+     2339
+    ],
+    "rotation_deg": 1.204,
+    "flip180": false,
+    "scale": 1.0067,
+    "translate_mm": [
+     -0.867,
+     1.539
+    ],
+    "perspective_mm": [
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0
+     ]
+    ],
+    "pad_mm": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "canvas_mm": [
+     210.0,
+     297.0
+    ],
+    "background": "claro",
+    "color": "colorida",
+    "pen": "azul",
+    "jpeg_quality": 62,
+    "blur_sigma_px": 0.77,
+    "paper_tone": 0.955,
+    "mm_to_px": [
+     [
+      7.925073,
+      -0.166576,
+      12.546134
+     ],
+     [
+      0.166576,
+      7.925073,
+      -12.956184
+     ],
+     [
+      0.0,
+      0.0,
+      1.0
+     ]
+    ]
+   }
+  }
+ ]
+}

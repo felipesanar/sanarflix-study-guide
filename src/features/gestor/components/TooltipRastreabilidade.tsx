@@ -54,6 +54,8 @@ export const TooltipRastreabilidade: React.FC<{
   criterio?: string;
   /** Nome do indicador — primeira linha do tooltip, antes da grade de 4 campos. */
   titulo?: string;
+  /** Esconde "Fonte" (nome de tabelas do banco): para telas lidas por gestor, não por time técnico. */
+  ocultarFonte?: boolean;
   /**
    * Aresta do glifo `info`. A referência usa três tamanhos por contexto: 14px
    * no cabeçalho de KPI, 15px no cabeçalho de gráfico, 13px na linha de
@@ -62,7 +64,7 @@ export const TooltipRastreabilidade: React.FC<{
   tamanho?: number;
   className?: string;
   children?: React.ReactNode;
-}> = ({ meta, criterio, titulo, tamanho = 14, className, children }) => {
+}> = ({ meta, criterio, titulo, ocultarFonte = false, tamanho = 14, className, children }) => {
   /**
    * `meta.lowSample` faz parte da resposta à pergunta "de onde vem este
    * número": um indicador calculado sobre amostra pequena não tem a mesma
@@ -75,12 +77,20 @@ export const TooltipRastreabilidade: React.FC<{
    * e inventar um aqui seria pior que omitir. Acrescentar `n` ao envelope exige
    * mudar `get_gestor_visao_geral` — pendência de contrato, não deste arquivo.
    */
+  /**
+   * Controlado para o CLIQUE abrir. O Radix fecha o tooltip no `pointerdown` e
+   * no `click` do gatilho (é o comportamento dele para hover): sem isto, clicar
+   * no "i" — o que o gestor faz de primeira, e o único gesto no toque — só
+   * piscava e fechava. Aqui o `click` reabre e cancela o fechamento do Radix; o
+   * hover, o foco, o ESC e o clique fora continuam como antes.
+   */
+  const [aberto, setAberto] = React.useState(false);
   const cobertura = meta.lowSample ? 'parcial (amostra pequena)' : null;
 
   const linhas = [
     ...(titulo ? [titulo] : []),
     `Período: ${meta.periodo}`,
-    `Fonte: ${meta.fonte}`,
+    ...(ocultarFonte ? [] : [`Fonte: ${meta.fonte}`]),
     `Atualizado em: ${formatDataHora(meta.atualizadoEm)}`,
     `Critério: ${criterio ?? meta.criterio}`,
     ...(cobertura ? [`Cobertura: ${cobertura}`] : []),
@@ -88,12 +98,16 @@ export const TooltipRastreabilidade: React.FC<{
 
   return (
     <span className={cn('inline-flex items-center', className)}>
-      <Tooltip>
+      <Tooltip open={aberto} onOpenChange={setAberto}>
         <TooltipTrigger asChild>
           {children ?? (
             <button
               type="button"
               aria-label="Rastreabilidade do indicador"
+              onClick={(e) => {
+                e.preventDefault();
+                setAberto(true);
+              }}
               className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{ color: 'var(--gp-border-strong)' }}
             >
@@ -139,8 +153,12 @@ export const TooltipRastreabilidade: React.FC<{
           >
             <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Período</dt>
             <dd>{meta.periodo}</dd>
-            <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Fonte</dt>
-            <dd>{meta.fonte}</dd>
+            {ocultarFonte ? null : (
+              <>
+                <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Fonte</dt>
+                <dd>{meta.fonte}</dd>
+              </>
+            )}
             <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Atualizado em</dt>
             <dd>{formatDataHora(meta.atualizadoEm)}</dd>
             <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Critério</dt>

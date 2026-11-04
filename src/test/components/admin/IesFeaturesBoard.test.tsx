@@ -48,13 +48,19 @@ const FEATURES_ROWS = [
   { ies_id: 'ies-2', feature_key: 'gestao.enabled', enabled: false },
 ];
 
-function mockSupabaseFrom() {
+/** Catálogo com a chave do Engajamento, que o painel expõe na seção "Portal do Gestor". */
+const CATALOG_ROWS_COM_ENGAJAMENTO = [
+  ...CATALOG_ROWS,
+  { key: 'gestao.engajamento', experience: 'gestao', label: 'Engajamento SanarFlix', description: 'Aba Engajamento do portal do gestor', sort_order: 190 },
+];
+
+function mockSupabaseFrom(catalogRows = CATALOG_ROWS) {
   vi.mocked(supabase.from).mockImplementation((table: string) => {
     if (table === 'feature_catalog') {
       return {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: CATALOG_ROWS, error: null }),
+        order: vi.fn().mockResolvedValue({ data: catalogRows, error: null }),
       } as any;
     }
     if (table === 'ies') {
@@ -93,8 +99,10 @@ describe('IesFeaturesBoard', () => {
 
     expect(screen.getAllByText('Experiência do Aluno').length).toBe(2);
     // Trava o resultado: Portal do Gestor não é mais liberado por feature de
-    // IES, então a seção "Experiência do Gestor" não deve mais existir.
+    // IES, então a seção "Experiência do Gestor" não deve mais existir. Sem a
+    // chave do Engajamento no catálogo, nem a seção "Portal do Gestor" aparece.
     expect(screen.queryByText('Experiência do Gestor')).not.toBeInTheDocument();
+    expect(screen.queryByText('Portal do Gestor')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Habilitar Portal do Gestor')).not.toBeInTheDocument();
     const alphaCard = cardFor('Faculdade Alpha');
     // Alpha: aluno.home=true, aluno.guia_estudos=false (default) → 1/2.
@@ -137,6 +145,51 @@ describe('IesFeaturesBoard', () => {
     // Pendência é limpa após salvar com sucesso — badge some.
     await waitFor(() => {
       expect(within(alphaCard).queryByText(/alteraç(ão|ões) não salva/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Engajamento liberado por IES (gestao.engajamento)', () => {
+    beforeEach(() => {
+      mockSupabaseFrom(CATALOG_ROWS_COM_ENGAJAMENTO);
+    });
+
+    it('cada card ganha a seção "Portal do Gestor" só com o Engajamento — as chaves legadas gestao.* seguem fora do painel', async () => {
+      render(<IesFeaturesBoard />);
+      await waitFor(() => screen.getByText('Faculdade Alpha'));
+
+      expect(screen.getAllByText('Portal do Gestor')).toHaveLength(2); // um por card
+      for (const nome of ['Faculdade Alpha', 'Faculdade Beta']) {
+        const card = cardFor(nome);
+        expect(within(card).getByLabelText('Engajamento SanarFlix')).toBeInTheDocument();
+        // Nenhuma das chaves antigas reaparece, nem o master.
+        expect(within(card).queryByLabelText('Habilitar Portal do Gestor')).not.toBeInTheDocument();
+        expect(within(card).queryByLabelText('Alunos')).not.toBeInTheDocument();
+        expect(within(card).queryByLabelText('Insights')).not.toBeInTheDocument();
+      }
+      // A chave nasce desligada: sem linha em ies_features = false, contador 0/1 e o aluno segue 1/2.
+      const alpha = cardFor('Faculdade Alpha');
+      expect(within(alpha).getByLabelText('Engajamento SanarFlix')).not.toBeChecked();
+      expect(within(alpha).getByText('0/1')).toBeInTheDocument();
+      expect(within(alpha).getByText('1/2')).toBeInTheDocument();
+    });
+
+    it('ligar o Engajamento de uma IES e salvar envia só gestao.engajamento para ESSA IES', async () => {
+      render(<IesFeaturesBoard />);
+      await waitFor(() => screen.getByText('Faculdade Alpha'));
+
+      const alpha = cardFor('Faculdade Alpha');
+      fireEvent.click(within(alpha).getByLabelText('Engajamento SanarFlix'));
+      await waitFor(() => expect(within(alpha).getByText(/1 alteração não salva/)).toBeInTheDocument());
+      // A outra IES não ganhou pendência.
+      expect(within(cardFor('Faculdade Beta')).queryByText(/alteraç(ão|ões) não salva/)).not.toBeInTheDocument();
+
+      fireEvent.click(within(alpha).getByRole('button', { name: /Salvar/i }));
+      await waitFor(() => {
+        expect(setIesFeatures).toHaveBeenCalledTimes(1);
+        expect(setIesFeatures).toHaveBeenCalledWith('ies-1', { 'gestao.engajamento': true });
+      });
+      await waitFor(() => expect(within(alpha).getByLabelText('Engajamento SanarFlix')).toBeChecked());
+      expect(within(alpha).getByText('1/1')).toBeInTheDocument();
     });
   });
 

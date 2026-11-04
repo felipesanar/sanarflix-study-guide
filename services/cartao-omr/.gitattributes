@@ -1,0 +1,5 @@
+# PDFs e imagens (templates de exemplo e fixtures) são binários: nada de conversão de fim de linha.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary

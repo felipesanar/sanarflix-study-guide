@@ -56,6 +56,8 @@ export interface KpiCardProps {
   meta: Meta;
   /** Sobrescreve `meta.criterio` na rastreabilidade quando o critério é específico deste KPI. */
   criterio?: string;
+  /** Esconde a linha "Fonte" da rastreabilidade (telas para gestor, não para time técnico). */
+  ocultarFonte?: boolean;
   /** Ex.: "projetado" no Conceito ENAMED — o conceito é derivado, não medido diretamente. */
   badge?: string;
   delta?: number | null;
@@ -111,6 +113,7 @@ export function KpiCard({
   densidadeSufixo = 'escala',
   meta,
   criterio,
+  ocultarFonte,
   badge,
   delta,
   serie,
@@ -177,7 +180,7 @@ export function KpiCard({
               {titulo}
             </span>
             {badge ? <Tag variant="qualificador">{badge}</Tag> : null}
-            <TooltipRastreabilidade meta={meta} criterio={criterio} titulo={titulo} className="ml-auto" />
+            <TooltipRastreabilidade meta={meta} criterio={criterio} titulo={titulo} ocultarFonte={ocultarFonte} className="ml-auto" />
           </div>
           {hint ? (
             <span data-testid="kpi-hint" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>

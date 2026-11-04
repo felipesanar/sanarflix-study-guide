@@ -7,6 +7,7 @@ import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
 const CommandCenterPage = lazy(() => import('@/experiences/admin/pages/CommandCenterPage'));
 const SimuladosPage = lazy(() => import('@/experiences/admin/pages/SimuladosPage'));
 const MonitoramentoPage = lazy(() => import('@/experiences/admin/pages/MonitoramentoPage'));
+const EngajamentoSanarflixPage = lazy(() => import('@/experiences/admin/pages/EngajamentoSanarflixPage'));
 const UsuariosPage = lazy(() => import('@/experiences/admin/pages/UsuariosPage'));
 const MentoresPage = lazy(() => import('@/experiences/admin/pages/MentoresPage'));
 const IesPage = lazy(() => import('@/experiences/admin/pages/IesPage'));
@@ -40,6 +41,7 @@ export const adminRoutes = (): RouteObject[] => [
       { index: true, element: <CommandCenterPage /> },
       { path: 'simulados', element: <SimuladosPage /> },
       { path: 'monitoramento', element: <MonitoramentoPage /> },
+      { path: 'engajamento', element: <EngajamentoSanarflixPage /> },
       { path: 'usuarios', element: <UsuariosPage /> },
       { path: 'mentores', element: <MentoresPage /> },
       { path: 'ies', element: <IesPage /> },

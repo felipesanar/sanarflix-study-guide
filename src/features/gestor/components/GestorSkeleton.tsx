@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
  * um loop infinito de CSS dentro da subárvore `.gestor-portal`, portanto
  * alcançado pelo bloco `prefers-reduced-motion` do tema.
  */
-const SHIMMER: React.CSSProperties = {
+export const SHIMMER: React.CSSProperties = {
   background:
     'linear-gradient(90deg, var(--gp-skeleton) 25%, var(--gp-skeleton-brilho) 50%, var(--gp-skeleton) 75%)',
   backgroundSize: '200% 100%',
