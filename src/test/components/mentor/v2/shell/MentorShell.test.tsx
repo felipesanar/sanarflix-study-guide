@@ -26,10 +26,6 @@ vi.mock('@/experiences/shared/ExperienceGuard', () => ({
     <div data-testid="experience-guard" data-experience={experience}>{children}</div>
   ),
 }));
-// A tela real do Início (T5) busca os próprios dados; o teste do shell só precisa do marcador da rota.
-vi.mock('@/features/mentor/routes/v2/Inicio', () => ({
-  default: () => <h1 data-testid="mentor-inicio">Início</h1>,
-}));
 vi.mock('@/features/mentor/components/aluno/DrawerAlunoHost', () => ({
   DrawerAlunoHost: () => {
     const container = useGestorPortalContainer();
