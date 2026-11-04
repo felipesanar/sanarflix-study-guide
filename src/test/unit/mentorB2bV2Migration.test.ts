@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const path = join(process.cwd(), 'supabase/migrations/20261104190000_mentor_b2b_v2.sql');
+const path = join(process.cwd(), 'supabase/migrations/20261104185935_mentor_b2b_v2.sql');
 const sql = existsSync(path) ? readFileSync(path, 'utf8') : '';
 const contracts = [
   ['mentor_visao_geral_b2b', 'date, date', 'get_gestor_visao_geral'],
@@ -184,7 +184,7 @@ describe('Mentor B2B V2 migration textual contract', () => {
 
 describe('normalização dos corpos copiados do Gestor', () => {
   it('remove comentários de linha sem cortar literais que contêm --', () => {
-    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20261104190000_mentor_b2b_v2.sql'), 'utf8');
+    const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20261104185935_mentor_b2b_v2.sql'), 'utf8');
     expect(sql).toContain(String.raw`regexp_replace(v_src, $re$('(?:[^']|'')*')|--[^\n]*$re$, '\1', 'g')`);
     const normalizar = (s: string) => s.replace(/('(?:[^']|'')*')|--[^\n]*/g, (_m, lit?: string) => lit ?? '');
     const origem = "v := 'pelo menos um registro -- inclui prova aberta'; -- comentário\nx := 1; -- outro";

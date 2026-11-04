@@ -1,4 +1,4 @@
--- Snapshot de produção do que a migration 20261104190000 (versão gravada 20261104185935) materializou. Só leitura; não é migration.
+-- Snapshot de produção do que a migration 20261104185935 (versão gravada 20261104185935) materializou. Só leitura; não é migration.
 -- Fonte: pg_get_functiondef no projeto gvqvrmkizemwsasmupmo, capturado em 2026-11-04.
 -- Funções: mentor_visao_geral_b2b, mentor_alunos_b2b, mentor_temas_turma_b2b, mentor_detalhamento_b2b, mentor_questoes_b2b, mentor_questao_respondentes_b2b, mentor_cronograma_b2b, mentor_aluno_b2b
 
