@@ -9,7 +9,6 @@ import {
   ComCarregamentoInicial,
   ROTEIRO_VISAO_GERAL,
 } from '@/features/gestor/components/engajamento/CarregamentoEngajamento';
-import { NivelEngajamento } from '@/features/gestor/components/engajamento/NivelEngajamento';
 import { EspecialidadesPraticadas } from '@/features/gestor/components/engajamento/EspecialidadesPraticadas';
 import { KpisEngajamento } from '@/features/gestor/components/engajamento/KpisEngajamento';
 import { QuemNaoVoltou } from '@/features/gestor/components/engajamento/QuemNaoVoltou';
@@ -62,8 +61,6 @@ export default function VisaoGeralEngajamento() {
           <EngajamentoMesAMes dados={data} consulta={consulta} />
           <DoAcessoAoHabito dados={data} consulta={consulta} filtros={filtros} />
         </div>
-
-        <NivelEngajamento dados={data} consulta={consulta} filtros={filtros} />
 
         <ConsumoAlunos
           dados={data}

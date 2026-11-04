@@ -21,6 +21,8 @@
 
 **Documentos que NÃO valem:** os arquivos da pasta `engajamento-no-academy/` no OneDrive (mart, arquitetura, spec antiga) estão deprecados. Não os use.
 
+**Alteração de 04/11/2026 (decisão de produto, supera o que a spec diz sobre o bloco):** o bloco **"Nível de engajamento"** (§4.4, §12.2, §13) saiu da Visão geral do portal do gestor e **não foi para nenhuma outra tela**; o admin segue como está (sem dado por aluno, P10). O texto da spec sobre o bloco fica como histórico. Efeitos no código: `NivelEngajamento.tsx` apagado; o "Exportar" da Visão geral passou a ter **7 seções** (sem "Nível de engajamento"); o pop-up de lista perdeu a coluna "Melhor mês" e os ramos das categorias de nível. No banco nada mudou: `get_gestor_engajamento_visao_geral` ainda devolve `niveis[]` e `get_gestor_engajamento_lista` ainda aceita `frequente`/`esporadico`/`parou`/`nunca`; ninguém no front os usa mais. **Limpeza do banco adiada (decisão de 04/11):** `eng_alunos_recorte` ainda calcula a coluna `nivel`, a RPC da visão geral ainda emite `niveis[]` (com 3 nomes de aluno por nível) e a lista ainda filtra por nível; é código morto mantido de propósito até uma migration própria. No front, os tipos `NivelEngajamento`, `NivelVisaoGeral`, `AmostraNivel` e o campo `niveis` foram removidos; `CategoriaLista` só tem faixas de recência e de hábito. As seções abaixo que descrevem a **tela** do bloco estão marcadas como removidas; as que descrevem o **banco** continuam valendo.
+
 ---
 
 ## 0. Como ler esta spec
@@ -308,17 +310,20 @@ Todos os exemplos usam a PARACATU, `[2026-05-01, 2026-10-22]` (P1, "Últimos 6 m
 
 | Faixa | Regra |
 |---|---|
-| Base ativa | `|B|`; barra de 100%, texto "· 100%" |
+| Alunos com atividade no mês | `ativosNoMes`; barra cinza de 100%, texto "· 100%" |
 | Baixo engajamento | `1 ≤ k ≤ 3` |
 | Médio engajamento | `4 ≤ k ≤ 7` |
 | Alto engajamento | `8 ≤ k ≤ 14` |
 | Altíssimo engajamento | `k ≥ 15` |
 
 - Percentual de cada faixa = `n ÷ ativosNoMes × 100`, com **1 casa decimal e vírgula** ("56,7% dos ativos no mês"). As quatro faixas somam `ativosNoMes`.
+- O preenchimento da barra de cada faixa usa o mesmo denominador do percentual: `n ÷ ativosNoMes`. A base ativa não é uma linha do bloco; aparece só na descrição.
 - Exemplo PARACATU, M = set/2026: ativos no mês 223 = 133 + 50 + 35 + 5 ✓.
-- Com aluno filtrado: cada faixa mostra "Sim" ou "Não". A barra fica 100% na faixa do aluno (e na Base ativa) e 0% nas demais. Se `k = 0`, todas as faixas mostram "Não" (exceto Base ativa).
+- Com aluno filtrado: cada faixa mostra "Sim" ou "Não". A barra fica 100% na faixa do aluno (e na linha "Alunos com atividade no mês") e 0% nas demais. Se `k = 0`, todas as linhas mostram "Não", inclusive "Alunos com atividade no mês".
 
-### 4.4 Nível de engajamento (4 cartões que somam a base)
+### 4.4 Nível de engajamento (4 cartões que somam a base) — REMOVIDO DA TELA em 04/11/2026
+
+> Histórico: a regra ainda é calculada no banco (`eng_alunos_recorte.nivel`), mas nenhuma tela a exibe.
 
 Para cada `a ∈ B`:
 - `rec(a)` = dias sem atividade (D7);
@@ -1695,7 +1700,7 @@ Exemplo: `{"data":{"data":[{"id":"…","nome":"Ana Clara Ribeiro","semestre":12,
 
 Alimenta:
 - a lista de prévia (5 alunos) e o pop-up "Ver lista completa" de **Quem não voltou**;
-- o pop-up "+N" dos cartões de **Nível de engajamento**;
+- ~~o pop-up "+N" dos cartões de **Nível de engajamento**~~ (removido da tela em 04/11/2026);
 - o "Exportar CSV" desses pop-ups, com `p_page_size` até 5.000.
 
 | `p_categoria` | Filtro | Ordem |
@@ -2283,8 +2288,8 @@ Caminhos relativos a `src/features/gestor/` (gestor) e `src/` (admin). Component
 | 5 KPIs (com aluno) | `KpisEngajamento.tsx` (modo aluno) | visão geral | `recorte.aluno`, `aluno.*`, `kpis.questoes`, `kpis.acertoPct` |
 | Engajamento mês a mês / Dias ativos mês a mês | `EngajamentoMesAMes.tsx` | visão geral | `meses[].pctBase`, `meses[].alunosAtivos`, `meses[].diasAtivos`, `meses[].parcial` |
 | Do acesso ao hábito | `DoAcessoAoHabito.tsx` | visão geral | `habito.*`, `kpis.baseAtiva` |
-| Nível de engajamento (4 cartões) | `NivelEngajamento.tsx` | visão geral | `niveis[]` |
-| Pop-up "+N" do cartão | `ListaAlunosDialog.tsx` | `get_gestor_engajamento_lista` (`p_categoria` = nível) | `data[]`, `total` |
+| ~~Nível de engajamento (4 cartões)~~ | ~~`NivelEngajamento.tsx`~~ | removido em 04/11/2026 (o banco ainda emite `niveis[]`, sem uso) | — |
+| ~~Pop-up "+N" do cartão~~ | — | removido em 04/11/2026 | — |
 | Consumo dos alunos: abas, KPIs, barras | `ConsumoAlunos.tsx` | visão geral | `consumo.*`, `meses[].questoes/videos/documentos`, `aluno.*` |
 | Tabela "Por aluno" | `TabelaPorAluno.tsx` | `get_gestor_engajamento_alunos` | `data[]`, `total` |
 | Exportar base de alunos (CSV) | `TabelaPorAluno.tsx` | `get_gestor_engajamento_export_alunos` | `alunos[]` |
@@ -2380,7 +2385,7 @@ src/features/gestor/
     FiguraGrafico.tsx               ← <figure> + role="img" + "Ver dados em tabela"
     BarrasMensais.tsx  LinhaMensal.tsx  BarrasPorSemestre.tsx  BarraHorizontal.tsx
     KpisEngajamento.tsx  EngajamentoMesAMes.tsx  DoAcessoAoHabito.tsx
-    NivelEngajamento.tsx  ListaAlunosDialog.tsx  ConsumoAlunos.tsx  TabelaPorAluno.tsx
+    ListaAlunosDialog.tsx  ConsumoAlunos.tsx  TabelaPorAluno.tsx
     DrawerAlunoEngajamento.tsx  QuemNaoVoltou.tsx  EspecialidadesPraticadas.tsx  ComparativoSemestres.tsx
     KpisQuestoes.tsx  GavetaTaxonomia.tsx  AlunosDoNoDialog.tsx
     KpisConteudos.tsx  GavetaConteudos.tsx  AlunosDoConteudoDialog.tsx
@@ -2672,16 +2677,16 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 - Título "Do acesso ao hábito".
 - Descrição: "Dias ativos em {mmm/aa} (último mês fechado) · {ativosNoMes} dos {baseAtiva} alunos tiveram atividade no mês".
 - Linhas (nome / descrição / valor):
-  - "Base ativa" / "Alunos com acesso vigente no SanarFlix" / "{baseAtiva}" + "· 100%";
+  - "Alunos com atividade no mês" / "Ao menos 1 dia ativo no mês" / "{ativosNoMes}" + "· 100%" (barra cinza 100%);
   - "Baixo engajamento" / "1 a 3 dias ativos no mês" / "{baixo}" + "· {x,x}% dos ativos no mês";
   - "Médio engajamento" / "4 a 7 dias ativos no mês" / idem;
   - "Alto engajamento" / "8 a 14 dias ativos no mês" / idem;
   - "Altíssimo engajamento" / "15 dias ou mais ativos no mês" / idem.
 - Com aluno:
   - descrição "Em que faixa {primeiro nome} ficou em {mmm/aa} · {diasAtivosAluno} dias ativos no mês";
-  - valor de cada linha "Sim"/"Não" (Base ativa: "Sim").
+  - valor de cada linha "Sim"/"Não" ("Alunos com atividade no mês": "Sim" se `diasAtivosAluno > 0`).
 
-**Nível de engajamento:**
+**Nível de engajamento — REMOVIDO em 04/11/2026 (texto abaixo é histórico, não implementar):**
 - Título "Nível de engajamento".
 - Descrição: "Combina recência (acessou nos últimos 30 dias?) com frequência (quantos dias estudou) · toda a base ativa cai em exatamente uma categoria".
 - Cartões (ordem fixa), nome e regra (a regra aparece na linha do cartão e no `title`/`aria-label` do ícone "i"):
@@ -2693,17 +2698,15 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 - Chips: os 3 nomes de `amostra`. Botão "+{total − amostra.length}" com `aria-label="Ver todos os {total} alunos com {nome do cartão em minúsculas}"`, só quando `total > amostra.length`.
 - Rodapé: "As quatro categorias somam a base ativa ({baseAtiva} alunos). Régua única: 15 dias ativos em 30 (ou num mês) define "frequente"." Com aluno: "(1 aluno)".
 
-**Pop-up de lista** (níveis e "Ver lista completa"):
-- Título = nome do cartão ou da faixa.
-- Subtítulo: "{total} alunos · {regra do cartão, só nos níveis} · {recorte}". {recorte}:
+**Pop-up de lista** (faixas de recência e de hábito; "Ver lista completa"). Os trechos sobre níveis foram removidos em 04/11/2026:
+- Título = nome da faixa.
+- Subtítulo: "{total} alunos · {regra da faixa de hábito, quando houver} · {recorte}". {recorte}:
   - "filtro: {nome do aluno}" (com aluno);
   - "filtro: {n}º semestre" (com semestre);
   - senão "{ies.nome} · {opção de período em minúsculas, ex.: últimos 6 meses}".
 - Busca: placeholder "Buscar aluno pelo nome" (rótulo visualmente oculto "Buscar aluno nesta lista"). Botão "Exportar CSV".
-- Colunas: "Aluno", "Sem.", "Última atividade" (níveis frequente/esporádico e faixas de recência) ou "Melhor mês" (níveis parou/nunca), "Dias sem consumo".
+- Colunas: "Aluno", "Sem.", "Última atividade" (faixas de recência) ou "Dias ativos no mês" (faixas do hábito), "Dias sem consumo".
 - Célula de detalhe:
-  - frequente/esporádico: "última: {recência} · {diasAtivos30} dias ativos em 30";
-  - parou/nunca: "{mmm/aa} · {melhorMesDias} dias ativos"; sem melhor mês e com alguma atividade: "— (sem atividade no período)"; nunca acessou: "— (nunca acessou)";
   - faixas de recência: `textoDetalhe(detalhe)` (§10.3).
 - "Dias sem consumo": número ou "—".
 - Rodapé: "Mostrando {a}–{b} de {total}" + botões "Anterior" e "Próxima". Fechar: `aria-label="Fechar lista"`.
@@ -2764,7 +2767,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 - Botão "Filtrar a página por este aluno": grava `aluno`, apaga `eng_sem` e fecha o drawer.
 
 **Quem não voltou:**
-- Título "Quem não voltou"; descrição "Base ativa pelo tempo desde a última atividade".
+- Título "Oportunidades de intervenção pedagógica" (antes "Quem não voltou"); descrição "Base ativa pelo tempo desde a última atividade". O card e o vizinho "Especialidades mais praticadas" têm sempre a mesma altura (`preencherAltura`).
 - Botão-link "Filtrar na tabela de alunos": liga "Sem atividade há 14 dias" na tabela e rola até `#consumo`.
 - Barra (`role="group"`, `aria-label="Distribuição da base pelo tempo desde a última atividade · clique numa faixa para listar os alunos"`).
 - Legenda/segmentos: "Ativos nos últimos 30 dias", "Sumidos há 30–59 dias", "Sumidos há 60+ dias", "Nunca acessaram" **(≠ mock: era "Nunca acessaram no período", D7)**.
@@ -2804,7 +2807,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
   - `role="treegrid"` com `aria-label="Questões por grande área, especialidade e tema"`;
   - cabeçalhos "Classificação", "Questões", "Alunos", "Acerto".
 - Faixas de seção:
-  - "Ciclo clínico e residência" (CSS uppercase), legenda "Grande área › especialidade › tema";
+  - "Ciclo clínico e internato" (CSS uppercase), legenda "Grande área › especialidade › tema";
   - "Ciclo básico", legenda "Disciplina › assunto";
   - colunas da faixa: total, "—", "{x}% de acerto".
 - Linhas:
@@ -2902,7 +2905,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 ## 13. Identidade visual
 
 - **Família de cor.** Vermelho da marca e neutros. **Sem verde em gráficos.**
-- **Exceção aprovada:** os 4 cartões de Nível de engajamento usam a família semântica, como o Diagnóstico Curricular (`CascataDiagnostico.tsx`).
+- ~~**Exceção aprovada:** os 4 cartões de Nível de engajamento usam a família semântica~~ (removida em 04/11/2026: o bloco saiu da tela).
 - **Literais proibidos:** nenhum hex, `rgb()` ou `rgba()` no código do gestor (guard `tema.test.tsx`). Tons intermediários usam `color-mix(in srgb, var(--gp-brand) N%, var(--gp-surface-1))`, o mesmo recurso que `SidebarNav.tsx` já usa. Assim o tema escuro se ajusta sozinho.
 
 | Mock | Uso | Token / expressão |
@@ -2912,7 +2915,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 | `#E0566C` | 2ª série, "Alto engajamento", "Sumidos 30–59" | `color-mix(in srgb, var(--gp-brand) 70%, var(--gp-surface-1))` |
 | `#F2A3B0` / `#E5A3A6` | "Médio engajamento", "Sumidos 60+", barra de mês parcial, barras de consumo dos meses fechados | `color-mix(in srgb, var(--gp-brand) 45%, var(--gp-surface-1))` |
 | `#F6BCC5` | "Baixo engajamento", 3ª série do drawer | `color-mix(in srgb, var(--gp-brand) 30%, var(--gp-surface-1))` |
-| `#D4D4D8` | "Base ativa" no hábito, "Nunca acessaram" | `var(--gp-border-input)` |
+| `#D4D4D8` | "Alunos com atividade no mês" no hábito, "Nunca acessaram" | `var(--gp-border-input)` |
 | `#FDEEF0` | superfícies de seleção, faixa de filtro, faixa de seção da gaveta | `var(--gp-brand-surface)` |
 | `#FDF2F3` | coluna realçada da aba ativa | `var(--gp-brand-surface-soft)` |
 | `#F6C9D0` | bordas de seleção | `var(--gp-brand-border)` |
@@ -2922,7 +2925,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 | `#52525B` / `#71717A` | textos secundários | `var(--gp-text-2)` / `var(--gp-text-3)` |
 | `#18181B` | texto e "traço preto" de média | `var(--gp-text-1)` |
 
-Cartões de Nível de engajamento:
+Cartões de Nível de engajamento (REMOVIDOS da tela em 04/11/2026; tabela histórica):
 
 | Cartão | Topo/ponto | Número/nome | Chip (fundo / borda / texto) | Ícone |
 |---|---|---|---|---|
@@ -2973,7 +2976,7 @@ WITH B AS (
 | V6 | Acertos/erros | idem V5 com `count(*) FILTER (WHERE f.acertou)` e `FILTER (WHERE f.acertou = false)` | `acertoPct` | 96.825 / 49.048 → 66,4% |
 | V7 | Vídeos e documentos | `SELECT content_type, count(*) FROM (SELECT DISTINCT c.sanarflix_user_id, c.event_date, c.content_id, c.content_type FROM fato_consumo_conteudo_b2b c JOIN B USING (sanarflix_user_id) WHERE c.event_date BETWEEN '2026-05-01' AND eng_hoje()) s GROUP BY 1;` | `consumo.videos.total`, `consumo.documentos.total`, `kpis.consumos` (Conteúdos, "Todos") | 8.810 / 5.027 |
 | V8 | Recência fecha | `SELECT ativos30 + sumidos30a59 + sumidos60 + nuncaAcessou` do JSON | = `kpis.baseAtiva` | 197+69+64+191 = 521 |
-| V9 | Níveis fecham | soma de `niveis[].total` | = `kpis.baseAtiva` | 4+193+15+309 = 521 |
+| V9 | ~~Níveis fecham~~ (sem tela desde 04/11/2026; o banco ainda emite `niveis[]`) | soma de `niveis[].total` | = `kpis.baseAtiva` | 4+193+15+309 = 521 |
 | V10 | Hábito fecha | `baixo + medio + alto + altissimo` | = `habito.ativosNoMes` | 133+50+35+5 = 223 |
 | V11 | Gaveta fecha | no JSON de Questões: Σ `grandesAreas[].questoes` = `clinico.questoes`; Σ `disciplinas[].questoes` = `basico.questoes`; `clinico + basico` = `total.questoes` = `kpis.questoes`; em cada nó, Σ filhos = nó | tudo igual | — |
 | V12 | Semestres fecham | Σ `semestres[].questoes` (Questões, sem `p_semestre`) | = `kpis.questoes` | — |
@@ -2982,7 +2985,7 @@ WITH B AS (
 | V15 | Proficiência | SQL `prof` da §8.10 isolada | `ranking[PARACATU].proficiencia` | 75,0% (338/452), "UNIATENAS - 10/09/26", 2026-09-10 |
 | V16 | Admin fecha com o gestor | `ranking[PARACATU]` (engajados, base, acerto) | = `get_gestor_engajamento_visao_geral` da PARACATU, mesmo período | — |
 | V17 | Admin fecha com a rede | Σ `ranking[].base` = `rede.baseAtiva`; Σ `ranking[].engajados` = `rede.engajados` | iguais | base ≈ 7.120 |
-| V18 | Lista = cartão | `get_gestor_engajamento_lista(…, 'parou', …).total` = `niveis[parou].total`; idem para as 9 categorias | iguais | — |
+| V18 | Lista = cartão | `get_gestor_engajamento_lista(…, 'sumidos60', …).total` = `recencia.sumidos60`; idem para as faixas de recência e de hábito | iguais | — |
 | V19 | Tabela = base | `get_gestor_engajamento_alunos(…).total` sem busca/filtro = `kpis.baseAtiva` | iguais | 521 |
 | V20 | Segurança | (a) como `anon`: qualquer RPC → erro de permissão; (b) gestor de **outra** IES chamando com o id da PARACATU → `Permission denied: cannot access this IES`; (c) gestor chamando `get_admin_engajamento` → `admin role required`; (d) `SELECT grantee, table_name FROM information_schema.role_table_grants WHERE table_name LIKE 'eng\_%' AND grantee IN ('anon', 'authenticated');` → 0 linhas | como descrito | — |
 | V21 | Idempotência | rodar `eng_refresh('manual')` duas vezes; as `contagens` das duas linhas de log são iguais, exceto timestamps | iguais | — |

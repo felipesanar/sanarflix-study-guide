@@ -43,14 +43,13 @@ describe('nomeArquivoExportacao', () => {
 });
 
 describe('secoesVisaoGeral', () => {
-  it('as 8 seções da §10.7, na ordem, cada uma com o recorte na linha do título', () => {
+  it('as 7 seções da §10.7, na ordem, cada uma com o recorte na linha do título (sem "Nível de engajamento")', () => {
     const s = secoesVisaoGeral(visaoGeralParacatu(), RECORTE);
     expect(titulos(s)).toEqual([
       `Indicadores · ${REC_TXT}`,
       `Engajamento mês a mês · ${REC_TXT}`,
       `Do acesso ao hábito (set/26) · ${REC_TXT}`,
-      `Nível de engajamento · ${REC_TXT}`,
-      `Quem não voltou · ${REC_TXT}`,
+      `Oportunidades de intervenção pedagógica · ${REC_TXT}`,
       `Consumo por mês · ${REC_TXT}`,
       `Especialidades mais praticadas · ${REC_TXT}`,
       `Comparativo entre semestres · ${REC_TXT}`,
@@ -62,7 +61,6 @@ describe('secoesVisaoGeral', () => {
       ['Indicador', 'Valor'],
       ['Mês', 'Alunos ativos', '% da base ativa'],
       ['Faixa', 'Alunos', '% dos ativos no mês'],
-      ['Categoria', 'Alunos', '% da base'],
       ['Faixa', 'Alunos', '% da base'],
       ['Mês', 'Questões', '% de acerto', 'Vídeos', 'Documentos'],
       ['Especialidade', 'Questões', '% de acerto'],
@@ -70,15 +68,18 @@ describe('secoesVisaoGeral', () => {
     ]);
   });
 
-  it('os números são os da tela: indicadores, hábito, níveis e recência', () => {
+  it('os números são os da tela: indicadores, hábito e recência; os níveis (removidos da tela) não saem', () => {
     const texto = csv(secoesVisaoGeral(visaoGeralParacatu(), RECORTE));
     expect(texto).toContain('Base ativa;521');
     expect(texto).toContain('Alunos engajados;330');
     expect(texto).toContain('% de alunos engajados;63,3%');
     expect(texto).toContain('Questões resolvidas;145873');
+    expect(texto).toContain('Alunos com atividade no mês (1 dia ou mais);223;');
     expect(texto).toContain('Baixo engajamento (1 a 3 dias);133;59,6%');
-    expect(texto).toContain('Ativo e frequente;4;0,8%');
-    expect(texto).toContain('Era frequente e parou;15;2,9%');
+    expect(texto).not.toContain('Nível de engajamento');
+    expect(texto).not.toContain('Ativo e frequente');
+    expect(texto).not.toContain('Era frequente e parou');
+    expect(texto).not.toContain('Nunca engajou');
     expect(texto).toContain('Sumidos há 30–59 dias;69;13,2%');
     expect(texto).toContain('Nunca acessaram;191;36,7%');
   });
@@ -98,14 +99,10 @@ describe('secoesVisaoGeral', () => {
     expect(csv(s)).toContain('mai/26;6');
   });
 
-  it('nenhum e-mail, id de aluno ou amostra nominal no CSV agregado', () => {
+  it('nenhum e-mail, id de aluno ou nome da prévia no CSV agregado', () => {
     const d = visaoGeralParacatu();
     const texto = csv(secoesVisaoGeral(d, RECORTE));
     expect(texto).not.toMatch(/@/);
-    for (const n of d.niveis) for (const a of n.amostra) {
-      expect(texto).not.toContain(a.nome);
-      expect(texto).not.toContain(a.id);
-    }
     for (const p of d.recencia.previaSumidos30mais) {
       expect(texto).not.toContain(p.nome);
       expect(texto).not.toContain(p.id);

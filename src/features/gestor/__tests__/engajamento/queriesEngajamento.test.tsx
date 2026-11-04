@@ -101,13 +101,13 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
       ],
       [
         'lista',
-        () => useEngajamentoLista({ ...F, semestre: 8 }, 'parou', 'bia', 2, 5),
+        () => useEngajamentoLista({ ...F, semestre: 8 }, 'sumidos60', 'bia', 2, 5),
         'get_gestor_engajamento_lista',
         {
-          ...base, p_semestre: 8, p_aluno: null, p_categoria: 'parou', p_busca: 'bia',
+          ...base, p_semestre: 8, p_aluno: null, p_categoria: 'sumidos60', p_busca: 'bia',
           p_page: 2, p_page_size: 5,
         },
-        ['gestor', 'u1', 'engajamento', 'lista', 'ies-1', '2026-05-01', '2026-10-22', 8, null, 'parou', 'bia', 2, 5],
+        ['gestor', 'u1', 'engajamento', 'lista', 'ies-1', '2026-05-01', '2026-10-22', 8, null, 'sumidos60', 'bia', 2, 5],
       ],
       [
         'aluno',
@@ -181,7 +181,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
     const hooks: Array<() => { isLoading: boolean }> = [
       () => useEngajamentoVisaoGeral(semIes),
       () => useEngajamentoAlunos(semIes, 'questoes', 'desc', '', false, 1),
-      () => useEngajamentoLista(semIes, 'parou', '', 1, 20),
+      () => useEngajamentoLista(semIes, 'sumidos60', '', 1, 20),
       () => useEngajamentoAluno(semIes, 'aluno-7'),
       () => useEngajamentoQuestoes(semIes),
       () => useEngajamentoQuestoesAlunos(semIes, 'folha-9'),
@@ -248,7 +248,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
     });
 
     it.each([
-      ['useEngajamentoLista', (alvo: string) => useEngajamentoLista(F, alvo as 'parou', '', 1, 20)],
+      ['useEngajamentoLista', (alvo: string) => useEngajamentoLista(F, alvo as 'sumidos60', '', 1, 20)],
       ['useEngajamentoAluno', (alvo: string) => useEngajamentoAluno(F, alvo)],
       ['useEngajamentoQuestoesAlunos', (alvo: string) => useEngajamentoQuestoesAlunos(F, alvo)],
       ['useEngajamentoConteudoAlunos', (alvo: string) =>
@@ -258,7 +258,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
       mockRpc.mockResolvedValue(envelope({ marca: 'A' }));
       const { result, rerender } = renderHook(({ alvo }: { alvo: string }) => hook(alvo), {
         wrapper,
-        initialProps: { alvo: 'parou' },
+        initialProps: { alvo: 'sumidos60' },
       });
       await waitFor(() => expect(result.current.data).toEqual({ marca: 'A' }));
       mockRpc.mockReturnValue(new Promise(() => undefined));
@@ -310,12 +310,12 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
 
   describe('funções assíncronas (não são hooks)', () => {
     it('buscarListaCompleta chama a lista com p_page_size 5000, pede o e-mail e devolve a página inteira', async () => {
-      const pagina = { categoria: 'parou', data: [{ id: 'a1', email: 'a1@x.com' }], page: 1, pageSize: 5000, total: 1, totalPages: 1 };
+      const pagina = { categoria: 'sumidos60', data: [{ id: 'a1', email: 'a1@x.com' }], page: 1, pageSize: 5000, total: 1, totalPages: 1 };
       mockRpc.mockResolvedValue(envelope(pagina));
-      const resultado = await buscarListaCompleta({ ...F, semestre: 8 }, 'parou', 'ana');
+      const resultado = await buscarListaCompleta({ ...F, semestre: 8 }, 'sumidos60', 'ana');
       expect(mockRpc).toHaveBeenCalledWith('get_gestor_engajamento_lista', {
         p_ies_id: 'ies-1', p_inicio: '2026-05-01', p_fim: '2026-10-22', p_semestre: 8, p_aluno: null,
-        p_categoria: 'parou', p_busca: 'ana', p_page: 1, p_page_size: 5000, p_com_email: true,
+        p_categoria: 'sumidos60', p_busca: 'ana', p_page: 1, p_page_size: 5000, p_com_email: true,
       });
       expect(resultado).toEqual(pagina);
     });
@@ -332,7 +332,7 @@ describe('hooks de RPC do Engajamento (spec §10.4)', () => {
     });
 
     it('sem IES, as duas funções recusam em vez de chamar a RPC com p_ies_id nulo', async () => {
-      await expect(buscarListaCompleta({ ...F, iesId: null }, 'parou', '')).rejects.toThrow(/IES/);
+      await expect(buscarListaCompleta({ ...F, iesId: null }, 'sumidos60', '')).rejects.toThrow(/IES/);
       await expect(buscarExportAlunos({ ...F, iesId: null }, 'questoes', 'desc', '', false)).rejects.toThrow(/IES/);
       expect(mockRpc).not.toHaveBeenCalled();
     });

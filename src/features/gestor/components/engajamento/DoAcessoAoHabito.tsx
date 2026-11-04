@@ -16,7 +16,7 @@ export interface DoAcessoAoHabitoProps {
 }
 
 interface LinhaHabito {
-  chave: 'base' | 'baixo' | 'medio' | 'alto' | 'altissimo';
+  chave: 'ativos' | 'baixo' | 'medio' | 'alto' | 'altissimo';
   nome: string;
   descricao: string;
   /** Cor da barra (§13). */
@@ -24,7 +24,7 @@ interface LinhaHabito {
 }
 
 const LINHAS: LinhaHabito[] = [
-  { chave: 'base', nome: 'Base ativa', descricao: 'Alunos com acesso vigente no SanarFlix', cor: 'var(--gp-border-input)' },
+  { chave: 'ativos', nome: 'Alunos com atividade no mês', descricao: 'Ao menos 1 dia ativo no mês', cor: 'var(--gp-border-input)' },
   {
     chave: 'baixo',
     nome: 'Baixo engajamento',
@@ -46,7 +46,7 @@ const LINHAS: LinhaHabito[] = [
   { chave: 'altissimo', nome: 'Altíssimo engajamento', descricao: '15 dias ou mais ativos no mês', cor: 'var(--gp-brand-strong)' },
 ];
 
-type ChaveFaixa = Exclude<LinhaHabito['chave'], 'base'>;
+type ChaveFaixa = Exclude<LinhaHabito['chave'], 'ativos'>;
 const CATEGORIA_DA_FAIXA: Record<ChaveFaixa, FaixaHabito> = {
   baixo: 'habito_baixo',
   medio: 'habito_medio',
@@ -55,11 +55,12 @@ const CATEGORIA_DA_FAIXA: Record<ChaveFaixa, FaixaHabito> = {
 };
 
 /**
- * "Do acesso ao hábito" (spec §4.3, §12.2): a base ativa e, abaixo, quantos
- * alunos ficaram em cada faixa de dias ativos no último mês fechado. A barra de
- * cada linha é a fração da BASE ATIVA (a primeira é 100%); o texto "· x,x% dos
- * ativos no mês" é a fração de quem teve atividade no mês (as quatro faixas somam
- * `ativosNoMes`).
+ * "Do acesso ao hábito" (spec §4.3, §12.2): os alunos que tiveram atividade no
+ * último mês fechado e, abaixo, quantos ficaram em cada faixa de dias ativos.
+ * A barra de cada linha e o texto "· x,x% dos ativos no mês" usam o mesmo
+ * denominador: quem teve atividade no mês (`ativosNoMes`; a primeira linha é
+ * 100% e as quatro faixas somam esse total). A base ativa aparece só na
+ * descrição do bloco.
  *
  * Clicar numa das quatro faixas abre um pop-up com os alunos dela (Aluno, Sem.,
  * Dias ativos no mês, Dias sem consumo). O bloco não muda de tamanho. Cada faixa
@@ -96,10 +97,10 @@ export function DoAcessoAoHabito({ dados, consulta, filtros }: DoAcessoAoHabitoP
       <ul className="m-0 flex list-none flex-col p-0" style={{ gap: 14 }}>
         {habito
           ? LINHAS.map((linha) => {
-              const n = linha.chave === 'base' ? baseAtiva : habito[linha.chave];
-              const dentro = linha.chave === 'base' || n > 0;
-              const pctBarra = alunoRecorte ? (dentro ? 100 : 0) : baseAtiva > 0 ? (100 * n) / baseAtiva : 0;
-              const chaveFaixa = linha.chave === 'base' ? null : linha.chave;
+              const n = linha.chave === 'ativos' ? habito.ativosNoMes : habito[linha.chave];
+              const dentro = n > 0;
+              const pctBarra = alunoRecorte ? (dentro ? 100 : 0) : habito.ativosNoMes > 0 ? (100 * n) / habito.ativosNoMes : 0;
+              const chaveFaixa = linha.chave === 'ativos' ? null : linha.chave;
               const clicavel = filtrosLista !== null && chaveFaixa !== null;
               const conteudo = (
                 <>
@@ -117,7 +118,7 @@ export function DoAcessoAoHabito({ dados, consulta, filtros }: DoAcessoAoHabitoP
                         <>
                           <strong data-testid="habito-valor">{formatNumero(n)}</strong>
                           <span style={{ marginLeft: 6, fontSize: 'var(--gp-font-size-apoio)', color: 'var(--gp-text-3)' }}>
-                            {linha.chave === 'base'
+                            {linha.chave === 'ativos'
                               ? '· 100%'
                               : `· ${pct1(habito.ativosNoMes > 0 ? (100 * n) / habito.ativosNoMes : null)} dos ativos no mês`}
                           </span>

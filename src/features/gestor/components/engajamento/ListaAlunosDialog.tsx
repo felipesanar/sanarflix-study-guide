@@ -18,25 +18,22 @@ import type { CategoriaLista, LinhaListaEngajamento } from '@/features/gestor/ap
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { useValorComAtraso } from '@/features/gestor/hooks/useValorComAtraso';
 import { baixarCsv, nomeArquivoCsv, type ColunaCsv } from '@/features/gestor/lib/exportarCsv';
-import { mesAno, rotuloRecencia, slugIes, textoDetalhe } from '@/features/gestor/lib/engajamento';
+import { slugIes, textoDetalhe } from '@/features/gestor/lib/engajamento';
 import { formatNumero, TRACO } from '@/features/gestor/lib/formatters';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 /** Linhas por página do pop-up (a RPC aceita 1–5.000). */
 export const PAGE_SIZE_LISTA = 20;
 
-const CATEGORIAS_FREQUENTE: CategoriaLista[] = ['frequente', 'esporadico'];
-const CATEGORIAS_NIVEL: CategoriaLista[] = ['frequente', 'esporadico', 'parou', 'nunca'];
-
-export type ColunaDetalhe = 'ultima' | 'melhorMes' | 'diasAtivosMes';
+export type ColunaDetalhe = 'ultima' | 'diasAtivosMes';
 
 export interface ListaAlunosDialogProps {
   categoria: CategoriaLista;
-  /** Nome do cartão ou da faixa. */
+  /** Nome da faixa. */
   titulo: string;
-  /** Regra do cartão de nível; as faixas de recência não têm. */
+  /** Descrição da faixa do hábito; as faixas de recência não têm. */
   regra?: string;
-  /** `ultima`: "Última atividade"; `melhorMes`: "Melhor mês" (níveis parou/nunca); `diasAtivosMes`: faixas do hábito. */
+  /** `ultima`: "Última atividade" (faixas de recência); `diasAtivosMes`: faixas do hábito. */
   colunaDetalhe: ColunaDetalhe;
   filtros: FiltrosRecorteEngajamento;
   iesNome: string;
@@ -64,39 +61,23 @@ export function rotuloRecorteLista({
   return `${iesNome} · ${periodoRotulo}`;
 }
 
-/** Texto da coluna de detalhe de uma linha (§12.2): depende da categoria e da coluna. */
-export function textoDetalheLinha(
-  linha: LinhaListaEngajamento,
-  categoria: CategoriaLista,
-  coluna: ColunaDetalhe,
-): string {
+/** Texto da coluna de detalhe de uma linha (§12.2): depende da coluna. */
+export function textoDetalheLinha(linha: LinhaListaEngajamento, coluna: ColunaDetalhe): string {
   if (coluna === 'diasAtivosMes') return formatNumero(linha.diasAtivosMes);
-  if (coluna === 'melhorMes') {
-    if (linha.melhorMes) return `${mesAno(linha.melhorMes)} · ${formatNumero(linha.melhorMesDias)} dias ativos`;
-    return linha.diasSemAtividade === null ? '— (nunca acessou)' : '— (sem atividade no período)';
-  }
-  if (CATEGORIAS_FREQUENTE.includes(categoria)) {
-    return `última: ${rotuloRecencia(linha.diasSemAtividade)} · ${formatNumero(linha.diasAtivos30)} dias ativos em 30`;
-  }
   return textoDetalhe(linha.detalhe);
 }
 
 const CABECALHO_DETALHE: Record<ColunaDetalhe, string> = {
   ultima: 'Última atividade',
-  melhorMes: 'Melhor mês',
   diasAtivosMes: 'Dias ativos no mês',
 };
 
-function mensagemVazio(categoria: CategoriaLista): string {
-  return CATEGORIAS_NIVEL.includes(categoria)
-    ? 'Nenhum aluno nesta categoria neste recorte'
-    : 'Nenhum aluno nesta faixa neste recorte.';
-}
+const MENSAGEM_VAZIO = 'Nenhum aluno nesta faixa neste recorte.';
 
 /**
- * Pop-up de lista de alunos (spec §8.3, §12.2): "+N" dos cartões de Nível de
- * engajamento e "Ver lista completa" de Quem não voltou. Busca por nome (300 ms),
- * paginação de 20 e "Exportar CSV" (só com `podeExportar`; baixa até 5.000 linhas).
+ * Pop-up de lista de alunos (spec §8.3, §12.2): "Ver lista completa" de Quem não
+ * voltou e as faixas de Do acesso ao hábito. Busca por nome (300 ms), paginação de
+ * 20 e "Exportar CSV" (só com `podeExportar`; baixa até 5.000 linhas).
  */
 export function ListaAlunosDialog({
   categoria,
@@ -148,7 +129,7 @@ export function ListaAlunosDialog({
         { cabecalho: 'Aluno', valor: (l) => l.nome },
         { cabecalho: 'E-mail cadastrado', valor: (l) => l.email ?? '' },
         { cabecalho: 'Semestre', valor: (l) => l.semestre },
-        { cabecalho: cabecalhoDetalhe, valor: (l) => textoDetalheLinha(l, categoria, colunaDetalhe) },
+        { cabecalho: cabecalhoDetalhe, valor: (l) => textoDetalheLinha(l, colunaDetalhe) },
         { cabecalho: 'Dias sem consumo', valor: (l) => l.diasSemAtividade },
       ];
       baixarCsv(nomeArquivoCsv(['engajamento', categoria, slugIes(iesNome)]), colunas, completa.data);
@@ -226,7 +207,7 @@ export function ListaAlunosDialog({
                       colSpan={4}
                       style={{ padding: 24, textAlign: 'center', color: 'var(--gp-text-3)', fontSize: 'var(--gp-font-size-body)' }}
                     >
-                      {mensagemVazio(categoria)}
+                      {MENSAGEM_VAZIO}
                     </td>
                   </tr>
                 ) : (
@@ -234,7 +215,7 @@ export function ListaAlunosDialog({
                     <LinhaTabela key={l.id} ultima={i === lista.data.length - 1}>
                       <Celula>{l.nome}</Celula>
                       <Celula>{l.semestre}º</Celula>
-                      <Celula>{textoDetalheLinha(l, categoria, colunaDetalhe)}</Celula>
+                      <Celula>{textoDetalheLinha(l, colunaDetalhe)}</Celula>
                       <Celula numerica ausente={l.diasSemAtividade === null}>
                         {l.diasSemAtividade === null ? TRACO : formatNumero(l.diasSemAtividade)}
                       </Celula>

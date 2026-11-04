@@ -123,7 +123,7 @@ function PreviaDaFaixa({
 }
 
 /**
- * "Quem não voltou" (spec §4.1, §12.2): a base ativa repartida pelo tempo desde a
+ * "Oportunidades de intervenção pedagógica" (antes "Quem não voltou"; spec §4.1, §12.2): a base ativa repartida pelo tempo desde a
  * última atividade, numa barra empilhada cujos segmentos são botões. Sem faixa
  * selecionada, a prévia lista os 5 sumidos há mais tempo; com faixa, os 5
  * primeiros dela. "Ver lista completa" abre o pop-up quando há mais de 5.
@@ -148,7 +148,7 @@ export function QuemNaoVoltou({ dados, consulta, filtros, onFiltrarTabela }: Que
 
   return (
     <BlocoEngajamento
-      titulo="Quem não voltou"
+      titulo="Oportunidades de intervenção pedagógica"
       descricao="Base ativa pelo tempo desde a última atividade"
       acao={
         <button
@@ -163,6 +163,7 @@ export function QuemNaoVoltou({ dados, consulta, filtros, onFiltrarTabela }: Que
       consulta={consulta}
       alturaSkeleton={360}
       bloco="quem-nao-voltou"
+      preencherAltura
     >
       {dados ? (
         <>
