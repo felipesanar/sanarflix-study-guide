@@ -185,9 +185,9 @@ function useAcoes(modalidade: Modalidade, toast: ReturnType<typeof useToast>) {
     intervencaoTema: (area: string, esp: string, t: AcertoTema) =>
       void criar(`tema:${area}|${esp}|${t.tema}`, t.tema, t.acertoPct, 'tema_critico', `: ${t.tema}`),
     intervencaoQuestao: (q: QuestaoResumoMentor) =>
-      void criar(`questao:${q.questaoId}`, `${q.numero === null ? 'Questão' : formatNumeroQuestao(q.numero)} · ${q.tema}`, q.acertoPct, 'questao', ''),
+      void criar(`questao:${q.questaoId}`, `${q.numero === null ? 'Questão' : formatNumeroQuestao(q.numero)} · ${q.temaCurto ?? q.tema}`, q.acertoPct, 'questao', ''),
     mensagemQuestao: (q: QuestaoResumoMentor, _letra: string, emails: string[]) =>
-      navigate(urlMuralPreenchido(modalidade, { para: emails, tag: 'desempenho', titulo: `${q.tema}: o erro que mais apareceu` })),
+      navigate(urlMuralPreenchido(modalidade, { para: emails, tag: 'desempenho', titulo: `${q.temaCurto ?? q.tema}: o erro que mais apareceu` })),
     levarMural: (d: Diagnostico, ultimo: SimuladoMentor) =>
       navigate(urlMuralPreenchido(modalidade, {
         tag: 'desempenho',

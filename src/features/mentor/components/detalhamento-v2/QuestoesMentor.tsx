@@ -175,7 +175,7 @@ export function QuestoesMentor(p: QuestoesMentorProps) {
                         </Celula>
                         <Celula><span className="block max-w-[200px] truncate" title={q.grandeArea}>{q.grandeArea}</span></Celula>
                         <Celula><span className="block max-w-[200px] truncate" title={q.especialidade ?? undefined}>{q.especialidade ?? '—'}</span></Celula>
-                        <Celula><span className="block max-w-[240px]" title={q.tema}>{q.tema}</span></Celula>
+                        <Celula><span className="block max-w-[240px]" title={q.tema}>{q.temaCurto ?? q.tema}</span></Celula>
                         <Celula>
                           <span className="flex items-center gap-2">
                             <span aria-hidden="true" className="block h-1.5 flex-1 overflow-hidden" style={{ borderRadius: 999, background: 'var(--gp-border-subtle)', minWidth: 48 }}>
