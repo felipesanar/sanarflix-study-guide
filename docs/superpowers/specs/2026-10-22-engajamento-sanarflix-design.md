@@ -2807,7 +2807,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
   - `role="treegrid"` com `aria-label="Questões por grande área, especialidade e tema"`;
   - cabeçalhos "Classificação", "Questões", "Alunos", "Acerto".
 - Faixas de seção:
-  - "Ciclo clínico e residência" (CSS uppercase), legenda "Grande área › especialidade › tema";
+  - "Ciclo clínico e internato" (CSS uppercase), legenda "Grande área › especialidade › tema";
   - "Ciclo básico", legenda "Disciplina › assunto";
   - colunas da faixa: total, "—", "{x}% de acerto".
 - Linhas:
