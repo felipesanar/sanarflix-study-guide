@@ -25,12 +25,12 @@ Nenhuma chamada manda lista de alunos para ampliar o recorte.
 
 ## RPCs (contrato com o banco)
 
-- Operacionais (migration `20261104120000_mentor_portal_v2.sql`): `get_mentor_contexto` (com `portal_mentor`,
+- Operacionais (migration `20261104181315_mentor_portal_v2.sql`): `get_mentor_contexto` (com `portal_mentor`,
   `tribo_slug`, `modalidade`), `mentor_canais_listar`, `mentor_canal_grupo_salvar`, `mentor_mural_listar|salvar|excluir`,
   `mentor_sessoes_listar`, `mentor_sessao_salvar|marcar_feita|excluir`, `mentor_agenda_liberar|desligar`,
   `mentor_convites_listar`, `mentor_intervencoes_listar`, `mentor_intervencao_criar|atualizar|comentar`,
   `registrar_evento_mentor`, `mentor_rotina_listar|marcar_enviado`, `mentor_sinalizar_ies`, `mentor_perolas_listar|salvar`.
-- B2C (migration `20261104130000_mentor_b2c_v2.sql`): `mentor_turma`, `mentor_desempenho_turma`, `mentor_serie_turma`,
+- B2C (migration `20261104181551_mentor_b2c_v2.sql`): `mentor_turma`, `mentor_desempenho_turma`, `mentor_serie_turma`,
   `mentor_engajamento_turma`, `mentor_temas_turma`, `mentor_detalhamento(p_simulados, p_emails)`, `mentor_questao`,
   `mentor_aluno`, `mentor_aluno_notas`, `mentor_aluno_conteudos`, `mentor_aluno_questoes`.
 - B2B (migration `20261104140000_mentor_b2b_v2.sql`): `mentor_visao_geral_b2b`, `mentor_alunos_b2b`,

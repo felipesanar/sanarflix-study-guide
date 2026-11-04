@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const migration = (name: string) => readFileSync(join(process.cwd(), 'supabase/migrations', name), 'utf8');
-const path = join(process.cwd(), 'supabase/migrations/20261104130000_mentor_b2c_v2.sql');
+const path = join(process.cwd(), 'supabase/migrations/20261104181551_mentor_b2c_v2.sql');
 const SQL = existsSync(path) ? readFileSync(path, 'utf8') : '';
 const fn = (name: string, sql = SQL) => {
   const match = sql.match(new RegExp(`create (?:or replace )?function public\\.${name}\\([\\s\\S]*?\\$function\\$;`, 'i'));

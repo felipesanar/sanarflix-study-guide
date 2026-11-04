@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const path = join(process.cwd(), 'supabase/migrations/20261104120000_mentor_portal_v2.sql');
+const path = join(process.cwd(), 'supabase/migrations/20261104181315_mentor_portal_v2.sql');
 const SQL = existsSync(path) ? readFileSync(path, 'utf8') : '';
 const functions = [...SQL.matchAll(/create or replace function public\.(\w+)\(([\s\S]*?)\)\s*returns ([\s\S]*?)as \$function\$([\s\S]*?)\$function\$;/gi)];
 const body = (name: string) => functions.find((f) => f[1] === name)?.[4] ?? '';
