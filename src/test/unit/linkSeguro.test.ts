@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ehLinkHttp, ehLinkHttps } from '@/features/mentor/lib/linkSeguro';
 import { ehLinkHttps as ehLinkHttpsSessoes, ehLinkSeguro } from '@/features/mentor/components/sessoes/dataHora';
-import { validarFormulario, formularioVazio } from '@/features/mentor/components/mural/muralUtils';
 import { formatPct as formatPctDetalhamento } from '@/features/mentor/components/detalhamento/util';
 import { formatPct as formatPctTurma } from '@/features/mentor/components/turma/simulados';
 
@@ -36,17 +35,6 @@ describe('ehLinkHttps', () => {
     expect(ehLinkHttpsSessoes).toBe(ehLinkHttps);
     expect(ehLinkSeguro).toBe(ehLinkHttps);
     expect(ehLinkSeguro('http://exemplo.com')).toBe(false);
-  });
-});
-
-describe('Mural: validação do link', () => {
-  const base = { ...formularioVazio(), tag: 'Aviso', titulo: 't', mensagem: 'm', linkTitulo: 'l' };
-  const erros = (linkUrl: string) => validarFormulario({ ...base, linkUrl });
-  it('aceita https e recusa http, https vazio e URL com espaço no meio', () => {
-    expect(erros('https://exemplo.com/a')).toEqual([]);
-    expect(erros('http://exemplo.com')).toContain('Use um link https://');
-    expect(erros('https://')).toContain('Use um link https://');
-    expect(erros('https://exemplo.com/a b')).toContain('Use um link https://');
   });
 });
 

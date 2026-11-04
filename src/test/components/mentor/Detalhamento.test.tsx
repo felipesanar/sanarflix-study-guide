@@ -36,7 +36,6 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 import Detalhamento from '@/features/mentor/routes/Detalhamento';
 import { simuladoB2C } from './fixtures';
-import Mural from '@/features/mentor/routes/Mural';
 import { parseEmailsParam } from '@/features/mentor/lib/emailsParam';
 
 function alunoDes(email: string, nome: string, notas: [string, number, number][]): AlunoDesempenho {
@@ -422,47 +421,15 @@ describe('Detalhamento por simulados', () => {
     });
   });
 
-  it('Detalhamento → "Mensagem pra quem marcou C" → Mural recebe todos os destinatários pelo href gerado', async () => {
-    const { unmount } = renderPagina();
+  it('Detalhamento → "Mensagem pra quem marcou C" gera o href do Mural com todos os destinatários', async () => {
+    renderPagina();
     await screen.findAllByRole('button', { name: /^Q[0-9]+/ }, T);
     fireEvent.click(screen.getByRole('button', { name: /^Q2(?![0-9])/ }));
     const painel = await screen.findByRole('dialog');
     fireEvent.click(within(painel).getByRole('button', { name: 'Mensagem pra quem marcou C' }));
     const href = navigate.mock.calls[0][0] as string;
-    // A URL gerada, lida do mesmo jeito que o Mural a lê.
+    // A URL gerada, lida do mesmo jeito que o Mural v2 a lê (`?para=`; ver mural-v2/deepLinkMural.ts).
     const bruto = new URL(href, 'http://x').searchParams.get('para');
     expect(parseEmailsParam(bruto)).toEqual(['a@x.com', 'c@x.com']);
-
-    unmount();
-    const membro = (email: string, nome: string) => ({
-      email,
-      nome,
-      telefone: null,
-      semestre: 1,
-      acesso_ate: null,
-      b2b: false,
-      academy_user_id: null,
-      sanarflix_user_id: null,
-      ultima_atividade: null,
-      dias_sem_atividade: 0,
-      segmento: 'ativo',
-    });
-    fetchTurma.mockResolvedValue([
-      membro('a@x.com', 'Ana Souza'),
-      membro('b@x.com', 'Bruno Lima'),
-      membro('c@x.com', 'Carla Dias'),
-    ]);
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={[href]}>
-          <Mural />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-    expect(await screen.findByRole('button', { name: 'Remover Ana Souza' }, T)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Remover Carla Dias' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remover Bruno Lima' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Publicar para 2 alunos' })).toBeInTheDocument();
   });
 });
