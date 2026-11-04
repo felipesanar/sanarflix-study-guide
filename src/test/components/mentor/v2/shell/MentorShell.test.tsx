@@ -11,6 +11,16 @@ import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 vi.mock('@/features/mentor/api/queries', () => ({ useMe: vi.fn(), useContagensNav: vi.fn() }));
+// O shell testa roteamento: cada tela vira um stub com o mesmo título (as telas têm testes próprios).
+const telaStub = (titulo: string, testId: string) => ({ default: () => <h1 data-testid={testId}>{titulo}</h1> });
+vi.mock('@/features/mentor/routes/v2/Inicio', () => telaStub('Início', 'mentor-inicio'));
+vi.mock('@/features/mentor/routes/v2/MinhaTurma', () => telaStub('Minha Turma', 'mentor-minha-turma'));
+vi.mock('@/features/mentor/routes/v2/VisaoGeral', () => telaStub('Visão Geral', 'mentor-visao-geral'));
+vi.mock('@/features/mentor/routes/v2/Detalhamento', () => telaStub('Detalhamento por Simulados', 'mentor-detalhamento'));
+vi.mock('@/features/mentor/routes/v2/Mural', () => telaStub('Mural', 'mentor-mural'));
+vi.mock('@/features/mentor/routes/v2/Sessoes', () => telaStub('Sessões', 'mentor-sessoes'));
+vi.mock('@/features/mentor/routes/v2/Canais', () => telaStub('Canais', 'mentor-canais'));
+vi.mock('@/features/mentor/routes/v2/Intervencoes', () => telaStub('Intervenções', 'mentor-intervencoes'));
 vi.mock('@/experiences/shared/ExperienceGuard', () => ({
   ExperienceGuard: ({ children, experience }: { children: React.ReactNode; experience: string }) => (
     <div data-testid="experience-guard" data-experience={experience}>{children}</div>

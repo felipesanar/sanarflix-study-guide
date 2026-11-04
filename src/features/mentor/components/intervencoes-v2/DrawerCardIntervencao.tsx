@@ -10,6 +10,7 @@ import type { AlunoFlix } from '../../api/fonte';
 import type { Intervencao, StatusIntervencao } from '../../api/types';
 import { mensagemErro } from '../../api/erros';
 import { useAtualizarIntervencao, useCanais, useComentarIntervencao, useRegistrarEvento } from '../../api/queries';
+import { ehLinkHttps } from '@/features/mentor/lib/linkSeguro';
 import { BOTAO_PRIMARIO, BOTAO_SECUNDARIO, FOCO, INPUT } from './estilos';
 import { Toast, type EstadoToast, type MostrarToast } from './Toast';
 import {
@@ -38,6 +39,12 @@ function contexto(card: Intervencao, aluno: AlunoFlix | undefined, nomes: Readon
   const atividade = aluno?.ultimaAtividadeEm ? `Última atividade em ${ddmmDeIso(aluno.ultimaAtividadeEm)}` : null;
   const meta = modalidade === 'b2c' && aluno?.meta ? `Meta: ${aluno.meta.instituicao}` : null;
   return [perfil, atividade, meta].filter(Boolean).join(' · ') || TRACO;
+}
+
+const HOSTS_WHATSAPP = new Set(['chat.whatsapp.com', 'wa.me']);
+/** Só https em host do WhatsApp vira href (a URL do canal pode vir do Flix). */
+function ehLinkWhatsApp(url: string | null | undefined): url is string {
+  return ehLinkHttps(url) && HOSTS_WHATSAPP.has(new URL(url as string).hostname);
 }
 
 /** Drawer do card (captura b2c/17): status em segmented, WhatsApp, mural, histórico e comentário. */
@@ -83,7 +90,7 @@ export function DrawerCardIntervencao({ card, modalidade, alunos, onFechar, toas
   };
 
   // WhatsApp: aluno único → wa.me do aluno (registra no log); turma toda → grupo da turma.
-  const grupoTurma = canais.data?.find((c) => c.tipo === 'grupo_turma' && c.url);
+  const grupoTurma = canais.data?.find((c) => c.tipo === 'grupo_turma' && ehLinkWhatsApp(c.url));
   let zap: { href: string; registrar: boolean } | null = null;
   let semZap = '';
   if (email) {
