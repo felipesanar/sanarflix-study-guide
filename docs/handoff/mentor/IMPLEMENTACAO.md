@@ -76,3 +76,11 @@ estado "Prevalência ainda não cadastrada" (texto curto, sem inventar números)
 A implementação antiga (`routes/*.tsx`, `components/turma|detalhamento|mural|sessoes|intervencoes/**`) é substituída
 pela frente dona da tela correspondente; os testes antigos dessas telas saem junto. `lib/linkSeguro.ts`,
 `lib/textoSeguro.ts`, `components/sessoes/dataHora.ts` e a regra de `components/turma/consumo.ts` são reaproveitados.
+
+## Decisões do Felipe (04/11/2026)
+
+- **Migrações em produção:** só mudanças aditivas; qualquer migração que altere objeto existente com comportamento
+  diferente vai para ele decidir antes (por isso `pendente/mentor_portal_v2_lacunas.sql` não foi aplicada).
+- **Manter as regras novas do mentor B2C** ("Manter as novas"): "sumido" = 15+ dias sem atividade (D3 do handoff, antes
+  10) e "possível aprovação" = % dos participantes do último simulado fechado com acerto ≥ corte da meta mais difícil.
+  Aplicadas em `20261104181551_mentor_b2c_v2`.
