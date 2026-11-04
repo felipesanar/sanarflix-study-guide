@@ -21,6 +21,8 @@
 
 **Documentos que NÃO valem:** os arquivos da pasta `engajamento-no-academy/` no OneDrive (mart, arquitetura, spec antiga) estão deprecados. Não os use.
 
+**Alteração de 04/11/2026 (decisão de produto, supera o que a spec diz sobre o bloco):** o bloco **"Nível de engajamento"** (§4.4, §12.2, §13) saiu da Visão geral do portal do gestor e **não foi para nenhuma outra tela**; o admin segue como está (sem dado por aluno, P10). O texto da spec sobre o bloco fica como histórico. Efeitos no código: `NivelEngajamento.tsx` apagado; o "Exportar" da Visão geral passou a ter **7 seções** (sem "Nível de engajamento"); o pop-up de lista perdeu a coluna "Melhor mês" e os ramos das categorias de nível. No banco nada mudou: `get_gestor_engajamento_visao_geral` ainda devolve `niveis[]` e `get_gestor_engajamento_lista` ainda aceita `frequente`/`esporadico`/`parou`/`nunca`; ninguém no front os usa mais.
+
 ---
 
 ## 0. Como ler esta spec
@@ -308,15 +310,16 @@ Todos os exemplos usam a PARACATU, `[2026-05-01, 2026-10-22]` (P1, "Últimos 6 m
 
 | Faixa | Regra |
 |---|---|
-| Base ativa | `|B|`; barra de 100%, texto "· 100%" |
+| Alunos com atividade no mês | `ativosNoMes`; barra cinza de 100%, texto "· 100%" |
 | Baixo engajamento | `1 ≤ k ≤ 3` |
 | Médio engajamento | `4 ≤ k ≤ 7` |
 | Alto engajamento | `8 ≤ k ≤ 14` |
 | Altíssimo engajamento | `k ≥ 15` |
 
 - Percentual de cada faixa = `n ÷ ativosNoMes × 100`, com **1 casa decimal e vírgula** ("56,7% dos ativos no mês"). As quatro faixas somam `ativosNoMes`.
+- O preenchimento da barra de cada faixa usa o mesmo denominador do percentual: `n ÷ ativosNoMes`. A base ativa não é uma linha do bloco; aparece só na descrição.
 - Exemplo PARACATU, M = set/2026: ativos no mês 223 = 133 + 50 + 35 + 5 ✓.
-- Com aluno filtrado: cada faixa mostra "Sim" ou "Não". A barra fica 100% na faixa do aluno (e na Base ativa) e 0% nas demais. Se `k = 0`, todas as faixas mostram "Não" (exceto Base ativa).
+- Com aluno filtrado: cada faixa mostra "Sim" ou "Não". A barra fica 100% na faixa do aluno (e na linha "Alunos com atividade no mês") e 0% nas demais. Se `k = 0`, todas as linhas mostram "Não", inclusive "Alunos com atividade no mês".
 
 ### 4.4 Nível de engajamento (4 cartões que somam a base)
 
@@ -2672,14 +2675,14 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 - Título "Do acesso ao hábito".
 - Descrição: "Dias ativos em {mmm/aa} (último mês fechado) · {ativosNoMes} dos {baseAtiva} alunos tiveram atividade no mês".
 - Linhas (nome / descrição / valor):
-  - "Base ativa" / "Alunos com acesso vigente no SanarFlix" / "{baseAtiva}" + "· 100%";
+  - "Alunos com atividade no mês" / "Ao menos 1 dia ativo no mês" / "{ativosNoMes}" + "· 100%" (barra cinza 100%);
   - "Baixo engajamento" / "1 a 3 dias ativos no mês" / "{baixo}" + "· {x,x}% dos ativos no mês";
   - "Médio engajamento" / "4 a 7 dias ativos no mês" / idem;
   - "Alto engajamento" / "8 a 14 dias ativos no mês" / idem;
   - "Altíssimo engajamento" / "15 dias ou mais ativos no mês" / idem.
 - Com aluno:
   - descrição "Em que faixa {primeiro nome} ficou em {mmm/aa} · {diasAtivosAluno} dias ativos no mês";
-  - valor de cada linha "Sim"/"Não" (Base ativa: "Sim").
+  - valor de cada linha "Sim"/"Não" ("Alunos com atividade no mês": "Sim" se `diasAtivosAluno > 0`).
 
 **Nível de engajamento:**
 - Título "Nível de engajamento".
@@ -2764,7 +2767,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 - Botão "Filtrar a página por este aluno": grava `aluno`, apaga `eng_sem` e fecha o drawer.
 
 **Quem não voltou:**
-- Título "Quem não voltou"; descrição "Base ativa pelo tempo desde a última atividade".
+- Título "Oportunidades de intervenção pedagógica" (antes "Quem não voltou"); descrição "Base ativa pelo tempo desde a última atividade". O card e o vizinho "Especialidades mais praticadas" têm sempre a mesma altura (`preencherAltura`).
 - Botão-link "Filtrar na tabela de alunos": liga "Sem atividade há 14 dias" na tabela e rola até `#consumo`.
 - Barra (`role="group"`, `aria-label="Distribuição da base pelo tempo desde a última atividade · clique numa faixa para listar os alunos"`).
 - Legenda/segmentos: "Ativos nos últimos 30 dias", "Sumidos há 30–59 dias", "Sumidos há 60+ dias", "Nunca acessaram" **(≠ mock: era "Nunca acessaram no período", D7)**.
@@ -2912,7 +2915,7 @@ O texto entre aspas é literal. `{x}` é substituição. Os números usam `forma
 | `#E0566C` | 2ª série, "Alto engajamento", "Sumidos 30–59" | `color-mix(in srgb, var(--gp-brand) 70%, var(--gp-surface-1))` |
 | `#F2A3B0` / `#E5A3A6` | "Médio engajamento", "Sumidos 60+", barra de mês parcial, barras de consumo dos meses fechados | `color-mix(in srgb, var(--gp-brand) 45%, var(--gp-surface-1))` |
 | `#F6BCC5` | "Baixo engajamento", 3ª série do drawer | `color-mix(in srgb, var(--gp-brand) 30%, var(--gp-surface-1))` |
-| `#D4D4D8` | "Base ativa" no hábito, "Nunca acessaram" | `var(--gp-border-input)` |
+| `#D4D4D8` | "Alunos com atividade no mês" no hábito, "Nunca acessaram" | `var(--gp-border-input)` |
 | `#FDEEF0` | superfícies de seleção, faixa de filtro, faixa de seção da gaveta | `var(--gp-brand-surface)` |
 | `#FDF2F3` | coluna realçada da aba ativa | `var(--gp-brand-surface-soft)` |
 | `#F6C9D0` | bordas de seleção | `var(--gp-brand-border)` |

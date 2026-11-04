@@ -309,9 +309,9 @@ describe('DoAcessoAoHabito (§4.3, §12.2)', () => {
     const d = visaoGeralParacatu();
     envolver(<DoAcessoAoHabito dados={d} consulta={consulta(d)} />);
 
-    const nomes = ['base', 'baixo', 'medio', 'alto', 'altissimo'].map((c) => screen.getByTestId(`habito-${c}`));
+    const nomes = ['ativos', 'baixo', 'medio', 'alto', 'altissimo'].map((c) => screen.getByTestId(`habito-${c}`));
     expect(nomes.map((li) => li.textContent)).toEqual([
-      'Base ativaAlunos com acesso vigente no SanarFlix521· 100%',
+      'Alunos com atividade no mêsAo menos 1 dia ativo no mês223· 100%',
       'Baixo engajamento1 a 3 dias ativos no mês133· 59,6% dos ativos no mês',
       'Médio engajamento4 a 7 dias ativos no mês50· 22,4% dos ativos no mês',
       'Alto engajamento8 a 14 dias ativos no mês35· 15,7% dos ativos no mês',
@@ -319,15 +319,15 @@ describe('DoAcessoAoHabito (§4.3, §12.2)', () => {
     ]);
   });
 
-  it('as quatro faixas somam os ativos no mês (V10) e a barra é a fração da base ativa', () => {
+  it('as quatro faixas somam os ativos no mês (V10) e a barra é a fração dos ativos no mês', () => {
     const d = visaoGeralParacatu();
     const { baixo, medio, alto, altissimo, ativosNoMes } = d.habito;
     expect(baixo + medio + alto + altissimo).toBe(ativosNoMes);
 
     envolver(<DoAcessoAoHabito dados={d} consulta={consulta(d)} />);
-    expect(largura('base')).toBe('100%');
-    expect(parseFloat(largura('baixo'))).toBeCloseTo((100 * 133) / 521, 5);
-    expect(parseFloat(largura('altissimo'))).toBeCloseTo((100 * 5) / 521, 5);
+    expect(largura('ativos')).toBe('100%');
+    expect(parseFloat(largura('baixo'))).toBeCloseTo((100 * 133) / 223, 5);
+    expect(parseFloat(largura('altissimo'))).toBeCloseTo((100 * 5) / 223, 5);
   });
 
   it('com aluno: descrição própria, "Sim"/"Não" por faixa e barra cheia só na faixa dele', () => {
@@ -336,19 +336,19 @@ describe('DoAcessoAoHabito (§4.3, §12.2)', () => {
     expect(screen.getByText('Em que faixa Ana ficou em set/26 · 8 dias ativos no mês')).toBeInTheDocument();
 
     const sim = (c: string) => within(screen.getByTestId(`habito-${c}`)).getByTestId('habito-valor').textContent;
-    expect(['base', 'baixo', 'medio', 'alto', 'altissimo'].map(sim)).toEqual(['Sim', 'Não', 'Não', 'Sim', 'Não']);
-    expect(largura('base')).toBe('100%');
+    expect(['ativos', 'baixo', 'medio', 'alto', 'altissimo'].map(sim)).toEqual(['Sim', 'Não', 'Não', 'Sim', 'Não']);
+    expect(largura('ativos')).toBe('100%');
     expect(largura('alto')).toBe('100%');
     expect(largura('baixo')).toBe('0%');
     expect(largura('altissimo')).toBe('0%');
     expect(screen.queryByText(/dos ativos no mês/)).not.toBeInTheDocument();
   });
 
-  it('com aluno sem dia ativo no mês: todas as faixas "Não", exceto a Base ativa', () => {
+  it('com aluno sem dia ativo no mês: todas as linhas "Não", inclusive a de atividade no mês', () => {
     const d = visaoGeralAlunoSemAtividade();
     envolver(<DoAcessoAoHabito dados={d} consulta={consulta(d)} />);
     const sim = (c: string) => within(screen.getByTestId(`habito-${c}`)).getByTestId('habito-valor').textContent;
-    expect(['base', 'baixo', 'medio', 'alto', 'altissimo'].map(sim)).toEqual(['Sim', 'Não', 'Não', 'Não', 'Não']);
+    expect(['ativos', 'baixo', 'medio', 'alto', 'altissimo'].map(sim)).toEqual(['Não', 'Não', 'Não', 'Não', 'Não']);
   });
 });
 

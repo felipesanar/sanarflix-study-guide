@@ -670,7 +670,7 @@ describe('acessibilidade — Engajamento: as três abas (spec §15.2)', () => {
   it('Visão geral com o pop-up de lista aberto: sem violações de axe', async () => {
     const user = userEvent.setup();
     montar(<VisaoGeralEngajamento />, URL_ENG);
-    await user.click(screen.getAllByRole('button', { name: /Ver todos os \d+ alunos com/ })[0]);
+    await user.click(screen.getByRole('button', { name: /Ver lista completa/ }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     await checarSemViolacoes();
   });

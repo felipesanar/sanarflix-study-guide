@@ -61,13 +61,13 @@ describe('BotaoExportarAba', () => {
     mockConteudos.mockReturnValue(resultadoGestor(conteudosParacatu()));
   });
 
-  it('Visão geral: baixa as 8 seções com o nome gestor-engajamento-visao-geral-paracatu-…', () => {
+  it('Visão geral: baixa as 7 seções com o nome gestor-engajamento-visao-geral-paracatu-…', () => {
     montar('/gestor/engajamento?ies=ies-1');
     fireEvent.click(screen.getByRole('button', { name: 'Exportar' }));
     expect(mockBaixar).toHaveBeenCalledTimes(1);
     const [nome, secoes] = mockBaixar.mock.calls[0];
     expect(nome).toMatch(/^gestor-engajamento-visao-geral-paracatu-\d{4}-\d{2}-\d{2}\.csv$/);
-    expect(secoes).toHaveLength(8);
+    expect(secoes).toHaveLength(7);
     expect(mockQuestoes).not.toHaveBeenCalled();
     expect(mockConteudos).not.toHaveBeenCalled();
   });

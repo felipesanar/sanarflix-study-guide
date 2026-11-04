@@ -61,7 +61,7 @@ describe('QuemNaoVoltou (§12.2)', () => {
 
   it('título, descrição e o botão-link "Filtrar na tabela de alunos"', () => {
     montar();
-    expect(screen.getByRole('heading', { level: 2, name: 'Quem não voltou' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Oportunidades de intervenção pedagógica' })).toBeInTheDocument();
     expect(screen.getByText('Base ativa pelo tempo desde a última atividade')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Filtrar na tabela de alunos' }));
     expect(onFiltrarTabela).toHaveBeenCalledTimes(1);

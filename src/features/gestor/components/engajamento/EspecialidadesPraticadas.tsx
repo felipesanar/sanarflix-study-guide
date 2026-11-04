@@ -41,6 +41,7 @@ export function EspecialidadesPraticadas({ dados, consulta }: EspecialidadesPrat
       mensagemVazio="Nenhuma questão classificada neste recorte."
       alturaSkeleton={300}
       bloco="especialidades-praticadas"
+      preencherAltura
     >
       <ul className="m-0 flex list-none flex-col p-0" style={{ gap: 12 }}>
         {especialidades.map((e) => {
