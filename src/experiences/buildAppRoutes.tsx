@@ -9,6 +9,7 @@ import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { adminRoutes } from '@/experiences/admin/adminRoutes';
 import { gestorV2Routes } from '@/features/gestor/gestorV2Routes';
 import { atendimentoRoutes } from '@/experiences/atendimento/atendimentoRoutes';
+import { mentorRoutes } from '@/features/mentor/mentorRoutes';
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
 const AuthCallback = lazy(() => import('@/pages/AuthCallback'));
@@ -81,6 +82,7 @@ export const buildAppRoutes = (
     ...(hasExperience(access, 'atendimento')
       ? atendimentoRoutes()
       : deniedPortal('/atendimento')),
+    ...(hasExperience(access, 'mentor') ? mentorRoutes() : deniedPortal('/mentor')),
 
     {
       path: '*',

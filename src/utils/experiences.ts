@@ -28,6 +28,7 @@ export type { ExperienceId };
 export const EXPERIENCE_ENTRYPOINTS: Record<Exclude<ExperienceId, 'aluno'>, string> = {
   admin: '/admin',
   atendimento: '/atendimento/usuarios',
+  mentor: '/mentor',
   gestao: '/gestor',
 };
 
@@ -35,6 +36,7 @@ export const EXPERIENCE_ENTRYPOINTS: Record<Exclude<ExperienceId, 'aluno'>, stri
 const ENTRYPOINT_PRECEDENCE: Exclude<ExperienceId, 'aluno'>[] = [
   'admin',
   'atendimento',
+  'mentor',
   'gestao',
 ];
 
@@ -42,7 +44,7 @@ const ENTRYPOINT_PRECEDENCE: Exclude<ExperienceId, 'aluno'>[] = [
  * Rota inicial pós-login: roteia cada usuário para a SUA experiência apartada.
  *
  * Precedência (usuário com múltiplas experiências cai na de maior poder):
- *   admin > atendimento > gestao > aluno
+ *   admin > atendimento > mentor > gestao > aluno
  *
  * - admin / atendimento / gestão → entrypoint fixo da experiência
  * - aluno → primeira tela liberada (home → simulados → guia → dashboard →

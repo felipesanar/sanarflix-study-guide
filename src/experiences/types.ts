@@ -13,6 +13,7 @@ import type { ExperienceId, Capability } from '@/experiences/access';
  *  - `gestao`      — Gestor IES + Gestor de Grupo
  *  - `admin`       — Admin
  *  - `atendimento` — Atendimento (CX)
+ *  - `mentor`      — Mentor de turma (B2C ou B2B)
  */
 export type { ExperienceId };
 

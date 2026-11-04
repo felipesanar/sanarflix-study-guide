@@ -55,7 +55,7 @@ const createUserSchema = z.object({
   // Matrícula/RA: opcional. Ausente/undefined = "não alterar"; string vazia
   // (ou null) = limpar (grava null). Editável na lista de usuários do Admin.
   matricula_ra: z.string().trim().max(50, 'Matrícula/RA muito longa').nullable().optional(),
-  role: z.enum(['admin', 'professor', 'gestor', 'atendimento', 'gestor_grupo']).optional(),
+  role: z.enum(['admin', 'professor', 'gestor', 'atendimento', 'gestor_grupo', 'mentor']).optional(),
   resend_email: z.boolean().optional(),
 });
 
@@ -402,6 +402,11 @@ Deno.serve(async (req) => {
     // `gestor_grupo` segue o mesmo padrão dos demais gestores: mantém `semestre`
     // e `id_ies` (IES âncora). O acesso multi-IES é resolvido por user_roles +
     // get_accessible_ies(), não pelo campo semestre.
+
+    // O papel mentor só é concedido por admin (via /admin/mentores).
+    if (role === 'mentor' && !isAdmin) {
+      return errorResponse('FORBIDDEN', 'Somente admin pode criar mentor.');
+    }
 
     // Atendimento não pode criar admins nem usuários na IES B2B (staff Sanar).
     if (!isAdmin && isAtendimento) {

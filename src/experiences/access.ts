@@ -10,7 +10,7 @@
  * tudo aqui é UX.
  */
 
-export type ExperienceId = 'aluno' | 'gestao' | 'admin' | 'atendimento';
+export type ExperienceId = 'aluno' | 'gestao' | 'admin' | 'atendimento' | 'mentor';
 
 export type Capability =
   | 'users.manage'
@@ -27,7 +27,9 @@ export type Capability =
   | 'institutional.view'
   | 'alunos.view'
   | 'users.support'
-  | 'feedbacks.support';
+  | 'feedbacks.support'
+  | 'mentoria.view'
+  | 'mentores.manage';
 
 export interface Access {
   roles: string[];
@@ -55,11 +57,14 @@ const ADMIN_CAPABILITIES: Capability[] = [
   'admin.tools',
   'institutional.view',
   'alunos.view',
+  'mentores.manage',
 ];
 
 const GESTOR_CAPABILITIES: Capability[] = ['institutional.view', 'alunos.view'];
 
 const ATENDIMENTO_CAPABILITIES: Capability[] = ['users.support', 'users.edit', 'feedbacks.support'];
+
+const MENTOR_CAPABILITIES: Capability[] = ['mentoria.view'];
 
 /** Espelho client-side do mapeamento da RPC get_access (fallback e impersonação). */
 export const deriveAccessFromRoles = (roles: string[] | undefined | null): Access => {
@@ -80,6 +85,10 @@ export const deriveAccessFromRoles = (roles: string[] | undefined | null): Acces
     experiences.add('atendimento');
     ATENDIMENTO_CAPABILITIES.forEach((cap) => capabilities.add(cap));
   }
+  if (safeRoles.includes('mentor')) {
+    experiences.add('mentor');
+    MENTOR_CAPABILITIES.forEach((cap) => capabilities.add(cap));
+  }
 
   return {
     roles: safeRoles,
@@ -88,7 +97,7 @@ export const deriveAccessFromRoles = (roles: string[] | undefined | null): Acces
   };
 };
 
-const VALID_EXPERIENCES: ExperienceId[] = ['aluno', 'gestao', 'admin', 'atendimento'];
+const VALID_EXPERIENCES: ExperienceId[] = ['aluno', 'gestao', 'admin', 'atendimento', 'mentor'];
 
 /** Valida/normaliza o payload da RPC get_access; devolve null se o formato for inválido. */
 export const parseAccessPayload = (payload: unknown): Access | null => {

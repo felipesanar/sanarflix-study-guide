@@ -5,7 +5,7 @@ import { deriveAccessFromRoles } from '@/experiences/access';
 const urlsOf = (groups: typeof ADMIN_NAV_GROUPS) => groups.flatMap((g) => g.items.map((i) => i.url));
 
 describe('experiences/admin/AdminNav', () => {
-  it('expõe os 4 grupos e as 13 seções do Portal do Admin nas URLs /admin/*', () => {
+  it('expõe os 4 grupos e as 14 seções do Portal do Admin nas URLs /admin/*', () => {
     expect(ADMIN_NAV_GROUPS.map((g) => g.label)).toEqual([
       'Operação',
       'Contas & acesso',
@@ -18,6 +18,7 @@ describe('experiences/admin/AdminNav', () => {
       '/admin/monitoramento',
       '/admin/engajamento',
       '/admin/usuarios',
+      '/admin/mentores',
       '/admin/ies',
       '/admin/contratos',
       '/admin/guia',
@@ -35,16 +36,16 @@ describe('experiences/admin/AdminNav', () => {
     expect(commandCenter?.capability).toBeUndefined();
   });
 
-  it('as demais 12 seções declaram capability', () => {
+  it('as demais 13 seções declaram capability', () => {
     const items = ADMIN_NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.url !== '/admin');
-    expect(items).toHaveLength(12);
+    expect(items).toHaveLength(13);
     expect(items.every((i) => i.capability != null)).toBe(true);
   });
 
-  it('admin vê todas as 13 seções (tem todas as capabilities)', () => {
+  it('admin vê todas as 14 seções (tem todas as capabilities)', () => {
     const access = deriveAccessFromRoles(['admin']);
     const filtered = filterAdminNav(ADMIN_NAV_GROUPS, access);
-    expect(urlsOf(filtered)).toHaveLength(13);
+    expect(urlsOf(filtered)).toHaveLength(14);
   });
 
   it('Atendimento (CX) só enxerga o Command Center em ADMIN_NAV_GROUPS (não tem as capabilities de admin)', () => {
@@ -65,4 +66,14 @@ describe('experiences/admin/AdminNav', () => {
     // `admin` concede capabilities de admin, não as de suporte (users.support/feedbacks.support).
     expect(filterAdminNav(CX_NAV_GROUPS, access)).toEqual([]);
   });
+});
+
+it('Mentores aparece em Contas & acesso só com mentores.manage', () => {
+  const admin = filterAdminNav(ADMIN_NAV_GROUPS, deriveAccessFromRoles(['admin']));
+  const contas = admin.find((g) => g.label === 'Contas & acesso');
+  expect(contas?.items.map((i) => i.title)).toContain('Mentores');
+
+  const cx = filterAdminNav(ADMIN_NAV_GROUPS, deriveAccessFromRoles(['atendimento']));
+  const tudo = cx.flatMap((g) => g.items.map((i) => i.title));
+  expect(tudo).not.toContain('Mentores');
 });

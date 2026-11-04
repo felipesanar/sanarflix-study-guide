@@ -9,6 +9,7 @@ const SimuladosPage = lazy(() => import('@/experiences/admin/pages/SimuladosPage
 const MonitoramentoPage = lazy(() => import('@/experiences/admin/pages/MonitoramentoPage'));
 const EngajamentoSanarflixPage = lazy(() => import('@/experiences/admin/pages/EngajamentoSanarflixPage'));
 const UsuariosPage = lazy(() => import('@/experiences/admin/pages/UsuariosPage'));
+const MentoresPage = lazy(() => import('@/experiences/admin/pages/MentoresPage'));
 const IesPage = lazy(() => import('@/experiences/admin/pages/IesPage'));
 const ContratosPage = lazy(() => import('@/experiences/admin/pages/ContratosPage'));
 const GuiaPage = lazy(() => import('@/experiences/admin/pages/GuiaPage'));
@@ -22,7 +23,7 @@ const AuditoriaPage = lazy(() => import('@/experiences/admin/pages/AuditoriaPage
  * Rotas da experiência Admin (`/admin/*`).
  *
  * Uma rota-layout (`AdminLayout`, protegida por {@link ExperienceGuard}) com
- * as 12 seções do console como rotas-filhas — cada uma com URL própria
+ * as 13 seções do console como rotas-filhas — cada uma com URL própria
  * (deep-link, voltar/avançar e refresh funcionam). A INDEX é o Command
  * Center (home só do admin) — NÃO redireciona mais para `/admin/usuarios`.
  * Inclui os redirects de compatibilidade das URLs antigas (`/gestao-usuarios`,
@@ -42,6 +43,7 @@ export const adminRoutes = (): RouteObject[] => [
       { path: 'monitoramento', element: <MonitoramentoPage /> },
       { path: 'engajamento', element: <EngajamentoSanarflixPage /> },
       { path: 'usuarios', element: <UsuariosPage /> },
+      { path: 'mentores', element: <MentoresPage /> },
       { path: 'ies', element: <IesPage /> },
       { path: 'contratos', element: <ContratosPage /> },
       { path: 'guia', element: <GuiaPage /> },
