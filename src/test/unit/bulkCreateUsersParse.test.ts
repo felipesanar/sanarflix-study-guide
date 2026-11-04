@@ -27,6 +27,11 @@ describe('normalizeRoleInput', () => {
     expect(normalizeRoleInput(' ATENDIMENTO ')).toBe('atendimento');
   });
 
+  it('recusa mentor na planilha genérica (só /admin/mentores cria mentor)', () => {
+    expect(normalizeRoleInput('Mentor')).toBeNull();
+    expect(normalizeRoleInput('mentor')).toBeNull();
+  });
+
   it('recusa papel inexistente', () => {
     expect(normalizeRoleInput('coordenador')).toBeNull();
   });

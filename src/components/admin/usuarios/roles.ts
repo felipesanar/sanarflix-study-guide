@@ -7,7 +7,10 @@
  * `b2b-create-user` rejeita depois (ou pior, ignora).
  */
 
-export type AppUserRole = 'aluno' | 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento';
+// 'mentor' faz parte do tipo, mas NÃO está em ROLE_OPTIONS: o papel só é
+// concedido por /admin/mentores (CreateMentorDialog), nunca pelo cadastro
+// genérico nem pela planilha em lote.
+export type AppUserRole = 'aluno' | 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento' | 'mentor';
 
 export const ROLE_OPTIONS: { value: AppUserRole; label: string }[] = [
   { value: 'aluno', label: 'Aluno (padrão)' },
