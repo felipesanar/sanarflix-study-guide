@@ -91,44 +91,6 @@ export function visaoGeralParacatu(): VisaoGeralEngajamento {
       documentos,
     })),
     habito: { mes: '2026-09', ativosNoMes: 223, baixo: 133, medio: 50, alto: 35, altissimo: 5, diasAtivosAluno: null },
-    niveis: [
-      {
-        nivel: 'frequente',
-        total: 4,
-        amostra: [
-          { id: 'u-1', nome: 'Ana Clara Ribeiro' },
-          { id: 'u-2', nome: 'Bruno Alves' },
-          { id: 'u-3', nome: 'Camila Souza' },
-        ],
-      },
-      {
-        nivel: 'esporadico',
-        total: 193,
-        amostra: [
-          { id: 'u-4', nome: 'Daniel Costa' },
-          { id: 'u-5', nome: 'Elisa Martins' },
-          { id: 'u-6', nome: 'Fábio Lima' },
-        ],
-      },
-      {
-        nivel: 'parou',
-        total: 15,
-        amostra: [
-          { id: 'u-7', nome: 'Gabriela Dias' },
-          { id: 'u-8', nome: 'Heitor Nunes' },
-          { id: 'u-9', nome: 'Isabela Rocha' },
-        ],
-      },
-      {
-        nivel: 'nunca',
-        total: 309,
-        amostra: [
-          { id: 'u-10', nome: 'João Pedro Silva' },
-          { id: 'u-11', nome: 'Karina Pires' },
-          { id: 'u-12', nome: 'Lucas Teixeira' },
-        ],
-      },
-    ],
     recencia: {
       ativos30: 197,
       sumidos30a59: 69,
@@ -248,11 +210,6 @@ export function visaoGeralComAluno(): VisaoGeralEngajamento {
     },
     meses: base.meses.map((m, i) => ({ ...m, diasAtivos: [6, 8, 7, 9, 8, 4][i] })),
     habito: { mes: '2026-09', ativosNoMes: 1, baixo: 0, medio: 0, alto: 1, altissimo: 0, diasAtivosAluno: 8 },
-    niveis: base.niveis.map((n) => ({
-      ...n,
-      total: n.nivel === 'frequente' ? 1 : 0,
-      amostra: n.nivel === 'frequente' ? [{ id: 'aluno-1', nome: 'Ana Clara Ribeiro' }] : [],
-    })),
     recencia: { ativos30: 1, sumidos30a59: 0, sumidos60: 0, nuncaAcessou: 0, previaSumidos30mais: [] },
   };
 }

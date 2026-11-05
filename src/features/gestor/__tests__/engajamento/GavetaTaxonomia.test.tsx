@@ -58,7 +58,7 @@ describe('GavetaTaxonomia — estrutura (§12.3)', () => {
     montar();
     const faixas = screen.getAllByTestId('faixa-ciclo');
     expect(faixas.map((f) => f.textContent)).toEqual([
-      'Ciclo clínico e residência Grande área › especialidade › tema100.000—66%',
+      'Ciclo clínico e internato Grande área › especialidade › tema100.000—66%',
       'Ciclo básico Disciplina › assunto45.873—68%',
     ]);
     // ordem no documento: faixa clínica, suas linhas, faixa básica, as dela
@@ -70,7 +70,7 @@ describe('GavetaTaxonomia — estrutura (§12.3)', () => {
 
   it('os títulos das faixas vão em CSS uppercase', () => {
     montar();
-    const titulo = within(screen.getAllByTestId('faixa-ciclo')[0]).getByText('Ciclo clínico e residência');
+    const titulo = within(screen.getAllByTestId('faixa-ciclo')[0]).getByText('Ciclo clínico e internato');
     expect(titulo).toHaveClass('uppercase');
   });
 

@@ -244,7 +244,7 @@ export function GavetaTaxonomia({ dados, consulta, filtros }: GavetaTaxonomiaPro
             </div>
 
             {linhas.clinico.length > 0
-              ? [faixa('Ciclo clínico e residência', 'Grande área › especialidade › tema', dados.arvore.clinico.questoes, dados.arvore.clinico.acertoPct), ...linhas.clinico.map(renderLinha)]
+              ? [faixa('Ciclo clínico e internato', 'Grande área › especialidade › tema', dados.arvore.clinico.questoes, dados.arvore.clinico.acertoPct), ...linhas.clinico.map(renderLinha)]
               : null}
             {linhas.basico.length > 0
               ? [faixa('Ciclo básico', 'Disciplina › assunto', dados.arvore.basico.questoes, dados.arvore.basico.acertoPct), ...linhas.basico.map(renderLinha)]

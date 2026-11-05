@@ -20,11 +20,10 @@ export type CicloTaxonomia = 'clinico' | 'basico';
 /** Ciclo do SEMESTRE do aluno (D15). Não confundir com `CicloTaxonomia`. */
 export type CicloSemestre = 'basico' | 'clinico' | 'internato';
 
-export type NivelEngajamento = 'frequente' | 'esporadico' | 'parou' | 'nunca';
 export type FaixaRecencia = 'ativos30' | 'sumidos30a59' | 'sumidos60' | 'nunca_acessou';
 /** Faixas de dias ativos no mês de referência de "Do acesso ao hábito". */
 export type FaixaHabito = 'habito_baixo' | 'habito_medio' | 'habito_alto' | 'habito_altissimo';
-export type CategoriaLista = NivelEngajamento | FaixaRecencia | FaixaHabito | 'sumidos30mais';
+export type CategoriaLista = FaixaRecencia | FaixaHabito | 'sumidos30mais';
 /** Aba de "Consumo dos alunos": só escolhe o que a tela realça, não ordena a tabela. */
 export type AbaConsumo = 'questoes' | 'videos' | 'documentos';
 
@@ -124,17 +123,6 @@ export interface HabitoVisaoGeral {
   diasAtivosAluno: number | null;
 }
 
-export interface AmostraNivel {
-  id: string;
-  nome: string;
-}
-
-export interface NivelVisaoGeral {
-  nivel: NivelEngajamento;
-  total: number;
-  amostra: AmostraNivel[];
-}
-
 export interface LinhaRecencia {
   id: string;
   nome: string;
@@ -211,7 +199,6 @@ export interface VisaoGeralEngajamento {
   aluno: ResumoAlunoVisaoGeral | null;
   meses: MesVisaoGeral[];
   habito: HabitoVisaoGeral;
-  niveis: NivelVisaoGeral[];
   recencia: RecenciaVisaoGeral;
   consumo: ConsumoVisaoGeral;
   especialidades: EspecialidadePraticada[];

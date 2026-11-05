@@ -40,7 +40,7 @@ describe('DoAcessoAoHabito — pop-up da faixa', () => {
     );
   });
 
-  it('as quatro faixas são botões que abrem pop-up; a "Base ativa" não é', () => {
+  it('as quatro faixas são botões que abrem pop-up; a linha de atividade no mês não é', () => {
     montar();
     for (const c of ['baixo', 'medio', 'alto', 'altissimo']) expect(faixa(c)).toHaveAttribute('aria-haspopup', 'dialog');
     expect(screen.queryByTestId('habito-faixa-base')).not.toBeInTheDocument();
@@ -53,7 +53,7 @@ describe('DoAcessoAoHabito — pop-up da faixa', () => {
     for (const c of ['baixo', 'medio', 'alto', 'altissimo']) {
       expect(within(faixa(c)).getByTestId('habito-dica-clique')).toHaveTextContent('Ver alunos');
     }
-    expect(within(screen.getByTestId('habito-base')).queryByTestId('habito-dica-clique')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('habito-ativos')).queryByTestId('habito-dica-clique')).not.toBeInTheDocument();
   });
 
   it('sem clique não há pop-up nem consulta de lista', () => {

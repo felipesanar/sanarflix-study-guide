@@ -64,7 +64,7 @@ const mesRotulo = (mes: string, parcial: boolean) => `${mesAno(mes)}${parcial ? 
 
 const CICLO_SEMESTRE = { basico: 'Básico', clinico: 'Clínico', internato: 'Internato' } as const;
 
-/** Visão geral: KPIs, mês a mês, hábito, níveis, recência, consumo, especialidades e comparativo (§10.7). */
+/** Visão geral: KPIs, mês a mês, hábito, recência, consumo, especialidades e comparativo (§10.7). */
 export function secoesVisaoGeral(d: VisaoGeralEngajamento, r: RecorteExportacao): SecaoCsv<unknown>[] {
   const rec = textoRecorteCsv(r);
   const k = d.kpis;
@@ -73,13 +73,6 @@ export function secoesVisaoGeral(d: VisaoGeralEngajamento, r: RecorteExportacao)
   const pctBase = (n: number) => pct1(base > 0 ? (100 * n) / base : null);
   const h = d.habito;
   const pctAtivos = (n: number) => pct1(h.ativosNoMes > 0 ? (100 * n) / h.ativosNoMes : null);
-
-  const NOME_NIVEL: Record<string, string> = {
-    frequente: 'Ativo e frequente',
-    esporadico: 'Ativo, mas esporádico',
-    parou: 'Era frequente e parou',
-    nunca: 'Nunca engajou',
-  };
 
   return [
     secao('Indicadores', rec, ['Indicador', 'Valor'], [
@@ -101,19 +94,13 @@ export function secoesVisaoGeral(d: VisaoGeralEngajamento, r: RecorteExportacao)
           d.meses.map((m) => ({ Mês: mesRotulo(m.mes, m.parcial), 'Alunos ativos': m.alunosAtivos, '% da base ativa': pct1(m.pctBase) })),
         ),
     secao(`Do acesso ao hábito (${mesAno(h.mes)})`, rec, ['Faixa', 'Alunos', '% dos ativos no mês'], [
-      { Faixa: 'Base ativa', Alunos: base, '% dos ativos no mês': '' },
+      { Faixa: 'Alunos com atividade no mês (1 dia ou mais)', Alunos: h.ativosNoMes, '% dos ativos no mês': '' },
       { Faixa: 'Baixo engajamento (1 a 3 dias)', Alunos: h.baixo, '% dos ativos no mês': pctAtivos(h.baixo) },
       { Faixa: 'Médio engajamento (4 a 7 dias)', Alunos: h.medio, '% dos ativos no mês': pctAtivos(h.medio) },
       { Faixa: 'Alto engajamento (8 a 14 dias)', Alunos: h.alto, '% dos ativos no mês': pctAtivos(h.alto) },
       { Faixa: 'Altíssimo engajamento (15 dias ou mais)', Alunos: h.altissimo, '% dos ativos no mês': pctAtivos(h.altissimo) },
     ]),
-    secao(
-      'Nível de engajamento',
-      rec,
-      ['Categoria', 'Alunos', '% da base'],
-      d.niveis.map((n) => ({ Categoria: NOME_NIVEL[n.nivel] ?? n.nivel, Alunos: n.total, '% da base': pctBase(n.total) })),
-    ),
-    secao('Quem não voltou', rec, ['Faixa', 'Alunos', '% da base'], [
+    secao('Oportunidades de intervenção pedagógica', rec, ['Faixa', 'Alunos', '% da base'], [
       { Faixa: 'Ativos nos últimos 30 dias', Alunos: d.recencia.ativos30, '% da base': pctBase(d.recencia.ativos30) },
       { Faixa: 'Sumidos há 30–59 dias', Alunos: d.recencia.sumidos30a59, '% da base': pctBase(d.recencia.sumidos30a59) },
       { Faixa: 'Sumidos há 60+ dias', Alunos: d.recencia.sumidos60, '% da base': pctBase(d.recencia.sumidos60) },
