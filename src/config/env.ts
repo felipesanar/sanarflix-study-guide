@@ -10,6 +10,10 @@ const rawEnv = {
   VITE_APP_ENV: import.meta.env.VITE_APP_ENV as string | undefined,
   VITE_FF_PROVA_RACE_FIX: import.meta.env.VITE_FF_PROVA_RACE_FIX as string | undefined,
   VITE_FF_CALENDAR_V2: import.meta.env.VITE_FF_CALENDAR_V2 as string | undefined,
+  /** Portal do Mentor: `on` liga a API de Mentoria do Flix (docs/handoff/mentor/IMPLEMENTACAO.md). */
+  VITE_FLIX_MENTORIA: import.meta.env.VITE_FLIX_MENTORIA as string | undefined,
+  /** Portal do Mentor: `mock` (dev/testes) | `flix` | `academy` (padrão). */
+  VITE_MENTOR_FONTE: import.meta.env.VITE_MENTOR_FONTE as string | undefined,
   PROD: import.meta.env.PROD as boolean,
 };
 
@@ -25,6 +29,16 @@ const boolFromString = z
   .union([z.string(), z.boolean(), z.undefined()])
   .transform((v) => v === true || v === 'true' || v === '1');
 
+/** Liga/desliga tolerante (`on`, `true`, `1`); nunca invalida o env. */
+const onOff = z
+  .union([z.string(), z.boolean(), z.undefined()])
+  .transform((v) => v === true || (typeof v === 'string' && ['on', 'true', '1'].includes(v.trim().toLowerCase())));
+
+/** Texto opcional normalizado; valor inesperado não invalida o env (a escolha da fonte ignora). */
+const textoOpcional = z
+  .union([z.string(), z.undefined()])
+  .transform((v) => (v?.trim() ? v.trim().toLowerCase() : undefined));
+
 const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(20),
@@ -33,6 +47,8 @@ const envSchema = z.object({
   APP_ENV: z.enum(['development', 'staging', 'production']),
   FF_PROVA_RACE_FIX: boolFromString,
   FF_CALENDAR_V2: boolFromString,
+  FLIX_MENTORIA: onOff,
+  MENTOR_FONTE: textoOpcional,
 });
 
 export type AppEnv = z.infer<typeof envSchema> & { IS_VALID: boolean };
@@ -62,6 +78,8 @@ function buildEnv(): AppEnv {
     APP_ENV: appEnv,
     FF_PROVA_RACE_FIX: rawEnv.VITE_FF_PROVA_RACE_FIX,
     FF_CALENDAR_V2: rawEnv.VITE_FF_CALENDAR_V2,
+    FLIX_MENTORIA: rawEnv.VITE_FLIX_MENTORIA,
+    MENTOR_FONTE: rawEnv.VITE_MENTOR_FONTE,
   });
 
   if (!parsed.success) {
@@ -85,6 +103,8 @@ function buildEnv(): AppEnv {
       APP_ENV: appEnv as AppEnv['APP_ENV'],
       FF_PROVA_RACE_FIX: false,
       FF_CALENDAR_V2: false,
+      FLIX_MENTORIA: false,
+      MENTOR_FONTE: undefined,
       IS_VALID: false,
     };
   }

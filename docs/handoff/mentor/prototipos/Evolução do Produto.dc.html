@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Evolução do Produto · Mentoria SanarFlix Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;background:#F4F5F6;color:#111212;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#941F1F;text-decoration:none}a:hover{color:#660000;text-decoration:underline}
+button{font-family:inherit;line-height:1.4}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#F4F5F6;font-size:14px;line-height:1.5">
+  <main style="max-width:1120px;margin:0 auto;padding:40px 32px 72px 32px;display:flex;flex-direction:column;gap:28px">
+    <header style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 32px">
+      <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:8px">
+        <img src="./public/sanarflix-academy-lockup.svg" alt="SanarFlix Academy" style="height:28px;width:auto;align-self:flex-start">
+        <h1 style="margin:8px 0 0 0;font-size:28px;font-weight:700;letter-spacing:-0.02em">Evolução do Produto · Mentoria</h1>
+        <p style="margin:0;font-size:14px;color:#414141;max-width:70ch">{{ total }} propostas para o Mentor B2C e B2B, a partir dos protótipos, do Portal do Gestor e do planejamento pedagógico B2B. Outubro de 2026.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a href="Mentor B2C.dc.html" style="display:inline-flex;align-items:center;height:36px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;color:#111212;white-space:nowrap">Protótipo B2C</a>
+        <a href="Mentor B2B.dc.html" style="display:inline-flex;align-items:center;height:36px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;color:#111212;white-space:nowrap">Protótipo B2B</a>
+      </div>
+    </header>
+
+    <section aria-labelledby="top-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">
+      <h2 id="top-h" style="margin:0;padding:16px 20px 8px 20px;font-size:15px;font-weight:650">Maior potencial</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+        <sc-for list="{{ destaques }}" as="d" hint-placeholder-count="4">
+          <button type="button" onClick="{{ d.ir }}" style="display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px 20px 18px 20px;border:0;border-top:1px solid #F1F2F4;border-right:1px solid #F1F2F4;background:#FFFFFF;cursor:pointer;font:inherit;color:#111212" style-hover="background:#FFF7F7">
+            <span style="font-size:12px;font-weight:700;color:#941F1F">{{ d.id }}</span>
+            <span style="font-size:14.5px;font-weight:650;line-height:1.35">{{ d.titulo }}</span>
+            <span style="font-size:12.5px;color:#414141">{{ d.porque }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;position:sticky;top:0;z-index:5;padding:10px 0;background:#F4F5F6">
+      <div role="tablist" style="display:flex;gap:2px;padding:3px;background:#FFFFFF;border:1px solid #E9EBED;border-radius:8px;flex-wrap:wrap">
+        <sc-for list="{{ cats }}" as="c"><button type="button" role="tab" aria-selected="{{ c.on }}" onClick="{{ c.set }}" style="height:30px;padding:0 12px;border-radius:6px;border:0;background:{{ c.bg }};color:{{ c.c }};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">{{ c.label }}</button></sc-for>
+      </div>
+      <sc-for list="{{ pubs }}" as="p"><button type="button" onClick="{{ p.set }}" aria-pressed="{{ p.on }}" style="height:30px;padding:0 12px;border-radius:10em;border:1px solid {{ p.bd }};background:#FFFFFF;font-size:13px;font-weight:{{ p.w }};cursor:pointer;white-space:nowrap">{{ p.label }}</button></sc-for>
+      <span style="flex:1"></span>
+      <sc-for list="{{ hors }}" as="p"><button type="button" onClick="{{ p.set }}" aria-pressed="{{ p.on }}" style="height:30px;padding:0 12px;border-radius:10em;border:1px solid {{ p.bd }};background:#FFFFFF;font-size:13px;font-weight:{{ p.w }};cursor:pointer;white-space:nowrap">{{ p.label }}</button></sc-for>
+    </div>
+
+    <sc-for list="{{ grupos }}" as="g" hint-placeholder-count="3">
+      <section style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <h2 style="margin:0;font-size:17px;font-weight:700">{{ g.titulo }}</h2>
+          <span style="font-size:13px;color:#899090">{{ g.n }}</span>
+        </div>
+        <div style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;overflow:hidden">
+          <sc-for list="{{ g.itens }}" as="p">
+            <article id="{{ p.id }}" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,280px);gap:12px 28px;padding:18px 20px;border-top:1px solid #F1F2F4;background:{{ p.bg }}">
+              <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                  <span style="font-size:12px;font-weight:700;color:#899090;font-variant-numeric:tabular-nums">{{ p.id }}</span>
+                  <h3 style="margin:0;font-size:15px;font-weight:650;line-height:1.35">{{ p.titulo }}</h3>
+                  <sc-if value="{{ p.destaque }}"><span style="font-size:11px;font-weight:700;color:#941F1F;white-space:nowrap">MAIOR POTENCIAL</span></sc-if>
+                </div>
+                <dl style="margin:0;display:grid;grid-template-columns:84px minmax(0,1fr);gap:4px 12px;font-size:13.5px">
+                  <dt style="color:#899090">Problema</dt><dd style="margin:0;color:#414141;text-wrap:pretty">{{ p.problema }}</dd>
+                  <dt style="color:#899090">Solução</dt><dd style="margin:0;color:#111212;text-wrap:pretty">{{ p.solucao }}</dd>
+                  <dt style="color:#899090">Benefício</dt><dd style="margin:0;color:#414141;text-wrap:pretty">{{ p.beneficio }}</dd>
+                </dl>
+              </div>
+              <dl style="margin:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:6px 10px;font-size:13px;align-content:start;padding-left:16px;border-left:1px solid #F1F2F4">
+                <dt style="color:#899090">Público</dt><dd style="margin:0;font-weight:600">{{ p.publico }}</dd>
+                <dt style="color:#899090">Prioridade</dt><dd style="margin:0;display:flex;align-items:center;gap:6px;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.prioDot }}"></span>{{ p.prio }}</dd>
+                <dt style="color:#899090">Complexidade</dt><dd style="margin:0;font-weight:600">{{ p.compl }}</dd>
+                <dt style="color:#899090">Horizonte</dt><dd style="margin:0">{{ p.horLabel }}</dd>
+                <dt style="color:#899090">Dependências</dt><dd style="margin:0;color:#414141">{{ p.dep }}</dd>
+              </dl>
+            </article>
+          </sc-for>
+        </div>
+      </section>
+    </sc-for>
+    <sc-if value="{{ vazio }}"><p style="margin:0;padding:32px;text-align:center;color:#414141;background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">Nenhuma proposta com esses filtros.</p></sc-if>
+
+    <footer style="font-size:12.5px;color:#899090;border-top:1px solid #E9EBED;padding-top:16px">Prioridade: P0 bloqueia o lançamento · P1 próximo ciclo · P2 depois de validar P1 · P3 oportunista. Complexidade estimada sem dimensionamento técnico do time.</footer>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const P = [
+  { id:'A1', cat:'A', pub:'Ambos', prio:'P0', compl:'Baixa', hor:'rapida', titulo:'Definir uma única regra de "sumiu" e de "último acesso"',
+    problema:'O handoff usa 10 dias na home e 15 na turma, e "último acesso" ainda não tem definição (login ou atividade no Flix).',
+    solucao:'Fixar 15 dias e "última atividade de estudo" como fonte, com o mesmo valor em alertas, segmentos e drawer.',
+    beneficio:'Os números da home batem com os da turma; o mentor deixa de duvidar do alerta.', dep:'Confirmação do time de dados sobre o evento de atividade.' },
+  { id:'A2', cat:'A', pub:'Ambos', prio:'P1', compl:'Baixa', hor:'rapida', titulo:'Seleção de simulados compartilhada entre telas',
+    problema:'Cada tela escolhia o simulado por conta própria; o detalhamento não refletia o que o mentor tinha clicado.',
+    solucao:'Reusar o SeletorSimulados do Gestor e abrir o detalhamento já filtrado a partir da home, da turma e do drawer do aluno.',
+    beneficio:'Um clique leva do alerta à questão que explica a queda.', dep:'API de cronograma do Gestor (status realizado, agendado, previsto).' },
+  { id:'A3', cat:'A', pub:'Ambos', prio:'P1', compl:'Média', hor:'rapida', destaque:true, titulo:'Intervenção registrada automaticamente a partir da ação',
+    problema:'No B2B o log de atividades vive no Notion; no B2C o kanban depende de o mentor lembrar de registrar.',
+    solucao:'Publicar no mural, liberar agenda, abrir WhatsApp pelo Academy ou marcar sessão como feita já cria ou move o card.',
+    beneficio:'Histórico completo sem trabalho extra; a coordenação passa a ler o log no próprio Academy.', dep:'Aceite da coordenação pedagógica para trocar a fonte do log; eventos de clique no WhatsApp.' },
+  { id:'A4', cat:'A', pub:'Ambos', prio:'P1', compl:'Baixa', hor:'rapida', titulo:'Do alerta à mensagem em um passo',
+    problema:'Para falar com quem regrediu, o mentor filtra a turma, copia nomes e monta a mensagem no mural.',
+    solucao:'Botão no alerta que abre o mural com o grupo já selecionado e um rascunho por tipo de alerta.',
+    beneficio:'Menos etapas na ação mais frequente da semana.', dep:'Mural com destinatários por lista de alunos.' },
+  { id:'A5', cat:'A', pub:'B2B', prio:'P1', compl:'Baixa', hor:'rapida', titulo:'Separar projeção de resultado em todos os indicadores',
+    problema:'Conceito previsto e TRI projetado podem ser lidos como resultado oficial pela coordenação da IES.',
+    solucao:'Selo "projetado" fixo, glossário sob demanda e o mesmo par de rótulos no report exportado.',
+    beneficio:'Evita expectativa errada junto à IES antes da prova.', dep:'Texto validado com o time pedagógico.' },
+  { id:'A6', cat:'A', pub:'B2B', prio:'P1', compl:'Média', hor:'estrutural', titulo:'Pauta da sessão montada com os dados da turma',
+    problema:'Pós-simulado e oficina são preparados fora da plataforma, olhando o Detalhamento em outra aba.',
+    solucao:'"Levar para a oficina" nos temas críticos e nas mais erradas; a sessão mostra a pauta e avisa quando falta tema ou link.',
+    beneficio:'Preparação da sessão quinzenal em minutos, com escolha ancorada em erro real.', dep:'Cadastro de sessões no Academy; modelo quinzenal confirmado por contrato.' },
+  { id:'B1', cat:'B', pub:'Ambos', prio:'P1', compl:'Média', hor:'estrutural', titulo:'Sinal precoce de desengajamento',
+    problema:'Os alertas atuais dependem do simulado ou de 15 dias sem acesso: o mentor descobre tarde.',
+    solucao:'Alerta "esfriando" quando questões por semana caem 40% ou mais em relação à média do próprio aluno nas 3 semanas anteriores.',
+    beneficio:'Contato antes do sumiço, quando ainda dá para recuperar a rotina.', dep:'Série diária de questões resolvidas por aluno; calibrar o limiar com histórico.' },
+  { id:'B2', cat:'B', pub:'Ambos', prio:'P1', compl:'Média', hor:'estrutural', destaque:true, titulo:'Fila de prioridade do mentor',
+    problema:'Com 87 a 186 alunos, o mentor decide sozinho por onde começar a semana.',
+    solucao:'Lista ordenada e curta (10 nomes) por regra explícita: no B2B, potencial de virada primeiro; no B2C, quem está mais perto do corte e caiu.',
+    beneficio:'O tempo do mentor vai para onde mais move aprovação ou conceito.', dep:'Regra do perfil "virada" validada; metas por aluno no B2C.' },
+  { id:'B3', cat:'B', pub:'B2C', prio:'P2', compl:'Baixa', hor:'rapida', titulo:'Ficha de preparação da reunião individual',
+    problema:'Antes da reunião, o mentor junta notas, áreas fracas e a última conversa em lugares diferentes.',
+    solucao:'Uma tela por reunião agendada: últimos 3 simulados, 3 áreas com menor acerto, última intervenção e campo de combinados.',
+    beneficio:'Reunião começa pelo problema, e os combinados ficam registrados para a próxima.', dep:'Agenda individual integrada ao Academy.' },
+  { id:'B4', cat:'B', pub:'Ambos', prio:'P2', compl:'Média', hor:'estrutural', titulo:'Linha do tempo do aluno',
+    problema:'Notas e intervenções aparecem em listas separadas; não dá para ver o que aconteceu depois de cada contato.',
+    solucao:'Um eixo único com simulados, sessões, mensagens e mudanças de meta.',
+    beneficio:'Leitura longitudinal real do acompanhamento.', dep:'Eventos de intervenção com data (ver A3).' },
+  { id:'B5', cat:'B', pub:'Ambos', prio:'P2', compl:'Alta', hor:'estrutural', titulo:'Efeito das intervenções no simulado seguinte',
+    problema:'Ninguém sabe se a reunião individual ou a oficina mudou o desempenho.',
+    solucao:'Comparar a evolução de quem recebeu cada tipo de intervenção com quem não recebeu, no mesmo perfil inicial.',
+    beneficio:'Base para decidir quais formatos manter e escalar.', dep:'Volume mínimo por grupo; cuidado com viés de seleção (descritivo, não causal).' },
+  { id:'B6', cat:'B', pub:'B2B', prio:'P2', compl:'Média', hor:'estrutural', titulo:'Pré e pós da oficina dentro do Academy',
+    problema:'As 5 questões pré e pós da oficina são votadas no chat e o resultado se perde.',
+    solucao:'Mini-lista de 5 questões aberta durante a sessão, com o ganho pré × pós registrado no tema.',
+    beneficio:'Mede o efeito imediato da oficina e alimenta o comitê pedagógico.', dep:'Listas curtas no banco de questões com janela de resposta.' },
+  { id:'B7', cat:'B', pub:'B2B', prio:'P1', compl:'Média', hor:'estrutural', titulo:'Report mensal para a coordenação da IES',
+    problema:'O comitê pedagógico é preparado à mão a partir de várias telas.',
+    solucao:'Documento gerado com Visão Geral, sessões do mês, sinalizações e temas trabalhados, exportável em PDF.',
+    beneficio:'Reunião com a IES baseada nos mesmos números do portal.', dep:'Formato aprovado com as IES; exportação do Gestor reaproveitada.' },
+  { id:'C1', cat:'C', pub:'Ambos', prio:'P1', compl:'Alta', hor:'estrutural', destaque:true, titulo:'Prescrever questões do tema crítico a partir do Mentor',
+    problema:'O mentor identifica o tema crítico, mas o aluno precisa procurar sozinho o que estudar.',
+    solucao:'Ação "Enviar lista" no tema ou na questão: cria uma lista no banco de questões para o grupo afetado e acompanha a conclusão.',
+    beneficio:'Indicador vira estudo concreto; diferencial frente a mentorias que só conversam.', dep:'API de listas do banco de questões; vínculo tema ENAMED × questão.' },
+  { id:'C2', cat:'C', pub:'B2B', prio:'P1', compl:'Média', hor:'estrutural', destaque:true, titulo:'Cenários de conceito para a IES',
+    problema:'A coordenação sabe o conceito previsto, mas não quanto falta para o próximo.',
+    solucao:'"Se X alunos de potencial de virada passarem de 60, o conceito previsto vai a 4", com a lista desses alunos.',
+    beneficio:'Meta institucional traduzida em alunos e ações; argumento forte de renovação de contrato.', dep:'Faixas oficiais do conceito usadas no Gestor (pendente).' },
+  { id:'C3', cat:'C', pub:'Ambos', prio:'P2', compl:'Média', hor:'estrutural', titulo:'Banco central de pérolas e enquetes com engajamento',
+    problema:'O rodízio de pérolas acontece fora da plataforma e não se sabe qual conteúdo funciona.',
+    solucao:'Banco no Academy com calendário do rodízio, publicação no mural e métricas de leitura por conteúdo.',
+    beneficio:'Reuso entre tribos e IES e curadoria pelo que engaja.', dep:'Leitura de mural rastreada; conteúdo do time pedagógico.' },
+  { id:'C4', cat:'C', pub:'Ambos', prio:'P2', compl:'Média', hor:'estrutural', titulo:'Comparativo anônimo entre tribos e IES',
+    problema:'Mentores não têm referência para saber se a turma vai bem ou mal.',
+    solucao:'Mediana da rede ao lado dos indicadores principais, sem expor outras turmas nominalmente.',
+    beneficio:'Calibra expectativa e mostra boas práticas à coordenação de mentores.', dep:'Governança de dados entre IES; regra de amostra mínima.' },
+  { id:'C5', cat:'C', pub:'Ambos', prio:'P2', compl:'Baixa', hor:'rapida', titulo:'Rotina semanal do mentor com checklist',
+    problema:'A qualidade da mentoria varia entre mentores; a rotina do planejamento está só no Notion.',
+    solucao:'Checklist da semana no Início (enquete, resposta, pérola, contatos prioritários) com status vindo das ações reais.',
+    beneficio:'Mesmo padrão mínimo em todas as turmas, sem cobrança manual.', dep:'Rotina oficial por modalidade (B2B definido; B2C a definir).' }
+];
+const CATS = { A:'A. Melhorias do que existe', B:'B. Novas funcionalidades', C:'C. Oportunidades estratégicas' };
+const DOT = { P0:'#C61D1D', P1:'#D38808', P2:'#0374AE', P3:'#C3C6C6' };
+const PORQUE = { A3:'Remove trabalho manual e dá histórico confiável.', B2:'Decide onde o tempo do mentor rende mais.', C1:'Transforma indicador em estudo do aluno.', C2:'Liga a meta da IES a alunos concretos.' };
+class Component extends DCLogic {
+  state = { cat:'todas', pub:'todos', hor:'todos' };
+  renderVals(){
+    const s = this.state;
+    const tab = (k,l,cur,key) => ({ label:l, on:cur===k, bg:cur===k ? '#111212' : 'transparent', c:cur===k ? '#FFFFFF' : '#414141', set:() => this.setState({ [key]:k }) });
+    const chip = (k,l,cur,key) => ({ label:l, on:cur===k, bd:cur===k ? '#111212' : '#E9EBED', w:cur===k ? 650 : 500, set:() => this.setState({ [key]:cur===k ? 'todos' : k }) });
+    const f = P.filter(p => (s.cat === 'todas' || p.cat === s.cat) && (s.pub === 'todos' || p.pub === s.pub || p.pub === 'Ambos') && (s.hor === 'todos' || p.hor === s.hor));
+    const grupos = ['A','B','C'].map(c => { const it = f.filter(p => p.cat === c); return { titulo:CATS[c], n:it.length, itens:it.map(p => ({ ...p, prioDot:DOT[p.prio], horLabel:p.hor === 'rapida' ? 'Melhoria rápida' : 'Iniciativa estrutural', bg:p.destaque ? '#FFFCFC' : '#FFFFFF' })) }; }).filter(g => g.n);
+    return {
+      total:P.length,
+      destaques:P.filter(p => p.destaque).map(p => ({ id:p.id, titulo:p.titulo, porque:PORQUE[p.id], ir:() => { this.setState({ cat:'todas', pub:'todos', hor:'todos' }); setTimeout(() => { const el = document.getElementById(p.id); if (el) window.scrollTo({ top:el.getBoundingClientRect().top + window.scrollY - 70, behavior:'smooth' }); }, 60); } })),
+      cats:[['todas','Todas'],['A','Melhorias'],['B','Novas'],['C','Estratégicas']].map(([k,l]) => tab(k,l,s.cat,'cat')),
+      pubs:[['B2C','B2C'],['B2B','B2B']].map(([k,l]) => chip(k,l,s.pub,'pub')),
+      hors:[['rapida','Melhorias rápidas'],['estrutural','Estruturais']].map(([k,l]) => chip(k,l,s.hor,'hor')),
+      grupos, vazio:grupos.length === 0
+    };
+  }
+}
+
+</script>
+</body>
+</html>

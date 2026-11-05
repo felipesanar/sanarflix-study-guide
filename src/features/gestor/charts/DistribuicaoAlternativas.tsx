@@ -70,7 +70,29 @@ export interface DistribuicaoAlternativasProps {
    * abre o `DrawerAluno` com o recorte atual. Sem handler, o nome é só texto.
    */
   onAbrirAluno?: (alunoId: string, nome: string) => void;
+  /**
+   * Quem marcou cada alternativa, já carregado pelo chamador (Portal do
+   * Mentor). Presente = a lista NÃO chama `useQuestaoRespondentes`; letra sem
+   * entrada mostra o aviso de indisponibilidade. Ausente = Gestor, inalterado.
+   */
+  respondentes?: RespondentesPorAlternativa;
+  /** Linha aberta ao montar (o Mentor abre o distrator dominante). */
+  abertaInicial?: Alternativa['letra'] | null;
+  /** Máximo de nomes listados; com mais, o contador diz "· mostrando N". */
+  limiteRespondentes?: number;
+  /** Ações ao lado de "Quem marcou X" (só quando `respondentes` vem por prop). */
+  acoesRespondentes?: (letra: Alternativa['letra'], lista: ListaRespondentes) => React.ReactNode;
 }
+
+/** Alunos que marcaram uma alternativa, vindos por prop. */
+export interface ListaRespondentes {
+  alunos: { alunoId: string; nome: string }[];
+  /** Total de quem marcou (pode ser maior que `alunos` quando a fonte corta). */
+  total: number;
+  carregando?: boolean;
+  erro?: boolean;
+}
+export type RespondentesPorAlternativa = Partial<Record<Alternativa['letra'], ListaRespondentes>>;
 
 /**
  * Lista de alunos que marcaram uma alternativa — o conteúdo do painel que
@@ -95,14 +117,40 @@ function RespondentesAlternativa({
 }) {
   const { iesId } = useFiltrosGestor();
   const { data, isLoading, isError } = useQuestaoRespondentes(iesId, questionId, alternativa, true);
+  return (
+    <TabelaRespondentes
+      alunos={data ?? []}
+      carregando={isLoading}
+      erro={isError}
+      onAbrirAluno={onAbrirAluno}
+    />
+  );
+}
 
-  if (isLoading) {
+/** Apresentação da lista (sem busca de dado): usada pelo Gestor e pelo Mentor. */
+function TabelaRespondentes({
+  alunos: todos,
+  carregando,
+  erro,
+  total,
+  limite,
+  onAbrirAluno,
+}: {
+  alunos: { alunoId: string; nome: string }[];
+  carregando?: boolean;
+  erro?: boolean;
+  total?: number;
+  limite?: number;
+  onAbrirAluno?: (alunoId: string, nome: string) => void;
+}) {
+  if (carregando) {
     return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Carregando alunos…</p>;
   }
-  if (isError) {
+  if (erro) {
     return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Não foi possível carregar os alunos.</p>;
   }
-  const alunos = data ?? [];
+  const alunos = limite !== undefined ? todos.slice(0, limite) : todos;
+  const quantos = total ?? todos.length;
   if (alunos.length === 0) {
     return <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>Nenhum aluno marcou esta alternativa.</p>;
   }
@@ -137,7 +185,8 @@ function RespondentesAlternativa({
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-xs tabular-nums" style={{ color: 'var(--gp-text-3)', fontFamily: FONTE_MONO }}>
-        {alunos.length} aluno{alunos.length === 1 ? '' : 's'}
+        {quantos} aluno{quantos === 1 ? '' : 's'}
+        {alunos.length < quantos ? ` · mostrando ${alunos.length}` : ''}
       </p>
       <div className="overflow-hidden rounded border border-border">
         <table className="w-full table-fixed text-left text-xs">
@@ -177,9 +226,13 @@ export function DistribuicaoAlternativas({
   respostas,
   questionId,
   onAbrirAluno,
+  respondentes,
+  abertaInicial = null,
+  limiteRespondentes,
+  acoesRespondentes,
 }: DistribuicaoAlternativasProps) {
   const dominante = distratorDominante ?? derivarDistratorDominante(alternativas);
-  const [aberta, setAberta] = React.useState<Alternativa['letra'] | null>(null);
+  const [aberta, setAberta] = React.useState<Alternativa['letra'] | null>(abertaInicial);
 
   const papelDe = (alt: Alternativa): PapelAlternativa =>
     alt.correta ? 'correta' : alt.letra === dominante ? 'distrator' : 'neutro';
@@ -308,10 +361,34 @@ export function DistribuicaoAlternativas({
                     data-testid={`respondentes-${alt.letra}`}
                     className="rounded border border-border bg-card p-2.5 duration-200 animate-in fade-in-0"
                   >
-                    <p className={cn(CLASSE_KICKER, 'mb-1.5')} style={{ color: 'var(--gp-text-3)' }}>
-                      Quem marcou {alt.letra}
-                    </p>
-                    {questionId ? (
+                    {respondentes && respondentes[alt.letra] && acoesRespondentes ? (
+                      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                        <p className={cn(CLASSE_KICKER, 'min-w-[160px] flex-1')} style={{ color: 'var(--gp-text-3)' }}>
+                          Quem marcou {alt.letra}
+                        </p>
+                        {acoesRespondentes(alt.letra, respondentes[alt.letra]!)}
+                      </div>
+                    ) : (
+                      <p className={cn(CLASSE_KICKER, 'mb-1.5')} style={{ color: 'var(--gp-text-3)' }}>
+                        Quem marcou {alt.letra}
+                      </p>
+                    )}
+                    {respondentes ? (
+                      respondentes[alt.letra] ? (
+                        <TabelaRespondentes
+                          alunos={respondentes[alt.letra]!.alunos}
+                          total={respondentes[alt.letra]!.total}
+                          carregando={respondentes[alt.letra]!.carregando}
+                          erro={respondentes[alt.letra]!.erro}
+                          limite={limiteRespondentes}
+                          onAbrirAluno={onAbrirAluno}
+                        />
+                      ) : (
+                        <p className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                          Lista de alunos indisponível para esta alternativa.
+                        </p>
+                      )
+                    ) : questionId ? (
                       <RespondentesAlternativa
                         questionId={questionId}
                         alternativa={alt.letra}

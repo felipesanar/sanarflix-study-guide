@@ -412,16 +412,19 @@ describe('experiences/buildAppRoutes — mentor', () => {
     expect(redirectTarget(indexChild)).toBeUndefined();
   });
 
-  it('/mentor tem os filhos index, turma, detalhamento, mural, sessoes e intervencoes, nessa ordem', () => {
+  it('/mentor tem os filhos das duas modalidades (B2C turma/mural, B2B visao-geral/canais) e o curinga, nessa ordem', () => {
     const routes = routesForRoles(['mentor'], alunoRules);
     const children = routes.get('/mentor')?.children ?? [];
     expect(children.map((c) => (c.index ? 'index' : c.path))).toEqual([
       'index',
       'turma',
+      'visao-geral',
       'detalhamento',
       'mural',
       'sessoes',
+      'canais',
       'intervencoes',
+      '*',
     ]);
   });
 

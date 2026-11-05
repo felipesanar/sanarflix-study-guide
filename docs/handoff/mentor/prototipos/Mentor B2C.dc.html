@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Mentor B2C · SanarFlix Academy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600&display=swap">
+<script src="./icons.js"></script>
+<style>
+body{margin:0;background:#F4F5F6;color:#111212;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#941F1F;text-decoration:none}a:hover{color:#660000;text-decoration:underline}
+button{font-family:inherit;line-height:1.4}
+input,textarea,select{font-family:inherit}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</helmet>
+
+<div style="display:flex;min-height:100vh;background:#F4F5F6;font-size:14px;line-height:1.45">
+
+  <!-- SIDEBAR -->
+  <sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ true }}">
+  <aside style="width:248px;flex-shrink:0;background:#FFFFFF;border-right:1px solid #E9EBED;display:flex;flex-direction:column;position:{{ sidePos }};left:0;top:0;height:100vh;z-index:50;box-shadow:{{ sideShadow }}">
+    <div style="padding:22px 20px 0 20px;display:flex;flex-direction:column;gap:18px">
+      <img src="./public/sanarflix-academy-lockup.svg" alt="SanarFlix Academy" style="height:30px;width:auto;align-self:flex-start">
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:{{ tribo.shadow }}">
+        <img src="{{ tribo.icone }}" alt="" style="width:36px;height:auto;flex:none">
+        <div style="min-width:0;display:flex;flex-direction:column;gap:1px">
+          <span style="font-size:14px;font-weight:650;color:#F4EDE4">Tribo {{ tribo.nome }}</span>
+          <span style="font-size:12px;color:rgba(244,237,228,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tribo.lema }}</span>
+        </div>
+      </div>
+    </div>
+    <nav style="padding:16px 12px;display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;overflow-x:hidden" aria-label="Portal do Mentor">
+      <sc-for list="{{ nav }}" as="it" hint-placeholder-count="6">
+        <sc-if value="{{ it.grupo }}">
+          <span style="font-size:11px;font-weight:600;color:#899090;letter-spacing:0.06em;padding:14px 10px 6px 10px">{{ it.grupo }}</span>
+        </sc-if>
+        <button type="button" onClick="{{ it.go }}" aria-current="{{ it.aria }}" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 10px;border-radius:8px;border:0;background:{{ it.bg }};color:{{ it.color }};font-size:14px;font-weight:{{ it.weight }};cursor:pointer" style-hover="background:#F4F5F6">
+          <lu-icon name="{{ it.icon }}" size="17"></lu-icon>
+          <span style="flex:1">{{ it.label }}</span>
+          <sc-if value="{{ it.badge }}"><span style="font-size:11px;font-weight:700;color:#941F1F;background:#FCE3E3;border-radius:10em;padding:1px 7px;font-variant-numeric:tabular-nums">{{ it.badge }}</span></sc-if>
+        </button>
+      </sc-for>
+    </nav>
+    <div style="padding:12px 16px 16px 16px;border-top:1px solid #F1F2F4;display:flex;flex-direction:column;gap:10px">
+      <button type="button" onClick="{{ goNotas }}" style="display:flex;align-items:center;gap:8px;border:1px dashed #C3C6C6;border-radius:8px;background:{{ notasBg }};padding:8px 10px;font-size:12.5px;color:#414141;cursor:pointer"><lu-icon name="file" size="15"></lu-icon>Notas de handoff</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="{{ tribo.foto }}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;object-position:50% 20%;box-shadow:0 0 0 2px {{ tribo.sig }};flex:none">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+          <span style="font-size:13.5px;font-weight:600">{{ tribo.mentor }}</span>
+          <span style="font-size:12px;color:#899090">Mentor B2C</span>
+        </div>
+        <button type="button" aria-label="Notificações" style="border:0;background:none;color:#414141;cursor:pointer;padding:6px"><lu-icon name="bell" size="17"></lu-icon></button>
+      </div>
+    </div>
+  </aside>
+  </sc-if>
+  <sc-if value="{{ scrimOn }}"><div onClick="{{ toggleNav }}" style="position:fixed;inset:0;background:rgba(8,9,10,0.42);z-index:45"></div></sc-if>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <sc-if value="{{ narrow }}">
+      <div style="position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 16px;background:#FFFFFF;border-bottom:1px solid #E9EBED">
+        <button type="button" onClick="{{ toggleNav }}" aria-label="Abrir menu" style="border:1px solid #E9EBED;background:#FFFFFF;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap"><lu-icon name="menu" size="18"></lu-icon></button>
+        <img src="./public/sanarflix-academy-lockup.svg" alt="SanarFlix Academy" style="height:24px">
+        <span style="margin-left:auto;font-size:12.5px;color:#414141;white-space:nowrap">Tribo {{ tribo.nome }}</span>
+      </div>
+    </sc-if>
+
+    <main style="flex:1;width:100%;max-width:1240px;margin:0 auto;padding:28px 32px 64px 32px;display:flex;flex-direction:column;gap:24px">
+
+      <sc-if value="{{ isErr }}">
+        <div role="alert" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:#F9E8E8;color:#771111;font-size:13.5px">
+          <lu-icon name="alert" size="18"></lu-icon>
+          <span style="flex:1">Não foi possível carregar os dados da turma.</span>
+          <button type="button" onClick="{{ retry }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid #F3C9C9;background:#FFFFFF;color:#771111;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap"><lu-icon name="refresh" size="14"></lu-icon>Tentar novamente</button>
+        </div>
+      </sc-if>
+
+      <!-- ================= INÍCIO ================= -->
+      <sc-if value="{{ sc.inicio }}" hint-placeholder-val="{{ true }}">
+        <header style="border-radius:14px;background:radial-gradient(circle at calc(100% - 40px) 50%, {{ tribo.sigA }}, rgba(0,0,0,0) 130px), linear-gradient(100deg, #160608 0%, {{ tribo.shadow }} 100%);box-shadow:inset 0 0 0 1px rgba(232,205,143,0.14);color:#F4EDE4;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px">
+          <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:3px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:{{ tribo.glow }}">Tribo {{ tribo.nome }} · {{ tribo.lema }}</span>
+            <h1 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-0.02em;color:#FFFFFF">Boa tarde, {{ tribo.primeiro }}</h1>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button type="button" onClick="{{ goInterv }}" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:8px;background:transparent;color:#E8CD8F;border:0;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="background:rgba(255,255,255,0.07)"><lu-icon name="plus" size="15"></lu-icon>Nova intervenção</button>
+            <button type="button" onClick="{{ goMural }}" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;background:#E8CD8F;color:#1A0509;border:0;font-weight:650;font-size:13px;cursor:pointer;white-space:nowrap" style-hover="background:#F2DCA6"><lu-icon name="megaphone" size="15"></lu-icon>Publicar no mural</button>
+          </div>
+          <img src="{{ tribo.icone }}" alt="Tribo {{ tribo.nome }}" style="width:40px;height:auto;flex:none">
+        </header>
+
+        <sc-if value="{{ isLoad }}"><div style="height:104px;border-radius:12px;background:#E9EBED"></div><div style="display:flex;flex-wrap:wrap;gap:16px"><div style="flex:2 1 520px;height:260px;border-radius:12px;background:#E9EBED"></div><div style="flex:1 1 300px;height:260px;border-radius:12px;background:#E9EBED"></div></div></sc-if>
+
+        <sc-if value="{{ showData }}">
+          <section aria-labelledby="vgt-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 20px 0 20px">
+              <h2 id="vgt-h" style="margin:0;font-size:13px;font-weight:650;color:#414141">Visão geral da tribo</h2>
+              <span style="margin-left:auto;font-size:12px;color:#899090;white-space:nowrap">{{ iniRef }}</span>
+              <button type="button" onClick="{{ iniLinkGo }}" style="border:0;background:none;color:#941F1F;font-weight:600;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:0;white-space:nowrap">{{ iniLink }}<lu-icon name="right" size="14"></lu-icon></button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));padding:10px 0 14px 0;overflow:hidden">
+              <sc-for list="{{ iniKpis }}" as="k" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;gap:2px;padding:2px 20px;border-left:1px solid #F1F2F4;margin-left:-1px">
+                  <span style="font-size:12.5px;color:#414141;white-space:nowrap">{{ k.label }}</span>
+                  <span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:28px;font-weight:750;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:{{ k.vc }}">{{ k.valor }}</span><span style="font-size:13px;color:#899090">{{ k.suf }}</span></span>
+                  <span style="font-size:12.5px;font-weight:{{ k.subW }};color:{{ k.subC }};font-variant-numeric:tabular-nums">{{ k.sub }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+
+          <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+            <section aria-labelledby="qpv-h" style="flex:2 1 520px;min-width:0;background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;overflow:hidden">
+              <div style="display:flex;align-items:baseline;gap:10px;padding:14px 20px 10px 20px">
+                <h2 id="qpv-h" style="margin:0;font-size:15px;font-weight:650">Quem precisa de você</h2>
+                <span style="font-size:12.5px;color:#899090;white-space:nowrap">{{ alertasN }} alertas · hoje, 14h</span>
+              </div>
+              <sc-for list="{{ alertaRows }}" as="a" hint-placeholder-count="4">
+                <button type="button" onClick="{{ a.ver }}" style="display:grid;grid-template-columns:{{ alertCols }};gap:14px;align-items:center;width:100%;text-align:left;padding:11px 20px;border:0;border-top:1px solid #F1F2F4;background:#FFFFFF;cursor:pointer;font:inherit;color:#111212" style-hover="background:#F9FAFB">
+                  <span style="color:{{ a.tileC }};display:flex"><lu-icon name="{{ a.icon }}" size="17"></lu-icon></span>
+                  <span style="display:block;min-width:0"><span style="display:block;font-size:14px;font-weight:600">{{ a.titulo }}</span><span style="display:block;font-size:12.5px;color:#899090">{{ a.rule }}</span></span>
+                  <span style="display:{{ avDisp }};align-items:center"><sc-for list="{{ a.ini }}" as="i"><span style="width:24px;height:24px;border-radius:50%;background:#F4F5F6;color:#414141;font-size:9.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #FFFFFF;margin-left:-6px">{{ i }}</span></sc-for></span>
+                  <b style="text-align:right;font-size:17px;font-variant-numeric:tabular-nums">{{ a.n }}</b>
+                  <span style="justify-self:end;font-size:11.5px;font-weight:650;padding:2px 8px;border-radius:5px;background:{{ a.pBg }};color:{{ a.pC }};white-space:nowrap">{{ a.prio }}</span>
+                  <span style="color:#899090;display:flex"><lu-icon name="right" size="16"></lu-icon></span>
+                </button>
+              </sc-for>
+            </section>
+
+            <div style="flex:1 1 300px;display:flex;flex-direction:column;gap:16px;min-width:0">
+              <section aria-labelledby="enc-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;overflow:hidden">
+                <div style="display:flex;align-items:center;padding:14px 20px 10px 20px"><h2 id="enc-h" style="margin:0;font-size:15px;font-weight:650;flex:1">Próximas sessões</h2><button type="button" onClick="{{ goSessoes }}" style="border:0;background:none;color:#941F1F;font-weight:600;font-size:12.5px;cursor:pointer;padding:0;white-space:nowrap">Ver agenda</button></div>
+                <div style="display:flex;gap:14px;padding:12px 20px 14px 20px;border-top:1px solid #F1F2F4;background:#FBF8F2">
+                  <span style="display:flex;flex-direction:column;align-items:center;width:40px;flex:none"><span style="font-size:11px;font-weight:600;color:#7F5205">Sex</span><span style="font-size:22px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.1">16</span></span>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                    <span style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:650"><img src="{{ tribo.icone }}" alt="" style="width:20px;height:auto">Encontro da tribo · 19h</span>
+                    <span style="font-size:13px;color:#414141">Como estudar as últimas 6 semanas</span>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+                      <sc-if value="{{ faltaLinkHome }}"><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#7F5205"><lu-icon name="alert" size="13"></lu-icon>Falta link</span><button type="button" onClick="{{ goSessoes }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">Adicionar link</button></sc-if>
+                      <sc-if value="{{ temLinkHome }}"><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#0C5728"><lu-icon name="check" size="13"></lu-icon>Link enviado à tribo</span></sc-if>
+                    </div>
+                  </div>
+                </div>
+                <sc-for list="{{ sessHome }}" as="s">
+                  <button type="button" onClick="{{ goSessoes }}" style="display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 20px;border:0;border-top:1px solid #F1F2F4;background:#FFFFFF;cursor:pointer;font:inherit;color:#111212" style-hover="background:#F9FAFB">
+                    <span style="font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums">{{ s.data }}</span>
+                    <span style="font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.quem }} · {{ s.hora }}</span>
+                    <span style="font-size:12px;color:#414141;white-space:nowrap">{{ s.tipoLabel }}</span>
+                  </button>
+                </sc-for>
+              </section>
+              <section aria-labelledby="af-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;padding:14px 20px 10px 20px">
+                  <h2 id="af-h" style="margin:0;font-size:15px;font-weight:650">A fazer</h2>
+                  <span style="font-size:12.5px;color:#899090;font-variant-numeric:tabular-nums">{{ afazerN }}</span>
+                  <button type="button" onClick="{{ goInterv }}" style="margin-left:auto;border:0;background:none;color:#941F1F;font-weight:600;font-size:12.5px;cursor:pointer;padding:0;white-space:nowrap">Abrir kanban</button>
+                </div>
+                <sc-for list="{{ afazer }}" as="c" hint-placeholder-count="3">
+                  <button type="button" onClick="{{ c.open }}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 20px;border:0;border-top:1px solid #F1F2F4;background:#FFFFFF;cursor:pointer;font:inherit;color:#111212" style-hover="background:#F9FAFB">
+                    <span style="color:#414141;display:flex"><lu-icon name="{{ c.icon }}" size="15"></lu-icon></span>
+                    <span style="display:block;flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.titulo }}</span><span style="display:block;font-size:12px;color:#899090">{{ c.quem }}</span></span>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ afazerVazio }}"><p style="margin:0;padding:12px 20px 16px 20px;font-size:13px;color:#414141;border-top:1px solid #F1F2F4">Nada pendente.</p></sc-if>
+              </section>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <!-- ================= MINHA TURMA ================= -->
+      <sc-if value="{{ sc.turma }}">
+        <header style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px 24px">
+          <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:4px">
+            <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Minha Turma</h1>
+            
+          </div>
+          <sc-if value="{{ comSim }}"><button type="button" onClick="{{ goDetUlt }}" style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="chart" size="15"></lu-icon>Detalhar 5º Simulado PRO<lu-icon name="right" size="14"></lu-icon></button></sc-if>
+        </header>
+
+        <sc-if value="{{ isLoad }}"><div style="height:150px;border-radius:12px;background:#E9EBED"></div><div style="height:320px;border-radius:12px;background:#E9EBED"></div></sc-if>
+
+        <sc-if value="{{ showData }}">
+          <section aria-label="Indicadores da turma" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;overflow:hidden">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+              <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;border-left:1px solid #F1F2F4;margin-left:-1px">
+                <div style="display:flex;flex-direction:column;gap:1px">
+                  <span style="font-size:13.5px;font-weight:650">{{ k.titulo }}</span>
+                  <span style="font-size:12px;color:#899090">{{ k.hint }}</span>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                  <span style="font-size:30px;font-weight:750;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:{{ k.vc }}">{{ k.valor }}</span>
+                  <span style="font-size:13px;color:#899090">{{ k.suf }}</span>
+                  <sc-if value="{{ k.delta }}"><span style="margin-left:auto;font-size:12px;font-weight:600;color:{{ k.dc }};font-variant-numeric:tabular-nums">{{ k.delta }} vs anterior</span></sc-if>
+                </div>
+                <sc-if value="{{ k.regua }}">
+                  <div style="display:flex;border:1px solid #F1F2F4;border-radius:8px;overflow:hidden">
+                    <sc-for list="{{ k.regua }}" as="r"><div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:5px 4px;background:{{ r.bg }};border-left:1px solid #F1F2F4"><span style="font-size:10px;color:#899090">{{ r.l }}</span><span style="font-family:'Roboto Mono',monospace;font-size:12.5px;font-weight:600;color:{{ r.c }}">{{ r.v }}</span></div></sc-for>
+                  </div>
+                </sc-if>
+                <span style="font-size:12px;color:#414141">{{ k.rodape }}</span>
+              </div>
+            </sc-for>
+          </section>
+
+          <sc-if value="{{ comSim }}">
+          <section style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px">
+              <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:2px">
+                <h2 style="margin:0;font-size:15px;font-weight:650">Onde a turma perde ponto</h2>
+                
+              </div>
+              <div role="tablist" style="display:flex;gap:2px;padding:3px;background:#F4F5F6;border-radius:8px">
+                <sc-for list="{{ matrizSegs }}" as="m"><button type="button" role="tab" aria-selected="{{ m.on }}" onClick="{{ m.set }}" style="height:28px;padding:0 10px;border-radius:6px;border:0;background:{{ m.bg }};color:#111212;font-size:12.5px;font-weight:{{ m.w }};cursor:pointer;white-space:nowrap">{{ m.label }}</button></sc-for>
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <div role="table" style="min-width:620px;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums">
+                <div role="row" style="display:grid;grid-template-columns:minmax(180px,1fr) 92px 92px 92px 80px 90px;gap:3px;font-size:12px;font-weight:600;color:#414141;text-align:center">
+                  <span style="text-align:left;padding:4px 8px">Grande área</span>
+                  <span>Alta<br><span style="font-weight:400;color:#899090">62% da prova</span></span>
+                  <span>Média<br><span style="font-weight:400;color:#899090">28%</span></span>
+                  <span>Baixa<br><span style="font-weight:400;color:#899090">10%</span></span>
+                  <span>Geral</span><span></span>
+                </div>
+                <sc-for list="{{ matriz }}" as="r" hint-placeholder-count="7">
+                  <div role="row" style="display:grid;grid-template-columns:minmax(180px,1fr) 92px 92px 92px 80px 90px;gap:3px;align-items:center">
+                    <span style="padding:6px 8px;font-size:13.5px">{{ r.area }}</span>
+                    <sc-for list="{{ r.cells }}" as="c"><span style="text-align:center;padding:8px 0;border-radius:6px;background:{{ c.bg }};color:{{ c.c }};font-weight:600;font-size:13px">{{ c.v }}</span></sc-for>
+                    <span style="text-align:center;font-weight:650;font-size:13px">{{ r.geral }}</span>
+                    <span style="text-align:right"><button type="button" onClick="{{ goDetalhe }}" style="border:0;background:none;color:#941F1F;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:2px">Detalhar<lu-icon name="right" size="14"></lu-icon></button></span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:#414141">
+              <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#E7F4EC;border:1px solid #149142"></span>78% ou mais</span>
+              <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#FBF3E6;border:1px solid #D38808"></span>66% a 77%</span>
+              <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:3px;background:#F9E8E8;border:1px solid #C61D1D"></span>abaixo de 66%</span>
+              
+            </div>
+
+            <div style="border-top:1px solid #F1F2F4;padding-top:14px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                <h3 style="margin:0;font-size:14px;font-weight:650">Temas críticos da turma</h3>
+                <span style="font-size:12px;color:#899090">mín. 30 respostas</span>
+              </div>
+              <div style="overflow-x:auto">
+                <div role="table" style="min-width:680px;font-variant-numeric:tabular-nums">
+                  <div role="row" style="display:grid;grid-template-columns:28px minmax(180px,1.6fr) minmax(110px,1fr) 90px 64px 80px 96px 104px;gap:8px;padding:8px 6px;font-size:12px;font-weight:600;color:#414141">
+                    <span>#</span><span>Tema</span><span>Grande área</span><span>Prevalência</span><span style="text-align:right">Acerto</span><span style="text-align:right">Respostas</span><span style="text-align:right">Alunos &lt; 50%</span><span></span>
+                  </div>
+                  <sc-for list="{{ temasVis }}" as="t" hint-placeholder-count="5">
+                    <div role="row" style="display:grid;grid-template-columns:28px minmax(180px,1.6fr) minmax(110px,1fr) 90px 64px 80px 96px 104px;gap:8px;align-items:center;padding:8px 6px;border-top:1px solid #F1F2F4;font-size:13.5px">
+                      <span style="color:#899090">{{ t.n }}</span>
+                      <span style="font-weight:600">{{ t.tema }}</span>
+                      <span style="color:#414141">{{ t.area }}</span>
+                      <span style="color:#414141">{{ t.prev }}</span>
+                      <span style="text-align:right;font-weight:600;color:{{ t.c }}">{{ t.acerto }}%</span>
+                      <span style="text-align:right;color:#414141">{{ t.resp }}</span>
+                      <span style="text-align:right;color:#414141">{{ t.abaixo }}</span>
+                      <span style="text-align:right"><button type="button" onClick="{{ t.interv }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">Intervenção</button></span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <button type="button" onClick="{{ toggleTemas }}" style="align-self:flex-start;border:0;background:none;color:#941F1F;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:4px 0">{{ temasBtn }}<lu-icon name="{{ temasIcon }}" size="15"></lu-icon></button>
+            </div>
+          </section>
+          </sc-if>
+
+          <section style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px" aria-labelledby="alunos-h">
+            <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;padding:18px 20px 12px 20px">
+              <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:2px">
+                <h2 id="alunos-h" style="margin:0;font-size:15px;font-weight:650">Alunos</h2>
+                
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid #C3C6C6;border-radius:8px;min-width:240px;color:#899090">
+                <lu-icon name="search" size="16"></lu-icon>
+                <input value="{{ busca }}" onChange="{{ setBusca }}" placeholder="Buscar aluno por nome" aria-label="Buscar aluno" style="border:0;outline:0;flex:1;font-size:13.5px;color:#111212;background:transparent">
+              </label>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 12px 20px;align-items:center">
+              <sc-if value="{{ alertaChip }}">
+                <span style="display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 12px;border-radius:10em;background:#111212;color:#FFFFFF;font-size:13px;font-weight:600;white-space:nowrap">Alerta: {{ alertaChip }}<button type="button" onClick="{{ limparAlerta }}" aria-label="Remover filtro de alerta" style="width:22px;height:22px;border-radius:50%;border:0;background:rgba(255,255,255,0.16);color:#FFFFFF;display:flex;align-items:center;justify-content:center;cursor:pointer;white-space:nowrap"><lu-icon name="x" size="13"></lu-icon></button></span>
+                <span style="font-size:12px;color:#899090;margin-right:8px">vindo do Início</span>
+              </sc-if>
+              <sc-for list="{{ segs }}" as="s" hint-placeholder-count="5">
+                <button type="button" onClick="{{ s.set }}" disabled="{{ s.dis }}" aria-pressed="{{ s.on }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:10em;border:1px solid {{ s.bd }};background:#FFFFFF;color:{{ s.c }};font-size:13px;font-weight:{{ s.w }};cursor:pointer;opacity:{{ s.op }};white-space:nowrap">
+                  <sc-if value="{{ s.dot }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ s.dot }}"></span></sc-if>{{ s.label }}<span style="color:#899090;font-variant-numeric:tabular-nums">{{ s.n }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <div style="overflow-x:auto">
+              <div role="table" style="min-width:920px;font-variant-numeric:tabular-nums">
+                <div role="row" style="display:grid;grid-template-columns:minmax(200px,1.4fr) 120px minmax(170px,1fr) 200px 76px 100px 24px;gap:10px;padding:9px 20px;font-size:12px;font-weight:600;color:#414141;background:#F9FAFB">
+                  <span>Aluno</span><span>Questões · acesso</span><span>Meta · corte mais difícil</span><span style="text-align:right">% de acerto por simulado</span><span style="text-align:right">vs corte</span><span>Último acesso</span><span></span>
+                </div>
+                <sc-for list="{{ linhas }}" as="l" hint-placeholder-count="7">
+                  <button type="button" onClick="{{ l.open }}" style="display:grid;grid-template-columns:minmax(200px,1.4fr) 120px minmax(170px,1fr) 200px 76px 100px 24px;gap:10px;align-items:center;width:100%;text-align:left;padding:12px 20px;border:0;border-top:1px solid #F1F2F4;cursor:pointer;background:{{ l.bg }};color:#111212;font:inherit;line-height:1.4" style-hover="background:#F9FAFB">
+                    <span style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0"><span style="font-weight:600;font-size:13.5px">{{ l.nome }}</span><span style="font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;background:{{ l.tagBg }};color:{{ l.tagC }}">{{ l.tag }}</span></span>
+                    <span style="font-size:13px"><span style="display:block">{{ l.q30 }} em 30 dias</span><span style="display:block;color:#899090;font-size:12px">acesso até {{ l.acesso }}</span></span>
+                    <span style="font-size:13px;min-width:0"><span style="display:block">{{ l.meta }}</span><span style="display:block;color:#899090;font-size:12px">{{ l.metaSub }}</span></span>
+                    <span style="font-size:12.5px;text-align:right;color:#414141;white-space:nowrap">{{ l.simsTxt }} <b style="color:#111212">{{ l.simsLast }}</b></span>
+                    <span style="font-size:13px;text-align:right;font-weight:600;color:{{ l.vsC }};white-space:nowrap">{{ l.vs }}</span>
+                    <span style="font-size:13px;color:{{ l.ultC }};font-weight:{{ l.ultW }}">{{ l.ultimo }}</span>
+                    <span style="color:#899090"><lu-icon name="right" size="16"></lu-icon></span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ semLinhas }}">
+              <div style="padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center">
+                <span style="font-weight:600">Nenhum aluno neste recorte</span>
+                <span style="font-size:13px;color:#414141">Ajuste a busca ou remova o filtro de alerta.</span>
+                <button type="button" onClick="{{ limparTudo }}" style="margin-top:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap">Limpar filtros</button>
+              </div>
+            </sc-if>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid #F1F2F4;font-size:12.5px;color:#414141">
+              <span>Mostrando {{ linhas.length }} de {{ totalRecorte }}</span>
+              <span style="display:flex;gap:6px"><button type="button" disabled="disabled" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;color:#C3C6C6;white-space:nowrap">Anterior</button><button type="button" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer;white-space:nowrap">Próxima</button></span>
+            </div>
+          </section>
+        </sc-if>
+      </sc-if>
+
+      <!-- ================= DETALHAMENTO ================= -->
+      <sc-if value="{{ sc.detalhamento }}">
+        <header style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 24px">
+          <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:2px">
+            <h1 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-0.02em">Detalhamento de simulados</h1>
+            <span style="font-size:13px;color:#414141">Escolha um ou mais simulados para ver o desempenho questão por questão.</span>
+          </div>
+          <button type="button" onClick="{{ verCrono }}" style="border:0;background:none;color:#941F1F;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:4px 0;white-space:nowrap">Ver cronograma<lu-icon name="right" size="15"></lu-icon></button>
+        </header>
+        <sc-if value="{{ semSim }}">
+          <div style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;border-style:dashed;padding:40px 24px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center"><lu-icon name="clip" size="24"></lu-icon><span style="font-weight:650;font-size:15px">Nenhum simulado disponível</span></div>
+        </sc-if>
+        <sc-if value="{{ comSimData }}">
+          <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-if value="{{ selOpen }}"><div onClick="{{ fecharSel }}" style="position:fixed;inset:0;z-index:25"></div></sc-if>
+          <div style="position:relative;z-index:26;background:#FFFFFF;border:1px solid {{ selBd }};border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <lu-icon name="filter" size="15"></lu-icon>
+              <span style="font-size:12px;font-weight:700">Simulados no recorte</span>
+              <span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:10em;background:{{ selCountBg }};color:{{ selCountC }}">{{ selCount }}</span>
+              <sc-if value="{{ selTem }}"><button type="button" onClick="{{ limparSel }}" style="margin-left:auto;border:0;background:none;font-size:11px;font-weight:600;color:#899090;cursor:pointer;white-space:nowrap">Limpar seleção</button></sc-if>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;border:1.5px solid {{ selFieldBd }};border-radius:8px;padding:7px 8px 7px 10px;background:#FFFFFF">
+              <sc-for list="{{ selChips }}" as="c"><span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;border:1px solid #B81414;background:#FCE3E3;border-radius:10em;padding:4px 5px 4px 10px;font-size:12px;font-weight:600">{{ c.label }}<button type="button" aria-label="Remover do recorte" onClick="{{ c.rm }}" style="width:18px;height:18px;border-radius:50%;border:0;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#414141;padding:0"><lu-icon name="x" size="12"></lu-icon></button></span></sc-for>
+              <button type="button" onClick="{{ toggleSel }}" aria-expanded="{{ selOpen }}" style="flex:1;min-width:160px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:0;background:none;cursor:pointer;font-size:13px;color:#899090;padding:2px 0;white-space:nowrap">{{ selPh }}<lu-icon name="{{ selChev }}" size="16"></lu-icon></button>
+            </div>
+            <sc-if value="{{ selOpen }}">
+              <div role="group" aria-label="Simulados do recorte" style="position:absolute;left:14px;right:14px;top:calc(100% - 6px);z-index:30;max-width:520px;border:1px solid #E9EBED;border-radius:12px;background:#FFFFFF;box-shadow:0 24px 48px -20px rgba(0,0,0,0.35);overflow:hidden">
+                <sc-if value="{{ podeComparar }}"><div style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #F1F2F4"><span style="font-size:10px;letter-spacing:0.04em;text-transform:uppercase;font-weight:700;color:#899090">Sugestão</span><button type="button" onClick="{{ compararRecentes }}" title="{{ recentesLabel }}" style="display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;border:1px solid #E9EBED;background:#F9FAFB;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="chart" size="13"></lu-icon>Comparar os 2 mais recentes</button></div></sc-if>
+                <p style="margin:0;padding:7px 12px;font-size:10px;letter-spacing:0.04em;text-transform:uppercase;font-weight:700;color:#899090;border-bottom:1px solid #F1F2F4">Disponíveis · marque 1 ou mais</p>
+                <sc-for list="{{ selDisp }}" as="i">
+                  <button type="button" role="checkbox" aria-checked="{{ i.on }}" onClick="{{ i.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 12px;border:0;border-top:1px solid #F1F2F4;background:{{ i.bg }};box-shadow:{{ i.sh }};cursor:pointer;font:inherit;color:#111212">
+                    <span style="width:20px;height:20px;border-radius:4px;border:2px solid {{ i.bc }};background:{{ i.cb }};color:#FFFFFF;display:flex;align-items:center;justify-content:center;flex:none"><sc-if value="{{ i.on }}"><lu-icon name="check" size="13" stroke="3"></lu-icon></sc-if></span>
+                    <span style="display:block;flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:{{ i.w }}">{{ i.nome }}</span><span style="display:block;font-size:11px;color:#899090">{{ i.meta }}</span></span>
+                  </button>
+                </sc-for>
+                <p style="margin:0;padding:7px 12px;font-size:10px;letter-spacing:0.04em;text-transform:uppercase;font-weight:700;color:#899090;border-top:1px solid #E9EBED;background:#F9FAFB">Ainda sem resultado</p>
+                <sc-for list="{{ selIndisp }}" as="i">
+                  <div aria-disabled="true" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-top:1px solid #F1F2F4;opacity:0.65;cursor:not-allowed">
+                    <span style="width:20px;height:20px;border-radius:4px;border:2px dashed #111212;flex:none"></span>
+                    <span style="display:block;flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:500">{{ i.nome }}</span><span style="display:block;font-size:11px;color:#899090">{{ i.meta }}</span></span>
+                    <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#F4F5F6;color:#414141;white-space:nowrap">{{ i.motivo }}</span>
+                  </div>
+                </sc-for>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-top:1px solid #E9EBED;background:#F9FAFB"><span style="font-size:11px;color:#899090">{{ selRodape }}</span><button type="button" onClick="{{ fecharSel }}" style="padding:4px 10px;border:0;border-radius:8px;background:#B81414;color:#FFFFFF;font-size:11px;font-weight:700;cursor:pointer">Concluir</button></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ selVazio }}"><p role="alert" style="margin:0;display:flex;align-items:center;gap:6px;font-size:13px;color:#771111"><lu-icon name="alert" size="16"></lu-icon>Escolha ao menos um simulado</p></sc-if>
+          </div>
+            <span style="font-size:11.5px;color:#899090;padding-left:4px">Não existe "todos": o agregado da turma é a Minha Turma. Previstos ou em processamento ficam desabilitados.</span>
+          </div>
+          <sc-if value="{{ selTem }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button type="button" onClick="{{ toggleComoLer }}" aria-expanded="{{ comoLer }}" style="align-self:flex-start;border:0;background:none;color:#414141;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:0;white-space:nowrap"><lu-icon name="{{ comoLerIcon }}" size="14"></lu-icon>Como ler estes indicadores</button>
+              <sc-if value="{{ comoLer }}"><dl style="margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 24px;padding:12px 16px;border-radius:10px;background:#FFFFFF;border:1px solid #E9EBED;font-size:12.5px"><div><dt style="font-weight:650">Percentual de acerto</dt><dd style="margin:2px 0 0 0;color:#414141">Questões certas sobre respondidas; anulada fica fora.</dd></div><div><dt style="font-weight:650">Possível aprovação</dt><dd style="margin:2px 0 0 0;color:#414141">Acima do corte da meta mais difícil de cada aluno. Comparativo só com 2+ simulados.</dd></div><div><dt style="font-weight:650">Prevalência</dt><dd style="margin:2px 0 0 0;color:#414141">Peso do tema na prova: Alta 62%, Média 28%, Baixa 10%.</dd></div></dl></sc-if>
+            </div>
+
+            <section aria-label="Indicadores do recorte" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+              <sc-for list="{{ detKpis }}" as="k" hint-placeholder-count="3">
+                <div style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;flex-direction:column;gap:1px">
+                    <span style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:650">{{ k.titulo }}<sc-if value="{{ k.v1 }}"><span style="font-size:10px;font-weight:700;padding:0 5px;border-radius:4px;border:1px dashed #941F1F;color:#941F1F">V1</span></sc-if></span>
+                    <span style="font-size:12px;color:#899090">{{ k.hint }}</span>
+                  </div>
+                  <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
+                    <span style="font-size:34px;font-weight:750;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">{{ k.valor }}</span><span style="font-size:13px;color:#899090">{{ k.suf }}</span>
+                    <sc-if value="{{ k.delta }}"><span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:650;padding:2px 8px;border-radius:10em;background:{{ k.dBg }};color:{{ k.dC }};white-space:nowrap"><lu-icon name="{{ k.dIcon }}" size="13"></lu-icon>{{ k.delta }}</span></sc-if>
+                  </div>
+                  <span style="font-size:12px;color:#414141;padding-top:8px;border-top:1px solid #F1F2F4">{{ k.rodape }}</span>
+                </div>
+              </sc-for>
+            </section>
+
+            <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+              <section aria-labelledby="prev-h" style="flex:1.4 1 460px;min-width:0;background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <h2 id="prev-h" style="margin:0;font-size:16px;font-weight:600">Acerto por prevalência</h2>
+                  <span style="font-size:12.5px;color:#414141">% de acerto da turma por grande área, separado pela prevalência dos temas na prova.</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+                  <sc-for list="{{ prevBoxes }}" as="p"><div style="border:1px solid #E9EBED;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:#899090;white-space:nowrap">{{ p.l }}</span><span style="font-size:22px;font-weight:750;font-variant-numeric:tabular-nums">{{ p.v }}</span></div></sc-for>
+                </div>
+                <div role="table" style="display:flex;flex-direction:column;gap:4px;font-variant-numeric:tabular-nums">
+                  <div role="row" style="display:grid;grid-template-columns:minmax(120px,1fr) repeat(3,52px) 86px;gap:4px;font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:#899090;font-weight:600;text-align:center"><span style="text-align:left;padding-left:6px">Grande área</span><span>Alta</span><span>Média</span><span>Baixa</span><span></span></div>
+                  <sc-for list="{{ detMatriz }}" as="r">
+                    <div role="row" style="display:grid;grid-template-columns:minmax(120px,1fr) repeat(3,52px) 86px;gap:4px;align-items:center">
+                      <span style="font-size:13px;padding:0 6px;line-height:1.3">{{ r.area }}</span>
+                      <sc-for list="{{ r.cells }}" as="c"><span style="text-align:center;padding:9px 0;border-radius:6px;background:{{ c.bg }};color:{{ c.c }};font-weight:650;font-size:12.5px">{{ c.v }}</span></sc-for>
+                      <button type="button" onClick="{{ r.abrir }}" style="justify-self:end;height:28px;padding:0 8px 0 10px;border-radius:6px;border:1px solid #F3C9C9;background:#FFFFFF;color:#941F1F;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:2px;white-space:nowrap">Detalhar<lu-icon name="right" size="13"></lu-icon></button>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+
+              <section aria-labelledby="ia-h" style="flex:1 1 320px;min-width:0;background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:flex-start;gap:10px">
+                  <span style="width:32px;height:32px;border-radius:8px;background:#FCE3E3;color:#941F1F;display:flex;align-items:center;justify-content:center;flex:none"><lu-icon name="gem" size="16"></lu-icon></span>
+                  <div style="display:flex;flex-direction:column;gap:1px"><h2 id="ia-h" style="margin:0;font-size:16px;font-weight:600">Diagnóstico da IA</h2><span style="font-size:12px;color:#899090">{{ iaRef }}</span></div>
+                </div>
+                <span style="align-self:flex-start;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;background:#F4F5F6;color:#414141">gerado por IA</span>
+                <sc-if value="{{ iaLoading }}"><div style="display:flex;flex-direction:column;gap:8px" aria-busy="true"><div style="height:12px;border-radius:4px;background:#F1F2F4"></div><div style="height:12px;width:80%;border-radius:4px;background:#F1F2F4"></div><div style="height:12px;width:65%;border-radius:4px;background:#F1F2F4"></div></div></sc-if>
+                <sc-if value="{{ iaPronto }}">
+                  <p style="margin:0;font-size:13.5px;line-height:1.55;color:#111212;text-wrap:pretty">{{ iaResumo }}</p>
+                  <span style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:#899090;font-weight:600">O que olhar primeiro</span>
+                  <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.5;color:#414141">
+                    <sc-for list="{{ iaItens }}" as="i"><li><b style="color:#111212">{{ i.b }}</b> {{ i.t }}</li></sc-for>
+                  </ol>
+                </sc-if>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px solid #F1F2F4;padding-top:10px">
+                  <span style="flex:1;min-width:160px;font-size:11.5px;color:#899090">Revise antes de compartilhar.</span>
+                  <button type="button" onClick="{{ iaGerar }}" style="border:0;background:none;color:#941F1F;font-weight:600;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap"><lu-icon name="refresh" size="13"></lu-icon>Gerar de novo</button>
+                  <button type="button" onClick="{{ iaMural }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><lu-icon name="megaphone" size="13"></lu-icon>Levar pro mural</button>
+                </div>
+              </section>
+            </div>
+
+            <section aria-labelledby="va-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2 id="va-h" style="margin:0;font-size:16px;font-weight:600;flex:1">Visão de alunos</h2><span style="font-size:12px;color:#899090">{{ vaResumo }}</span></div>
+              <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid #C3C6C6;border-radius:8px;max-width:420px;color:#899090"><lu-icon name="search" size="15"></lu-icon><input value="{{ vaBusca }}" onChange="{{ setVaBusca }}" placeholder="Buscar aluno por nome…" aria-label="Buscar aluno" style="border:0;outline:0;flex:1;font-size:13.5px;color:#111212;background:transparent"></label>
+              <div role="tablist" style="display:flex;flex-wrap:wrap;gap:2px;padding:4px;background:#F4F5F6;border-radius:10px;align-self:stretch">
+                <sc-for list="{{ vaSegs }}" as="g"><button type="button" role="tab" aria-selected="{{ g.on }}" onClick="{{ g.set }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:0;background:{{ g.bg }};box-shadow:{{ g.sh }};font-size:13px;font-weight:{{ g.w }};cursor:pointer;white-space:nowrap;color:#111212"><sc-if value="{{ g.dot }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ g.dot }}"></span></sc-if>{{ g.label }}<span style="font-size:11.5px;color:#899090">{{ g.n }}</span></button></sc-for>
+              </div>
+              <div role="table" style="font-variant-numeric:tabular-nums">
+                <div role="row" style="display:grid;grid-template-columns:minmax(150px,1.5fr) 96px 80px 90px 96px 130px;gap:10px;padding:8px 6px;font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:#899090;font-weight:600;border-bottom:1px solid #E9EBED"><span>Aluno</span><span>Último acesso</span><span style="text-align:right">Acertos</span><span style="text-align:right">% de acerto</span><span style="text-align:right">Corte da meta</span><span>Situação</span></div>
+                <sc-for list="{{ vaRows }}" as="a">
+                  <button type="button" onClick="{{ a.open }}" style="display:grid;grid-template-columns:minmax(150px,1.5fr) 96px 80px 90px 96px 130px;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 6px;border:0;border-bottom:1px solid #F1F2F4;background:#FFFFFF;cursor:pointer;font:inherit;color:#111212" style-hover="background:#F9FAFB">
+                    <span style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.02em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.nome }}</span>
+                    <span style="font-size:13px">{{ a.sem }}</span><span style="font-size:13px;text-align:right">{{ a.acertos }}</span><span style="font-size:13px;text-align:right;font-weight:600">{{ a.pct }}</span><span style="font-size:13px;text-align:right">{{ a.corte }}</span>
+                    <span><span style="font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px;background:{{ a.tBg }};color:{{ a.tC }};white-space:nowrap">{{ a.sit }}</span></span>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ vaVazio }}"><p style="margin:0;padding:20px 6px;text-align:center;font-size:13px;color:#414141">Nenhum aluno neste filtro.</p></sc-if>
+              </div>
+            </section>
+
+            <section aria-labelledby="dq-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;align-items:center;gap:10px"><span style="width:28px;height:28px;border-radius:7px;border:1px solid #E9EBED;display:flex;align-items:center;justify-content:center"><lu-icon name="menu" size="15"></lu-icon></span><h2 id="dq-h" style="margin:0;font-size:16px;font-weight:600;flex:1">Detalhamento das questões</h2><span style="font-size:12px;color:#899090">{{ dqTotal }}</span></div>
+              <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+                <label style="display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:1px solid #C3C6C6;border-radius:8px;font-size:13px;white-space:nowrap">Grande área:<select value="{{ dArea }}" onChange="{{ setDArea }}" style="border:0;outline:0;font-size:13px;font-weight:650;background:transparent;font-family:inherit"><option value="Todas">Todas</option><option value="Preventiva">Preventiva</option><option value="Clínica Médica">Clínica Médica</option><option value="GO">GO</option><option value="Cirurgia">Cirurgia</option><option value="Pediatria">Pediatria</option></select></label>
+                <div role="tablist" style="margin-left:auto;display:flex;gap:2px;padding:3px;background:#F4F5F6;border-radius:9px">
+                  <sc-for list="{{ ordensDq }}" as="o"><button type="button" role="tab" aria-selected="{{ o.on }}" onClick="{{ o.set }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;border:0;background:{{ o.bg }};color:{{ o.c }};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><sc-if value="{{ o.icon }}"><lu-icon name="{{ o.icon }}" size="14"></lu-icon></sc-if>{{ o.label }}</button></sc-for>
+                </div>
+              </div>
+              <div role="table" style="border:1px solid #E9EBED;border-radius:10px;overflow:hidden;font-variant-numeric:tabular-nums">
+                <div role="row" style="display:grid;grid-template-columns:28px 44px minmax(90px,1fr) minmax(100px,1fr) minmax(120px,1.3fr) 140px;gap:10px;padding:9px 12px;background:#F9FAFB;font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase;color:#899090;font-weight:600"><span></span><span>Nº</span><span>Grande área</span><span>Especialidade</span><span>Tema</span><span>Índice de acerto</span></div>
+                <sc-for list="{{ dqRows }}" as="q">
+                  <div style="border-top:1px solid #F1F2F4">
+                    <button type="button" onClick="{{ q.toggle }}" aria-expanded="{{ q.open }}" style="display:grid;grid-template-columns:28px 44px minmax(90px,1fr) minmax(100px,1fr) minmax(120px,1.3fr) 140px;gap:10px;align-items:center;width:100%;text-align:left;padding:11px 12px;border:0;background:{{ q.bg }};cursor:pointer;font:inherit;color:#111212;font-size:13px">
+                      <lu-icon name="{{ q.icon }}" size="14"></lu-icon>
+                      <b style="font-weight:650">Q{{ q.n }}</b><span>{{ q.area }}</span><span>{{ q.esp }}</span><span style="line-height:1.35">{{ q.tema }}</span>
+                      <span style="display:flex;align-items:center;gap:8px"><span style="flex:1;height:6px;border-radius:10em;background:#F1F2F4;overflow:hidden"><span style="display:block;height:100%;width:{{ q.acerto }}%;background:{{ q.c }}"></span></span><span style="display:inline-flex;align-items:center;gap:3px;font-weight:650;color:{{ q.txtC }};width:48px;justify-content:flex-end"><sc-if value="{{ q.crit }}"><lu-icon name="alert" size="12"></lu-icon></sc-if>{{ q.acerto }}%</span></span>
+                    </button>
+                    <sc-if value="{{ q.open }}">
+                      <div style="margin:0 12px 12px 12px;padding:16px 18px;border:1px solid #E9EBED;border-radius:10px;display:flex;flex-direction:column;gap:12px">
+                        <p style="margin:0;font-size:13.5px;line-height:1.55"><b>Enunciado.</b> {{ q.enun }}</p>
+                        <span style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:#899090;font-weight:600">Alternativas</span>
+                        <div style="display:flex;flex-direction:column;gap:6px">
+                          <sc-for list="{{ q.altTxt }}" as="a"><span style="font-size:14px;line-height:1.45;color:{{ a.c }};font-weight:{{ a.w }}"><b>{{ a.l }}.</b> {{ a.t }}<sc-if value="{{ a.certa }}"> · alternativa correta</sc-if><sc-if value="{{ a.dom }}"><span style="margin-left:6px;font-size:11px;font-weight:600;padding:1px 6px;border-radius:5px;background:#F9E8E8;color:#771111;white-space:nowrap">distrator dominante</span></sc-if></span></sc-for>
+                        </div>
+                        <span style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:#899090;font-weight:600">Distribuição por alternativa</span>
+                        <sc-for list="{{ q.alts }}" as="a">
+                          <div style="display:flex;flex-direction:column;gap:8px">
+                            <div style="display:grid;grid-template-columns:18px minmax(0,1fr) 54px;gap:12px;align-items:center;font-size:13px"><b>{{ a.l }}</b><span style="height:14px;border-radius:4px;background:#F1F2F4;overflow:hidden"><span style="display:block;height:100%;width:{{ a.p }}%;background:{{ a.bar }};border-radius:4px"></span></span><span style="text-align:right;font-weight:650">{{ a.p }}%<sc-if value="{{ a.certa }}"> ✓</sc-if></span></div>
+                            <sc-if value="{{ a.dom }}">
+                              <div style="margin-left:30px;padding:12px 14px;border:1px solid #E9EBED;border-radius:10px;display:flex;flex-direction:column;gap:10px">
+                                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+                                  <div style="flex:1;min-width:160px;display:flex;flex-direction:column"><span style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:#414141;font-weight:650">Quem marcou {{ a.l }}</span><span style="font-size:12px;color:#899090">{{ q.domN }} alunos · mostrando {{ q.quem.length }}</span></div>
+                                  <button type="button" onClick="{{ q.interv }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><lu-icon name="plus" size="13"></lu-icon>Criar intervenção</button>
+                                  <button type="button" onClick="{{ q.msg }}" style="height:30px;padding:0 12px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><lu-icon name="megaphone" size="13"></lu-icon>Mensagem pra quem marcou {{ a.l }}</button>
+                                </div>
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 24px">
+                                  <sc-for list="{{ q.quem }}" as="n"><span style="font-size:12.5px;text-transform:uppercase;letter-spacing:0.02em;padding:8px 0;border-top:1px solid #F1F2F4">{{ n }}</span></sc-for>
+                                </div>
+                              </div>
+                            </sc-if>
+                          </div>
+                        </sc-for>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:#899090"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#149142"></span>correta</span><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#C61D1D"></span>distrator mais marcado</span><span style="margin-left:auto">{{ q.leitura }}</span></div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ dqVazio }}"><p style="margin:0;padding:20px;text-align:center;font-size:13px;color:#414141;border-top:1px solid #F1F2F4">Nenhuma questão desta grande área no recorte.</p></sc-if>
+              </div>
+            </section>
+          </sc-if>
+        </sc-if>
+      </sc-if>
+
+      <!-- AREA DRAWER -->
+      <sc-if value="{{ areaDet }}">
+        <div onClick="{{ fecharArea }}" style="position:fixed;inset:0;background:rgba(8,9,10,0.42);z-index:40"></div>
+        <aside role="dialog" aria-modal="true" aria-label="Grande área {{ areaDet.nome }}" style="position:fixed;top:0;right:0;bottom:0;width:min(540px,100%);background:#FFFFFF;z-index:41;box-shadow:-28px 0 64px -30px rgba(0,0,0,0.42);overflow:auto;padding:20px 24px 32px 24px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:flex-start;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#899090">Grande área</span><span style="font-size:20px;font-weight:700">{{ areaDet.nome }}</span></div><button type="button" onClick="{{ fecharArea }}" aria-label="Fechar" style="width:36px;height:36px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer;display:flex;align-items:center;justify-content:center"><lu-icon name="x" size="16"></lu-icon></button></div>
+          <span style="font-size:13px;color:#414141">Percentual de acerto por especialidade, nos simulados do recorte ({{ areaDet.recorte }}). Acerto puro, sem nota de corte.</span>
+          <span style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:#899090;font-weight:600">Especialidades · índice de acerto</span>
+          <sc-for list="{{ areaDet.esps }}" as="e">
+            <div style="border:1px solid #E9EBED;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="flex:1;font-size:15px;font-weight:650">{{ e.nome }}</span><span style="font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px;background:{{ e.tBg }};color:{{ e.tC }};white-space:nowrap">{{ e.tag }}</span><span style="font-size:17px;font-weight:750;font-variant-numeric:tabular-nums">{{ e.v }}%</span></div>
+              <span style="height:8px;border-radius:10em;background:#F1F2F4;overflow:hidden"><span style="display:block;height:100%;width:{{ e.v }}%;background:{{ e.bar }}"></span></span>
+              <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;font-size:12px;color:#899090">{{ e.resp }} respostas<sc-if value="{{ e.temTemas }}"><button type="button" onClick="{{ e.toggle }}" style="border:0;background:none;color:#941F1F;font-weight:600;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:0;white-space:nowrap">{{ e.btn }}<lu-icon name="{{ e.chev }}" size="13"></lu-icon></button></sc-if></div>
+              <sc-if value="{{ e.open }}">
+                <div style="border-top:1px solid #F1F2F4;display:flex;flex-direction:column">
+                  <sc-for list="{{ e.temas }}" as="t"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto 44px auto;gap:12px;align-items:center;padding:8px 0;font-size:13px;font-variant-numeric:tabular-nums"><span>{{ t.nome }}</span><span style="font-size:12px;color:#899090;white-space:nowrap">{{ t.resp }} respostas</span><b style="text-align:right">{{ t.v }}%</b><button type="button" onClick="{{ t.interv }}" style="height:30px;padding:0 10px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><lu-icon name="plus" size="13"></lu-icon>Intervenção</button></div></sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </aside>
+      </sc-if>
+
+      <!-- ================= MURAL ================= -->
+      <sc-if value="{{ sc.mural }}">
+        <header style="display:flex;flex-direction:column;gap:4px">
+          <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Mural</h1>
+          
+        </header>
+        <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+          <section style="flex:2 1 520px;background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+            <h2 style="margin:0;font-size:15px;font-weight:650">Nova publicação</h2>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12.5px;font-weight:600;color:#414141">Tag</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <sc-for list="{{ mTags }}" as="t"><button type="button" onClick="{{ t.set }}" aria-pressed="{{ t.on }}" style="height:30px;padding:0 12px;border-radius:10em;border:1px solid {{ t.bd }};background:{{ t.bg }};color:{{ t.c }};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">{{ t.label }}</button></sc-for>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12.5px;font-weight:600;color:#414141">Para quem</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <sc-for list="{{ mParas }}" as="p"><button type="button" onClick="{{ p.set }}" aria-pressed="{{ p.on }}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid {{ p.bd }};background:{{ p.bg }};text-align:left;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;border:{{ p.radio }};flex-shrink:0"></span><span style="flex:1;font-weight:600;font-size:13.5px">{{ p.label }}</span><span style="font-size:12px;color:#899090">{{ p.sub }}</span></button></sc-for>
+              </div>
+              <sc-if value="{{ mSelMode }}">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px">
+                  <span style="font-size:12px;color:#414141">Adicionar por alerta:</span>
+                  <sc-for list="{{ mQuick }}" as="q"><button type="button" onClick="{{ q.add }}" style="height:26px;padding:0 10px;border-radius:10em;border:1px solid #E9EBED;background:#FFFFFF;font-size:12px;cursor:pointer;white-space:nowrap">{{ q.label }}</button></sc-for>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid {{ mSelBd }};border-radius:8px;min-height:44px;align-items:center">
+                  <sc-for list="{{ mSelChips }}" as="c"><span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 4px 0 10px;border-radius:10em;background:#F4F5F6;font-size:12.5px">{{ c.label }}<button type="button" onClick="{{ c.rm }}" aria-label="Remover" style="width:20px;height:20px;border:0;border-radius:50%;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#414141;white-space:nowrap"><lu-icon name="x" size="12"></lu-icon></button></span></sc-for>
+                  <sc-if value="{{ mSelVazio }}"><span style="font-size:12.5px;color:#899090;padding-left:4px">Nenhum aluno selecionado</span></sc-if>
+                </div>
+                <sc-if value="{{ mErr.sel }}"><span style="font-size:12px;color:#C61D1D">Selecione pelo menos um aluno.</span></sc-if>
+                
+              </sc-if>
+            </div>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12.5px;font-weight:600;color:#414141">Título</span>
+              <input value="{{ mTitulo }}" onChange="{{ setMTitulo }}" placeholder="Ex.: Sua nota caiu. Vamos entender o porquê?" aria-invalid="{{ mErr.titulo }}" style="height:40px;padding:0 12px;border-radius:8px;border:1px solid {{ mTitBd }};font-size:14px;outline:0">
+              <sc-if value="{{ mErr.titulo }}"><span style="font-size:12px;color:#C61D1D">Informe o título.</span></sc-if>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12.5px;font-weight:600;color:#414141">Mensagem</span>
+              <textarea value="{{ mMsg }}" onChange="{{ setMMsg }}" rows="4" placeholder="Escreva como se estivesse falando com o aluno." style="padding:10px 12px;border-radius:8px;border:1px solid {{ mMsgBd }};font-size:14px;line-height:1.5;resize:vertical;outline:0"></textarea>
+              <sc-if value="{{ mErr.msg }}"><span style="font-size:12px;color:#C61D1D">Escreva a mensagem.</span></sc-if>
+            </label>
+            <sc-if value="{{ mLinkOpen }}">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;padding:12px;border-radius:8px;background:#F9FAFB">
+                <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600;color:#414141">Link</span><input value="{{ mLink }}" onChange="{{ setMLink }}" placeholder="https://" style="height:36px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px;outline:0"></label>
+                <label style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;font-weight:600;color:#414141">Título do link (obrigatório)</span><input value="{{ mLinkTit }}" onChange="{{ setMLinkTit }}" placeholder="Ex.: Revisão de Preventiva em 20 minutos" style="height:36px;padding:0 10px;border-radius:8px;border:1px solid {{ mLinkBd }};font-size:13.5px;outline:0"></label>
+                <sc-if value="{{ mErr.link }}"><span style="font-size:12px;color:#C61D1D">Link inserido precisa de título.</span></sc-if>
+              </div>
+            </sc-if>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #F1F2F4;padding-top:14px">
+              <button type="button" onClick="{{ toggleLink }}" aria-label="Inserir link" style="width:34px;height:34px;border-radius:8px;border:1px solid #E9EBED;background:{{ mLinkBtnBg }};cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap"><lu-icon name="link" size="16"></lu-icon></button>
+              <button type="button" aria-label="Anexar arquivo" style="width:34px;height:34px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap"><lu-icon name="clip2" size="16"></lu-icon></button>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#414141;cursor:pointer;margin-left:auto"><input type="checkbox" checked="{{ mReg }}" onChange="{{ toggleReg }}" style="accent-color:#941F1F;width:16px;height:16px">Registrar como intervenção (Mensagem · {{ mNum }})</label>
+              <button type="button" onClick="{{ salvarRascunho }}" style="height:38px;padding:0 14px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap">Salvar rascunho</button>
+              <button type="button" onClick="{{ publicar }}" style="height:38px;padding:0 16px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap" style-hover="background:#7A1818">Publicar para {{ mNum }}</button>
+            </div>
+          </section>
+          <aside style="flex:1 1 300px;display:flex;flex-direction:column;gap:8px;min-width:0">
+            <span style="font-size:12.5px;font-weight:600;color:#414141">Como o aluno vê</span>
+            <div style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <img src="{{ tribo.icone }}" alt="" style="width:24px;height:auto">
+                <span style="font-size:13.5px;font-weight:650">Mural da Tribo {{ tribo.nome }}</span>
+              </div>
+              <div style="display:flex;gap:16px;border-bottom:1px solid #F1F2F4;font-size:13px">
+                <span style="padding-bottom:8px;color:{{ prevColetivoC }};border-bottom:2px solid {{ prevColetivoBd }};font-weight:600">Coletivo</span>
+                <sc-if value="{{ mSelMode }}"><span style="padding-bottom:8px;color:#941F1F;border-bottom:2px solid #941F1F;font-weight:600">Pra você</span></sc-if>
+              </div>
+              <div style="border:1px solid #F1F2F4;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;gap:8px;align-items:center"><span style="font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;background:#F4F5F6;color:#414141">{{ mTag }}</span><span style="font-size:12px;color:#899090">agora</span></div>
+                <span style="font-size:14px;font-weight:650">{{ prevTitulo }}</span>
+                <span style="font-size:13px;color:#414141;text-wrap:pretty">{{ prevMsg }}</span>
+                <sc-if value="{{ mLinkTit }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#941F1F;font-weight:600"><lu-icon name="ext" size="13"></lu-icon>{{ mLinkTit }}</span></sc-if>
+                <span style="font-size:12px;color:#899090">{{ tribo.mentor }} · Tribo {{ tribo.nome }}</span>
+              </div>
+            </div>
+            
+          </aside>
+        </div>
+        <section style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 20px">
+            <h2 style="margin:0;font-size:15px;font-weight:650;flex:1">Publicadas</h2>
+            <sc-for list="{{ histTags }}" as="t"><button type="button" onClick="{{ t.set }}" aria-pressed="{{ t.on }}" style="height:28px;padding:0 10px;border-radius:10em;border:1px solid {{ t.bd }};background:#FFFFFF;font-size:12.5px;font-weight:{{ t.w }};cursor:pointer;white-space:nowrap">{{ t.label }}</button></sc-for>
+          </div>
+          <sc-for list="{{ hist }}" as="h" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 120px 170px 70px 132px;gap:12px;align-items:center;padding:9px 20px;border-top:1px solid #F1F2F4;font-size:13.5px">
+              <span style="font-weight:550;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ h.titulo }}</span>
+              <span style="font-size:12.5px;color:#414141">{{ h.tag }}</span>
+              <span style="font-size:12.5px;color:#414141">{{ h.para }}</span>
+              <span style="font-size:12.5px;color:#899090;text-align:right;font-variant-numeric:tabular-nums">{{ h.data }}</span>
+              <span style="display:flex;justify-content:flex-end;gap:4px"><button type="button" onClick="{{ h.editar }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">Editar</button><button type="button" onClick="{{ h.excluir }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12px;font-weight:600;cursor:pointer;color:#771111;white-space:nowrap">Excluir</button></span>
+            </div>
+          </sc-for>
+        </section>
+        <section aria-labelledby="canais-h" style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">
+          <div style="display:flex;align-items:baseline;gap:10px;padding:16px 20px 10px 20px;flex-wrap:wrap"><h2 id="canais-h" style="margin:0;font-size:15px;font-weight:650;flex:1">Canais da tribo</h2><span style="font-size:12px;color:#899090">aparecem na página de cada aluno</span></div>
+          <sc-for list="{{ canais }}" as="c">
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 20px;border-top:1px solid #F1F2F4;flex-wrap:wrap">
+              <span style="width:32px;height:32px;border-radius:8px;background:#F4F5F6;display:flex;align-items:center;justify-content:center;flex:none"><lu-icon name="chat" size="16"></lu-icon></span>
+              <span style="flex:1;min-width:200px;display:block"><span style="display:block;font-size:13.5px;font-weight:600">{{ c.nome }}</span><span style="display:block;font-size:12px;color:#899090">{{ c.sub }}</span></span>
+              <sc-if value="{{ c.fixo }}"><span style="font-size:12px;color:#414141;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><lu-icon name="lock" size="13"></lu-icon>Link geral, definido pela SanarFlix</span></sc-if>
+              <sc-if value="{{ c.editavel }}">
+                <sc-if value="{{ canalEdit }}"><input value="{{ canalLink }}" onChange="{{ setCanalLink }}" aria-label="Link do grupo da tribo" style="height:32px;width:260px;padding:0 10px;border-radius:8px;border:1px solid {{ canalBd }};font-size:13px"><button type="button" onClick="{{ salvarCanal }}" style="height:32px;padding:0 12px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer">Salvar</button></sc-if>
+                <sc-if value="{{ canalView }}"><span style="font-size:12.5px;color:#0C5728;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><lu-icon name="link" size="13"></lu-icon>{{ canalLink }}</span><button type="button" onClick="{{ editarCanal }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12px;font-weight:600;cursor:pointer">Editar link</button></sc-if>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ canalErr }}"><p style="margin:0;padding:0 20px 12px 20px;font-size:12px;color:#C61D1D">Use um link de convite do WhatsApp (chat.whatsapp.com/…).</p></sc-if>
+        </section>
+      </sc-if>
+
+      <!-- ================= SESSÕES ================= -->
+      <sc-if value="{{ sc.sessoes }}">
+        <header style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px">
+          <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:4px">
+            <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Sessões</h1>
+            
+          </div>
+          <button type="button" onClick="{{ abrirForm }}" style="display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:8px;background:#941F1F;color:#FFFFFF;border:0;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap"><lu-icon name="plus" size="16"></lu-icon>Nova sessão</button>
+        </header>
+        <section style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:16px 20px">
+            <sc-for list="{{ sTipos }}" as="t"><button type="button" onClick="{{ t.set }}" aria-pressed="{{ t.on }}" style="height:30px;padding:0 12px;border-radius:10em;border:1px solid {{ t.bd }};background:#FFFFFF;font-size:13px;font-weight:{{ t.w }};cursor:pointer;white-space:nowrap">{{ t.label }}</button></sc-for>
+            <div role="tablist" style="margin-left:auto;display:flex;gap:2px;padding:3px;background:#F4F5F6;border-radius:8px">
+              <sc-for list="{{ sQuandos }}" as="q"><button type="button" role="tab" aria-selected="{{ q.on }}" onClick="{{ q.set }}" style="height:28px;padding:0 12px;border-radius:6px;border:0;background:{{ q.bg }};font-size:12.5px;font-weight:{{ q.w }};cursor:pointer;white-space:nowrap">{{ q.label }}</button></sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ sForm }}">
+            <div style="margin:0 20px 12px 20px;padding:12px;border-radius:10px;border:1px solid #F3C9C9;background:#FFF7F7;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+              <div style="display:flex;gap:2px;padding:3px;background:#FFFFFF;border-radius:8px;border:1px solid #E9EBED">
+                <sc-for list="{{ sfTipos }}" as="t"><button type="button" onClick="{{ t.set }}" style="height:30px;padding:0 12px;border-radius:6px;border:0;background:{{ t.bg }};color:{{ t.c }};font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">{{ t.label }}</button></sc-for>
+              </div>
+              <sc-if value="{{ sfIndividual }}"><input value="{{ sfQuem }}" onChange="{{ setSfQuem }}" placeholder="Aluno" aria-label="Aluno" style="height:36px;width:170px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px"></sc-if>
+              <input value="{{ sfData }}" onChange="{{ setSfData }}" placeholder="dd/mm" aria-label="Data" style="height:36px;width:90px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px">
+              <input value="{{ sfHora }}" onChange="{{ setSfHora }}" placeholder="19h" aria-label="Hora" style="height:36px;width:70px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px">
+              <input value="{{ sfTema }}" onChange="{{ setSfTema }}" placeholder="Tema" aria-label="Tema" style="height:36px;flex:1;min-width:180px;padding:0 10px;border-radius:8px;border:1px solid {{ sfTemaBd }};font-size:13.5px">
+              <sc-if value="{{ sfColetiva }}"><input value="{{ sfLink }}" onChange="{{ setSfLink }}" placeholder="Link do Meet (pode ficar pra depois)" aria-label="Link" style="height:36px;width:230px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px"></sc-if>
+              <button type="button" onClick="{{ fecharForm }}" style="height:36px;padding:0 12px;border:0;background:none;color:#941F1F;font-weight:600;cursor:pointer;white-space:nowrap">Cancelar</button>
+              <button type="button" onClick="{{ salvarSessao }}" style="height:36px;padding:0 14px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-weight:600;cursor:pointer;white-space:nowrap">Salvar</button>
+              <span style="flex-basis:100%;font-size:12px;color:{{ sfHintC }}">{{ sfHint }}</span>
+            </div>
+          </sc-if>
+          <div style="overflow-x:auto">
+            <div role="table" style="min-width:860px">
+              <div role="row" style="display:grid;grid-template-columns:96px 150px 160px minmax(180px,1fr) 190px 170px;gap:10px;padding:9px 20px;font-size:12px;font-weight:600;color:#414141;background:#F9FAFB"><span>Data</span><span>Tipo</span><span>Com quem</span><span>Tema</span><span>Link</span><span>Após a sessão</span></div>
+              <sc-for list="{{ sessList }}" as="s" hint-placeholder-count="4">
+                <div role="row" style="display:grid;grid-template-columns:96px 150px 160px minmax(180px,1fr) 190px 170px;gap:10px;align-items:center;padding:10px 20px;border-top:1px solid #F1F2F4;font-size:13.5px">
+                  <span><b style="font-weight:650;display:block">{{ s.data }}</b><span style="font-size:12px;color:#899090">{{ s.hora }}</span></span>
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#414141"><lu-icon name="{{ s.icon }}" size="14"></lu-icon>{{ s.tipoLabel }}</span>
+                  <span>{{ s.quem }}</span>
+                  <span>{{ s.tema }}</span>
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:{{ s.linkC }};font-weight:{{ s.linkW }};min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><lu-icon name="{{ s.linkIcon }}" size="13"></lu-icon>{{ s.link }}</span>
+                  <span>
+                    <sc-if value="{{ s.podeFeita }}"><button type="button" onClick="{{ s.feita }}" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="check" size="14"></lu-icon>Marcar feita</button></sc-if>
+                    <sc-if value="{{ s.posTxt }}"><span style="font-size:12.5px;color:#414141">{{ s.posTxt }}</span></sc-if>
+                    <sc-if value="{{ s.podeExcluir }}"><button type="button" onClick="{{ s.excluir }}" aria-label="Excluir sessão" title="Excluir sessão" style="margin-left:6px;width:28px;height:28px;border-radius:6px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;color:#414141"><lu-icon name="x" size="13"></lu-icon></button></sc-if>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ sessVazio }}"><p style="margin:0;padding:24px 20px;text-align:center;font-size:13.5px;color:#414141">Nenhuma sessão neste filtro.</p></sc-if>
+        </section>
+        <section style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <h2 style="margin:0;font-size:15px;font-weight:650;flex:1">Agendamento individual liberado para {{ liberadosList.length }} alunos</h2>
+            <button type="button" onClick="{{ desligarTodos }}" style="border:0;background:none;color:#941F1F;font-weight:600;font-size:13px;cursor:pointer;padding:0">Desligar todos</button>
+          </div>
+          
+          <sc-for list="{{ liberadosList }}" as="l" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid #F1F2F4">
+              <span style="width:28px;height:28px;border-radius:50%;background:#FCE3E3;color:#941F1F;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ l.ini }}</span>
+              <span style="flex:1;font-size:13.5px;font-weight:550">{{ l.nome }}</span>
+              <span style="font-size:12.5px;color:#414141">desde {{ l.desde }} · mensagem enviada</span>
+              <button type="button" role="switch" aria-checked="true" onClick="{{ l.off }}" aria-label="Desligar agendamento" style="width:36px;height:20px;border-radius:10em;border:0;background:#149142;position:relative;cursor:pointer;white-space:nowrap"><span style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#FFFFFF"></span></button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ liberadosVazio }}"><span style="font-size:13px;color:#899090">Nenhum aluno com agenda liberada.</span></sc-if>
+        </section>
+      </sc-if>
+
+      <!-- ================= INTERVENÇÕES ================= -->
+      <sc-if value="{{ sc.intervencoes }}">
+        <header style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px">
+          <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:4px">
+            <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Intervenções</h1>
+            
+          </div>
+          <button type="button" onClick="{{ abrirAdd }}" style="display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:8px;background:#941F1F;color:#FFFFFF;border:0;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap"><lu-icon name="plus" size="16"></lu-icon>Nova intervenção</button>
+        </header>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+          <div role="tablist" style="display:flex;gap:2px;padding:3px;background:#FFFFFF;border:1px solid #E9EBED;border-radius:8px">
+            <sc-for list="{{ iPers }}" as="p"><button type="button" role="tab" aria-selected="{{ p.on }}" onClick="{{ p.set }}" style="height:28px;padding:0 12px;border-radius:6px;border:0;background:{{ p.bg }};color:{{ p.c }};font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ p.label }}</button></sc-for>
+          </div>
+          <span style="font-size:12.5px;color:#414141;white-space:nowrap">{{ iPerTxt }}</span>
+          <span style="flex:1"></span>
+          <sc-for list="{{ iTipos }}" as="t"><button type="button" onClick="{{ t.set }}" aria-pressed="{{ t.on }}" style="height:30px;padding:0 12px;border-radius:10em;border:1px solid {{ t.bd }};background:#FFFFFF;font-size:13px;font-weight:{{ t.w }};cursor:pointer;white-space:nowrap">{{ t.label }}</button></sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;border-radius:12px;background:#FFFFFF;border:1px solid #E9EBED">
+          <span style="font-size:13.5px"><b style="font-variant-numeric:tabular-nums">{{ medidorFeitas }} de 15</b> intervenções planejadas realizadas em outubro</span>
+          <div style="flex:1;min-width:160px;display:flex;gap:3px"><sc-for list="{{ medidorPips }}" as="p"><span style="flex:1;height:6px;border-radius:10em;background:{{ p.bg }}"></span></sc-for></div>
+          <span style="font-size:12.5px;color:#414141;white-space:nowrap">faltam {{ medidorFaltam }} até 31/10</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start">
+          <sc-for list="{{ colunas }}" as="col" hint-placeholder-count="3">
+            <section style="background:#EDEEF0;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;padding:4px 6px">
+                <span style="width:8px;height:8px;border-radius:50%;background:{{ col.dot }}"></span>
+                <h2 style="margin:0;font-size:13.5px;font-weight:650;white-space:nowrap">{{ col.label }}</h2>
+                <span style="font-size:12px;color:#414141;font-variant-numeric:tabular-nums">{{ col.n }}</span>
+              </div>
+              <sc-if value="{{ col.add }}">
+                <div style="background:#FFFFFF;border:1px solid #F3C9C9;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px">
+                  <div style="display:flex;gap:2px;padding:3px;background:#F4F5F6;border-radius:8px">
+                    <sc-for list="{{ iaTipos }}" as="t"><button type="button" onClick="{{ t.set }}" style="flex:1;height:28px;border-radius:6px;border:0;background:{{ t.bg }};color:{{ t.c }};font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ t.label }}</button></sc-for>
+                  </div>
+                  <input value="{{ iaQuem }}" onChange="{{ setIaQuem }}" placeholder="Aluno, grupo ou Turma toda" aria-label="Para quem" style="height:36px;padding:0 10px;border-radius:8px;border:1px solid {{ iaBd }};font-size:13.5px">
+                  <sc-if value="{{ iaErr }}"><span style="font-size:12px;color:#C61D1D">Diga para quem é a intervenção.</span></sc-if>
+                  <input value="{{ iaDesc }}" onChange="{{ setIaDesc }}" placeholder="O que você vai fazer? (opcional)" aria-label="Descrição" style="height:36px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px">
+                  <div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" onClick="{{ fecharAdd }}" style="height:32px;padding:0 10px;border:0;background:none;color:#941F1F;font-weight:600;cursor:pointer;white-space:nowrap">Cancelar</button><button type="button" onClick="{{ salvarAdd }}" style="height:32px;padding:0 12px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-weight:600;cursor:pointer;white-space:nowrap">Adicionar</button></div>
+                </div>
+              </sc-if>
+              <sc-for list="{{ col.cards }}" as="c">
+                <button type="button" onClick="{{ c.open }}" style="display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;padding:12px;border-radius:10px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer" style-hover="border-color:#C3C6C6">
+                  <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#414141;width:100%"><lu-icon name="{{ c.icon }}" size="13"></lu-icon>{{ c.tipoLabel }}<span style="margin-left:auto;color:#899090;font-variant-numeric:tabular-nums">{{ c.data }}</span></span>
+                  <span style="display:block;font-size:13.5px;font-weight:600;line-height:1.35">{{ c.titulo }}</span>
+                  <sc-if value="{{ c.nota }}"><span style="display:block;font-size:12.5px;color:#414141;line-height:1.4">{{ c.nota }}</span></sc-if>
+                  <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#414141;width:100%"><span style="flex:1;min-width:0">{{ c.quem }}</span><span style="color:#899090">{{ c.origem }}</span></span>
+                </button>
+              </sc-for>
+              <sc-if value="{{ col.vazio }}"><span style="font-size:12.5px;color:#414141;padding:10px 6px">Nada aqui neste período.</span></sc-if>
+            </section>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- ================= NOTAS DE HANDOFF ================= -->
+      <sc-if value="{{ sc.notas }}">
+        <header style="display:flex;flex-direction:column;gap:4px">
+          <h1 style="margin:0;font-size:24px;font-weight:700;letter-spacing:-0.02em">Notas de handoff · Mentor B2C</h1>
+          <p style="margin:0;font-size:14px;color:#414141;max-width:80ch">Decisões aplicadas nesta versão, divergências entre fontes e estados cobertos. Fontes: Handoff Página do Mentor (06/10), síntese Felipe → Léo (Slack, 30/09), Operação CX · Mentoria PRO ENAMED 2027 (Notion), código do Portal do Gestor (regras.ts, rotulos.ts, tokens).</p>
+        </header>
+        <sc-for list="{{ notas }}" as="g" hint-placeholder-count="3">
+          <section style="background:#FFFFFF;border:1px solid #E9EBED;border-radius:12px">
+            <h2 style="margin:0;padding:16px 20px 10px 20px;font-size:15px;font-weight:650">{{ g.titulo }}</h2>
+            <sc-for list="{{ g.itens }}" as="i">
+              <div style="display:grid;grid-template-columns:minmax(160px,220px) minmax(0,1fr);gap:16px;padding:12px 20px;border-top:1px solid #F1F2F4;font-size:13.5px">
+                <span style="font-weight:600">{{ i.k }}</span>
+                <span style="color:#414141;text-wrap:pretty">{{ i.v }}</span>
+              </div>
+            </sc-for>
+          </section>
+        </sc-for>
+      </sc-if>
+    </main>
+  </div>
+
+  <!-- ================= DRAWER ALUNO ================= -->
+  <sc-if value="{{ aluno }}">
+    <div onClick="{{ fecharAluno }}" style="position:fixed;inset:0;background:rgba(8,9,10,0.42);z-index:40"></div>
+    <aside role="dialog" aria-modal="true" aria-label="{{ aluno.nome }}" style="position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:#FFFFFF;z-index:41;box-shadow:-28px 0 64px -30px rgba(0,0,0,0.42);display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:20px 24px 16px 24px;border-bottom:1px solid #F1F2F4;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <span style="width:46px;height:46px;border-radius:50%;background:#FCE3E3;color:#941F1F;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ aluno.ini }}</span>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:18px;font-weight:700">{{ aluno.nome }}</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#414141;flex-wrap:wrap"><img src="{{ tribo.icone }}" alt="" style="width:20px;height:auto">Tribo {{ tribo.nome }} · {{ aluno.partic }}</span>
+            <span style="align-self:flex-start;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;background:{{ aluno.tagBg }};color:{{ aluno.tagC }}">{{ aluno.tag }}</span>
+          </div>
+          <button type="button" onClick="{{ fecharAluno }}" aria-label="Fechar" style="width:34px;height:34px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap"><lu-icon name="x" size="16"></lu-icon></button>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;font-size:13px">
+          <div><dt style="font-size:11.5px;color:#899090">Telefone</dt><dd style="margin:2px 0 0 0;font-weight:600;font-variant-numeric:tabular-nums">{{ aluno.tel }}</dd></div>
+          <div><dt style="font-size:11.5px;color:#899090">Acesso até</dt><dd style="margin:2px 0 0 0;font-weight:600">{{ aluno.acesso }}</dd></div>
+          <div><dt style="font-size:11.5px;color:#899090">Meta mais difícil</dt><dd style="margin:2px 0 0 0;font-weight:600">{{ aluno.metaCurta }}</dd></div>
+        </dl>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" onClick="{{ whats }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="chat" size="15"></lu-icon>WhatsApp</button>
+          <button type="button" onClick="{{ msgAluno }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="megaphone" size="15"></lu-icon>Mensagem no mural</button>
+          <button type="button" onClick="{{ intervAluno }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="plus" size="15"></lu-icon>Criar intervenção</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow:auto;padding:18px 24px 32px 24px;display:flex;flex-direction:column;gap:24px">
+        <section style="border:1px solid {{ agBd }};border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <button type="button" role="switch" aria-checked="{{ agOn }}" onClick="{{ toggleAgenda }}" aria-label="Liberar agendamento individual" style="width:36px;height:20px;border-radius:10em;border:0;background:{{ agTrack }};position:relative;cursor:pointer;flex-shrink:0;margin-top:2px;white-space:nowrap"><span style="position:absolute;top:2px;left:{{ agKnob }};width:16px;height:16px;border-radius:50%;background:#FFFFFF"></span></button>
+            <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+              <span style="font-weight:650;font-size:13.5px">Liberar agendamento individual</span>
+              <span style="font-size:12.5px;color:#414141">{{ agSub }}</span>
+            </div>
+            <sc-if value="{{ agPasso }}"><span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:#7F5205"><lu-icon name="lock" size="12"></lu-icon>Falta 1 passo</span></sc-if>
+          </div>
+          <sc-if value="{{ agPasso }}">
+            <textarea value="{{ agMsg }}" onChange="{{ setAgMsg }}" rows="3" placeholder="Mensagem individual (obrigatória)" style="padding:10px 12px;border-radius:8px;border:1px solid {{ agMsgBd }};font-size:13.5px;line-height:1.5;resize:vertical;outline:0"></textarea>
+            <sc-if value="{{ agErr }}"><span style="font-size:12px;color:#C61D1D">Sem mensagem, a agenda não é liberada.</span></sc-if>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style="flex:1;font-size:12px;color:#899090;min-width:180px">Também registra "Reunião individual" em A fazer.</span>
+              <button type="button" onClick="{{ toggleAgenda }}" style="height:34px;padding:0 10px;border:0;background:none;color:#941F1F;font-weight:600;cursor:pointer;white-space:nowrap">Cancelar</button>
+              <button type="button" onClick="{{ enviarAgenda }}" style="height:34px;padding:0 14px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-weight:600;cursor:pointer;white-space:nowrap">Enviar e liberar</button>
+            </div>
+          </sc-if>
+        </section>
+
+        <section aria-label="Consumo no Flix" style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><h3 style="margin:0;font-size:14px;font-weight:650">Consumo no Flix</h3><span style="font-size:12px;color:#899090">últimos 30 dias</span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid #F1F2F4;border-radius:10px;overflow:hidden">
+            <sc-for list="{{ aluno.consumo }}" as="m"><div style="padding:10px 12px;display:flex;flex-direction:column;gap:2px;border-left:1px solid #F1F2F4;margin-left:-1px"><span style="font-size:11.5px;color:#899090;white-space:nowrap">{{ m.l }}</span><span style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums">{{ m.v }}</span></div></sc-for>
+          </div>
+        </section>
+        <section style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between"><h3 style="margin:0;font-size:14px;font-weight:650">Notas dos simulados</h3><span style="font-size:12px;color:#899090">% de acerto · vs corte</span></div>
+          <sc-if value="{{ semSim }}"><span style="font-size:13px;color:#414141;padding:8px 0">Sem simulados ainda.</span></sc-if>
+          <sc-for list="{{ aluno.notas }}" as="n">
+            <button type="button" onClick="{{ n.ver }}" title="Abrir no detalhamento" style="display:flex;align-items:center;gap:12px;padding:10px 6px;border:0;border-bottom:1px solid #F1F2F4;background:none;width:100%;text-align:left;cursor:pointer;font:inherit;color:#111212" style-hover="background:#F9FAFB">
+              <div style="flex:1;display:flex;flex-direction:column;gap:1px"><span style="font-size:13.5px;font-weight:600">{{ n.nome }}</span><span style="font-size:12px;color:#899090">{{ n.sub }}</span></div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums">{{ n.v }}</span><span style="font-size:11.5px;font-weight:600;white-space:nowrap;color:{{ n.c }}">{{ n.vs }}</span></div>
+            <lu-icon name="right" size="15"></lu-icon></button>
+          </sc-for>
+          <sc-if value="{{ aluno.temMais }}"><button type="button" onClick="{{ toggleNotas }}" style="align-self:flex-start;border:0;background:none;color:#941F1F;font-weight:600;font-size:13px;cursor:pointer;padding:8px 0;display:inline-flex;gap:4px;align-items:center">{{ notasBtn }}<lu-icon name="{{ notasIcon }}" size="14"></lu-icon></button></sc-if>
+        </section>
+
+        <sc-if value="{{ comSim }}">
+        <section style="display:flex;flex-direction:column;gap:6px">
+          <h3 style="margin:0;font-size:14px;font-weight:650">Desempenho por área</h3>
+          
+          <sc-for list="{{ areas }}" as="a">
+            <button type="button" onClick="{{ a.toggle }}" disabled="{{ a.leaf }}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;padding:7px 0 7px {{ a.pad }};cursor:pointer;font-variant-numeric:tabular-nums">
+              <span style="width:14px;color:#899090"><sc-if value="{{ a.chev }}"><lu-icon name="{{ a.chev }}" size="14"></lu-icon></sc-if></span>
+              <span style="flex:1;font-size:{{ a.fs }};font-weight:{{ a.fw }}">{{ a.nome }}</span>
+              <span style="width:110px;height:6px;border-radius:10em;background:#F1F2F4;overflow:hidden"><span style="display:block;height:100%;width:{{ a.v }}%;background:{{ a.c }}"></span></span>
+              <span style="width:38px;text-align:right;font-size:12.5px;font-weight:600">{{ a.v }}%</span>
+            </button>
+          </sc-for>
+        </section>
+        </sc-if>
+
+        <section style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <h3 style="margin:0;font-size:14px;font-weight:650;flex:1">Log de interações</h3>
+            <sc-for list="{{ logFiltros }}" as="f"><button type="button" onClick="{{ f.set }}" aria-pressed="{{ f.on }}" style="height:26px;padding:0 10px;border-radius:10em;border:1px solid {{ f.bd }};background:#FFFFFF;font-size:12px;font-weight:{{ f.w }};cursor:pointer;white-space:nowrap">{{ f.label }}</button></sc-for>
+          </div>
+          <sc-for list="{{ aluno.log }}" as="g">
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;font-size:13px">
+              <span style="color:#414141;margin-top:1px"><lu-icon name="{{ g.icon }}" size="15"></lu-icon></span>
+              <span style="flex:1">{{ g.txt }}<sc-if value="{{ g.st }}"><span style="margin-left:6px;font-size:11.5px;padding:1px 6px;border-radius:5px;white-space:nowrap;background:#F4F5F6;color:#414141">{{ g.st }}</span></sc-if></span>
+              <span style="font-size:12px;color:#899090;font-variant-numeric:tabular-nums">{{ g.d }}</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ aluno.logVazio }}"><span style="font-size:13px;color:#899090">Nenhuma interação registrada ainda.</span></sc-if>
+        </section>
+      </div>
+    </aside>
+  </sc-if>
+
+  <!-- DRAWER CARD -->
+  <sc-if value="{{ card }}">
+    <div onClick="{{ fecharCard }}" style="position:fixed;inset:0;background:rgba(8,9,10,0.42);z-index:40"></div>
+    <aside role="dialog" aria-modal="true" aria-label="Intervenção" style="position:fixed;top:0;right:0;bottom:0;width:min(480px,100%);background:#FFFFFF;z-index:41;box-shadow:-28px 0 64px -30px rgba(0,0,0,0.42);display:flex;flex-direction:column;overflow:auto">
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#414141"><lu-icon name="{{ card.icon }}" size="14"></lu-icon>{{ card.tipoLabel }} · {{ card.origem }}</span>
+          <button type="button" onClick="{{ fecharCard }}" aria-label="Fechar" style="margin-left:auto;width:34px;height:34px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap"><lu-icon name="x" size="16"></lu-icon></button>
+        </div>
+        <span style="font-size:18px;font-weight:700;line-height:1.3">{{ card.titulo }}</span>
+        <div style="display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:10px;background:#F9FAFB">
+          <span style="font-size:13.5px;font-weight:600">{{ card.quem }}</span>
+          <span style="font-size:12.5px;color:#414141">{{ card.ctx }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:12.5px;font-weight:600;color:#414141">Status</span>
+          <div style="display:flex;gap:2px;padding:3px;background:#F4F5F6;border-radius:8px">
+            <sc-for list="{{ cardStatus }}" as="s"><button type="button" onClick="{{ s.set }}" aria-pressed="{{ s.on }}" style="flex:1;height:32px;border-radius:6px;border:0;background:{{ s.bg }};font-size:13px;font-weight:600;cursor:pointer;color:#111212;white-space:nowrap">{{ s.label }}</button></sc-for>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" onClick="{{ whats }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="chat" size="15"></lu-icon>WhatsApp</button>
+          <button type="button" onClick="{{ goMural }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:8px;border:1px solid #E9EBED;background:#FFFFFF;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap"><lu-icon name="megaphone" size="15"></lu-icon>Mensagem no mural</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid #F1F2F4;padding-top:14px">
+          <span style="font-size:13.5px;font-weight:650">Histórico</span>
+          <sc-for list="{{ card.hist }}" as="h"><div style="display:flex;gap:10px;font-size:13px"><span style="flex:1;color:#414141">{{ h.t }}</span><span style="font-size:12px;color:#899090">{{ h.d }}</span></div></sc-for>
+          <div style="display:flex;gap:8px;margin-top:4px"><input value="{{ comentario }}" onChange="{{ setComentario }}" placeholder="Escrever comentário" style="flex:1;height:36px;padding:0 10px;border-radius:8px;border:1px solid #C3C6C6;font-size:13.5px"><button type="button" onClick="{{ comentar }}" style="height:36px;padding:0 12px;border-radius:8px;border:0;background:#941F1F;color:#FFFFFF;font-weight:600;cursor:pointer;white-space:nowrap">Comentar</button></div>
+        </div>
+      </div>
+    </aside>
+  </sc-if>
+
+  <sc-if value="{{ toast }}">
+    <div role="status" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:#111212;color:#FFFFFF;font-size:13.5px;box-shadow:0 12px 32px -12px rgba(0,0,0,0.4);max-width:calc(100% - 32px)"><lu-icon name="check" size="16"></lu-icon>{{ toast }}</div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tribo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Carcará&quot;,&quot;Camaleão&quot;,&quot;A Colmeia&quot;,&quot;Octopus&quot;],&quot;default&quot;:&quot;Carcará&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contexto&quot;},&quot;dataState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;completo&quot;,&quot;sem-simulado&quot;,&quot;carregando&quot;,&quot;erro&quot;],&quot;default&quot;:&quot;completo&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Estado dos dados&quot;}}">
+const TRIBOS = {
+  'Carcará': { nome:'Carcará', slug:'carcara', lema:'Nota 90+', mentor:'Thiago Taniguchi', primeiro:'Thiago', ini:'TT', sig:'#D9771F', shadow:'#3A1405', glow:'#FFB547', foto:'./brand/mentor-thiago.png' },
+  'Camaleão': { nome:'Camaleão', slug:'camaleao', lema:'Faculdade e ENAMED em sincronia', mentor:'Pedro Teixeira', primeiro:'Pedro', ini:'PT', sig:'#1F9D6B', shadow:'#0B3B2C', glow:'#5CF2B5', foto:'./brand/mentor-pedro.png' },
+  'A Colmeia': { nome:'A Colmeia', slug:'colmeia', lema:'Constância e hábito', mentor:'Letícia Lima', primeiro:'Letícia', ini:'LL', sig:'#E0A526', shadow:'#3B2A05', glow:'#FFE08A', foto:'./brand/mentor-leticia.png' },
+  'Octopus': { nome:'Octopus', slug:'octopus', lema:'Pouco tempo, muito foco', mentor:'Júlia Mendonça', primeiro:'Júlia', ini:'JM', sig:'#3B3FB8', shadow:'#0D0F33', glow:'#8FA8FF', foto:'./brand/mentor-julia.png' }
+};
+Object.values(TRIBOS).forEach(t => { t.sigA = t.sig+'73'; t.brasao = './brand/brasao-'+t.slug+'.png'; t.icone = './brand/icone-'+t.slug+'.png'; });
+const SIMDATA = [
+  { id:1, nome:'1º Simulado PRO', curto:'1º Simulado PRO', data:'25/05', part:80, acerto:72, aprov:19, status:'realizado' },
+  { id:2, nome:'2º Simulado PRO', curto:'2º Simulado PRO', data:'29/06', part:77, acerto:74, aprov:24, status:'realizado' },
+  { id:3, nome:'3º Simulado PRO', curto:'3º Simulado PRO', data:'27/07', part:74, acerto:76, aprov:26, status:'realizado' },
+  { id:4, nome:'4º Simulado PRO', curto:'4º Simulado PRO', data:'24/08', part:71, acerto:77, aprov:28, status:'realizado' },
+  { id:5, nome:'5º Simulado PRO', curto:'5º Simulado PRO', data:'21/09', part:62, acerto:79, aprov:34, status:'realizado' },
+  { id:6, nome:'6º Simulado PRO', curto:'6º Simulado PRO', data:'09/11', status:'agendado' }
+];
+const adjQ = (q, sid) => { const ac = Math.max(8, Math.min(95, q.acerto + (sid-5)*3 + ((q.n+sid)%3) - 1)); const orig = q.alts.find(a => a[0] === q.certa)[1]; const rest = 100 - orig; return { ...q, acerto:ac, alts:q.alts.map(([l,p]) => [l, l === q.certa ? ac : Math.round(p*(100-ac)/rest)]), domN:Math.max(1, Math.round(q.domN*(100-ac)/rest)) }; };
+
+function seletorVals(self, SIMS, st){
+  const sel = st.dSel;
+  const set = v => self.setState({ dSel:v, dQSim:v.includes(st.dQSim) ? st.dQSim : (v.length ? v[v.length-1] : null) });
+  const motivo = x => x.status === 'realizado' ? null : x.status === 'agendado' ? 'Ainda não realizado' : 'Previsto, sem data';
+  const meta = x => [x.data, x.part ? x.part+' participantes' : null].filter(Boolean).join(' · ');
+  const disp = SIMS.filter(x => !motivo(x)), rec = disp.slice(-2).map(x => x.id);
+  return {
+    selDisp:disp.map(x => { const on = sel.includes(x.id); return { nome:x.nome, meta:meta(x), on, bg:on ? '#FCE3E3' : '#FFFFFF', sh:on ? 'inset 2px 0 0 #B81414' : 'none', w:on ? 600 : 500, bc:on ? '#0374AE' : '#111212', cb:on ? '#0374AE' : '#FFFFFF', toggle:() => set(on ? sel.filter(z => z !== x.id) : [...sel, x.id].sort((a,b) => a-b)) }; }),
+    selIndisp:SIMS.filter(x => motivo(x)).map(x => ({ nome:x.nome, meta:meta(x) || 'sem data', motivo:motivo(x) })),
+    selChips:SIMS.filter(x => sel.includes(x.id)).map(x => ({ label:x.curto, rm:() => set(sel.filter(z => z !== x.id)) })),
+    selCount:sel.length, selTem:sel.length > 0, selVazio:sel.length === 0, selOpen:st.dOpen,
+    selCountBg:sel.length ? '#B81414' : '#F4F5F6', selCountC:sel.length ? '#FFFFFF' : '#899090', selBd:sel.length ? '#E9EBED' : '#C61D1D', selFieldBd:st.dOpen ? '#B81414' : '#C3C6C6',
+    selPh:sel.length ? 'Adicionar outro' : 'Selecione 1 ou mais simulados', selChev:st.dOpen ? 'up' : 'down',
+    toggleSel:() => self.setState(x => ({ dOpen:!x.dOpen })), fecharSel:() => self.setState({ dOpen:false }), limparSel:() => set([]),
+    podeComparar:rec.length === 2 && rec.join() !== sel.join(), compararRecentes:() => set(rec), recentesLabel:disp.slice(-2).map(x => x.curto+' · '+x.data).join(' vs '),
+    selRodape:sel.length+(sel.length === 1 ? ' selecionado' : ' selecionados')
+  };
+}
+
+const SIMS = [['1º','25/05'],['2º','29/06'],['3º','27/07'],['4º','24/08'],['5º','21/09']];
+const AL = [
+  { id:'bs', nome:'Beatriz Sampaio', ini:'BS', sem:'9º', acesso:'dez/26', meta:'Dermatologia', inst:'USP-SP', corte:84, sims:[81,84,85,85,87], ultimo:'hoje', dias:0, seg:'acima', al:[], tel:'(71) 9 9641-2280' },
+  { id:'cm', nome:'Caio Menezes', ini:'CM', sem:'8º', acesso:'dez/26', meta:'Cardiologia', inst:'UNIFESP', corte:82, sims:[78,83,80,84,79], ultimo:'ontem', dias:1, seg:'variacao', al:['regrediram'], tel:'(71) 9 9812-4407' },
+  { id:'rn', nome:'Rafael Nogueira', ini:'RN', sem:'9º', acesso:'jun/27', meta:'Neurologia', inst:'USP-SP', corte:85, sims:[80,83,82,83,77], ultimo:'há 4 dias', dias:4, seg:'abaixo', al:['regrediram'], tel:'(75) 9 8120-3391' },
+  { id:'lc', nome:'Luana Castro', ini:'LC', sem:'10º', acesso:'dez/26', meta:'Ginecologia e Obstetrícia', inst:'UNIFESP', corte:80, sims:[74,78,80,82,76], ultimo:'há 2 dias', dias:2, seg:'variacao', al:['regrediram'], tel:'(11) 9 7731-0954' },
+  { id:'dp', nome:'Diego Pacheco', ini:'DP', sem:'10º', acesso:'jun/27', meta:'Oftalmologia', inst:'USP-SP', corte:86, sims:[70,73,72,73,74], ultimo:'há 3 dias', dias:3, seg:'abaixo', al:['estagnados'], tel:'(81) 9 9902-1178' },
+  { id:'hq', nome:'Helena Queiroz', ini:'HQ', sem:'11º', acesso:'dez/26', meta:'Pediatria', inst:'SUS-SP', corte:78, sims:[77,79,77,null,78], ultimo:'hoje', dias:0, seg:'variacao', al:['estagnados'], tel:'(71) 9 9255-6013' },
+  { id:'lf', nome:'Larissa Freitas', ini:'LF', sem:'12º', acesso:'dez/26', meta:'Psiquiatria', inst:'HCPA', corte:80, sims:[82,81,85,84,85], ultimo:'há 2 dias', dias:2, seg:'acima', al:[], tel:'(51) 9 8433-7720' },
+  { id:'ma', nome:'Marina Albuquerque', ini:'MA', sem:'7º', acesso:'dez/26', meta:'Dermatologia', inst:'USP-SP', corte:84, sims:[68,70,69,null,null], ultimo:'há 17 dias', dias:17, seg:'abaixo', al:['sumiram','naofizeram'], tel:'(79) 9 9104-5582' },
+  { id:'js', nome:'João Siqueira', ini:'JS', sem:'8º', acesso:'mar/27', meta:'Ortopedia', inst:'IOT-HCFMUSP', corte:83, sims:[72,71,null,74,null], ultimo:'há 22 dias', dias:22, seg:'abaixo', al:['sumiram','naofizeram'], tel:'(71) 9 9370-8841' },
+  { id:'tv', nome:'Tainá Vasconcelos', ini:'TV', sem:'11º', acesso:'dez/26', meta:'Pediatria', inst:'SUS-SP', corte:78, sims:[79,80,81,82,83], ultimo:'ontem', dias:1, seg:'acima', al:[], tel:'(84) 9 9616-2047' },
+  { id:'ol', nome:'Otávio Lins', ini:'OL', sem:'9º', acesso:'jun/27', meta:'Cirurgia Geral', inst:'UNICAMP', corte:81, sims:[null,null,null,null,77], ultimo:'hoje', dias:0, seg:'semhist', al:['naofizeram'], tel:'(19) 9 9188-4302' },
+  { id:'rb', nome:'Renata Bastos Albuquerque de Melo', ini:'RB', sem:'6º', acesso:'dez/26', meta:'Medicina de Família e Comunidade', inst:'SUS-SP', corte:72, sims:[64,null,66,65,null], ultimo:'há 15 dias', dias:15, seg:'abaixo', al:['sumiram','naofizeram','estagnados'], tel:'(71) 9 9022-6719' }
+];
+const SEGS = {
+  acima:{ t:'Acima do corte', bg:'#E7F4EC', c:'#0C5728', dot:'#149142' },
+  variacao:{ t:'Em variação', bg:'#FBF3E6', c:'#7F5205', dot:'#D38808' },
+  abaixo:{ t:'Abaixo do corte', bg:'#F9E8E8', c:'#771111', dot:'#C61D1D' },
+  semhist:{ t:'Sem histórico', bg:'#F4F5F6', c:'#414141', dot:'#C3C6C6' }
+};
+const ENG = d => d >= 15 ? { k:'sumido', t:'Sumido', bg:'#F9E8E8', c:'#771111' } : d >= 8 ? { k:'esfriando', t:'Esfriando', bg:'#FBF3E6', c:'#7F5205' } : { k:'ativo', t:'Ativo', bg:'#E7F4EC', c:'#0C5728' };
+const ALERTAS = [
+  { key:'sumiram', n:11, label:'sumiram', rule:'Sem acesso há 15 dias ou mais', icon:'userx', tone:'danger', ini:['MA','JS','RB'], more:8 },
+  { key:'regrediram', n:6, label:'regrediram', rule:'Caíram 5 p.p. ou mais de acerto entre os 2 últimos simulados', icon:'tdown', tone:'danger', ini:['CM','RN','LC'], more:3 },
+  { key:'estagnados', n:9, label:'estagnados', rule:'Variação menor que 2 p.p. nos 3 últimos simulados', icon:'arrow', tone:'warning', ini:['DP','HQ','RB'], more:6 },
+  { key:'naofizeram', n:25, label:'não fizeram o 5º simulado', rule:'Simulado fechou em 21/09', icon:'calx', tone:'neutral', ini:['MA','JS','OL'], more:22 }
+];
+const ALERTAS_V0 = [
+  { key:'sumiram', n:11, label:'sumiram', rule:'Sem acesso há 15 dias ou mais', icon:'userx', tone:'danger', ini:['MA','JS','RB'], more:8 },
+  { key:'esfriando', n:18, label:'esfriando', rule:'Sem acesso entre 8 e 14 dias', icon:'clock', tone:'warning', ini:['AB','KT','PF'], more:15 }
+];
+const TONE = { danger:['#F9E8E8','#C61D1D'], warning:['#FBF3E6','#D38808'], neutral:['#F4F5F6','#414141'] };
+const MATRIZ = [
+  ['Clínica Médica',80,86,79,82],['Cirurgia',71,77,68,72],['Ginecologia e Obstetrícia',69,76,72,71],['Pediatria',76,81,70,77],
+  ['Preventiva',58,71,66,62],['Medicina de Família e Comunidade',72,78,74,74],['Saúde Mental',83,85,80,83]
+];
+const MATRIZ_SEG = { turma:0, acima:9, variacao:-2, abaixo:-11 };
+const TEMAS = [
+  ['Vigilância em saúde','Preventiva','Alta',44,312,41],['Hepatites virais','Clínica Médica','Alta',51,248,33],['Sangramento na 2ª metade','GO','Alta',55,190,28],
+  ['Trauma: atendimento inicial','Cirurgia','Média',53,164,30],['Imunização','Pediatria','Alta',60,221,22],['Rastreamento de câncer','Preventiva','Alta',61,207,24],
+  ['Insuficiência cardíaca','Clínica Médica','Alta',62,233,21],['Abdome agudo inflamatório','Cirurgia','Média',58,96,19],['Assistência ao pré-natal','GO','Alta',63,178,20],
+  ['Saúde do trabalhador','Preventiva','Média',57,74,18],['Bronquiolite','Pediatria','Média',64,88,15],['Transtornos de ansiedade','Saúde Mental','Média',66,61,12]
+];
+const QUESTOES = [
+  { n:12, tema:'Vigilância em saúde', area:'Preventiva', acerto:31, enun:'Paciente com suspeita de sarampo atendido na UBS. Qual a conduta quanto à notificação e em que prazo?', alts:[['A',9],['B',14],['C',46],['D',31]], certa:'D', dom:'C', domN:27 },
+  { n:47, tema:'Hepatites virais', area:'Clínica Médica', acerto:38, enun:'Gestante com HBsAg reagente e HBeAg reagente no 3º trimestre. Qual a medida para reduzir a transmissão vertical?', alts:[['A',38],['B',33],['C',18],['D',11]], certa:'A', dom:'B', domN:20 },
+  { n:63, tema:'Sangramento na 2ª metade', area:'GO', acerto:44, enun:'Gestante de 34 semanas com sangramento vermelho-vivo indolor. Qual o próximo passo?', alts:[['A',21],['B',44],['C',26],['D',9]], certa:'B', dom:'C', domN:16 },
+  { n:8, tema:'Trauma: atendimento inicial', area:'Cirurgia', acerto:49, enun:'Vítima de colisão, Glasgow 8, saturação 88%. Qual a prioridade imediata?', alts:[['A',49],['B',12],['C',30],['D',9]], certa:'A', dom:'C', domN:18 },
+  { n:71, tema:'Imunização', area:'Pediatria', acerto:57, enun:'Lactente de 6 meses com calendário atrasado. Quais vacinas podem ser feitas na mesma visita?', alts:[['A',17],['B',57],['C',15],['D',11]], certa:'B', dom:'A', domN:10 },
+  { n:22, tema:'Insuficiência cardíaca', area:'Clínica Médica', acerto:83, enun:'Paciente com ICFEr em uso de IECA e betabloqueador, ainda sintomático. Qual a próxima droga com benefício em mortalidade?', alts:[['A',6],['B',83],['C',7],['D',4]], certa:'B', dom:'C', domN:4 }
+];
+const AREAS = [
+  { k:'prev', nome:'Preventiva', v:63, nivel:0, filhos:[
+    { k:'epi', nome:'Epidemiologia', v:71, nivel:1 },
+    { k:'vig', nome:'Vigilância em Saúde', v:42, nivel:1, filhos:[{ nome:'Notificação compulsória', v:28, nivel:2 },{ nome:'Investigação de surtos', v:55, nivel:2 }] },
+    { k:'pol', nome:'Políticas de Saúde', v:68, nivel:1 }]},
+  { k:'go', nome:'Ginecologia e Obstetrícia', v:73, nivel:0 },{ k:'mfc', nome:'Medicina de Família e Comunidade', v:74, nivel:0 },
+  { k:'cir', nome:'Cirurgia', v:75, nivel:0 },{ k:'ped', nome:'Pediatria', v:80, nivel:0 },{ k:'cm', nome:'Clínica Médica', v:84, nivel:0 },{ k:'sm', nome:'Saúde Mental', v:88, nivel:0 }
+];
+const TIPOS = { individual:{ l:'Reunião individual', i:'user' }, coletiva:{ l:'Reunião coletiva', i:'users' }, mensagem:{ l:'Mensagem', i:'msg' } };
+const CARDS = [
+  { id:1, tipo:'individual', titulo:'Conversa sobre a queda no 5º simulado', quem:'Caio Menezes', origem:'Auto · agenda liberada', data:'29/09', status:'afazer', ctx:'Regrediu 5 p.p. · Em variação' },
+  { id:2, tipo:'coletiva', titulo:'Vigilância em saúde: 44% de acerto da turma', quem:'Turma toda', origem:'Auto · tema crítico', data:'30/09', status:'afazer', ctx:'87 alunos · 312 respostas no tema' },
+  { id:3, tipo:'mensagem', titulo:'Chamar no WhatsApp os que sumiram', quem:'Sumiram · 11 alunos', origem:'Manual', data:'30/09', status:'afazer', ctx:'Sem acesso há 15+ dias' },
+  { id:4, tipo:'coletiva', titulo:'Encontro de 16/10: últimas 6 semanas', nota:'Falta o link do Meet. Pedir tema pro grupo na segunda.', quem:'Turma toda', origem:'Auto · sessão criada', data:'25/09', status:'andamento', ctx:'Encontro mensal da tribo' },
+  { id:5, tipo:'individual', titulo:'Entender por que sumiu', nota:'Mandei áudio; respondeu que está em prova da faculdade. Retomar 06/10.', quem:'Marina Albuquerque', origem:'Manual', data:'26/09', status:'andamento', ctx:'Sem acesso há 17 dias · Abaixo do corte' },
+  { id:6, tipo:'mensagem', titulo:'Mural: sua nota caiu, vamos entender', nota:'3 responderam no grupo.', quem:'Regrediram · 6 alunos', origem:'Auto · mural', data:'27/09', status:'feito', ctx:'Mensagem individual na aba Pra você' },
+  { id:7, tipo:'individual', titulo:'Replanejar meta: USP-SP x SUS-SP', nota:'Manteve USP-SP. Vai priorizar Preventiva.', quem:'Diego Pacheco', origem:'Auto · agenda liberada', data:'19/09', status:'feito', ctx:'Estagnado · Abaixo do corte' }
+];
+const SESS = [
+  { id:1, data:'Sex 16/10', hora:'19h', tipo:'coletiva', quem:'Tribo toda', tema:'Como estudar as últimas 6 semanas', link:'', st:'proxima' },
+  { id:2, data:'Seg 19/10', hora:'20h', tipo:'individual', quem:'Diego Pacheco', tema:'Rever meta USP-SP', link:'agenda', st:'proxima' },
+  { id:3, data:'Ter 20/10', hora:'18h', tipo:'individual', quem:'Caio Menezes', tema:'Queda no 5º simulado', link:'agenda', st:'proxima' },
+  { id:4, data:'Qui 12/11', hora:'19h', tipo:'coletiva', quem:'Tribo toda', tema:'Reta final: o que revisar', link:'meet.google.com/kfx-qwbr-tpa', st:'proxima' },
+  { id:5, data:'Qua 14/10', hora:'18h', tipo:'individual', quem:'Larissa Freitas', tema:'Plano para o 6º simulado', link:'agenda', st:'realizada' },
+  { id:6, data:'Qui 17/09', hora:'19h', tipo:'coletiva', quem:'Tribo toda', tema:'Pós 4º simulado: Preventiva', link:'meet.google.com/abq-ruty-mne', st:'realizada', grav:true }
+];
+const HIST = [
+  { titulo:'Liberei minha agenda pra você', tag:'Aviso', para:'Caio Menezes · individual', data:'29/09' },
+  { titulo:'Sua nota caiu. Vamos entender o porquê?', tag:'Desempenho', para:'6 alunos · individual', data:'27/09' },
+  { titulo:'Encontro de outubro: link e tema', tag:'Aviso', para:'Toda a turma', data:'25/09' },
+  { titulo:'Imunização: o calendário que mais cai', tag:'Fique por dentro', para:'Toda a turma', data:'22/09' }
+];
+const LOGS = {
+  cm:[{ icon:'calendar', txt:'Agendamento liberado + mensagem no mural', st:'A fazer', d:'29/09', f:'intervencoes' },{ icon:'megaphone', txt:'Mural (pra você) · Sua nota caiu, vamos entender?', d:'27/09', f:'mural' },{ icon:'chat', txt:'WhatsApp aberto pelo Academy', d:'22/09', f:'intervencoes' },{ icon:'user', txt:'Intervenção: conversa sobre rotina com internato', st:'Feito', d:'12/09', f:'intervencoes' }],
+  ma:[{ icon:'user', txt:'Intervenção: entender por que sumiu', st:'Em andamento', d:'26/09', f:'intervencoes' },{ icon:'calendar', txt:'Agendamento liberado + mensagem no mural', d:'26/09', f:'intervencoes' }],
+  dp:[{ icon:'user', txt:'Reunião individual: replanejar meta', st:'Feito', d:'19/09', f:'intervencoes' }]
+};
+const consumo = a => { const q = a.dias >= 15 ? Math.max(0, 18 - a.dias) : Math.round(260 - a.dias*14 + (a.corte % 7)*11); const last = a.sims.filter(v => v != null).pop(); return { q, ac:last == null ? 64 : Math.max(40, last - 6), au:Math.max(0, Math.round(q/9)), pdf:Math.max(0, Math.round(q/22)) }; };
+const corAcerto = v => v >= 78 ? ['#E7F4EC','#0C5728'] : v >= 66 ? ['#FBF3E6','#7F5205'] : ['#F9E8E8','#771111'];
+const corBar = v => v >= 78 ? '#149142' : v >= 66 ? '#D38808' : '#C61D1D';
+
+const QX = {
+  12:{ esp:'Vigilância em Saúde', t:{ A:'Notificar semanalmente, junto com os demais agravos de notificação compulsória.', B:'Notificar em até 7 dias, após a avaliação do pediatra de referência.', C:'Notificar apenas após a confirmação laboratorial por sorologia.', D:'Notificar de forma imediata, em até 24 horas, já na suspeita.' } },
+  47:{ esp:'Hepatologia', t:{ A:'Imunoglobulina e vacina para o recém-nascido nas primeiras 12 horas.', B:'Cesárea eletiva para evitar a transmissão.', C:'Contraindicar o aleitamento materno.', D:'Iniciar interferon no 3º trimestre.' } },
+  63:{ esp:'Obstetrícia', t:{ A:'Toque vaginal para avaliar o colo.', B:'Ultrassonografia antes de qualquer toque.', C:'Indução imediata do parto.', D:'Tocolítico e alta com retorno.' } },
+  8:{ esp:'Trauma', t:{ A:'Via aérea definitiva com proteção da coluna cervical.', B:'Dois acessos venosos calibrosos.', C:'Tomografia de crânio.', D:'Avaliação neurológica completa.' } },
+  71:{ esp:'Puericultura', t:{ A:'Só a vacina mais atrasada; as demais no próximo mês.', B:'Todas as vacinas em atraso, na mesma visita.', C:'Reiniciar o esquema aos 12 meses.', D:'Apenas as vacinas orais.' } },
+  22:{ esp:'Cardiologia', t:{ A:'Digoxina.', B:'Espironolactona.', C:'Furosemida em dose alta.', D:'Amiodarona.' } }
+};
+const AREA_ESP = {
+  'Clínica Médica':[['Cardiologia',84,410],['Hepatologia',61,236],['Endocrinologia',79,198]],
+  'Cirurgia':[['Trauma',63,240],['Cirurgia Geral',74,212],['Urologia',78,96]],
+  'Ginecologia e Obstetrícia':[['Obstetrícia',66,298],['Ginecologia',77,174]],
+  'Pediatria':[['Puericultura',64,221],['Neonatologia',79,150],['Infectologia Pediátrica',82,120]],
+  'Preventiva':[['Vigilância em Saúde',44,312,[['Notificação compulsória',96,28],['Investigação de surtos',112,49],['Sistemas de informação',104,58]]],['Epidemiologia',58,180,[['Medidas de associação',92,52],['Estudos diagnósticos',88,64]]],['Políticas de Saúde',63,180],['Saúde do Trabalhador',66,180]],
+  'Medicina de Família e Comunidade':[['Atenção Primária',76,160],['Abordagem familiar',72,90]],
+  'Saúde Mental':[['Psiquiatria',83,120],['Dependência química',79,64]]
+};
+const nivel = v => v < 50 ? ['Desempenho crítico','#F9E8E8','#771111','#C61D1D'] : v < 80 ? ['Desempenho mediano','#FBF3E6','#7F5205','#D38808'] : ['Desempenho excelente','#E7F4EC','#0C5728','#149142'];
+class Component extends DCLogic {
+  state = {
+    screen:'inicio', narrow:false, navOpen:false, alerta:null, seg:'todos', busca:'', sims:[true,true,true,true,true],
+    aluno:null, agPasso:false, agMsg:'', agErr:false, liberados:{ dp:'18/09', ma:'26/09', hq:'30/09' }, logs:LOGS, logF:'tudo', notasAll:false, areaOpen:{ prev:true, vig:true },
+    temasAll:false, matrizSeg:'turma', toast:null, linkHome:false,
+    mTag:'Desempenho', mPara:'turma', mSel:[], mTitulo:'', mMsg:'', mReg:true, mErr:{}, mLinkOpen:false, mLink:'', mLinkTit:'', mHist:HIST, mHistTag:'Todas',
+    sTipo:'todas', sQuando:'proximas', sForm:false, sfTipo:'coletiva', sfQuem:'', sfData:'', sfHora:'', sfTema:'', sfLink:'', sErr:false, sess:SESS,
+    iPer:'quinzena', iTipo:'todos', cards:CARDS, card:null, iAdd:false, iaTipo:'individual', iaQuem:'', iaDesc:'', iaErr:false, comentario:'', extraHist:{},
+    dOrd:'erradas', dQ:12, retried:false, mEdit:null, canalLink:'chat.whatsapp.com/Kc8tRbQ2xLm', canalEdit:false, canalErr:false, dSel:[4,5], dOpen:false, dQSim:5, comoLer:false, iaLoading:false, vaBusca:'', vaSeg:'todos', dArea:'Todas', areaDet:null, espOpen:{ 'Vigilância em Saúde':true }
+  };
+  componentDidMount(){
+    this._r = () => this.setState({ narrow: window.innerWidth < 980, tiny: window.innerWidth < 600 });
+    this._r(); window.addEventListener('resize', this._r);
+    this._k = e => { if (e.key === 'Escape') this.setState({ dOpen:false }); }; window.addEventListener('keydown', this._k);
+  }
+  componentWillUnmount(){ window.removeEventListener('resize', this._r); clearTimeout(this._t); }
+  toast(msg){ clearTimeout(this._t); this.setState({ toast:msg }); this._t = setTimeout(() => this.setState({ toast:null }), 3200); }
+  go(screen, extra){ this.setState(Object.assign({ screen, navOpen:false, card:null, aluno:null }, extra || {})); window.scrollTo(0,0); }
+  addCard(c){ this.setState(s => ({ cards:[Object.assign({ id:Date.now(), data:'15/10', status:'afazer', ctx:'' }, c), ...s.cards] })); }
+
+  renderVals(){
+    const s = this.state, p = this.props;
+    const tribo = TRIBOS[p.tribo] || TRIBOS['Carcará'];
+    const ds = s.retried ? 'completo' : (p.dataState || 'completo');
+    const isLoad = ds === 'carregando', isErr = ds === 'erro', semSim = ds === 'sem-simulado';
+    const showData = !isLoad && !isErr, comSim = showData && !semSim;
+    const scr = s.screen;
+    const sc = { inicio:scr==='inicio', turma:scr==='turma', detalhamento:scr==='detalhamento', mural:scr==='mural', sessoes:scr==='sessoes', intervencoes:scr==='intervencoes', notas:scr==='notas' };
+    const afazerCards = s.cards.filter(c => c.status === 'afazer');
+    const navDef = [
+      { key:'inicio', label:'Início', icon:'house' },
+      { key:'turma', label:'Minha Turma', icon:'users', grupo:'Minha mentoria' },
+      { key:'detalhamento', label:'Detalhamento por Simulados', icon:'chart' },
+      { key:'mural', label:'Mural', icon:'megaphone' },
+      { key:'sessoes', label:'Sessões', icon:'calendar' },
+      { key:'intervencoes', label:'Intervenções', icon:'kanban', badge:afazerCards.length || null }
+    ];
+    const nav = navDef.map(n => { const on = scr === n.key; return Object.assign({}, n, { go:() => this.go(n.key), aria:on ? 'page' : undefined, bg:on ? '#FFF7F7' : 'transparent', color:on ? '#941F1F' : '#414141', weight:on ? 650 : 500 }); });
+
+    const deco = c => Object.assign({}, c, { icon:TIPOS[c.tipo].i, tipoLabel:TIPOS[c.tipo].l, open:() => this.setState({ card:c.id, comentario:'' }) });
+
+    // alerts
+    const alertasRaw = semSim ? ALERTAS_V0 : ALERTAS;
+    const alertas = alertasRaw.map(a => ({ ...a, tileBg:TONE[a.tone][0], tileC:TONE[a.tone][1], ver:() => this.go('turma', { alerta:a.key, seg:'todos', busca:'' }) }));
+    const heroFrase = isLoad ? 'Carregando sua turma…' : isErr ? 'Os dados da turma não carregaram. Tente de novo em instantes.' : semSim ? '11 alunos estão sem acesso há 15 dias ou mais. Comece por eles.' : '11 alunos sumiram e 6 regrediram no 5º simulado. Comece por quem sumiu.';
+
+    // turma
+    const simsOn = s.sims.filter(Boolean).length;
+    const simBtns = SIMS.map((x,i) => { const on = s.sims[i] && !semSim; return { label:x[0], on, bd:on ? '#F3C9C9' : '#E9EBED', bg:on ? '#FFF7F7' : '#FFFFFF', c:semSim ? '#C3C6C6' : on ? '#941F1F' : '#414141', toggle:() => this.setState(st => { const n = st.sims.slice(); n[i] = !n[i]; if (!n.some(Boolean)) return null; return { sims:n }; }) }; });
+    const simResumo = semSim ? 'Nenhum simulado disponível para a turma' : simsOn + ' de 5 selecionados · vale para a tela toda';
+    const turmaSub = semSim ? 'Quem é cada aluno e se ele está acessando. Desempenho e distância do corte entram quando os simulados chegarem.' : 'Quem é cada aluno e a que distância ele está da vaga que quer. Simulado mais recente: 5º Simulado PRO (21/09).';
+    const regua = (a,b,c,suf) => [{ l:'1º', v:a+suf, bg:'#FFFFFF', c:'#899090' },{ l:'Anterior', v:b+suf, bg:'#FFFFFF', c:'#414141' },{ l:'Atual', v:c+suf, bg:'#FFF7F7', c:'#111212' }];
+    const kpis = semSim ? [
+      { titulo:'Possível aprovação', hint:'acima do corte no último simulado', valor:'—', suf:'', vc:'#899090', rodape:'Precisa de simulados e de Metas (previsto para novembro).' },
+      { titulo:'Ativos na semana', hint:'acessaram nos últimos 7 dias', valor:'58', suf:'/ 87', vc:'#111212', delta:'+4', dc:'#0C5728', regua:[{ l:'Sem −2', v:'51', bg:'#FFFFFF', c:'#899090' },{ l:'Sem −1', v:'54', bg:'#FFFFFF', c:'#414141' },{ l:'Atual', v:'58', bg:'#FFF7F7', c:'#111212' }], rodape:'último acesso = última atividade no Flix' },
+      { titulo:'Questões na semana', hint:'média por aluno ativo, banco de questões', valor:'142', suf:'', vc:'#111212', delta:'−9', dc:'#771111', regua:[{ l:'Sem −2', v:'160', bg:'#FFFFFF', c:'#899090' },{ l:'Sem −1', v:'151', bg:'#FFFFFF', c:'#414141' },{ l:'Atual', v:'142', bg:'#FFF7F7', c:'#111212' }], rodape:'últimos 7 dias' },
+      { titulo:'Sem acesso há 15+ dias', hint:'mesmo corte do alerta Sumiram', valor:'11', suf:'alunos', vc:'#771111', rodape:'Abra o segmento Sumidos abaixo.' }
+    ] : [
+      { titulo:'Possível aprovação', hint:'acima do corte da meta mais difícil', valor:'34%', suf:'', vc:'#111212', delta:'+6 p.p.', dc:'#0C5728', regua:regua(19,28,34,'%'), rodape:'21 de 62 participantes do 5º simulado' },
+      { titulo:'Acerto médio', hint:'no último simulado · anulada fica fora', valor:'79%', suf:'', vc:'#111212', delta:'+2 p.p.', dc:'#0C5728', regua:regua(72,77,79,'%'), rodape:'média dos 62 participantes' },
+      { titulo:'Questões na semana', hint:'média por aluno ativo, banco de questões', valor:'142', suf:'', vc:'#111212', delta:'−9', dc:'#771111', regua:[{ l:'Sem −2', v:'160', bg:'#FFFFFF', c:'#899090' },{ l:'Sem −1', v:'151', bg:'#FFFFFF', c:'#414141' },{ l:'Atual', v:'142', bg:'#FFF7F7', c:'#111212' }], rodape:'últimos 7 dias' },
+      { titulo:'Participação', hint:'no último simulado', valor:'62', suf:'/ 87', vc:'#111212', delta:'−9', dc:'#771111', regua:[{ l:'1º', v:'80', bg:'#FFFFFF', c:'#899090' },{ l:'Anterior', v:'71', bg:'#FFFFFF', c:'#414141' },{ l:'Atual', v:'62', bg:'#FFF7F7', c:'#111212' }], rodape:'25 não fizeram · fechou em 21/09' }
+    ];
+    const off = MATRIZ_SEG[s.matrizSeg];
+    const matriz = MATRIZ.map(r => ({ area:r[0], geral:Math.min(99, r[4]+off)+'%', cells:[r[1],r[2],r[3]].map(v => { const x = Math.min(99, v+off), c = corAcerto(x); return { v:x+'%', bg:c[0], c:c[1] }; }) }));
+    const matrizSegs = [['turma','Turma toda'],['acima','Acima do corte'],['variacao','Em variação'],['abaixo','Abaixo']].map(([k,l]) => ({ label:l, on:s.matrizSeg===k, bg:s.matrizSeg===k ? '#FFFFFF' : 'transparent', w:s.matrizSeg===k ? 650 : 500, set:() => this.setState({ matrizSeg:k }) }));
+    const temasMap = TEMAS.map((t,i) => ({ n:i+1, tema:t[0], area:t[1], prev:t[2], acerto:t[3], resp:t[4], abaixo:t[5], c:t[3] < 50 ? '#771111' : '#111212', interv:() => { this.addCard({ tipo:'coletiva', titulo:t[0]+': '+t[3]+'% de acerto da turma', quem:'Turma toda', origem:'Auto · tema crítico', ctx:t[1]+' · '+t[4]+' respostas' }); this.toast('Intervenção criada em A fazer: '+t[0]); } }));
+    const temasVis = s.temasAll ? temasMap : temasMap.slice(0,5);
+
+    // alunos
+    const SEGC = semSim ? { todos:87, ativo:58, esfriando:18, sumido:11 } : { todos:87, acima:21, variacao:44, abaixo:13, semhist:9 };
+    const segDef = semSim ? [['todos','Todos'],['ativo','Ativos · até 7 dias'],['esfriando','Esfriando · 8 a 14'],['sumido','Sumidos · 15+'],['acima','Acima do corte'],['abaixo','Abaixo do corte']] : [['todos','Todos'],['acima','Constantemente acima do corte'],['variacao','Em variação'],['abaixo','Constantemente abaixo'],['semhist','Sem histórico']];
+    const dotOf = k => semSim ? ({ ativo:'#149142', esfriando:'#D38808', sumido:'#C61D1D' })[k] : (SEGS[k] ? SEGS[k].dot : null);
+    const segs = segDef.map(([k,l]) => { const dis = semSim && (k==='acima' || k==='abaixo'); const on = s.seg === k; return { label:l, n:dis ? '' : SEGC[k], on, dis, op:dis ? 0.45 : 1, bd:on ? '#111212' : '#E9EBED', c:'#111212', w:on ? 650 : 500, dot:dotOf(k), set:() => this.setState({ seg:k }) }; });
+    let rows = AL.slice();
+    if (s.alerta) rows = rows.filter(a => s.alerta === 'esfriando' ? (a.dias >= 8 && a.dias < 15) : a.al.includes(s.alerta));
+    if (s.seg !== 'todos') rows = rows.filter(a => semSim ? ENG(a.dias).k === s.seg : a.seg === s.seg);
+    if (s.busca) rows = rows.filter(a => a.nome.toLowerCase().includes(s.busca.toLowerCase()));
+    const alertaObj = alertasRaw.find(a => a.key === s.alerta);
+    const totalRecorte = alertaObj ? alertaObj.n : (SEGC[s.seg] || 87);
+    const linhas = rows.map(a => {
+      const sg = semSim ? ENG(a.dias) : SEGS[a.seg];
+      const last = a.sims[4], vs = last == null ? null : last - a.corte;
+      return {
+        nome:a.nome, tag:sg.t, tagBg:sg.bg, tagC:sg.c, q30:consumo(a).q, acesso:a.acesso,
+        meta:semSim ? 'Aguardando Metas' : a.meta, metaSub:semSim ? 'corte entra com Metas' : a.inst+' · '+a.corte+'%',
+        simsTxt:semSim ? 'Sem dado' : a.sims.slice(0,4).map(v => v == null ? '–' : v+'%').join(' · ')+' ·', simsLast:semSim ? '' : (last == null ? '–' : last+'%'),
+        vs:semSim || vs == null ? (semSim ? '—' : 'não fez') : (vs > 0 ? '+' : '')+vs+' p.p.', vsC:semSim || vs == null ? '#899090' : vs >= 0 ? '#0C5728' : '#771111',
+        ultimo:a.ultimo, ultC:a.dias >= 15 ? '#C61D1D' : '#111212', ultW:a.dias >= 15 ? 650 : 400,
+        bg:s.aluno === a.id ? '#FFF7F7' : '#FFFFFF', open:() => this.setState({ aluno:a.id, agPasso:false, agMsg:'', agErr:false, notasAll:false })
+      };
+    });
+    const alunosSub = semSim ? 'Cadastro e engajamento. Colunas de desempenho mostram "Sem dado" até os simulados chegarem.' : '% de acerto por simulado, do mais antigo pro mais recente. Clique na linha para abrir o aluno.';
+
+    // drawer aluno
+    let aluno = null;
+    const A = AL.find(a => a.id === s.aluno);
+    if (A) {
+      const sg = semSim ? ENG(A.dias) : SEGS[A.seg];
+      const notasAll = A.sims.map((v,i) => ({ v, i })).filter(x => x.v != null).reverse().map(x => {
+        const d = x.v - A.corte;
+        return { ver:() => this.go('detalhamento', { dSel:[x.i+1], dQSim:x.i+1, dOpen:false }), nome:SIMS[x.i][0]+' Simulado PRO', sub:SIMS[x.i][1]+'/2026 · '+x.v+' acertos de 100', v:x.v+'%', vs:d >= 0 ? 'Acima do corte · +'+d+' p.p.' : 'Abaixo do corte · '+d+' p.p.', c:d >= 0 ? '#0C5728' : '#771111' };
+      });
+      const lf = s.logF;
+      const logs = (s.logs[A.id] || []).filter(g => lf === 'tudo' || g.f === lf);
+      const partic = A.sims.filter(v => v != null).length;
+      const cs = consumo(A);
+      aluno = { consumo:[{ l:'Questões feitas', v:String(cs.q) },{ l:'Acerto em questões', v:cs.q ? cs.ac+'%' : '—' },{ l:'Aulas assistidas', v:String(cs.au) },{ l:'PDFs', v:String(cs.pdf) }], nome:A.nome, ini:A.ini, sem:A.sem, tel:A.tel, acesso:A.acesso, metaCurta:semSim ? 'Aguardando Metas' : A.inst+' · '+A.corte+'%', tag:sg.t, tagBg:sg.bg, tagC:sg.c,
+        partic:semSim ? 'último acesso '+A.ultimo : 'participou de '+partic+' de 5 simulados',
+        notas:semSim ? [] : (s.notasAll ? notasAll : notasAll.slice(0,3)), temMais:!semSim && notasAll.length > 3, log:logs, logVazio:logs.length === 0 };
+    }
+    const lib = A && s.liberados[A.id];
+    const areas = [];
+    const walk = (list) => list.forEach(a => {
+      const open = !!s.areaOpen[a.k]; const has = !!a.filhos;
+      areas.push({ nome:a.nome, v:a.v, c:corBar(a.v), pad:(a.nivel*18)+'px', fs:a.nivel === 2 ? '12.5px' : '13.5px', fw:a.nivel === 0 ? 600 : 500, chev:has ? (open ? 'down' : 'right') : null, leaf:!has, toggle:() => has && this.setState(st => ({ areaOpen:Object.assign({}, st.areaOpen, { [a.k]:!open }) })) });
+      if (has && open) walk(a.filhos);
+    });
+    walk(AREAS);
+    const logFiltros = [['tudo','Tudo'],['intervencoes','Intervenções'],['mural','Mural']].map(([k,l]) => ({ label:l, on:s.logF===k, bd:s.logF===k ? '#111212' : '#E9EBED', w:s.logF===k ? 650 : 500, set:() => this.setState({ logF:k }) }));
+
+    // detalhamento
+    const qSid = s.dSel.length ? s.dSel[s.dSel.length-1] : 5; let qs = QUESTOES.map(q => adjQ(q, qSid));
+    if (s.dOrd === 'erradas') qs.sort((a,b) => a.acerto - b.acerto); else if (s.dOrd === 'acertadas') qs.sort((a,b) => b.acerto - a.acerto); else qs.sort((a,b) => a.n - b.n);
+    const questoes = qs.map(q => { const open = s.dQ === q.n; return { ...q, open, bg:open ? '#F9FAFB' : '#FFFFFF', icon:open ? 'up' : 'down', c:corBar(q.acerto),
+      alts:q.alts.map(([l,pc]) => { const certa = l === q.certa, dom = l === q.dom; return { l, p:pc, bg:certa ? '#E7F4EC' : dom ? '#F9E8E8' : '#F4F5F6', c:certa ? '#0C5728' : dom ? '#771111' : '#414141', bar:certa ? '#149142' : dom ? '#C61D1D' : '#C3C6C6', nota:certa ? 'correta' : dom ? 'distrator dominante' : '' }; }),
+      toggle:() => this.setState({ dQ:open ? null : q.n }),
+      msg:() => this.go('mural', { mPara:'selecionados', mSel:['Marcaram '+q.dom+' na Q'+q.n+' · '+q.domN], mTag:'Desempenho', mTitulo:q.tema+': o erro que mais apareceu', mErr:{} }),
+      interv:() => { this.addCard({ tipo:'coletiva', titulo:'Q'+q.n+' · '+q.tema+': '+q.acerto+'% de acerto', quem:'Turma toda', origem:'Auto · questão' }); this.toast('Intervenção criada em A fazer'); } }; });
+    const ordens = [['prova','Ordem da prova'],['erradas','Mais erradas'],['acertadas','Mais acertadas']].map(([k,l]) => ({ label:l, on:s.dOrd===k, bg:s.dOrd===k ? '#FFFFFF' : 'transparent', w:s.dOrd===k ? 650 : 500, set:() => this.setState({ dOrd:k }) }));
+
+    // mural
+    const mSelMode = s.mPara === 'selecionados';
+    const mNumN = mSelMode ? s.mSel.reduce((acc,x) => { const m = x.match(/· (\d+)$/); return acc + (m ? +m[1] : 1); }, 0) : 87;
+    const mTags = ['Desempenho','Aviso','Fique por dentro'].map(t => ({ label:t, on:s.mTag===t, bd:s.mTag===t ? '#F3C9C9' : '#E9EBED', bg:s.mTag===t ? '#FFF7F7' : '#FFFFFF', c:s.mTag===t ? '#941F1F' : '#414141', set:() => this.setState({ mTag:t }) }));
+    const mParas = [['turma','Toda a turma','87 alunos'],['selecionados','Selecionados','aba Pra você']].map(([k,l,sub]) => ({ label:l, sub, on:s.mPara===k, bd:s.mPara===k ? '#941F1F' : '#E9EBED', bg:s.mPara===k ? '#FFF7F7' : '#FFFFFF', radio:s.mPara===k ? '5px solid #941F1F' : '1.5px solid #C3C6C6', set:() => this.setState({ mPara:k, mErr:{} }) }));
+    const quickSrc = semSim ? ALERTAS_V0 : ALERTAS;
+    const mQuick = quickSrc.map(a => ({ label:a.label.charAt(0).toUpperCase()+a.label.slice(1)+' · '+a.n, add:() => this.setState(st => st.mSel.includes(a.label+' · '+a.n) ? null : ({ mSel:[...st.mSel, (a.label.charAt(0).toUpperCase()+a.label.slice(1))+' · '+a.n], mErr:{} })) })).concat([{ label:'Caio Menezes', add:() => this.setState(st => st.mSel.includes('Caio Menezes') ? null : ({ mSel:[...st.mSel,'Caio Menezes'] })) }]);
+    const mSelChips = s.mSel.map((x,i) => ({ label:x, rm:() => this.setState(st => ({ mSel:st.mSel.filter((_,j) => j !== i) })) }));
+    const histTags = ['Todas','Desempenho','Aviso','Fique por dentro'].map(t => ({ label:t, on:s.mHistTag===t, bd:s.mHistTag===t ? '#111212' : '#E9EBED', w:s.mHistTag===t ? 650 : 500, set:() => this.setState({ mHistTag:t }) }));
+    const hist = s.mHist.map((h,i) => ({ ...h, i })).filter(h => s.mHistTag === 'Todas' || h.tag === s.mHistTag).map(h => ({ ...h, editar:() => { this.setState({ mEdit:h.i, mTitulo:h.titulo, mTag:h.tag, mMsg:h.msg || '', mErr:{} }); window.scrollTo(0,0); this.toast('Editando: '+h.titulo); }, excluir:() => { this.setState(st => ({ mHist:st.mHist.filter((_,j) => j !== h.i), mEdit:null })); this.toast('Publicação excluída · some da home dos alunos'); } }));
+
+    // sessões
+    const sessFilt = s.sess.filter(x => (s.sTipo === 'todas' || x.tipo === s.sTipo.slice(0,-1).replace('coletiva','coletiva')) && (s.sQuando === 'proximas' ? x.st === 'proxima' : x.st === 'realizada'));
+    const sessList = sessFilt.map(x => {
+      const falta = x.tipo === 'coletiva' && !x.link;
+      return { ...x, icon:x.tipo === 'coletiva' ? 'users' : 'user', tipoLabel:x.tipo === 'coletiva' ? 'Encontro da tribo' : 'Individual',
+        link:x.tipo === 'individual' ? 'agenda do mentor' : falta ? 'Falta link' : x.link, linkIcon:falta ? 'alert' : x.tipo === 'individual' ? 'calendar' : 'link',
+        linkC:falta ? '#7F5205' : x.tipo === 'individual' ? '#414141' : '#0C5728', linkW:falta ? 650 : 500,
+        podeFeita:x.st === 'proxima' && x.tipo === 'individual',
+        posTxt:x.st === 'realizada' ? (x.tipo === 'coletiva' ? (x.grav ? 'No acervo de mentorias' : 'Aguardando gravação') : 'Feita · não vai para o acervo') : (x.tipo === 'coletiva' ? 'grava para o acervo' : null), podeExcluir:x.st === 'proxima', excluir:() => { this.setState(st => ({ sess:st.sess.filter(y => y.id !== x.id) })); this.toast('Sessão excluída'+(x.tipo === 'coletiva' ? ' · a tribo é avisada no mural' : '')); },
+        feita:() => { this.setState(st => ({ sess:st.sess.map(y => y.id === x.id ? { ...y, st:'realizada' } : y), cards:st.cards.map(c => c.tipo === 'individual' && c.quem === x.quem ? { ...c, status:'feito' } : c) })); this.toast('Sessão com '+x.quem+' marcada como feita. Card movido para Feito.'); } };
+    });
+    const sTipos = [['todas','Todas'],['coletivas','Encontros da tribo'],['individuals','Individuais']].map(([k,l]) => ({ label:l, on:s.sTipo===k, bd:s.sTipo===k ? '#111212' : '#E9EBED', w:s.sTipo===k ? 650 : 500, set:() => this.setState({ sTipo:k }) }));
+    const sQuandos = [['proximas','Próximas'],['realizadas','Realizadas']].map(([k,l]) => ({ label:l, on:s.sQuando===k, bg:s.sQuando===k ? '#FFFFFF' : 'transparent', w:s.sQuando===k ? 650 : 500, set:() => this.setState({ sQuando:k }) }));
+    const sfTipos = [['coletiva','Encontro da tribo'],['individual','Individual']].map(([k,l]) => ({ label:l, bg:s.sfTipo===k ? '#111212' : 'transparent', c:s.sfTipo===k ? '#FFFFFF' : '#414141', set:() => this.setState({ sfTipo:k }) }));
+    const liberadosList = Object.keys(s.liberados).map(id => { const a = AL.find(x => x.id === id); return { ini:a.ini, nome:a.nome, desde:s.liberados[id], off:() => this.setState(st => { const n = { ...st.liberados }; delete n[id]; return { liberados:n }; }) }; });
+
+    // intervenções
+    const tipoF = s.iTipo;
+    const visCards = s.cards.filter(c => tipoF === 'todos' || c.tipo === tipoF);
+    const colDef = [['afazer','A fazer','#C3C6C6'],['andamento','Em andamento','#D38808'],['feito','Feito','#149142']];
+    const colunas = colDef.map(([k,l,dot]) => { const cs = visCards.filter(c => c.status === k).map(deco); return { label:l, dot, n:cs.length, cards:cs, vazio:cs.length === 0 && !(k === 'afazer' && s.iAdd), add:k === 'afazer' && s.iAdd }; });
+    const feitosAgora = s.cards.filter(c => c.status === 'feito').length;
+    const medidorFeitas = Math.min(15, 7 + feitosAgora);
+    const medidorPips = Array.from({ length:15 }, (_,i) => ({ bg:i < medidorFeitas ? '#149142' : '#E9EBED' }));
+    const iPers = [['semana','Esta semana'],['quinzena','Quinzena'],['mes','Mês']].map(([k,l]) => ({ label:l, on:s.iPer===k, bg:s.iPer===k ? '#111212' : 'transparent', c:s.iPer===k ? '#FFFFFF' : '#414141', set:() => this.setState({ iPer:k }) }));
+    const iPerTxt = { semana:'12/10 a 18/10', quinzena:'01/10 a 15/10', mes:'outubro' }[s.iPer];
+    const iTipos = [['todos','Todos os tipos'],['individual','Individual'],['coletiva','Coletiva'],['mensagem','Mensagem']].map(([k,l]) => ({ label:l, on:s.iTipo===k, bd:s.iTipo===k ? '#111212' : '#E9EBED', w:s.iTipo===k ? 650 : 500, set:() => this.setState({ iTipo:k }) }));
+    const iaTipos = [['individual','Individual'],['coletiva','Coletiva'],['mensagem','Mensagem']].map(([k,l]) => ({ label:l, bg:s.iaTipo===k ? '#111212' : 'transparent', c:s.iaTipo===k ? '#FFFFFF' : '#414141', set:() => this.setState({ iaTipo:k }) }));
+    let card = null;
+    const C = s.cards.find(c => c.id === s.card);
+    if (C) {
+      const base = [{ t:'Criada · '+C.origem, d:C.data }];
+      card = { ...deco(C), ctx:C.ctx || '—', hist:base.concat(s.extraHist[C.id] || []) };
+    }
+    const cardStatus = [['afazer','A fazer'],['andamento','Em andamento'],['feito','Feito']].map(([k,l]) => ({ label:l, on:C && C.status===k, bg:C && C.status===k ? '#FFFFFF' : 'transparent', set:() => this.setState(st => ({ cards:st.cards.map(c => c.id === C.id ? { ...c, status:k } : c), extraHist:{ ...st.extraHist, [C.id]:[...(st.extraHist[C.id] || []), { t:'Status → '+l, d:'agora' }] } })) }));
+
+    const notas = [
+      { titulo:'Ajustes das reuniões de 13/10 e 22/10', itens:[
+        { k:'Semestre', v:'Não existe para alunos B2C (só B2B, vindo da compra). Saiu da tabela, da Visão de alunos e do drawer; no lugar, questões nos últimos 30 dias e último acesso.' },
+        { k:'Consumo no Flix', v:'O mentor vê questões, acerto em questões, aulas e PDFs por aluno (DAGs de questões e conteúdos, backfill desde jan/25). Bloco novo no drawer.' },
+        { k:'Canais da tribo', v:'Três canais na página do aluno: Grupo de avisos e Plantão de dúvidas (links gerais, fixos) e Grupo da tribo (único que o mentor edita). Seção nova no Mural. Substitui a decisão anterior de não falar em canal no B2C.' },
+        { k:'Acervo e gravações', v:'Só mentorias coletivas entram no acervo. A gravação é ligada automaticamente ao encontro (conta organizadora da Sanar). Estados: Aguardando gravação → No acervo de mentorias.' },
+        { k:'Editar e excluir', v:'Mural e sessões são CRUD: publicações ganharam Editar/Excluir; sessões futuras podem ser excluídas.' }
+      ]},
+      { titulo:'Decisões aplicadas nesta versão', itens:[
+        { k:'Identidade da tribo', v:'Brasão oficial só em 3 pontos: cartão da turma na sidebar, cabeçalho do mural do aluno e linha "Tribo X" no drawer. Nenhuma cor nova por tribo: a paleta do Academy continua sendo a única. O slot de imagem recebe o brasão oficial (PDF "Escolha sua tribo", não acessível nesta revisão).' },
+        { k:'Menos containers', v:'Os 4 alertas da home viraram linhas de uma única lista; os 4 KPIs da turma viraram uma faixa com divisórias; o card de próxima sessão perdeu o gradiente laranja e virou superfície neutra, com o alerta "Falta o link do Meet" em âmbar.' },
+        { k:'Cores com significado', v:'Verde, âmbar e vermelho só para corte, engajamento e erro. Tipos de intervenção e sessão viraram ícone + texto neutro (antes eram selos coloridos).' },
+        { k:'Temas críticos', v:'Mostra 5 e expande para a lista completa (mesmo componente do B2B). Ordenação: prevalência × erro, amostra mínima de 30 respostas.' },
+        { k:'Encontro da tribo', v:'"Coletiva" passa a se chamar "Encontro da tribo" no B2C, porque o CX promete 1 encontro síncrono mensal exclusivo por tribo.' }
+      ]},
+      { titulo:'Divergências e hipóteses (validar)', itens:[
+        { k:'Sumiram: 10 ou 15 dias', v:'Handoff usa 10 dias na home e 15 no segmento da turma. Adotado 15 em todas as telas, para o número da home bater com o da turma. Impacto: alerta mais conservador.' },
+        { k:'Tags do mural', v:'Síntese de 30/09 lista 4 tags (Desempenho, Novidade, Aviso, Fique por dentro); o handoff tem 3. Mantidas as 3 do handoff até confirmar com o Léo.' },
+        { k:'Legenda da matriz', v:'Matriz B2C usa 78% / 66% (handoff). O Gestor classifica % de acerto em crítico < 50 e excelente ≥ 80 (regras.ts). As duas réguas coexistem hoje; recomendação: decidir se o B2C usa corte médio da turma ou a régua do Gestor.' },
+        { k:'Último acesso', v:'Pendência com dados (Therlyson, 08/10): última atividade no Flix ou login. A tela assume última atividade e informa isso no rodapé do KPI.' },
+        { k:'Cancelamento de sessão', v:'Não há regra documentada para sessão cancelada. Não foi desenhado; registrar se for necessário.' }
+      ]},
+      { titulo:'Estados cobertos (Tweaks → Estado dos dados)', itens:[
+        { k:'Completo (V1)', v:'Simulados + Metas: alertas de desempenho, matriz, temas, vs corte.' },
+        { k:'Sem simulado (V0)', v:'Só engajamento: alertas Sumiram e Esfriando, segmentos Ativos/Esfriando/Sumidos, "Sem dado" e "Aguardando Metas" sem quebrar o layout. Detalhamento mostra estado vazio.' },
+        { k:'Carregando', v:'Esqueletos na anatomia dos blocos; títulos e ações já aparecem.' },
+        { k:'Erro', v:'Faixa de erro com "Tentar novamente"; mural, sessões e intervenções continuam acessíveis.' },
+        { k:'Validações', v:'Mural: título, mensagem, destinatário e título do link obrigatórios. Agenda: mensagem obrigatória. Sessão: tema obrigatório; encontro sem link fica "Falta link". Intervenção: destinatário obrigatório.' }
+      ]}
+    ];
+
+    const selS = SIMDATA.filter(x => s.dSel.includes(x.id));
+    const lastS = selS[selS.length-1] || SIMDATA[4], prevS = selS[selS.length-2];
+    const partUni = selS.length ? Math.max(...selS.map(x => x.part)) + (selS.length > 1 ? 4 : 0) : 0;
+    const acMed = selS.length ? Math.round(selS.reduce((a,x) => a + x.acerto*x.part, 0) / selS.reduce((a,x) => a + x.part, 0)) : 0;
+    const dAp = prevS ? lastS.aprov - prevS.aprov : null;
+    const detKpis = [
+      { titulo:'Percentual de acerto médio', hint:'questões certas nos simulados do recorte', valor:acMed+'%', suf:'', rodape:partUni+' participantes' },
+      { titulo:'Possível aprovação', v1:true, hint:'acima do corte da meta mais difícil', valor:lastS.aprov+'%', suf:'', delta:dAp == null ? null : (dAp >= 0 ? '+' : '')+dAp+' p.p. vs '+prevS.curto.split(' ')[0], dBg:dAp >= 0 ? '#E7F4EC' : '#F9E8E8', dC:dAp >= 0 ? '#0C5728' : '#771111', dIcon:dAp >= 0 ? 'up' : 'down', rodape:selS.length > 1 ? 'com 2+ simulados, comparativo entre eles' : 'selecione 2 simulados para comparar' },
+      { titulo:'Participação', hint:'fizeram o '+lastS.curto.split(' ')[0]+' simulado', valor:String(lastS.part), suf:'/ 87', rodape:partUni+' fizeram pelo menos um do recorte' }
+    ];
+    const offD = (lastS.id - 5) * 2;
+    const detMatriz = MATRIZ.map(r => ({ area:r[0], cells:[r[1],r[2],r[3]].map(v => { const x = Math.min(99, v+offD), c = corAcerto(x); return { v:x+'%', bg:c[0], c:c[1] }; }), abrir:() => this.setState({ areaDet:r[0] }) }));
+    const colAvg = k => Math.round(MATRIZ.reduce((a,r) => a + r[k], 0) / MATRIZ.length) + offD;
+    const prevBoxes = [{ l:'Alta · 62% da prova', v:colAvg(1)+'%' },{ l:'Média · 28%', v:colAvg(2)+'%' },{ l:'Baixa · 10%', v:colAvg(3)+'%' }];
+    const recLabel = selS.map(x => x.curto.split(' ')[0]).join(' e ');
+    let vaAll = AL.map(a => ({ a, v:a.sims[lastS.id-1] })).filter(x => x.v != null).map(({ a, v }) => { const st = v >= a.corte ? 'acima' : a.corte - v <= 3 ? 'proximo' : 'longe'; return { id:a.id, nome:a.nome, sem:a.ultimo, acertos:String(v), pct:v+'%', corte:a.corte+'%', v, st }; }).sort((x,y) => y.v - x.v);
+    const SITC = { acima:['Acima do corte','#E7F4EC','#0C5728','#149142'], proximo:['Próximo do corte','#FBF3E6','#7F5205','#D38808'], longe:['Longe do corte','#F9E8E8','#771111','#C61D1D'] };
+    const vaSegs = [['todos','Todos',null],['acima','Acima do corte','#149142'],['proximo','Próximo do corte','#D38808'],['longe','Longe do corte','#C61D1D']].map(([k,l,dot]) => { const on = s.vaSeg === k; return { label:l, dot, n:k === 'todos' ? vaAll.length : vaAll.filter(x => x.st === k).length, on, bg:on ? '#FFFFFF' : 'transparent', sh:on ? '0 1px 2px rgba(17,18,18,0.12), 0 0 0 1px rgba(17,18,18,0.06)' : 'none', w:on ? 650 : 500, set:() => this.setState({ vaSeg:k }) }; });
+    const vaRows = vaAll.filter(x => (s.vaSeg === 'todos' || x.st === s.vaSeg) && (!s.vaBusca || x.nome.toLowerCase().includes(s.vaBusca.toLowerCase()))).map(x => ({ ...x, sit:SITC[x.st][0], tBg:SITC[x.st][1], tC:SITC[x.st][2], open:() => this.setState({ aluno:x.id, agPasso:false, notasAll:false }) }));
+    const dqRows = questoes.filter(q => s.dArea === 'Todas' || q.area === s.dArea).map(q => { const X = QX[q.n] || { esp:'—', t:{} }; const crit = q.acerto < 50;
+      const names = AL.filter((_,k) => (k + q.n) % 2 === 0).slice(0,6).map(a => a.nome);
+      return { ...q, esp:X.esp, crit, txtC:crit ? '#771111' : '#111212', c:crit ? '#C61D1D' : q.acerto < 80 ? '#D38808' : '#149142',
+        altTxt:q.alts.map(a => ({ l:a.l, t:X.t[a.l] || '', certa:a.nota === 'correta', dom:a.nota === 'distrator dominante', c:a.nota === 'correta' ? '#0C5728' : a.nota === 'distrator dominante' ? '#C61D1D' : '#111212', w:a.nota ? 600 : 400 })),
+        alts:q.alts.map(a => ({ ...a, certa:a.nota === 'correta', dom:a.nota === 'distrator dominante', bar:a.nota === 'correta' ? '#149142' : a.nota === 'distrator dominante' ? '#C61D1D' : '#6B7280' })),
+        quem:names, leitura:'o distrator '+q.dom+' domina: sinaliza confusão conceitual, não só dificuldade' }; });
+    let areaDet = null;
+    if (s.areaDet && AREA_ESP[s.areaDet]) areaDet = { nome:s.areaDet, recorte:recLabel, esps:AREA_ESP[s.areaDet].map(e => { const v = Math.max(5, Math.min(97, e[1]+offD)); const nv = nivel(v); const open = !!s.espOpen[e[0]]; const temas = (e[3] || []).map(t => ({ nome:t[0], resp:t[1], v:Math.max(5, t[2]+offD), interv:() => { this.addCard({ tipo:'coletiva', titulo:t[0]+': '+Math.max(5, t[2]+offD)+'% de acerto', quem:'Turma toda', origem:'Auto · detalhamento', ctx:s.areaDet+' · '+e[0] }); this.toast('Intervenção criada em A fazer: '+t[0]); } }));
+      return { nome:e[0], v, tag:nv[0], tBg:nv[1], tC:nv[2], bar:nv[3], resp:e[2], temTemas:temas.length > 0, temas, open:open && temas.length > 0, btn:open ? 'Ocultar temas' : 'Ver temas', chev:open ? 'up' : 'right', toggle:() => this.setState(st => ({ espOpen:{ ...st.espOpen, [e[0]]:!open } })) }; }) };
+    const detVals = {
+      verCrono:() => this.toast('Cronograma: 6º Simulado PRO em 09/11'), comoLer:s.comoLer, comoLerIcon:s.comoLer ? 'down' : 'right', toggleComoLer:() => this.setState(st => ({ comoLer:!st.comoLer })),
+      detKpis, prevBoxes, detMatriz,
+      iaRef:recLabel+' simulados · atualizado em '+lastS.data, iaLoading:s.iaLoading, iaPronto:!s.iaLoading,
+      iaResumo:selS.length > 1 ? 'A turma subiu '+(lastS.acerto - prevS.acerto)+' p.p. no geral, mas a alta prevalência ainda pesa em Preventiva. O ganho veio de média e baixa prevalência, que pesam menos na prova.' : 'No '+lastS.curto+', a alta prevalência concentra os erros em Preventiva e Cirurgia.',
+      iaItens:[{ b:'Preventiva em alta prevalência: '+(58+offD)+'%.', t:'É a pior célula da matriz; Vigilância em Saúde concentra o erro.' },{ b:'Q12: '+(QUESTOES[0].domN)+' alunos marcaram a mesma errada.', t:'Erro concentrado num distrator indica confusão de conceito, não falta de estudo.' },{ b:'Os próximos do corte', t:'erram mais Preventiva do que a média da turma.' },{ b:'Clínica Médica e Saúde Mental', t:'ficam acima de 80% nas três faixas e seguram a nota.' }],
+      iaGerar:() => { this.setState({ iaLoading:true }); setTimeout(() => { this.setState({ iaLoading:false }); this.toast('Diagnóstico gerado de novo'); }, 900); },
+      iaMural:() => this.go('mural', { mPara:'turma', mTag:'Desempenho', mTitulo:'Onde a turma perde ponto no '+lastS.curto, mMsg:'Preventiva em alta prevalência é o ponto mais fraco da turma. Vamos focar em Vigilância em Saúde nesta semana.', mErr:{} }),
+      vaResumo:vaAll.length+' participantes · '+(AL.length - vaAll.length)+' sem participação', vaBusca:s.vaBusca, setVaBusca:e => this.setState({ vaBusca:e.target.value }), vaSegs, vaRows, vaVazio:vaRows.length === 0,
+      dqTotal:'100 questões', dArea:s.dArea, setDArea:e => this.setState({ dArea:e.target.value, dQ:null }),
+      ordensDq:[['prova','Ordem da prova',null],['erradas','Mais erradas','down'],['acertadas','Mais acertadas','up']].map(([k,l,ic]) => ({ label:l, icon:ic, on:s.dOrd === k, bg:s.dOrd === k ? '#111212' : 'transparent', c:s.dOrd === k ? '#FFFFFF' : '#414141', set:() => this.setState({ dOrd:k }) })),
+      dqRows, dqVazio:dqRows.length === 0, areaDet, fecharArea:() => this.setState({ areaDet:null })
+    };
+    const detSel = SIMDATA.filter(x => s.dSel.includes(x.id));
+    const detRows = detSel.map((x,i) => { const prev = detSel[i-1]; const on = s.dQSim === x.id; const d = prev ? x.acerto - prev.acerto : null;
+      return { nome:x.nome, data:x.data, part:x.part+' / 87', acerto:x.acerto+'%', aprov:x.aprov+'%', on, delta:d == null ? '—' : (d > 0 ? '+' : '')+d+' p.p.', dc:d == null ? '#899090' : d >= 0 ? '#0C5728' : '#771111', bg:on ? '#FFF7F7' : '#FFFFFF', sh:on ? 'inset 3px 0 0 #B81414' : 'none', ver:() => this.setState({ dQSim:x.id, dQ:null }) }; });
+    const qSimObj = SIMDATA.find(x => x.id === (s.dQSim || 5)) || SIMDATA[4];
+    return {
+      ...seletorVals(this, SIMDATA, s), ...detVals, detRows, detTitulo:'Questões · '+qSimObj.nome+' · '+qSimObj.data, goDetUlt:() => this.go('detalhamento', { dSel:[4,5], dQSim:5, dOpen:false }),
+      alertCols:s.tiny ? '20px minmax(0,1fr) 28px 52px 16px' : '20px minmax(0,1fr) auto 40px 64px 20px', avDisp:s.tiny ? 'none' : 'flex',
+      tribo, sc, nav, narrow:s.narrow, showSidebar:!s.narrow || s.navOpen, sidePos:s.narrow ? 'fixed' : 'sticky', sideShadow:s.narrow ? '0 0 40px rgba(0,0,0,0.2)' : 'none', scrimOn:s.narrow && s.navOpen, toggleNav:() => this.setState(st => ({ navOpen:!st.navOpen })),
+      goNotas:() => this.go('notas'), notasBg:sc.notas ? '#F4F5F6' : '#FFFFFF',
+      isLoad, isErr, semSim, showData, comSim, comSimData:comSim, retry:() => { this.setState({ retried:true }); this.toast('Dados carregados'); },
+      heroFrase, alertas, alertasN:alertas.length,
+      alertaRows:alertas.map(a => { const P = { sumiram:['Sumiram','Alta'], regrediram:['Regrediram','Alta'], estagnados:['Estagnados','Média'], naofizeram:['Não fizeram o 5º simulado','Média'], esfriando:['Esfriando','Média'] }[a.key]; const T = P[1] === 'Alta' ? ['#F9E8E8','#771111'] : ['#FBF3E6','#7F5205']; return { ...a, titulo:P[0], prio:P[1], pBg:T[0], pC:T[1] }; }),
+      heroResumo:semSim ? '11 alunos sem acesso há 15+ dias · encontro da tribo sexta, 19h' : '11 sumiram e 6 regrediram no 5º simulado · encontro da tribo sexta, 19h',
+      iniRef:semSim ? 'últimos 7 dias' : '5º Simulado PRO · 21/09', iniLink:semSim ? 'Ver turma' : 'Detalhar simulado', iniLinkGo:semSim ? () => this.go('turma') : () => this.go('detalhamento', { dSel:[5], dQSim:5, dOpen:false }),
+      iniKpis:semSim ? [
+        { label:'Ativos na semana', valor:'58', suf:'/ 87', sub:'+4 vs semana anterior', subC:'#0C5728', subW:600, vc:'#111212' },
+        { label:'Questões por aluno ativo', valor:'142', suf:'', sub:'−9 vs semana anterior', subC:'#771111', subW:600, vc:'#111212' },
+        { label:'Sem acesso há 15+ dias', valor:'11', suf:'alunos', sub:'mesmo corte do alerta', subC:'#899090', subW:400, vc:'#771111' }
+      ] : [
+        { label:'Acima do corte', valor:'34%', suf:'', sub:'+6 p.p. vs 4º simulado', subC:'#0C5728', subW:600, vc:'#111212' },
+        { label:'Acerto médio', valor:'79%', suf:'', sub:'+2 p.p. vs 4º simulado', subC:'#0C5728', subW:600, vc:'#111212' },
+        { label:'Participação', valor:'62', suf:'/ 87', sub:'25 não fizeram', subC:'#899090', subW:400, vc:'#111212' }
+      ],
+      sessHome:s.sess.filter(x => x.st === 'proxima' && x.id !== 1).slice(0,2).map(x => ({ ...x, tipoLabel:x.tipo === 'coletiva' ? 'Encontro' : 'Individual', quem:x.tipo === 'coletiva' ? x.tema : x.quem })),
+      afazerN:afazerCards.length,
+      goInterv:() => this.go('intervencoes'), goMural:() => this.go('mural'), goSessoes:() => this.go('sessoes'), goDetalhe:() => this.go('detalhamento'),
+      verNaoFizeram:() => this.go('turma', { alerta:'naofizeram', seg:'todos' }),
+      faltaLinkHome:!s.sess.find(x => x.id === 1).link, temLinkHome:!!s.sess.find(x => x.id === 1).link,
+      afazer:afazerCards.slice(0,4).map(deco), afazerVazio:afazerCards.length === 0,
+      simBtns, simTodos:() => this.setState({ sims:[true,true,true,true,true] }), simResumo, turmaSub, kpis, matriz, matrizSegs,
+      temasVis, toggleTemas:() => this.setState(st => ({ temasAll:!st.temasAll })), temasBtn:s.temasAll ? 'Mostrar só os 5 primeiros' : 'Ver todos os '+TEMAS.length+' temas críticos', temasIcon:s.temasAll ? 'up' : 'down',
+      alunosSub, busca:s.busca, setBusca:e => this.setState({ busca:e.target.value }),
+      alertaChip:alertaObj ? (alertaObj.label.charAt(0).toUpperCase()+alertaObj.label.slice(1))+' · '+alertaObj.n : null,
+      limparAlerta:() => this.setState({ alerta:null }), limparTudo:() => this.setState({ alerta:null, busca:'', seg:'todos' }),
+      segs, linhas, semLinhas:linhas.length === 0, totalRecorte,
+      aluno, fecharAluno:() => this.setState({ aluno:null }),
+      whats:() => this.toast('WhatsApp aberto em nova aba · registrado no log'),
+      msgAluno:() => A && this.go('mural', { mPara:'selecionados', mSel:[A.nome], mErr:{} }),
+      intervAluno:() => { if (!A) return; this.addCard({ tipo:'individual', titulo:'Acompanhar '+A.nome.split(' ')[0], quem:A.nome, origem:'Manual', ctx:A.ultimo }); this.toast('Intervenção criada em A fazer'); },
+      agOn:!!lib || s.agPasso, agPasso:s.agPasso && !lib, agTrack:(lib || s.agPasso) ? '#149142' : '#C3C6C6', agKnob:(lib || s.agPasso) ? '18px' : '2px',
+      agBd:s.agPasso && !lib ? '#941F1F' : '#E9EBED', agSub:lib ? 'Liberado desde '+lib+'. Desligar remove o botão "Agendar com o mentor" do aluno.' : 'Para liberar, mande uma mensagem individual. Ela aparece na aba "Pra você" do aluno.',
+      toggleAgenda:() => { if (lib) { this.setState(st => { const n = { ...st.liberados }; delete n[A.id]; return { liberados:n }; }); this.toast('Agendamento desligado'); } else this.setState(st => ({ agPasso:!st.agPasso, agErr:false })); },
+      agMsg:s.agMsg, setAgMsg:e => this.setState({ agMsg:e.target.value, agErr:false }), agErr:s.agErr, agMsgBd:s.agErr ? '#C61D1D' : '#C3C6C6',
+      enviarAgenda:() => {
+        if (!s.agMsg.trim()) return this.setState({ agErr:true });
+        this.setState(st => ({ agPasso:false, agMsg:'', liberados:{ ...st.liberados, [A.id]:'15/10' }, logs:{ ...st.logs, [A.id]:[{ icon:'calendar', txt:'Agendamento liberado + mensagem no mural', st:'A fazer', d:'15/10', f:'intervencoes' }, ...(st.logs[A.id] || [])] } }));
+        this.addCard({ tipo:'individual', titulo:'Reunião individual com '+A.nome.split(' ')[0], quem:A.nome, origem:'Auto · agenda liberada' });
+        this.toast('Agenda liberada para '+A.nome.split(' ')[0]+'. "Reunião individual" entrou em A fazer.');
+      },
+      toggleNotas:() => this.setState(st => ({ notasAll:!st.notasAll })), notasBtn:s.notasAll ? 'Mostrar menos' : 'Ver todos os simulados', notasIcon:s.notasAll ? 'up' : 'down',
+      areas, logFiltros,
+      ordens, questoes,
+      mTags, mTag:s.mTag, mParas, mSelMode, mQuick, mSelChips, mSelVazio:s.mSel.length === 0, mSelBd:s.mErr.sel ? '#C61D1D' : '#E9EBED', mErr:s.mErr,
+      mTitulo:s.mTitulo, setMTitulo:e => this.setState({ mTitulo:e.target.value, mErr:{ ...s.mErr, titulo:false } }), mTitBd:s.mErr.titulo ? '#C61D1D' : '#C3C6C6',
+      mMsg:s.mMsg, setMMsg:e => this.setState({ mMsg:e.target.value, mErr:{ ...s.mErr, msg:false } }), mMsgBd:s.mErr.msg ? '#C61D1D' : '#C3C6C6',
+      mLinkOpen:s.mLinkOpen, toggleLink:() => this.setState(st => ({ mLinkOpen:!st.mLinkOpen })), mLinkBtnBg:s.mLinkOpen ? '#FFF7F7' : '#FFFFFF',
+      mLink:s.mLink, setMLink:e => this.setState({ mLink:e.target.value }), mLinkTit:s.mLinkTit, setMLinkTit:e => this.setState({ mLinkTit:e.target.value, mErr:{ ...s.mErr, link:false } }), mLinkBd:s.mErr.link ? '#C61D1D' : '#C3C6C6',
+      mReg:s.mReg, toggleReg:() => this.setState(st => ({ mReg:!st.mReg })), mNum:mNumN + (mNumN === 1 ? ' aluno' : ' alunos'),
+      prevTitulo:s.mTitulo || 'Título da publicação', prevMsg:s.mMsg || 'A mensagem aparece aqui, como o aluno vai ler na home.',
+      prevColetivoC:mSelMode ? '#899090' : '#941F1F', prevColetivoBd:mSelMode ? 'transparent' : '#941F1F',
+      salvarRascunho:() => this.toast('Rascunho salvo'),
+      publicar:() => {
+        const err = { titulo:!s.mTitulo.trim(), msg:!s.mMsg.trim(), sel:mSelMode && s.mSel.length === 0, link:!!s.mLink.trim() && !s.mLinkTit.trim() };
+        if (err.titulo || err.msg || err.sel || err.link) return this.setState({ mErr:err });
+        const para = mSelMode ? mNumN+(mNumN === 1 ? ' aluno' : ' alunos')+' · individual' : 'Toda a turma';
+        this.setState(st => ({ mEdit:null, mHist:st.mEdit != null ? st.mHist.map((x,j) => j === st.mEdit ? { ...x, titulo:st.mTitulo, tag:st.mTag, msg:st.mMsg, data:x.data.replace(' · editada','')+' · editada' } : x) : [{ titulo:st.mTitulo, tag:st.mTag, msg:st.mMsg, para, data:'15/10' }, ...st.mHist], mTitulo:'', mMsg:'', mSel:[], mLink:'', mLinkTit:'', mLinkOpen:false, mErr:{} }));
+        if (s.mReg) this.addCard({ tipo:'mensagem', titulo:'Mural: '+s.mTitulo, quem:para, origem:'Auto · mural', status:'feito' });
+        this.toast('Publicado para '+mNumN+(mNumN === 1 ? ' aluno' : ' alunos')+(s.mReg ? ' · registrado em Intervenções' : ''));
+      },
+      canais:[{ nome:'Grupo de avisos', sub:'Comunicados gerais para todos os alunos', fixo:true },{ nome:'Plantão de dúvidas', sub:'Atendido pela monitoria, não pelo mentor', fixo:true },{ nome:'Grupo da Tribo '+tribo.nome, sub:'Único canal que você define', editavel:true }],
+      canalLink:s.canalLink, canalEdit:s.canalEdit, canalView:!s.canalEdit, canalErr:s.canalErr, canalBd:s.canalErr ? '#C61D1D' : '#C3C6C6',
+      setCanalLink:e => this.setState({ canalLink:e.target.value, canalErr:false }), editarCanal:() => this.setState({ canalEdit:true }),
+      salvarCanal:() => { if (!/chat\.whatsapp\.com\//.test(s.canalLink)) return this.setState({ canalErr:true }); this.setState({ canalEdit:false }); this.toast('Link do grupo atualizado na página dos alunos'); },
+      histTags, hist,
+      sTipos, sQuandos, sessList, sessVazio:sessList.length === 0,
+      sForm:s.sForm, abrirForm:() => this.setState({ sForm:true, sQuando:'proximas' }), fecharForm:() => this.setState({ sForm:false, sErr:false }),
+      sfTipos, sfIndividual:s.sfTipo === 'individual', sfColetiva:s.sfTipo === 'coletiva',
+      sfQuem:s.sfQuem, setSfQuem:e => this.setState({ sfQuem:e.target.value }), sfData:s.sfData, setSfData:e => this.setState({ sfData:e.target.value }), sfHora:s.sfHora, setSfHora:e => this.setState({ sfHora:e.target.value }),
+      sfTema:s.sfTema, setSfTema:e => this.setState({ sfTema:e.target.value, sErr:false }), sfLink:s.sfLink, setSfLink:e => this.setState({ sfLink:e.target.value }), sfTemaBd:s.sErr ? '#C61D1D' : '#C3C6C6',
+      sfHint:s.sErr ? 'Preencha data e tema.' : s.sfTipo === 'individual' ? 'Individual entra no kanban como Reunião individual.' : 'Encontro da tribo avisa a turma no mural. Sem link, fica marcado "Falta link".',
+      sfHintC:s.sErr ? '#C61D1D' : '#414141',
+      salvarSessao:() => {
+        if (!s.sfTema.trim() || !s.sfData.trim()) return this.setState({ sErr:true });
+        const ind = s.sfTipo === 'individual';
+        this.setState(st => ({ sForm:false, sess:[{ id:Date.now(), data:st.sfData, hora:st.sfHora || '—', tipo:st.sfTipo, quem:ind ? (st.sfQuem || 'Aluno') : 'Tribo toda', tema:st.sfTema, link:ind ? 'agenda' : st.sfLink, st:'proxima' }, ...st.sess], sfTema:'', sfData:'', sfHora:'', sfLink:'', sfQuem:'' }));
+        this.addCard({ tipo:ind ? 'individual' : 'coletiva', titulo:(ind ? 'Reunião individual: ' : 'Encontro: ')+s.sfTema, quem:ind ? (s.sfQuem || 'Aluno') : 'Turma toda', origem:'Auto · sessão criada' });
+        this.toast(ind ? 'Sessão salva · Reunião individual em A fazer' : 'Encontro salvo · aviso publicado no mural da tribo');
+      },
+      liberadosList, liberadosVazio:liberadosList.length === 0, desligarTodos:() => { this.setState({ liberados:{} }); this.toast('Agendamento desligado para todos'); },
+      iPers, iPerTxt, iTipos, colunas, medidorFeitas, medidorFaltam:15 - medidorFeitas, medidorPips,
+      abrirAdd:() => this.setState({ iAdd:true, iTipo:'todos' }), fecharAdd:() => this.setState({ iAdd:false, iaErr:false }),
+      iaTipos, iaQuem:s.iaQuem, setIaQuem:e => this.setState({ iaQuem:e.target.value, iaErr:false }), iaDesc:s.iaDesc, setIaDesc:e => this.setState({ iaDesc:e.target.value }), iaErr:s.iaErr, iaBd:s.iaErr ? '#C61D1D' : '#C3C6C6',
+      salvarAdd:() => { if (!s.iaQuem.trim()) return this.setState({ iaErr:true }); this.addCard({ tipo:s.iaTipo, titulo:s.iaDesc || TIPOS[s.iaTipo].l+' com '+s.iaQuem, quem:s.iaQuem, origem:'Manual' }); this.setState({ iAdd:false, iaQuem:'', iaDesc:'' }); this.toast('Intervenção adicionada em A fazer'); },
+      card, fecharCard:() => this.setState({ card:null }), cardStatus,
+      comentario:s.comentario, setComentario:e => this.setState({ comentario:e.target.value }),
+      comentar:() => { if (!s.comentario.trim() || !C) return; this.setState(st => ({ comentario:'', extraHist:{ ...st.extraHist, [C.id]:[...(st.extraHist[C.id] || []), { t:'Comentário: '+st.comentario, d:'agora' }] } })); },
+      notas, toast:s.toast
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -13,6 +13,13 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "8091", "--strictPort"],
       "port": 8091
+    },
+    {
+      "//": "Portal do Mentor com a fonte mock do protótipo B2B (só dev): inspeção visual do B2B, que não tem mentor real em produção. Mesma porta da dev-8091 para reaproveitar o login (a sessão é por origem); pare a dev-8091 antes.",
+      "name": "dev-8091-mentor-mock-b2b",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_MENTOR_FONTE=mock&& set VITE_MENTOR_MODALIDADE=b2b&& npm run dev -- --port 8091 --strictPort"],
+      "port": 8091
     }
   ]
 }

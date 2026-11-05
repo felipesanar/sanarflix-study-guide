@@ -67,7 +67,18 @@ export interface SeletorSimuladosProps {
    * borda de erro e cobra uma escolha que ali não é obrigatória.
    */
   opcional?: boolean;
-
+  /**
+   * Nota de escopo abaixo do campo. Ausente = a frase do Gestor ("o agregado
+   * do período é a Visão Geral"). O Portal do Mentor passa a sua ("o agregado
+   * da turma é a Minha Turma").
+   */
+  nota?: React.ReactNode;
+  /**
+   * Quem diz se um simulado é a prova oficial. Presente = o componente NÃO
+   * consulta `useFiltrosGestor`/`useEhProvaOficial` (o Portal do Mentor não
+   * tem IES no recorte); ausente = comportamento do Gestor, inalterado.
+   */
+  ehProvaOficial?: (simuladoId: string) => boolean;
 }
 
 
@@ -92,20 +103,13 @@ function porDataDesc(a: ItemCronograma, b: ItemCronograma): number {
  * indisponível DEPOIS de selecionado (a outra metade da correção, o filtro de
  * ids indisponíveis, mora em `routes/Detalhamento.tsx`).
  */
-export function SeletorSimulados({
-  itens,
-  selecionados,
-  onChange,
-  inline = false,
-  opcional = false,
+export function SeletorSimulados(props: SeletorSimuladosProps) {
+  // Sem a prop: o Gestor de sempre, que descobre a prova oficial pela IES do recorte.
+  if (props.ehProvaOficial) return <CorpoSeletorSimulados {...props} ehProvaOficial={props.ehProvaOficial} />;
+  return <SeletorSimuladosDoGestor {...props} />;
+}
 
-}: SeletorSimuladosProps) {
-  const [abertoPorClique, setAberto] = React.useState(false);
-  const aberto = inline || abertoPorClique;
-  const idPainel = React.useId();
-  const raiz = React.useRef<HTMLDivElement>(null);
-  const painel = React.useRef<HTMLDivElement>(null);
-
+function SeletorSimuladosDoGestor(props: SeletorSimuladosProps) {
   /**
    * ★ Prova oficial (Task 5) — mesma IES do recorte global. `useFiltrosGestor`
    * é a única fonte de `iesId` deste componente: ele não recebe a IES por
@@ -113,7 +117,23 @@ export function SeletorSimulados({
    */
   const { iesId } = useFiltrosGestor();
   const ehProvaOficial = useEhProvaOficial(iesId);
+  return <CorpoSeletorSimulados {...props} ehProvaOficial={ehProvaOficial} />;
+}
 
+function CorpoSeletorSimulados({
+  itens,
+  selecionados,
+  onChange,
+  inline = false,
+  opcional = false,
+  nota,
+  ehProvaOficial,
+}: SeletorSimuladosProps & { ehProvaOficial: (simuladoId: string) => boolean }) {
+  const [abertoPorClique, setAberto] = React.useState(false);
+  const aberto = inline || abertoPorClique;
+  const idPainel = React.useId();
+  const raiz = React.useRef<HTMLDivElement>(null);
+  const painel = React.useRef<HTMLDivElement>(null);
 
   const semSelecao = selecionados.length === 0;
   const excedeLegibilidade = selecionados.length > LIMITE_LEGIBILIDADE;
@@ -531,8 +551,12 @@ export function SeletorSimulados({
           simulado já escolhido, nada mais na tela explica por que não há "todos"
           nem por que alguns itens vêm desabilitados. */}
       <p className="mt-2" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-        Não existe &quot;todos&quot; — o agregado do período é a Visão Geral.
-        Previstos/em processamento ficam desabilitados.
+        {nota ?? (
+          <>
+            Não existe &quot;todos&quot; — o agregado do período é a Visão Geral.
+            Previstos/em processamento ficam desabilitados.
+          </>
+        )}
       </p>
 
       {semSelecao && !opcional && (

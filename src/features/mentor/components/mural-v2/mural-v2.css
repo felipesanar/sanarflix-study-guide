@@ -1,0 +1,136 @@
+/* Mural B2C (docs/02 § Tela 4; medidas do protótipo `Mentor B2C.dc.html` § MURAL; tokens do Gestor). */
+.mural-v2 { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.mural-v2 h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.mural-grade { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; min-width: 0; }
+.mural-bloco { background: var(--gp-surface-1); border: 1px solid var(--gp-border-strong); border-radius: 12px; min-width: 0; }
+.mural-bloco-pad { padding: 0 20px 16px; }
+.mural-h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.mural-flex1 { flex: 1; }
+.mural-rotulo { font-size: 12.5px; font-weight: 600; color: var(--gp-text-2); }
+.mural-rotulo-sm { font-size: 12px; font-weight: 600; color: var(--gp-text-2); }
+.mural-erro { font-size: 12px; color: var(--gp-danger); }
+.mural-erro-geral { margin: 0; }
+
+/* Composer */
+.mural-composer { flex: 2 1 520px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.mural-composer-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; }
+.mural-composer-topo .mural-h2 { flex: 1; }
+.mural-editando { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--gp-text-3); }
+.mural-link-acao { border: 0; background: none; padding: 0; font-size: 12.5px; font-weight: 600; color: #941F1F; cursor: pointer; }
+.mural-link-acao:hover { color: var(--gp-brand-strong); }
+.mural-campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mural-campo-sm { gap: 4px; }
+.mural-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mural-chip-tag { height: 30px; padding: 0 12px; border-radius: 10em; border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); color: var(--gp-text-2); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.mural-chip-tag[aria-checked="true"] { border-color: #F3C9C9; background: #FFF7F7; color: #941F1F; }
+.mural-para { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.mural-para-opcao { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 42px; border-radius: 8px; border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); text-align: left; cursor: pointer; color: var(--gp-text-1); }
+.mural-para-opcao[aria-checked="true"] { border-color: #941F1F; background: #FFF7F7; }
+.mural-radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--gp-border-input); flex-shrink: 0; }
+.mural-radio[data-marcado] { border: 5px solid #941F1F; }
+.mural-para-rotulo { flex: 1; font-weight: 600; font-size: 13.5px; }
+.mural-para-sub { font-size: 12px; color: var(--gp-text-3); white-space: nowrap; }
+.mural-atalhos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.mural-atalhos-rotulo { font-size: 12px; color: var(--gp-text-2); }
+.mural-atalho { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 10em; border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); font-size: 12px; color: var(--gp-text-1); cursor: pointer; white-space: nowrap; }
+.mural-atalho:hover { border-color: var(--gp-border-input); }
+.mural-atalho[aria-pressed="true"] { border-color: #111212; font-weight: 650; cursor: default; }
+.mural-busca-aluno { display: flex; flex-direction: column; gap: 6px; max-width: 360px; }
+.mural-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.mural-selecao { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; border: 1px solid var(--gp-border-strong); border-radius: 8px; min-height: 44px; align-items: center; }
+.mural-selecao[data-erro] { border-color: var(--gp-danger); }
+.mural-selecao-vazia { font-size: 12.5px; color: var(--gp-text-3); padding-left: 4px; }
+.mural-chip-selecao { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 10px; border-radius: 10em; background: var(--gp-surface-3); font-size: 12.5px; max-width: 100%; }
+.mural-chip-selecao button, .mural-anexo button { width: 20px; height: 20px; border: 0; border-radius: 50%; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--gp-text-2); flex: none; }
+.mural-chip-selecao button:hover, .mural-anexo button:hover { background: var(--gp-border-strong); }
+.mural-input { height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--gp-border-input); font-size: 14px; background: var(--gp-surface-1); color: var(--gp-text-1); width: 100%; min-width: 0; }
+.mural-input::placeholder { color: var(--gp-text-3); }
+.mural-input[aria-invalid="true"], .mural-input[data-erro] { border-color: var(--gp-danger); }
+.mural-input-sm { height: 36px; padding: 0 10px; font-size: 13.5px; }
+.mural-textarea { height: auto; padding: 10px 12px; line-height: 1.5; resize: vertical; }
+.mural-link-painel { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; padding: 12px; border-radius: 8px; background: var(--gp-surface-2); }
+.mural-link-erro { grid-column: 1 / -1; }
+.mural-anexo { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; height: 28px; padding: 0 4px 0 10px; border-radius: 10em; background: var(--gp-surface-3); font-size: 12.5px; }
+.mural-anexo-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mural-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border-top: 1px solid var(--gp-border-subtle); padding-top: 14px; }
+.mural-icone-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--gp-text-1); flex: none; }
+.mural-icone-btn[data-ativo] { background: #FFF7F7; }
+.mural-arquivo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.mural-registrar { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gp-text-2); cursor: pointer; margin-left: auto; }
+.mural-registrar input { accent-color: #941F1F; width: 16px; height: 16px; flex: none; }
+.mural-registrar:has(input:disabled) { cursor: not-allowed; opacity: 0.6; }
+.mural-btn { height: 38px; padding: 0 14px; border-radius: 8px; font-weight: 600; font-size: 13.5px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.mural-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+.mural-btn-sec { border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); color: var(--gp-text-1); }
+.mural-btn-sec:hover:not(:disabled) { border-color: var(--gp-border-input); }
+.mural-btn-pri { border: 0; background: #941F1F; color: #FFFFFF; padding: 0 16px; }
+.mural-btn-pri:hover:not(:disabled) { background: #7A1818; }
+.mural-btn-sm { height: 32px; padding: 0 12px; font-size: 12.5px; }
+
+/* Prévia "Como o aluno vê" */
+.mural-previa { flex: 1 1 300px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mural-previa-cartao { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.mural-previa-cabecalho { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 650; }
+.mural-previa-icone { width: 24px; height: auto; flex: none; }
+.mural-previa-abas { display: flex; gap: 16px; border-bottom: 1px solid var(--gp-border-subtle); font-size: 13px; }
+.mural-previa-abas span { padding-bottom: 8px; color: var(--gp-text-3); border-bottom: 2px solid transparent; font-weight: 600; margin-bottom: -1px; }
+.mural-previa-abas span[data-ativa] { color: #941F1F; border-bottom-color: #941F1F; }
+.mural-previa-post { border: 1px solid var(--gp-border-subtle); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mural-previa-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--gp-text-3); }
+.mural-previa-titulo { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.mural-previa-msg { font-size: 13px; color: var(--gp-text-2); white-space: pre-wrap; overflow-wrap: anywhere; text-wrap: pretty; }
+.mural-previa-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #941F1F; font-weight: 600; overflow-wrap: anywhere; }
+.mural-previa-anexo { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--gp-text-2); overflow-wrap: anywhere; }
+.mural-previa-assinatura { font-size: 12px; color: var(--gp-text-3); }
+
+/* Publicadas e Canais */
+.mural-bloco-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px 20px; }
+.mural-bloco-topo-canais { align-items: baseline; padding-bottom: 10px; }
+.mural-chip-filtro { height: 28px; padding: 0 10px; border-radius: 10em; border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); font-size: 12.5px; font-weight: 500; color: var(--gp-text-1); cursor: pointer; white-space: nowrap; }
+.mural-chip-filtro[aria-pressed="true"] { border-color: #111212; font-weight: 650; }
+.mural-lista { margin: 0; padding: 0; list-style: none; }
+.mural-linha { display: grid; grid-template-columns: minmax(0, 1fr) 120px 170px 90px 132px; gap: 12px; align-items: center; padding: 9px 20px; border-top: 1px solid var(--gp-border-subtle); font-size: 13.5px; }
+.mural-linha:hover { background: var(--gp-surface-2); }
+.mural-linha[data-editando] { background: #FFF7F7; }
+.mural-linha-titulo { font-weight: 550; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mural-linha-meta { font-size: 12.5px; color: var(--gp-text-2); min-width: 0; overflow-wrap: anywhere; }
+.mural-linha-data { font-size: 12.5px; color: var(--gp-text-3); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mural-linha-acoes { display: flex; justify-content: flex-end; gap: 4px; }
+.mural-btn-linha { height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--gp-border-strong); background: var(--gp-surface-1); font-size: 12px; font-weight: 600; color: var(--gp-text-1); cursor: pointer; white-space: nowrap; }
+.mural-btn-linha:hover:not(:disabled) { border-color: var(--gp-border-input); }
+.mural-btn-linha:disabled { opacity: 0.6; cursor: not-allowed; }
+.mural-btn-perigo { color: var(--gp-danger-on); }
+.mural-canal { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-top: 1px solid var(--gp-border-subtle); flex-wrap: wrap; }
+.mural-canal-icone { width: 32px; height: 32px; border-radius: 8px; background: var(--gp-surface-3); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.mural-canal-texto { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.mural-canal-nome { font-size: 13.5px; font-weight: 600; }
+.mural-canal-sub { font-size: 12px; color: var(--gp-text-3); }
+.mural-canal-fixo { font-size: 12px; color: var(--gp-text-2); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mural-canal-edicao { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.mural-canal-link { font-size: 12.5px; color: var(--gp-success-on); display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; text-decoration: none; }
+.mural-canal-link:hover { text-decoration: underline; }
+.mural-input-canal { height: 32px; width: 260px; max-width: 100%; padding: 0 10px; font-size: 13px; }
+.mural-canal-erro { margin: 0; padding: 0 20px 12px; }
+
+/* Toast */
+.mural-toast-regiao { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; pointer-events: none; max-width: calc(100vw - 32px); }
+.mural-toast { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: #111212; color: #FFFFFF; font-size: 13.5px; box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.4); }
+
+@media (max-width: 760px) {
+  .mural-linha { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "titulo data" "meta meta" "acoes acoes"; row-gap: 4px; padding: 12px 16px; }
+  .mural-linha-titulo { grid-area: titulo; white-space: normal; overflow-wrap: anywhere; }
+  .mural-linha-data { grid-area: data; }
+  .mural-linha-meta { grid-column: 1 / -1; }
+  .mural-linha-acoes { grid-column: 1 / -1; justify-content: flex-start; }
+  .mural-registrar { margin-left: 0; flex-basis: 100%; }
+  .mural-bloco-topo, .mural-canal { padding-left: 16px; padding-right: 16px; }
+  .mural-composer { padding: 16px; }
+}
+@media (max-width: 979.98px) {
+  .mural-btn, .mural-icone-btn, .mural-chip-tag, .mural-btn-linha, .mural-atalho, .mural-chip-filtro { min-height: 44px; }
+  .mural-icone-btn { width: 44px; }
+  .mural-chip-selecao button, .mural-anexo button { width: 32px; height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mural-v2 * { transition: none !important; scroll-behavior: auto !important; }
+}
