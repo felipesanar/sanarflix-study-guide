@@ -54,7 +54,7 @@ describe('Detalhamento · B2C (mock)', () => {
     expect(await screen.findByTestId('kpi-possivel-aprovacao')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Acerto por prevalência' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Diagnóstico da IA' })).toBeInTheDocument();
-    expect(await screen.findByText(/A turma subiu 2 p\.p\. no geral/)).toBeInTheDocument();
+    expect(await screen.findByText(/A turma subiu 2 p\.p\. no geral/, undefined, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText('Visão de alunos')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Detalhamento das questões' })).toBeInTheDocument();
     // B2C: sem semestre, com "Último acesso" e as abas por corte.
@@ -136,7 +136,8 @@ describe('Detalhamento · B2C (mock)', () => {
   it('IA: "Gerar de novo" mostra skeleton e toast; "Levar pro mural" abre o Mural preenchido para a turma', async () => {
     const user = userEvent.setup();
     montar();
-    await screen.findByText(/A turma subiu 2 p\.p\./);
+    // Fonte mock com 250 ms de latência: com a suíte inteira carregando a máquina, 1 s (padrão) às vezes não basta.
+    await screen.findByText(/A turma subiu 2 p\.p\./, undefined, { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: 'Gerar de novo' }));
     expect(screen.getByTestId('ia-gerando')).toHaveAttribute('role', 'status');
     expect(await screen.findByTestId('toast-detalhamento')).toHaveTextContent('Diagnóstico gerado de novo');
