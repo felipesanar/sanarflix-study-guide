@@ -1168,6 +1168,39 @@ export type Database = {
         }
         Relationships: []
       }
+      enamed_prevalencia_tema: {
+        Row: {
+          atualizado_em: string
+          especialidade: string | null
+          fonte: string | null
+          grande_area: string | null
+          id: number
+          prevalencia: string | null
+          tema: string | null
+          tema_norm: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          especialidade?: string | null
+          fonte?: string | null
+          grande_area?: string | null
+          id?: number
+          prevalencia?: string | null
+          tema?: string | null
+          tema_norm?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          especialidade?: string | null
+          fonte?: string | null
+          grande_area?: string | null
+          id?: number
+          prevalencia?: string | null
+          tema?: string | null
+          tema_norm?: string | null
+        }
+        Relationships: []
+      }
       eng_atividade_aluno_dia: {
         Row: {
           acertos: number
@@ -2029,10 +2062,12 @@ export type Database = {
           ativo: boolean
           created_at: string
           created_by: string | null
+          flix_mentor_id: string | null
           formacao: string | null
           foto_url: string | null
           ies_id: string | null
           link_agendamento: string | null
+          portal_mentor: boolean
           tipo: string
           turma_nome: string
           updated_at: string
@@ -2042,10 +2077,12 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           created_by?: string | null
+          flix_mentor_id?: string | null
           formacao?: string | null
           foto_url?: string | null
           ies_id?: string | null
           link_agendamento?: string | null
+          portal_mentor?: boolean
           tipo: string
           turma_nome: string
           updated_at?: string
@@ -2055,10 +2092,12 @@ export type Database = {
           ativo?: boolean
           created_at?: string
           created_by?: string | null
+          flix_mentor_id?: string | null
           formacao?: string | null
           foto_url?: string | null
           ies_id?: string | null
           link_agendamento?: string | null
+          portal_mentor?: boolean
           tipo?: string
           turma_nome?: string
           updated_at?: string
@@ -2118,6 +2157,50 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      mentoria_canais: {
+        Row: {
+          atualizado_em: string
+          mentor_id: string
+          url: string
+        }
+        Insert: {
+          atualizado_em?: string
+          mentor_id: string
+          url: string
+        }
+        Update: {
+          atualizado_em?: string
+          mentor_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_canais_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: true
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mentoria_canais_gerais: {
+        Row: {
+          nome: string
+          tipo: string
+          url: string | null
+        }
+        Insert: {
+          nome: string
+          tipo: string
+          url?: string | null
+        }
+        Update: {
+          nome?: string
+          tipo?: string
+          url?: string | null
+        }
+        Relationships: []
       }
       mentoria_eventos: {
         Row: {
@@ -2230,6 +2313,7 @@ export type Database = {
           nota: string | null
           origem: string
           origem_ref: Json | null
+          perfil: string | null
           status: string
           tipo: string
           titulo: string
@@ -2244,6 +2328,7 @@ export type Database = {
           nota?: string | null
           origem: string
           origem_ref?: Json | null
+          perfil?: string | null
           status?: string
           tipo: string
           titulo: string
@@ -2258,6 +2343,7 @@ export type Database = {
           nota?: string | null
           origem?: string
           origem_ref?: Json | null
+          perfil?: string | null
           status?: string
           tipo?: string
           titulo?: string
@@ -2272,11 +2358,82 @@ export type Database = {
           },
         ]
       }
+      mentoria_perolas: {
+        Row: {
+          criado_em: string
+          id: string
+          mentor_id: string
+          tema: string | null
+          texto: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          mentor_id: string
+          tema?: string | null
+          texto: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          mentor_id?: string
+          tema?: string | null
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_perolas_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mentoria_rotina_envios: {
+        Row: {
+          conteudo: string
+          dia: string
+          enviado_em: string | null
+          id: string
+          mentor_id: string
+          semana: string
+          tipo: string
+        }
+        Insert: {
+          conteudo?: string
+          dia: string
+          enviado_em?: string | null
+          id?: string
+          mentor_id: string
+          semana: string
+          tipo: string
+        }
+        Update: {
+          conteudo?: string
+          dia?: string
+          enviado_em?: string | null
+          id?: string
+          mentor_id?: string
+          semana?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_rotina_envios_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       mentoria_sessoes: {
         Row: {
           aluno_email: string | null
           created_at: string
           created_by: string | null
+          descricao: string | null
           duracao_min: number
           gravacao_url: string | null
           id: string
@@ -2284,6 +2441,7 @@ export type Database = {
           meet_link: string | null
           mentor_id: string | null
           origem: string
+          pauta: Json
           realizada_em: string | null
           status: string
           tema: string | null
@@ -2295,6 +2453,7 @@ export type Database = {
           aluno_email?: string | null
           created_at?: string
           created_by?: string | null
+          descricao?: string | null
           duracao_min?: number
           gravacao_url?: string | null
           id?: string
@@ -2302,6 +2461,7 @@ export type Database = {
           meet_link?: string | null
           mentor_id?: string | null
           origem?: string
+          pauta?: Json
           realizada_em?: string | null
           status?: string
           tema?: string | null
@@ -2313,6 +2473,7 @@ export type Database = {
           aluno_email?: string | null
           created_at?: string
           created_by?: string | null
+          descricao?: string | null
           duracao_min?: number
           gravacao_url?: string | null
           id?: string
@@ -2320,6 +2481,7 @@ export type Database = {
           meet_link?: string | null
           mentor_id?: string | null
           origem?: string
+          pauta?: Json
           realizada_em?: string | null
           status?: string
           tema?: string | null
@@ -2330,6 +2492,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "mentoria_sessoes_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentores"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      mentoria_sinalizacoes: {
+        Row: {
+          aluno_email: string
+          ciclo_id: string
+          comite_id: string | null
+          criado_em: string
+          id: string
+          mentor_id: string
+          motivo: string
+        }
+        Insert: {
+          aluno_email: string
+          ciclo_id: string
+          comite_id?: string | null
+          criado_em?: string
+          id?: string
+          mentor_id: string
+          motivo: string
+        }
+        Update: {
+          aluno_email?: string
+          ciclo_id?: string
+          comite_id?: string | null
+          criado_em?: string
+          id?: string
+          mentor_id?: string
+          motivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_sinalizacoes_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_vinculos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentoria_sinalizacoes_mentor_id_fkey"
             columns: ["mentor_id"]
             isOneToOne: false
             referencedRelation: "mentores"
@@ -2422,6 +2629,9 @@ export type Database = {
           anexo_nome: string | null
           anexo_path: string | null
           created_at: string
+          editada_em: string | null
+          excluida_em: string | null
+          fixada: boolean
           id: string
           link_titulo: string | null
           link_url: string | null
@@ -2439,6 +2649,9 @@ export type Database = {
           anexo_nome?: string | null
           anexo_path?: string | null
           created_at?: string
+          editada_em?: string | null
+          excluida_em?: string | null
+          fixada?: boolean
           id?: string
           link_titulo?: string | null
           link_url?: string | null
@@ -2456,6 +2669,9 @@ export type Database = {
           anexo_nome?: string | null
           anexo_path?: string | null
           created_at?: string
+          editada_em?: string | null
+          excluida_em?: string | null
+          fixada?: boolean
           id?: string
           link_titulo?: string | null
           link_url?: string | null
@@ -4370,10 +4586,19 @@ export type Database = {
         Returns: Json
       }
       mentor_aluno: { Args: { p_email: string }; Returns: Json }
+      mentor_aluno_b2b: { Args: { p_email: string }; Returns: Json }
       mentor_aluno_conteudos: { Args: { p_email: string }; Returns: Json }
       mentor_aluno_notas: { Args: { p_email: string }; Returns: Json }
       mentor_aluno_questoes: { Args: { p_email: string }; Returns: Json }
+      mentor_alunos_b2b: {
+        Args: { p_fim?: string; p_inicio?: string }
+        Returns: Json
+      }
       mentor_ativo_id: { Args: never; Returns: string }
+      mentor_canais_listar: { Args: never; Returns: Json }
+      mentor_canal_grupo_salvar: { Args: { p_url: string }; Returns: Json }
+      mentor_convites_listar: { Args: never; Returns: Json }
+      mentor_cronograma_b2b: { Args: never; Returns: Json }
       mentor_definir_link_agendamento: {
         Args: { p_url: string }
         Returns: Json
@@ -4382,7 +4607,15 @@ export type Database = {
         Args: { p_simulados?: string[] }
         Returns: Json
       }
-      mentor_detalhamento: { Args: { p_simulados: string[] }; Returns: Json }
+      mentor_detalhamento: {
+        Args: { p_emails?: string[]; p_simulados: string[] }
+        Returns: Json
+      }
+      mentor_detalhamento_b2b: {
+        Args: { p_simulados: string[] }
+        Returns: Json
+      }
+      mentor_engajamento_turma: { Args: { p_semanas?: number }; Returns: Json }
       mentor_exige_alunos: {
         Args: { p_emails: string[]; p_mentor: string }
         Returns: string[]
@@ -4414,6 +4647,7 @@ export type Database = {
         Args: { p_ate: string; p_de: string }
         Returns: Json
       }
+      mentor_mural_excluir: { Args: { p_id: string }; Returns: Json }
       mentor_mural_listar: {
         Args: { p_aluno_email?: string; p_tag?: string }
         Returns: Json
@@ -4435,11 +4669,25 @@ export type Database = {
         }
         Returns: Json
       }
+      mentor_perola_salvar: {
+        Args: { p_tema: string; p_texto: string }
+        Returns: Json
+      }
+      mentor_perolas_listar: { Args: never; Returns: Json }
       mentor_pode_ver_aluno: { Args: { p_email: string }; Returns: boolean }
       mentor_questao: {
         Args: { p_questao_id: string; p_simulados?: string[] }
         Returns: Json
       }
+      mentor_questao_respondentes_b2b: {
+        Args: { p_questao_id: string; p_simulados: string[] }
+        Returns: Json
+      }
+      mentor_questoes_b2b: { Args: { p_simulados: string[] }; Returns: Json }
+      mentor_rotina_listar: { Args: { p_semana: string }; Returns: Json }
+      mentor_rotina_marcar_enviado: { Args: { p_id: string }; Returns: Json }
+      mentor_serie_turma: { Args: { p_simulados?: string[] }; Returns: Json }
+      mentor_sessao_excluir: { Args: { p_id: string }; Returns: Json }
       mentor_sessao_marcar_feita: {
         Args: { p_gravacao_url: string; p_id: string }
         Returns: Json
@@ -4447,10 +4695,12 @@ export type Database = {
       mentor_sessao_salvar: {
         Args: {
           p_aluno_email: string
+          p_descricao?: string
           p_duracao_min: number
           p_id: string
           p_inicio: string
           p_meet_link: string
+          p_pauta?: Json
           p_tema: string
           p_tipo: string
           p_titulo: string
@@ -4458,8 +4708,21 @@ export type Database = {
         Returns: Json
       }
       mentor_sessoes_listar: { Args: { p_quando: string }; Returns: Json }
+      mentor_sinalizar_ies: {
+        Args: { p_email: string; p_motivo: string }
+        Returns: Json
+      }
       mentor_tags: { Args: never; Returns: Json }
+      mentor_temas_turma: { Args: { p_simulados?: string[] }; Returns: Json }
+      mentor_temas_turma_b2b: {
+        Args: { p_fim?: string; p_inicio?: string }
+        Returns: Json
+      }
       mentor_turma: { Args: never; Returns: Json }
+      mentor_visao_geral_b2b: {
+        Args: { p_fim?: string; p_inicio?: string }
+        Returns: Json
+      }
       normalize_grande_area: { Args: { raw: string }; Returns: string }
       record_review_attempt_guarded: {
         Args: {
@@ -4471,6 +4734,7 @@ export type Database = {
         Returns: string
       }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
+      registrar_evento_mentor: { Args: { p_evento: Json }; Returns: Json }
       reset_leech_guarded: { Args: { p_entry_id: string }; Returns: undefined }
       schedule_next_review_guarded: {
         Args: { p_confidence: string; p_entry_id: string; p_outcome: string }
