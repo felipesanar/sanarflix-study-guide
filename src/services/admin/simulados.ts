@@ -177,3 +177,30 @@ export async function encerrarSimulado(simuladoId: string): Promise<EncerrarSimu
   }
   return data as unknown as EncerrarSimuladoResult;
 }
+
+export interface SimuladoDeleteCheck {
+  deletable: boolean;
+  alunos: number;
+  respostas: number;
+  filhos: number;
+  tri_alunos: number;
+  tri_ies: number;
+}
+
+export async function checkSimuladoDeletable(simuladoId: string): Promise<SimuladoDeleteCheck> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.rpc as any)('admin_simulado_delete_check', { p_simulado_id: simuladoId });
+  if (error) throw error;
+  return data as SimuladoDeleteCheck;
+}
+
+export async function deleteSimulado(simuladoId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.rpc as any)('admin_delete_simulado', { p_simulado_id: simuladoId });
+  if (error) {
+    if (error.message?.includes('has_responses')) {
+      throw new Error('Este simulado tem respostas de alunos e não pode ser excluído pelo painel.');
+    }
+    throw error;
+  }
+}

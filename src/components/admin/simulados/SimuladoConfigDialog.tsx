@@ -31,6 +31,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MonoValue } from '@/experiences/admin/ui';
 import { logAdminAction } from '@/services/admin/logAction';
 import { updateSimulado, setSimuladoType } from '@/services/admin/simulados';
+import ExcluirSimuladoButton from './ExcluirSimuladoButton';
 import type { Modalidade } from '@/services/admin/contratoSimulados';
 import { cn } from '@/lib/utils';
 import type { IES, Simulado } from './ProvasTab';
@@ -1050,7 +1051,10 @@ export default function SimuladoConfigDialog({
           )}
         </div>
 
-        <div className="flex justify-end gap-2 border-t px-6 py-4">
+        <div className="flex items-start justify-end gap-2 border-t px-6 py-4">
+          {mode === 'edit' && simulado && (
+            <ExcluirSimuladoButton simuladoId={simulado.id} simuladoNome={simulado.nome} onDeleted={onSaved} />
+          )}
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancelar
           </Button>

@@ -3877,6 +3877,10 @@ export type Database = {
         Args: { p_contrato_id: string }
         Returns: Json
       }
+      admin_delete_simulado: {
+        Args: { p_simulado_id: string }
+        Returns: undefined
+      }
       admin_encerrar_simulado: {
         Args: { p_simulado_id: string }
         Returns: Json
@@ -4002,6 +4006,10 @@ export type Database = {
       admin_set_simulado_type: {
         Args: { p_simulado_id: string; p_type: string }
         Returns: undefined
+      }
+      admin_simulado_delete_check: {
+        Args: { p_simulado_id: string }
+        Returns: Json
       }
       admin_simulado_question_map: {
         Args: { p_simulado_id: string }

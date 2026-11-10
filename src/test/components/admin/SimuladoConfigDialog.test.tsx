@@ -56,6 +56,8 @@ vi.mock('@/integrations/supabase/client', () => ({
 vi.mock('@/services/admin/simulados', () => ({
   updateSimulado: (...args: unknown[]) => mockUpdateSimulado(...args),
   setSimuladoType: vi.fn().mockResolvedValue(undefined),
+  checkSimuladoDeletable: vi.fn().mockResolvedValue({ deletable: false, alunos: 1, respostas: 1, filhos: 0, tri_alunos: 0, tri_ies: 0 }),
+  deleteSimulado: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
