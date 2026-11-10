@@ -69,6 +69,11 @@ export default function ExcluirSimuladoButton({ simuladoId, simuladoNome, onDele
           Fale com o time de desenvolvimento.
         </p>
       )}
+      {check?.deletable && respondentes.length > 0 && (
+        <p className="text-xs text-muted-foreground" data-testid="resumo-respondentes">
+          Respondido por: {respondentes.map((r) => r.nome ?? r.email ?? 'sem nome').join(', ')}. Revise antes de excluir.
+        </p>
+      )}
       {checkError && (
         <p className="text-xs text-muted-foreground">Não foi possível verificar se o simulado pode ser excluído.</p>
       )}
