@@ -3878,7 +3878,7 @@ export type Database = {
         Returns: Json
       }
       admin_delete_simulado: {
-        Args: { p_simulado_id: string }
+        Args: { p_respondentes_confirmados?: string[]; p_simulado_id: string }
         Returns: undefined
       }
       admin_encerrar_simulado: {

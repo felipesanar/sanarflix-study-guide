@@ -185,6 +185,18 @@ export interface SimuladoDeleteCheck {
   filhos: number;
   tri_alunos: number;
   tri_ies: number;
+  respondentes_distintos?: number;
+  respondentes?: SimuladoRespondente[];
+  modo?: 'direto' | 'revisao' | 'bloqueado';
+}
+
+export interface SimuladoRespondente {
+  user_id: string;
+  nome: string | null;
+  email: string | null;
+  ies: string | null;
+  roles: string[];
+  ultima_atividade: string | null;
 }
 
 export async function checkSimuladoDeletable(simuladoId: string): Promise<SimuladoDeleteCheck> {
@@ -194,12 +206,18 @@ export async function checkSimuladoDeletable(simuladoId: string): Promise<Simula
   return data as SimuladoDeleteCheck;
 }
 
-export async function deleteSimulado(simuladoId: string): Promise<void> {
+export async function deleteSimulado(simuladoId: string, respondentesConfirmados: string[] = []): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.rpc as any)('admin_delete_simulado', { p_simulado_id: simuladoId });
+  const { error } = await (supabase.rpc as any)('admin_delete_simulado', {
+    p_simulado_id: simuladoId,
+    p_respondentes_confirmados: respondentesConfirmados,
+  });
   if (error) {
+    if (error.message?.includes('respondentes_mudaram')) {
+      throw new Error('A lista de quem respondeu mudou. Abra a exclusão de novo para revisar.');
+    }
     if (error.message?.includes('has_responses')) {
-      throw new Error('Este simulado tem respostas de alunos e não pode ser excluído pelo painel.');
+      throw new Error('Este simulado tem mais de 5 respondentes ou resultados vinculados e não pode ser excluído pelo painel.');
     }
     throw error;
   }
