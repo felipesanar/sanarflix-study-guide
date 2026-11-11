@@ -631,6 +631,7 @@ export const SimuladoDesempenho: React.FC = () => {
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [isDownloadingProvaRevisada, setIsDownloadingProvaRevisada] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<string>('');
+  const [loadError, setLoadError] = useState(false);
   const CACHE_KEY_PREFIX = `performanceData_${user?.id}`;
 
   const fetchDataForView = async (simuladoId: string | null, forceRefresh = false) => {
@@ -654,25 +655,38 @@ export const SimuladoDesempenho: React.FC = () => {
       }
     }
     try {
-      const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([
+      setLoadError(false);
+      const settled = await Promise.allSettled([
         supabase.rpc('get_user_simulados'),
         simuladoId ? supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_performance_aggregates').single(),
         simuladoId ? supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_rankings').single(),
         supabase.from('users').select('semestre').eq('id', user.id).single()
       ]);
-      if (simuladosResult.error) throw simuladosResult.error; if (performanceResult.error) throw performanceResult.error; if (rankingResult.error) throw rankingResult.error; if (userDataResult.error) throw userDataResult.error;
-      const simuladosData = simuladosResult.data || [];
+      const pick = (r: PromiseSettledResult<any>) => (r.status === 'fulfilled' && !r.value?.error ? r.value.data : undefined);
+      const failed = (r: PromiseSettledResult<any>) => r.status === 'rejected' || !!r.value?.error;
+      const [simuladosResult, performanceResult, rankingResult, userDataResult] = settled;
+      if (failed(simuladosResult) || failed(performanceResult)) {
+        Logger.error('[UIUX] Essential fetch failed', settled);
+        setLoadError(true);
+        return;
+      }
+      if (failed(rankingResult)) Logger.warn('[UIUX] Ranking fetch failed', rankingResult);
+      if (failed(userDataResult)) Logger.warn('[UIUX] User semestre fetch failed', userDataResult);
+      const simuladosData = pick(simuladosResult) || [];
       setSimulados(simuladosData.map((s: any) => ({ ...s, id: s.id })));
-      if (performanceResult.data) {
-        const { overallStats, byArea, bySpecialty, bySubspecialty } = performanceResult.data as any;
+      const performanceData = pick(performanceResult);
+      if (performanceData) {
+        const { overallStats, byArea, bySpecialty, bySubspecialty } = performanceData as any;
         const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
         const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
-        const rankingData = rankingResult.data as any;
-        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData, cachedAt: Date.now() };
-        sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
-        setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
+        const rankingData = pick(rankingResult) as any;
+        const userDataValue = pick(userDataResult) ?? null;
+        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataValue, simulados: simuladosData, cachedAt: Date.now() };
+        const partial = failed(rankingResult) || failed(userDataResult);
+        if (!partial && !isCacheEmpty(dataToCache)) sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
+        setStats(newStats); setPerformancePorArea(dataToCache.performancePorArea); setBySpecialty(dataToCache.bySpecialty); setBySubspecialty(dataToCache.bySubspecialty); setRanking(dataToCache.ranking); setUserData(userDataValue);
       }
-    } catch (error) { Logger.error("[UIUX] Fetch error:", error); }
+    } catch (error) { Logger.error("[UIUX] Fetch error:", error); setLoadError(true); }
     finally { setLoading(false); }
   };
 
@@ -834,6 +848,18 @@ export const SimuladoDesempenho: React.FC = () => {
           <Skeleton className="h-72 rounded-2xl" />
         </div>
         <Skeleton className="h-96 w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (loadError && !stats) {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-4xl lg:max-w-6xl">
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <h2 className="text-lg font-semibold text-foreground mb-1.5">Não foi possível carregar seu desempenho</h2>
+          <p className="text-sm text-muted-foreground max-w-sm mb-4">Verifique sua conexão e tente novamente.</p>
+          <Button variant="outline" onClick={handleRefresh} className="gap-2 rounded-xl"><RefreshCw className="h-4 w-4" />Tentar novamente</Button>
+        </div>
       </div>
     );
   }
