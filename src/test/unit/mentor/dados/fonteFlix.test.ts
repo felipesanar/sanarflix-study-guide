@@ -29,10 +29,18 @@ describe('fonteFlix (contrato v2.1 via flix-mentoria-proxy)', () => {
   });
 
   it('me → GET /me, sem corpo', async () => {
-    const me = { mentor: { id: 'm1', nome: 'Thiago', fotoUrl: null, agendaUrl: null, modalidade: 'b2c' }, tribos: [{ id: 't1', nome: 'Carcará', slug: 'carcara', modalidade: 'b2c', papel: 'titular' }], portalMentor: true };
+    const me = { mentor: { id: 'm1', nome: 'Thiago', fotoUrl: null, bio: null, mote: null, googleEmail: null, ativo: true, modalidade: 'b2c' }, tribos: [{ id: 't1', nome: 'Carcará', slug: 'carcara', modalidade: 'b2c', papel: 'titular', mentoriaAtiva: true }] };
     const { invocar, pedidos } = proxyFalso(() => ({ data: me }));
-    expect(await criarFonteFlix(invocar).me()).toEqual(me);
-    expect(pedidos).toEqual([{ metodo: 'GET', caminho: '/me' }]);
+    expect(await criarFonteFlix(invocar).me()).toEqual({ ...me, mentor: { ...me.mentor, agendaUrl: null }, portalMentor: true });
+    expect(pedidos).toEqual([expect.objectContaining({ metodo: 'GET', caminho: '/me' })]);
+  });
+
+  it('PATCH /me envia apenas campos do Flix, incluindo null, sem agendaUrl do Academy', async () => {
+    const mentor = { id: 'm1', nome: 'Thiago', fotoUrl: null, bio: null, mote: 'Mote', googleEmail: null, ativo: true, modalidade: 'b2c' };
+    const { invocar, pedidos } = proxyFalso(() => ({ data: mentor }));
+    expect(await criarFonteFlix(invocar).atualizarPerfil({ fotoUrl: null, bio: null, mote: 'Mote', googleEmail: null, agendaUrl: 'https://calendar.google.com/x' })).toEqual({ ...mentor, agendaUrl: null });
+    expect(pedidos[0]).toMatchObject({ metodo: 'PATCH', caminho: '/me', corpo: { fotoUrl: null, bio: null, mote: 'Mote', googleEmail: null } });
+    expect(pedidos[0].corpo).not.toHaveProperty('agendaUrl');
   });
 
   it('alunos percorre todas as páginas { data, nextCursor }', async () => {
@@ -62,7 +70,7 @@ describe('fonteFlix (contrato v2.1 via flix-mentoria-proxy)', () => {
       { metodo: 'PUT', caminho: '/tribos/t1/canais/grupo_tribo', corpo: { url: 'https://chat.whatsapp.com/x' } },
       { metodo: 'POST', caminho: '/tribos/t1/convites', corpo: { alunoId: 'u1', mensagem: { titulo: 'Agenda', mensagem: 'Liberei' } } },
       { metodo: 'POST', caminho: '/sessoes/s1/gravacao', corpo: { url: 'https://drive/x', origem: 'manual' } },
-    ]);
+    ].map((pedido) => expect.objectContaining(pedido)));
   });
 
   it('filtros viram query string sem chaves vazias', async () => {

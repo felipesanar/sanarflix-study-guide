@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { gerar } from '../../../scripts/gerar-rotas-mentoria.mjs';
 import { montarHeaders, validarRota } from '../../../supabase/functions/flix-mentoria-proxy/rotas';
 
 const rotas = [
   ['GET', '/me'],
+  ['PATCH', '/me'],
   ['GET', '/tribos/tribo-1/alunos'],
   ['GET', '/tribos/tribo-1/alunos/aluno_2'],
   ['GET', '/tribos/tribo-1/canais'],
@@ -17,14 +20,28 @@ const rotas = [
   ['PATCH', '/sessoes/sessao-1'],
   ['DELETE', '/sessoes/sessao-1'],
   ['POST', '/sessoes/sessao-1/gravacao'],
-  ['GET', '/tribos/tribo-1/convites'],
-  ['POST', '/tribos/tribo-1/convites'],
-  ['DELETE', '/convites/convite-1'],
+  ['POST', '/tribos/tribo-1/horarios'],
+  ['POST', '/sessoes/sessao-1/cancelar'],
 ];
 
 describe('flix-mentoria-proxy: rotas', () => {
+  it('mantem a lista gerada identica a especificacao atual', () => {
+    const especificacao = JSON.parse(readFileSync('docs/mentoria/contrato-v2.3.openapi.json', 'utf8'));
+    expect(readFileSync('supabase/functions/flix-mentoria-proxy/rotas.gerado.ts', 'utf8')).toBe(gerar(especificacao));
+  });
+
+  it.each([['GET', '/tribos/a/convites'], ['POST', '/tribos/a/convites'], ['DELETE', '/convites/a']])('recusa legado %s %s', (metodo, caminho) => {
+    expect(validarRota(metodo, caminho)).toMatchObject({ ok: false, status: 400 });
+  });
+
+  it('restringe query por operacao e devolve metadados', () => {
+    expect(validarRota('GET', '/tribos/a/publicacoes?status=publicada&tag=aviso')).toMatchObject({ ok: true, operationId: 'listarPublicacoes', triboId: 'a', exigeIdempotencia: false });
+    expect(validarRota('POST', '/tribos/a/publicacoes?status=publicada')).toMatchObject({ ok: false, status: 400 });
+    expect(validarRota('GET', '/me?limit=1')).toMatchObject({ ok: false, status: 400 });
+    expect(validarRota('PATCH', '/me')).toMatchObject({ ok: true, operationId: 'atualizarMe', triboId: null, exigeIdempotencia: true });
+  });
   it.each(rotas)('permite %s %s', (metodo, caminho) => {
-    expect(validarRota(metodo, caminho)).toEqual({ ok: true, metodo, caminho });
+    expect(validarRota(metodo, caminho)).toMatchObject({ ok: true, metodo, caminho });
   });
 
   it.each([
@@ -68,15 +85,15 @@ describe('flix-mentoria-proxy: rotas', () => {
   );
 
   it('recodifica cada par sem permitir que valores virem novos parametros', () => {
-    expect(validarRota('GET', '/tribos/a/alunos?limit=10&cursor=a%2fb%3d%3d&busca=Ana%20Maria%26admin%3Dtrue')).toEqual({
+    expect(validarRota('GET', '/tribos/a/alunos?limit=10&cursor=a%2fb%3d%3d&busca=Ana%20Maria%26admin%3Dtrue')).toMatchObject({
       ok: true, metodo: 'GET',
       caminho: '/tribos/a/alunos?limit=10&cursor=a%2Fb%3D%3D&busca=Ana+Maria%26admin%3Dtrue',
     });
   });
 
   it('preserva pares repetidos e normaliza nome codificado e query vazia', () => {
-    expect(validarRota('GET', '/me?%6cimit=1&busca=a&busca=b')).toMatchObject({
-      ok: true, caminho: '/me?limit=1&busca=a&busca=b',
+    expect(validarRota('GET', '/tribos/a/alunos?%6cimit=1&busca=a&busca=b')).toMatchObject({
+      ok: true, caminho: '/tribos/a/alunos?limit=1&busca=a&busca=b',
     });
     expect(validarRota('GET', '/me?')).toMatchObject({ ok: true, caminho: '/me' });
   });
@@ -90,7 +107,7 @@ describe('flix-mentoria-proxy: headers', () => {
       user_metadata: { flix_user_id: 'atacante' },
       app_metadata: { flix_user_id: 'atacante' },
     };
-    expect(validarRota(cliente.metodo, cliente.caminho)).toEqual({
+    expect(validarRota(cliente.metodo, cliente.caminho)).toMatchObject({
       ok: true, metodo: 'GET', caminho: '/me',
     });
     expect(montarHeaders('token-servico', 'mentor-do-banco')).toEqual({

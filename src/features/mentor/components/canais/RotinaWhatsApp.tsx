@@ -171,7 +171,9 @@ function LinkDoGrupo({ onToast }: { onToast: (m: string) => void }) {
 
   useEffect(() => { if (editando) campoRef.current?.focus(); }, [editando]);
 
-  if (canais.isPending || canais.isError || !grupo) return null;
+  if (canais.isPending) return <GestorSkeleton altura={36} rotulo="Carregando o link do grupo" />;
+  if (canais.isError) return <EstadoErro descricao={mensagemErro(canais.error)} onRetry={() => { void canais.refetch(); }} tentandoNovamente={canais.isFetching} />;
+  if (!grupo) return null;
 
   const fechar = () => { setEditando(false); setErro(null); requestAnimationFrame(() => gatilhoRef.current?.focus()); };
   const aoSalvar = () => {

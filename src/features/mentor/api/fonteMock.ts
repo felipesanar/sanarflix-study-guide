@@ -190,8 +190,8 @@ function estadoB2c(): Estado {
   return {
     modalidade: 'b2c',
     me: {
-      mentor: { id: B2C.MENTOR_B2C.id, nome: B2C.MENTOR_B2C.nome, fotoUrl: null, agendaUrl: B2C.MENTOR_B2C.agendaUrl, modalidade: 'b2c' },
-      tribos: [{ id: t.id, nome: t.nome, slug: t.slug, modalidade: 'b2c', papel: 'titular', lema: ident.lema, iconeUrl: null, cores: ident.cores, iesId: null, iesNome: null, campus: null, encontrosPorMes: null, totalAlunos: alunos.length }],
+      mentor: { id: B2C.MENTOR_B2C.id, nome: B2C.MENTOR_B2C.nome, fotoUrl: null, agendaUrl: B2C.MENTOR_B2C.agendaUrl, modalidade: 'b2c', bio: null, mote: null, googleEmail: null, ativo: true },
+      tribos: [{ id: t.id, nome: t.nome, slug: t.slug, modalidade: 'b2c', papel: 'titular', mentoriaAtiva: true, lema: ident.lema, iconeUrl: null, cores: ident.cores, iesId: null, iesNome: null, campus: null, encontrosPorMes: null, totalAlunos: alunos.length }],
       portalMentor: true,
     },
     alunos,
@@ -248,8 +248,8 @@ function estadoB2b(): Estado {
   return {
     modalidade: 'b2b',
     me: {
-      mentor: { id: m.id, nome: m.nome, fotoUrl: null, agendaUrl: m.agendaUrl, modalidade: 'b2b' },
-      tribos: [{ id: m.turma.id, nome: m.turma.nome, slug: m.turma.slug, modalidade: 'b2b', papel: 'titular', lema: null, iconeUrl: null, cores: null,
+      mentor: { id: m.id, nome: m.nome, fotoUrl: null, agendaUrl: m.agendaUrl, modalidade: 'b2b', bio: null, mote: null, googleEmail: null, ativo: true },
+      tribos: [{ id: m.turma.id, nome: m.turma.nome, slug: m.turma.slug, modalidade: 'b2b', papel: 'titular', mentoriaAtiva: true, lema: null, iconeUrl: null, cores: null,
         iesId: m.turma.iesId, iesNome: m.turma.iesNome, campus: m.turma.campus, encontrosPorMes: m.encontrosPorMes, totalAlunos: m.totalAlunos }],
       portalMentor: true,
     },

@@ -37,6 +37,7 @@ export function CanaisTribo({ canais, carregando, erro, tentandoNovamente, onTen
   const [valor, setValor] = useState('');
   const [erroLink, setErroLink] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const ocupado = useRef(false);
   const gatilho = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
@@ -55,12 +56,14 @@ export function CanaisTribo({ canais, carregando, erro, tentandoNovamente, onTen
     requestAnimationFrame(() => gatilho.current?.focus());
   }
   async function salvar() {
+    if (ocupado.current) return;
     const url = normalizarGrupoWhatsapp(valor);
     if (!url) {
       setErroLink(TEXTOS_MURAL.erroCanal);
       input.current?.focus();
       return;
     }
+    ocupado.current = true;
     setSalvando(true);
     try {
       await onSalvar(url);
@@ -70,6 +73,7 @@ export function CanaisTribo({ canais, carregando, erro, tentandoNovamente, onTen
       setErroLink(mensagemErro(e));
       input.current?.focus();
     } finally {
+      ocupado.current = false;
       setSalvando(false);
     }
   }

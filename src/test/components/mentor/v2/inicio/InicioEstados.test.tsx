@@ -32,8 +32,8 @@ function query<T>(data: T | undefined, extra: Record<string, unknown> = {}) {
 function me(modalidade: 'b2c' | 'b2b'): MeFlix {
   return {
     portalMentor: true,
-    mentor: { id: 'm', nome: 'Thiago Taniguchi', fotoUrl: null, agendaUrl: null, modalidade },
-    tribos: [{ id: 't', nome: modalidade === 'b2c' ? 'Carcará' : 'UniAtenas Paracatu', slug: modalidade === 'b2c' ? 'carcara' : 'x', modalidade, papel: 'titular', lema: 'Nota 90+', iesNome: 'UniAtenas', campus: 'Paracatu' }],
+    mentor: { id: 'm', nome: 'Thiago Taniguchi', fotoUrl: null, agendaUrl: null, modalidade, bio: null, mote: null, googleEmail: null, ativo: true },
+    tribos: [{ id: 't', nome: modalidade === 'b2c' ? 'Carcará' : 'UniAtenas Paracatu', slug: modalidade === 'b2c' ? 'carcara' : 'x', modalidade, papel: 'titular', mentoriaAtiva: false, lema: 'Nota 90+', iesNome: 'UniAtenas', campus: 'Paracatu' }],
   };
 }
 function aluno(email: string, dias: number | null): AlunoTurmaAcademy {

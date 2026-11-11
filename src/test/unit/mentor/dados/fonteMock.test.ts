@@ -9,8 +9,8 @@ describe('fonteMock · B2C (tribo Carcará)', () => {
     const me = await fonte.me();
     expect(fonte.nome).toBe('mock');
     expect(me.portalMentor).toBe(true);
-    expect(me.mentor).toMatchObject({ nome: 'Thiago Taniguchi', modalidade: 'b2c' });
-    expect(me.tribos[0]).toMatchObject({ nome: 'Carcará', slug: 'carcara', lema: 'Nota 90+' });
+    expect(me.mentor).toMatchObject({ nome: 'Thiago Taniguchi', modalidade: 'b2c', bio: null, mote: null, googleEmail: null, ativo: true });
+    expect(me.tribos[0]).toMatchObject({ nome: 'Carcará', slug: 'carcara', lema: 'Nota 90+', mentoriaAtiva: true });
     const alunos = await fonte.alunos(me.tribos[0].id);
     expect(alunos.length).toBe(12);
     expect(alunos.every((a) => a.semestre === null)).toBe(true);
@@ -83,8 +83,8 @@ describe('fonteMock · B2B (UniAtenas Paracatu)', () => {
   it('me, turma com semestre, rotina e pérolas', async () => {
     const { fonte, dados } = criarMock('b2b', { latenciaMs: 0 });
     const me = await fonte.me();
-    expect(me.mentor).toMatchObject({ nome: 'Beatriz Câmara', modalidade: 'b2b' });
-    expect(me.tribos[0]).toMatchObject({ iesNome: 'UniAtenas', campus: 'Paracatu', encontrosPorMes: 2 });
+    expect(me.mentor).toMatchObject({ nome: 'Beatriz Câmara', modalidade: 'b2b', bio: null, mote: null, googleEmail: null, ativo: true });
+    expect(me.tribos[0]).toMatchObject({ iesNome: 'UniAtenas', campus: 'Paracatu', encontrosPorMes: 2, mentoriaAtiva: true });
     const alunos = await fonte.alunos(me.tribos[0].id);
     expect(alunos.find((a) => a.nome === 'Amanda Rocha')?.semestre).toBe(12);
     const rotina = await dados.rotina('2026-10-12');

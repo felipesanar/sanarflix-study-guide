@@ -220,6 +220,7 @@ export function mapearMe(raw: unknown, cadastro?: { link_agendamento: string | n
     slug: slug ?? '',
     modalidade,
     papel: 'titular',
+    mentoriaAtiva: false,
     lema: identidade?.lema ?? null,
     iconeUrl: null,
     cores: identidade?.cores ?? null,
@@ -230,7 +231,7 @@ export function mapearMe(raw: unknown, cadastro?: { link_agendamento: string | n
     totalAlunos: num(obj(raw).alunos_ativos),
   };
   return {
-    mentor: { id: String(m.user_id), nome: strOu(m.nome, ''), fotoUrl: fotoUrl?.trim() || null, agendaUrl: agendaUrl?.trim() || null, modalidade },
+    mentor: { id: String(m.user_id), nome: strOu(m.nome, ''), fotoUrl: fotoUrl?.trim() || null, agendaUrl: agendaUrl?.trim() || null, modalidade, bio: str(m.bio), mote: null, googleEmail: null, ativo: true },
     tribos: [tribo],
     portalMentor: m.portal_mentor === true,
   };

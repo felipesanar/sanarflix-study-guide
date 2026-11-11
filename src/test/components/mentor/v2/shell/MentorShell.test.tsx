@@ -38,8 +38,9 @@ const refetchContagens = vi.fn();
 function me(modalidade: 'b2c' | 'b2b' = 'b2c'): MeFlix {
   return {
     portalMentor: true,
-    mentor: { id: 'm1', nome: 'Ana Souza', fotoUrl: '/ana.png', agendaUrl: null, modalidade },
+    mentor: { id: 'm1', nome: 'Ana Souza', fotoUrl: '/ana.png', agendaUrl: null, modalidade, bio: null, mote: null, googleEmail: null, ativo: true },
     tribos: [{
+      mentoriaAtiva: false,
       id: 't1', nome: modalidade === 'b2c' ? 'Carcará' : 'UniAtenas', slug: modalidade === 'b2c' ? 'carcara' : 'uniatenas',
       modalidade, papel: 'titular', iconeUrl: '/icone-contexto.png',
       iesNome: modalidade === 'b2b' ? 'UniAtenas' : null, campus: 'Paracatu', totalAlunos: 186,

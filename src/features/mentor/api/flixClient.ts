@@ -3,11 +3,13 @@
  * API · Academy × Flix", v2.1).
  *
  * O browser NUNCA vê o token de serviço: tudo passa pela Edge `flix-mentoria-proxy`
- * (`supabase.functions.invoke('flix-mentoria-proxy', { body: { metodo, caminho, corpo } })`), que injeta
- * `Authorization` e `X-Mentor-Id`. Erros `{ error: { code, message, field } }` viram `ErroFonte`.
+ * (`supabase.functions.invoke('flix-mentoria-proxy', { body: { metodo, caminho, corpo, idempotencyKey, requestId } })`), que injeta
+ * `Authorization` e `X-Mentor-Id`. Erros `{ error: { code, message, field, requestId } }` viram `ErroFonte`.
  */
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 import { ErroFonte } from './fonte';
+import { criarRegistroDeIntencoes, type RegistroDeIntencoes } from './idempotencia';
 
 export type Metodo = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -19,7 +21,7 @@ export const invocarSupabase: InvocarProxy = (nome, opcoes) =>
 
 const PROXY = 'flix-mentoria-proxy';
 
-interface CorpoErroFlix { error?: { code?: string; message?: string; field?: string } }
+interface CorpoErroFlix { error?: { code?: string; message?: string; field?: string; requestId?: string } }
 
 async function lerCorpo(ctx: unknown): Promise<{ status: number | null; corpo: unknown }> {
   if (!ctx || typeof ctx !== 'object') return { status: null, corpo: null };
@@ -33,29 +35,51 @@ async function lerCorpo(ctx: unknown): Promise<{ status: number | null; corpo: u
 }
 
 /** Erro do invoke → ErroFonte com o vocabulário do contrato. Sem Response = rede. */
-export async function erroDoProxy(error: unknown): Promise<ErroFonte> {
-  if (error instanceof ErroFonte) return error;
+export async function erroDoProxy(error: unknown, requestIdEnviado?: string): Promise<ErroFonte> {
+  if (error instanceof ErroFonte) {
+    error.requestId ??= requestIdEnviado;
+    return error;
+  }
   const { status, corpo } = await lerCorpo((error as { context?: unknown } | null)?.context);
   const e = (corpo && typeof corpo === 'object' ? (corpo as CorpoErroFlix).error : undefined) ?? undefined;
-  if (e?.code) return new ErroFonte(status ?? 500, e.code, e.message ?? '', e.field);
-  return new ErroFonte(status ?? 0, 'rede', 'Não foi possível falar com o Flix.');
+  const requestId = e?.requestId ?? requestIdEnviado;
+  if (e?.code) return new ErroFonte(status ?? 500, e.code, e.message ?? '', e.field, requestId);
+  return new ErroFonte(status ?? 0, 'rede', 'Não foi possível falar com o Flix.', undefined, requestId);
 }
 
 export interface ClienteFlix {
   chamar<T>(metodo: Metodo, caminho: string, corpo?: unknown): Promise<T>;
 }
 
-export function criarClienteFlix(invocar: InvocarProxy = invocarSupabase): ClienteFlix {
+export function criarClienteFlix(
+  invocar: InvocarProxy = invocarSupabase,
+  opcoes: { intencoes?: RegistroDeIntencoes; novoRequestId?: () => string } = {},
+): ClienteFlix {
+  const intencoes = opcoes.intencoes ?? criarRegistroDeIntencoes();
+  const novoRequestId = opcoes.novoRequestId ?? (() => crypto.randomUUID());
   return {
     async chamar<T>(metodo: Metodo, caminho: string, corpo?: unknown): Promise<T> {
-      let r: { data: unknown; error: unknown };
+      const requestId = novoRequestId();
+      const escrita = metodo !== 'GET';
+      const body = {
+        metodo, caminho, ...(corpo === undefined ? {} : { corpo }), requestId,
+        ...(escrita ? { idempotencyKey: intencoes.chavePara(metodo, caminho, corpo) } : {}),
+      };
       try {
-        r = await invocar(PROXY, { body: corpo === undefined ? { metodo, caminho } : { metodo, caminho, corpo } });
+        const r = await invocar(PROXY, { body });
+        if (r.error) throw r.error;
+        if (escrita) intencoes.concluir(metodo, caminho, corpo);
+        return r.data as T;
       } catch (e) {
-        throw await erroDoProxy(e);
+        const erro = await erroDoProxy(e, requestId);
+        if (escrita && erro.status >= 400 && erro.status < 500 && erro.status !== 408 && erro.status !== 429) {
+          intencoes.concluir(metodo, caminho, corpo);
+        }
+        Logger.warn('[mentor/flixClient] chamada falhou', {
+          requestId: erro.requestId, metodo, caminho: caminho.split('?')[0], status: erro.status, code: erro.code,
+        });
+        throw erro;
       }
-      if (r.error) throw await erroDoProxy(r.error);
-      return r.data as T;
     },
   };
 }

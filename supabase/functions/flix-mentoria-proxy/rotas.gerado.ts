@@ -1,0 +1,21 @@
+// GERADO por scripts/gerar-rotas-mentoria.mjs a partir de docs/mentoria/contrato-v2.3.openapi.json. Não edite.
+export const ROTAS = [
+  { operationId: "obterMe", metodo: "GET", modelo: "/me", caminho: /^\/me$/, parametrosDeQuery: [], exigeIdempotencia: false },
+  { operationId: "atualizarMe", metodo: "PATCH", modelo: "/me", caminho: /^\/me$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "listarAlunos", metodo: "GET", modelo: "/tribos/{triboId}/alunos", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/alunos$/, parametrosDeQuery: ["limit","cursor","busca"], exigeIdempotencia: false },
+  { operationId: "obterAluno", metodo: "GET", modelo: "/tribos/{triboId}/alunos/{alunoId}", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/alunos\/[A-Za-z0-9_:-]+$/, parametrosDeQuery: [], exigeIdempotencia: false },
+  { operationId: "listarCanais", metodo: "GET", modelo: "/tribos/{triboId}/canais", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/canais$/, parametrosDeQuery: [], exigeIdempotencia: false },
+  { operationId: "salvarGrupoTribo", metodo: "PUT", modelo: "/tribos/{triboId}/canais/grupo_tribo", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/canais\/grupo_tribo$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "listarPublicacoes", metodo: "GET", modelo: "/tribos/{triboId}/publicacoes", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/publicacoes$/, parametrosDeQuery: ["limit","cursor","status","tag"], exigeIdempotencia: false },
+  { operationId: "criarPublicacao", metodo: "POST", modelo: "/tribos/{triboId}/publicacoes", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/publicacoes$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "editarPublicacao", metodo: "PATCH", modelo: "/publicacoes/{id}", caminho: /^\/publicacoes\/[A-Za-z0-9_:-]+$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "excluirPublicacao", metodo: "DELETE", modelo: "/publicacoes/{id}", caminho: /^\/publicacoes\/[A-Za-z0-9_:-]+$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "pedirUpload", metodo: "POST", modelo: "/uploads", caminho: /^\/uploads$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "listarSessoes", metodo: "GET", modelo: "/tribos/{triboId}/sessoes", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/sessoes$/, parametrosDeQuery: ["limit","cursor","de","ate","status","tipo"], exigeIdempotencia: false },
+  { operationId: "criarSessao", metodo: "POST", modelo: "/tribos/{triboId}/sessoes", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/sessoes$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "criarHorarios", metodo: "POST", modelo: "/tribos/{triboId}/horarios", caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/horarios$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "editarSessao", metodo: "PATCH", modelo: "/sessoes/{id}", caminho: /^\/sessoes\/[A-Za-z0-9_:-]+$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "excluirHorario", metodo: "DELETE", modelo: "/sessoes/{id}", caminho: /^\/sessoes\/[A-Za-z0-9_:-]+$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "cancelarSessao", metodo: "POST", modelo: "/sessoes/{id}/cancelar", caminho: /^\/sessoes\/[A-Za-z0-9_:-]+\/cancelar$/, parametrosDeQuery: [], exigeIdempotencia: true },
+  { operationId: "vincularGravacao", metodo: "POST", modelo: "/sessoes/{id}/gravacao", caminho: /^\/sessoes\/[A-Za-z0-9_:-]+\/gravacao$/, parametrosDeQuery: [], exigeIdempotencia: true },
+];

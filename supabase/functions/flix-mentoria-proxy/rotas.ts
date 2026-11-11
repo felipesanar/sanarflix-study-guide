@@ -1,24 +1,8 @@
 // Modulo puro, compartilhado entre a Edge Function e os testes Vitest.
+import { ROTAS } from './rotas.gerado.ts';
 type Resolucao =
-  | { ok: true; metodo: string; caminho: string }
+  | { ok: true; metodo: string; caminho: string; operationId: string; triboId: string | null; exigeIdempotencia: boolean }
   | { ok: false; status: number; corpo: { error: { code: string; message: string } } };
-
-const ROTAS: { caminho: RegExp; metodos: string[] }[] = [
-  { caminho: /^\/me$/, metodos: ['GET'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/alunos$/, metodos: ['GET'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/alunos\/[A-Za-z0-9_:-]+$/, metodos: ['GET'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/canais$/, metodos: ['GET'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/canais\/grupo_tribo$/, metodos: ['PUT'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/publicacoes$/, metodos: ['GET', 'POST'] },
-  { caminho: /^\/publicacoes\/[A-Za-z0-9_:-]+$/, metodos: ['PATCH', 'DELETE'] },
-  { caminho: /^\/uploads$/, metodos: ['POST'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/sessoes$/, metodos: ['GET', 'POST'] },
-  { caminho: /^\/sessoes\/[A-Za-z0-9_:-]+$/, metodos: ['PATCH', 'DELETE'] },
-  { caminho: /^\/sessoes\/[A-Za-z0-9_:-]+\/gravacao$/, metodos: ['POST'] },
-  { caminho: /^\/tribos\/[A-Za-z0-9_:-]+\/convites$/, metodos: ['GET', 'POST'] },
-  { caminho: /^\/convites\/[A-Za-z0-9_:-]+$/, metodos: ['DELETE'] },
-];
-const QUERY_PERMITIDA = new Set(['limit', 'cursor', 'busca']);
 
 export function validarRota(metodo: unknown, caminho: unknown): Resolucao {
   const invalido: Resolucao = {
@@ -35,21 +19,26 @@ export function validarRota(metodo: unknown, caminho: unknown): Resolucao {
     path.includes('..') || /%2e|%2f|%5c/i.test(path) ||
     path.includes('\\') || path.includes('//')) return invalido;
 
-  const rota = ROTAS.find((r) => r.caminho.test(path));
-  if (!rota) return invalido;
-  const normalizada = new URLSearchParams();
-  for (const [chave, valor] of new URLSearchParams(query)) {
-    if (!QUERY_PERMITIDA.has(chave)) return invalido;
-    normalizada.append(chave, valor);
-  }
-  if (typeof metodo !== 'string' || !rota.metodos.includes(metodo)) {
+  const candidatas = ROTAS.filter((r) => r.caminho.test(path));
+  if (!candidatas.length) return invalido;
+  const rota = candidatas.find((r) => r.metodo === metodo);
+  if (!rota) {
     return {
       ok: false, status: 405,
       corpo: { error: { code: 'metodo_nao_permitido', message: 'Metodo nao permitido para esta rota.' } },
     };
   }
+  const normalizada = new URLSearchParams();
+  for (const [chave, valor] of new URLSearchParams(query)) {
+    if (!rota.parametrosDeQuery.includes(chave)) return invalido;
+    normalizada.append(chave, valor);
+  }
   const sufixo = normalizada.toString();
-  return { ok: true, metodo, caminho: path + (sufixo ? `?${sufixo}` : '') };
+  return {
+    ok: true, metodo: rota.metodo, caminho: path + (sufixo ? `?${sufixo}` : ''),
+    operationId: rota.operationId, exigeIdempotencia: rota.exigeIdempotencia,
+    triboId: rota.modelo.startsWith('/tribos/{triboId}/') ? path.split('/')[2] : null,
+  };
 }
 
 // Ambos os argumentos sao resolvidos no servidor, nunca pelo payload do cliente.
