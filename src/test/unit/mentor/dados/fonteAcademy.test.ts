@@ -64,9 +64,9 @@ describe('fonteAcademy · me ← get_mentor_contexto', () => {
     const lerCadastro = vi.fn(async () => ({ link_agendamento: 'https://calendar.app.google/abc', foto_url: 'https://cdn/x.png' }));
     const me = await criarFonteAcademy({ rpc, lerCadastro }).me();
     expect(me.portalMentor).toBe(true);
-    expect(me.mentor).toEqual({ id: MENTOR_ID, nome: 'Thiago Taniguchi', fotoUrl: 'https://cdn/x.png', agendaUrl: 'https://calendar.app.google/abc', modalidade: 'b2c' });
+    expect(me.mentor).toEqual({ id: MENTOR_ID, nome: 'Thiago Taniguchi', fotoUrl: 'https://cdn/x.png', agendaUrl: 'https://calendar.app.google/abc', modalidade: 'b2c', bio: null, mote: null, googleEmail: null, ativo: true });
     expect(me.tribos).toHaveLength(1);
-    expect(me.tribos[0]).toMatchObject({ id: MENTOR_ID, nome: 'Carcará', slug: 'carcara', modalidade: 'b2c', papel: 'titular', lema: 'Nota 90+', totalAlunos: 87 });
+    expect(me.tribos[0]).toMatchObject({ id: MENTOR_ID, nome: 'Carcará', slug: 'carcara', modalidade: 'b2c', papel: 'titular', lema: 'Nota 90+', totalAlunos: 87, mentoriaAtiva: false });
     expect(me.tribos[0].cores).toEqual({ sig: '#D9771F', shadow: '#3A1405', glow: '#FFB547' });
     // Fallback só porque o contexto não traz link_agendamento.
     expect(lerCadastro).toHaveBeenCalledWith(MENTOR_ID);

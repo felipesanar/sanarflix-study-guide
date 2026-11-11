@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { ErroFonte } from '@/features/mentor/api/fonte';
-import { campoDoErro, mensagemErro, tratamentoErro } from '@/features/mentor/api/erros';
+import { campoDoErro, codigoDeSuporte, mensagemErro, tratamentoErro } from '@/features/mentor/api/erros';
 
 describe('mensagemErro (docs/07 § Conexão)', () => {
+  it.each([
+    [401, 'token_invalido', 'Sua sessão expirou. Entre de novo para continuar.'],
+    [404, 'nao_encontrado', 'Este item não existe mais. Atualize a página.'],
+    [403, 'mentor_sem_vinculo_flix', 'Seu cadastro de mentor ainda não está ligado ao Flix. Fale com o administrador.'],
+    [409, 'chave_reutilizada', 'Esta ação já foi enviada. Atualize a página para ver o resultado.'],
+    [429, 'limite_requisicoes', 'Muitas ações em pouco tempo. Aguarde um minuto e tente de novo.'],
+    [503, 'flix_indisponivel', 'A mentoria está temporariamente indisponível. Tente de novo em instantes.'],
+  ] as const)('%s %s tem mensagem propria', (status, code, mensagem) => {
+    expect(mensagemErro(new ErroFonte(status, code, 'texto tecnico'))).toBe(mensagem);
+  });
+
+  it('expoe somente o ID como codigo de suporte, sem mudar a mensagem', () => {
+    const erro = new ErroFonte(401, 'token_invalido', 'jwt', undefined, 'abc123');
+    expect(codigoDeSuporte(erro)).toBe('abc123');
+    expect(codigoDeSuporte(new ErroFonte(0, 'rede', ''))).toBeNull();
+    expect(codigoDeSuporte(new Error('abc123'))).toBeNull();
+    expect(codigoDeSuporte(null)).toBeNull();
+    expect(mensagemErro(erro)).not.toContain('abc123');
+  });
+
   it('validacao usa o message da API, inline no field', () => {
     const e = new ErroFonte(400, 'validacao', 'Informe a data da sessão.', 'inicio');
     expect(mensagemErro(e)).toBe('Informe a data da sessão.');

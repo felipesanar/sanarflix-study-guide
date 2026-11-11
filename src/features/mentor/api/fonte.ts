@@ -17,6 +17,7 @@ export class ErroFonte extends Error {
     public code: string,
     message: string,
     public field?: string,
+    public requestId?: string,
   ) {
     super(message);
     this.name = 'ErroFonte';
@@ -29,6 +30,7 @@ export interface TriboMe {
   slug: string;
   modalidade: 'b2c' | 'b2b';
   papel: 'titular' | 'apoio';
+  mentoriaAtiva: boolean;
   lema?: string | null;
   iconeUrl?: string | null;
   cores?: { sig: string; shadow: string; glow: string } | null;
@@ -45,7 +47,11 @@ export interface MeFlix {
     id: string;
     nome: string;
     fotoUrl: string | null;
-    agendaUrl: string | null;
+    agendaUrl?: string | null;
+    bio: string | null;
+    mote: string | null;
+    googleEmail: string | null;
+    ativo: boolean;
     modalidade: 'b2c' | 'b2b';
   };
   tribos: TriboMe[];
@@ -119,7 +125,7 @@ export interface FonteMentoria {
   readonly eventosNoServidor: boolean;
 
   me(): Promise<MeFlix>;
-  atualizarPerfil(p: Partial<{ fotoUrl: string; agendaUrl: string }>): Promise<MeFlix['mentor']>;
+  atualizarPerfil(p: Partial<{ fotoUrl: string | null; bio: string | null; mote: string | null; googleEmail: string | null; agendaUrl: string }>): Promise<MeFlix['mentor']>;
 
   alunos(triboId: string, busca?: string): Promise<AlunoFlix[]>;
   aluno(triboId: string, alunoId: string): Promise<AlunoFlix>;

@@ -24,8 +24,8 @@ const mutacao = (x: Q = {}) => ({ mutate: vi.fn(), isPending: false, variables: 
 function me(totalAlunos: number | null = 186): MeFlix {
   return {
     portalMentor: true,
-    mentor: { id: 'm', nome: 'Beatriz Câmara', fotoUrl: null, agendaUrl: null, modalidade: 'b2b' },
-    tribos: [{ id: 't', nome: 'UniAtenas Paracatu', slug: 'u', modalidade: 'b2b', papel: 'titular', iesNome: 'UniAtenas', totalAlunos }],
+    mentor: { id: 'm', nome: 'Beatriz Câmara', fotoUrl: null, agendaUrl: null, modalidade: 'b2b', bio: null, mote: null, googleEmail: null, ativo: true },
+    tribos: [{ id: 't', nome: 'UniAtenas Paracatu', slug: 'u', modalidade: 'b2b', papel: 'titular', iesNome: 'UniAtenas', totalAlunos, mentoriaAtiva: true }],
   };
 }
 function padrao() {
@@ -45,6 +45,11 @@ const secao = (nome: string | RegExp) => screen.getByRole('region', { name: nome
 beforeEach(() => { vi.clearAllMocks(); padrao(); });
 
 describe('Canais · carregando', () => {
+  it('mostra esqueleto do link do grupo enquanto os canais carregam', () => {
+    vi.mocked(Q.useCanais).mockReturnValue(consulta({ isPending: true }) as never);
+    renderizar();
+    expect(within(secao(/Grupo de WhatsApp/)).getByRole('status', { name: 'Carregando o link do grupo' })).toHaveAttribute('aria-busy', 'true');
+  });
   it('skeleton em cada bloco; título e ações continuam visíveis', () => {
     const carregando = consulta({ isPending: true, isLoading: true });
     vi.mocked(Q.useRotina).mockReturnValue(carregando as never);
@@ -62,6 +67,15 @@ describe('Canais · carregando', () => {
 });
 
 describe('Canais · erro', () => {
+  it('permite tentar de novo a consulta do link sem refazer a rotina', async () => {
+    const refetch = vi.fn();
+    vi.mocked(Q.useCanais).mockReturnValue(consulta({ isError: true, error: new ErroFonte(503, 'rede', 'x'), refetch }) as never);
+    renderizar();
+    const grupo = within(secao(/Grupo de WhatsApp/));
+    expect(grupo.getByRole('alert')).toHaveTextContent('Não foi possível carregar agora. Tente novamente.');
+    await userEvent.setup().click(grupo.getByRole('button', { name: 'Tentar novamente' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
   it('EstadoErro com "Tentar novamente" refaz só a consulta do bloco', async () => {
     const user = userEvent.setup();
     const erro = (refetch = vi.fn()) => consulta({ isError: true, error: new ErroFonte(503, 'rede', 'x'), refetch });
@@ -72,9 +86,9 @@ describe('Canais · erro', () => {
     vi.mocked(Q.usePerolas).mockReturnValue(erro(r.perolas) as never);
     vi.mocked(Q.useAlunosB2b).mockReturnValue(erro(r.alunos) as never);
     renderizar();
-    expect(screen.getAllByRole('alert')).toHaveLength(5);
-    expect(screen.getAllByText('Não foi possível carregar agora. Tente novamente.')).toHaveLength(5);
-    await user.click(within(secao(/Grupo de WhatsApp/)).getByRole('button', { name: 'Tentar novamente' }));
+    expect(screen.getAllByRole('alert')).toHaveLength(6);
+    expect(screen.getAllByText('Não foi possível carregar agora. Tente novamente.')).toHaveLength(6);
+    await user.click(within(secao(/Grupo de WhatsApp/)).getAllByRole('button', { name: 'Tentar novamente' })[1]);
     expect(r.rotina).toHaveBeenCalledTimes(1);
     expect(r.perolas).not.toHaveBeenCalled();
     await user.click(within(secao('Banco de pérolas · rodízio entre mentores')).getByRole('button', { name: 'Tentar novamente' }));
@@ -123,7 +137,7 @@ describe('Canais · vazio', () => {
   it('cada bloco diz que não há dado, sem inventar números', () => {
     renderizar();
     expect(screen.getByText('Sem rotina cadastrada nesta semana.')).toBeInTheDocument();
-    expect(screen.getByText('Canais gerais ainda não configurados.')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Canais gerais' })).toBeNull();
     expect(screen.getByText('Nenhuma publicação no mural ainda.')).toBeInTheDocument();
     expect(screen.getByText('Sinalizações à IES · 0')).toBeInTheDocument();
     expect(screen.getByText('Nenhum aluno sinalizado neste ciclo.')).toBeInTheDocument();
@@ -134,6 +148,7 @@ describe('Canais · vazio', () => {
   it('grupo sem link cadastrado: sem "Abrir grupo", com "Cadastrar link"', () => {
     vi.mocked(Q.useCanais).mockReturnValue(consulta({ data: [{ tipo: 'grupo_turma', url: '', editavel: true, configurado: false }] }) as never);
     renderizar();
+    expect(screen.queryByRole('region', { name: 'Canais gerais' })).toBeNull();
     const grupo = secao(/Grupo de WhatsApp/);
     expect(within(grupo).queryByRole('link', { name: /Abrir grupo/ })).toBeNull();
     expect(within(grupo).getByRole('button', { name: 'Cadastrar link' })).toBeInTheDocument();

@@ -1,6 +1,5 @@
 import { useId } from 'react';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
-import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { Icon } from '@/features/gestor/components/Icon';
 import { mensagemErro } from '../../api/erros';
@@ -19,6 +18,7 @@ export function CanaisGerais() {
   const tituloId = useId();
   const canais = useCanais();
   const fixos = (canais.data ?? []).filter(ehFixo).sort((a, b) => (a.tipo === 'avisos' ? -1 : 1) - (b.tipo === 'avisos' ? -1 : 1));
+  if (!canais.isPending && !canais.isError && fixos.length === 0) return null;
   return (
     <section aria-labelledby={tituloId} className={`${CARTAO} flex flex-col gap-2 px-5 py-3.5`}>
       <h2 id={tituloId} className="m-0 text-[15px] font-semibold">Canais gerais</h2>
@@ -26,8 +26,6 @@ export function CanaisGerais() {
         <GestorSkeleton altura={88} rotulo="Carregando os canais gerais" />
       ) : canais.isError ? (
         <EstadoErro altura={120} descricao={mensagemErro(canais.error)} onRetry={() => { void canais.refetch(); }} tentandoNovamente={canais.isFetching} />
-      ) : fixos.length === 0 ? (
-        <EstadoVazio titulo="Canais gerais ainda não configurados." glifo="whatsapp" compacto />
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {fixos.map((c) => (

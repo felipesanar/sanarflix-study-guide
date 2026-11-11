@@ -5,9 +5,11 @@
  * `eventosNoServidor = false`: o Flix não conhece o kanban; as mutations compostas de `queries.ts`
  * chamam `registrar_evento_mentor` depois do sucesso no Flix.
  */
-import type { AlunoFlix, ConviteFlix, FonteMentoria, MeFlix, NovaPublicacao, Pagina } from './fonte';
+import type { ConviteFlix, FonteMentoria, NovaPublicacao, Pagina } from './fonte';
+import type { components } from './contrato/tipos.gerado';
+import { alunoDaApi, canalDaApi, meDaApi, mentorDaApi, tipoCanalParaApi } from './adaptadoresFlix';
 import { criarClienteFlix, query, type InvocarProxy } from './flixClient';
-import type { CanalTurma, Publicacao, Sessao } from './types';
+import type { Publicacao, Sessao } from './types';
 
 export type { InvocarProxy } from './flixClient';
 
@@ -39,15 +41,23 @@ export function criarFonteFlix(invocar?: InvocarProxy): FonteMentoria {
     nome: 'flix',
     eventosNoServidor: false,
 
-    me: () => chamar<MeFlix>('GET', '/me'),
-    atualizarPerfil: (p) => chamar<MeFlix['mentor']>('PATCH', '/me', p),
+    me: async () => meDaApi(await chamar<components['schemas']['Me']>('GET', '/me')),
+    atualizarPerfil: async ({ fotoUrl, bio, mote, googleEmail }) => {
+      const corpo: components['schemas']['AtualizarMe'] = {
+        ...(fotoUrl === undefined ? {} : { fotoUrl }),
+        ...(bio === undefined ? {} : { bio }),
+        ...(mote === undefined ? {} : { mote }),
+        ...(googleEmail === undefined ? {} : { googleEmail }),
+      };
+      return mentorDaApi(await chamar<components['schemas']['Mentor']>('PATCH', '/me', corpo));
+    },
 
-    alunos: (triboId, busca) =>
-      todasPaginas<AlunoFlix>((cursor) => `/tribos/${triboId}/alunos${query({ limit: LIMITE_PAGINA, busca, cursor })}`),
-    aluno: (triboId, alunoId) => chamar<AlunoFlix>('GET', `/tribos/${triboId}/alunos/${encodeURIComponent(alunoId)}`),
+    alunos: async (triboId, busca) =>
+      (await todasPaginas<components['schemas']['Aluno']>((cursor) => `/tribos/${triboId}/alunos${query({ limit: LIMITE_PAGINA, busca, cursor })}`)).map(alunoDaApi),
+    aluno: async (triboId, alunoId) => alunoDaApi(await chamar<components['schemas']['Aluno']>('GET', `/tribos/${triboId}/alunos/${encodeURIComponent(alunoId)}`)),
 
-    canais: (triboId) => chamar<CanalTurma[]>('GET', `/tribos/${triboId}/canais`),
-    salvarGrupoTribo: (triboId, url) => chamar<CanalTurma>('PUT', `/tribos/${triboId}/canais/grupo_tribo`, { url }),
+    canais: async (triboId) => (await chamar<components['schemas']['ListaCanais']>('GET', `/tribos/${triboId}/canais`)).map(canalDaApi),
+    salvarGrupoTribo: async (triboId, url) => canalDaApi(await chamar<components['schemas']['Canal']>('PUT', `/tribos/${triboId}/canais/${tipoCanalParaApi('grupo_turma')}`, { url })),
 
     publicacoes: (triboId, filtro) =>
       chamar<Pagina<Publicacao>>('GET', `/tribos/${triboId}/publicacoes${query({ status: filtro?.status, tag: filtro?.tag })}`),
