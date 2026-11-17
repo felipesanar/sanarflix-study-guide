@@ -17,6 +17,11 @@ export interface CreateUserPayload {
   id_ies: string;
   semestre?: number | null;
   matricula_ra?: string | null;
+  /**
+   * Validade opcional do acesso (ISO do instante em que o acesso termina).
+   * Ausente = não alterar; null = tornar permanente; data = define/renova.
+   */
+  acesso_expira_em?: string | null;
   role?: 'aluno' | 'professor' | 'admin' | 'gestor' | 'gestor_grupo' | 'atendimento' | 'mentor';
 }
 

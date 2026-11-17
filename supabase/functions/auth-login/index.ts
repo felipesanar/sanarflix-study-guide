@@ -25,6 +25,12 @@ const buildCorsHeaders = (origin?: string | null): Record<string, string> | null
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 };
+const ACCESS_EXPIRED_MESSAGE = 'Seu acesso expirou. Procure sua instituição.';
+
+// Linha em user_access_expirations: usuário sem linha é permanente e nunca expira.
+const isExpired = (row: { expira_em: string; expirado_em: string | null } | null): boolean =>
+  !!row && (row.expirado_em !== null || new Date(row.expira_em).getTime() <= Date.now());
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin') || req.headers.get('Origin');
   const corsHeaders = buildCorsHeaders(origin);
@@ -92,8 +98,34 @@ Deno.serve(async (req) => {
       sessionData = authResult.data;
       signInError = authResult.error;
       
-      // Se houver um erro de autenticação (email não existe, senha incorreta), retorna 401.
+      // Se houver um erro de autenticação (email não existe, senha incorreta, conta
+      // banida pelo job de expiração), retorna 401. Antes, distingue o acesso expirado
+      // para devolver a mensagem específica (a tela de login não muda).
       if (signInError) {
+        const { data: expUser } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+        if (expUser) {
+          const { data: expRow } = await supabaseAdmin
+            .from('user_access_expirations')
+            .select('expira_em, expirado_em')
+            .eq('user_id', expUser.id)
+            .maybeSingle();
+          if (isExpired(expRow)) {
+            return new Response(JSON.stringify({
+              error: ACCESS_EXPIRED_MESSAGE,
+              code: 'ACCESS_EXPIRED'
+            }), {
+              status: 401,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json'
+              }
+            });
+          }
+        }
         return new Response(JSON.stringify({
           error: 'Email ou senha inválidos'
         }), {
@@ -110,6 +142,29 @@ Deno.serve(async (req) => {
     if (!user) {
       return new Response(JSON.stringify({
         error: 'User not found in session'
+      }), {
+        status: 401,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    // Validade do acesso: cobre a janela entre o vencimento e o próximo tick do cron
+    // (e uma eventual falha dele), inclusive no login por magic link. Sem linha =
+    // acesso permanente. Erro na consulta não bloqueia o login.
+    const { data: accessRow } = await supabaseAdmin
+      .from('user_access_expirations')
+      .select('expira_em, expirado_em')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (isExpired(accessRow)) {
+      // Aplica o bloqueio e derruba a sessão que acabou de ser criada
+      await supabaseAdmin.rpc('expire_temporary_accesses', { p_user_id: user.id });
+      return new Response(JSON.stringify({
+        error: ACCESS_EXPIRED_MESSAGE,
+        code: 'ACCESS_EXPIRED'
       }), {
         status: 401,
         headers: {

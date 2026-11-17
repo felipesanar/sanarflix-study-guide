@@ -7,7 +7,7 @@
  */
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { AtSign, Building2, GraduationCap, Loader2, Mail, ShieldCheck, User } from 'lucide-react';
+import { AtSign, Building2, CalendarClock, GraduationCap, Loader2, Mail, ShieldCheck, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -18,9 +18,10 @@ import type { Ies } from '@/services/iesService';
 import { useAuth } from '@/contexts/AuthContext';
 import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
+import { dateToExpiraEmISO, todayBrazilDateString } from '@/utils/timezone';
 import { ROLE_OPTIONS, type AppUserRole } from './roles';
 
-const EMPTY_FORM = { nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' };
+const EMPTY_FORM = { nome: '', email: '', id_ies: '', semestre: '', role: 'aluno', expira_em: '' };
 
 export interface CreateUserDialogProps {
   open: boolean;
@@ -57,6 +58,12 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
       }
     }
 
+    // Validade é opcional: vazio = acesso permanente (nunca expira).
+    if (form.expira_em && form.expira_em < todayBrazilDateString()) {
+      toast.error('A validade do acesso não pode ser uma data passada');
+      return;
+    }
+
     setIsCreating(true);
     try {
       const data = await usersService.createUser({
@@ -64,6 +71,7 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
         email: form.email.toLowerCase().trim(),
         id_ies: form.id_ies,
         semestre: form.semestre ? parseInt(form.semestre, 10) : null,
+        ...(form.expira_em ? { acesso_expira_em: dateToExpiraEmISO(form.expira_em) } : {}),
         ...(form.role && form.role !== 'aluno' ? { role: form.role as AppUserRole } : {}),
       });
 
@@ -153,6 +161,22 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
               placeholder="5"
               disabled={isCreating}
             />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="cu-expira-em" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <CalendarClock className="h-3.5 w-3.5" /> Acesso válido até (opcional)
+            </Label>
+            <Input
+              id="cu-expira-em"
+              type="date"
+              min={todayBrazilDateString()}
+              value={form.expira_em}
+              onChange={(e) => setForm({ ...form, expira_em: e.target.value })}
+              disabled={isCreating}
+            />
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco para acesso permanente. Com data, o acesso expira automaticamente ao fim desse dia.
+            </p>
           </div>
           {canManageRoles && (
             <div className="space-y-2 sm:col-span-2">

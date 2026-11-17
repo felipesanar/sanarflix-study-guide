@@ -21,6 +21,7 @@ type ErrorCode =
   | 'AUTH_CREATE_FAILED'
   | 'PROFILE_SYNC_FAILED'
   | 'UPDATE_FAILED'
+  | 'EXPIRATION_FAILED'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR';
 
@@ -57,6 +58,17 @@ const createUserSchema = z.object({
   matricula_ra: z.string().trim().max(50, 'Matrícula/RA muito longa').nullable().optional(),
   role: z.enum(['admin', 'professor', 'gestor', 'atendimento', 'gestor_grupo', 'mentor']).optional(),
   resend_email: z.boolean().optional(),
+  // Validade opcional do acesso (instante em que o acesso termina). Contrato:
+  //   ausente/undefined = não alterar a validade atual (edição em linha e
+  //                       reenvio de convite não mandam o campo);
+  //   null              = tornar o acesso permanente (remove o prazo);
+  //   ISO datetime      = define/renova o prazo (precisa ser futuro).
+  // Usuário sem prazo nunca é expirado automaticamente.
+  acesso_expira_em: z.string()
+    .datetime({ offset: true, message: 'Data de validade inválida' })
+    .refine((v) => new Date(v).getTime() > Date.now(), 'A validade precisa ser uma data futura')
+    .nullable()
+    .optional(),
 });
 
 /** Grant a role in user_roles (idempotent). 'aluno' = no row. */
@@ -100,6 +112,29 @@ async function auditUserWrite(
   } catch (e) {
     console.warn('[b2b-create-user] audit log exception:', (e as Error).message);
   }
+}
+
+/**
+ * Aplica a validade opcional do acesso via RPC (SECURITY DEFINER, só service_role).
+ * `undefined` = não mexe. Retorna a mensagem de erro, ou null em caso de sucesso.
+ */
+async function applyAccessExpiration(
+  supabaseAdmin: any,
+  userId: string,
+  expiraEm: string | null | undefined,
+  actorId: string | null,
+): Promise<string | null> {
+  if (expiraEm === undefined) return null;
+  const { error } = await supabaseAdmin.rpc('set_user_access_expiration', {
+    p_user_id: userId,
+    p_expira_em: expiraEm,
+    p_actor: actorId,
+  });
+  if (error) {
+    console.error('[b2b-create-user] set_user_access_expiration failed:', error.message);
+    return error.message;
+  }
+  return null;
 }
 
 function errorResponse(code: ErrorCode, message: string, details?: string) {
@@ -398,7 +433,7 @@ Deno.serve(async (req) => {
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
-    const { nome, email, id_ies, semestre, matricula_ra, role, resend_email } = validationResult.data;
+    const { nome, email, id_ies, semestre, matricula_ra, role, resend_email, acesso_expira_em } = validationResult.data;
     // `gestor_grupo` segue o mesmo padrão dos demais gestores: mantém `semestre`
     // e `id_ies` (IES âncora). O acesso multi-IES é resolvido por user_roles +
     // get_accessible_ies(), não pelo campo semestre.
@@ -503,6 +538,13 @@ Deno.serve(async (req) => {
 
       await grantRoleIfNeeded(supabaseAdmin, existingUser.id, role, callerUserId, email);
 
+      // Validade opcional do acesso (undefined = não alterar)
+      const expErrUpd = await applyAccessExpiration(supabaseAdmin, existingUser.id, acesso_expira_em, callerUserId);
+      if (expErrUpd) {
+        return errorResponse('EXPIRATION_FAILED', 'Usuário atualizado, mas falhou ao gravar a validade do acesso', expErrUpd);
+      }
+      if (acesso_expira_em !== undefined) fieldsUpdated.push('acesso_expira_em');
+
       // Resend welcome email if requested
       let emailSent = false;
       if (resend_email) {
@@ -522,6 +564,7 @@ Deno.serve(async (req) => {
       if (role && role !== 'aluno') _rolesGrantedUpd.push(role);
       await auditUserWrite(supabaseAdmin, 'user_update', callerUserId, existingUser.id, {
         email, id_ies, roles_granted: _rolesGrantedUpd, fields_updated: fieldsUpdated, ip: getClientIp(req),
+        ...(acesso_expira_em !== undefined ? { acesso_expira_em } : {}),
       });
       return successResponse('updated', existingUser.id, email, message, { fieldsUpdated, emailSent });
 
@@ -601,6 +644,10 @@ Deno.serve(async (req) => {
               if (rErr) console.error('[RBAC] Failed to grant admin role (recovery flow):', rErr);
             }
             await grantRoleIfNeeded(supabaseAdmin, foundId, role, callerUserId, email);
+            const expErrRec = await applyAccessExpiration(supabaseAdmin, foundId, acesso_expira_em, callerUserId);
+            if (expErrRec) {
+              return errorResponse('EXPIRATION_FAILED', 'Usuário sincronizado, mas falhou ao gravar a validade do acesso', expErrRec);
+            }
             // Send welcome email (awaited for accurate status)
             const emailOk = await sendWelcomeEmail(supabaseAdmin, foundId, nome, email).catch(() => false);
             console.log(`[CreateUser] User recovered successfully. ID: ${foundId}`);
@@ -609,6 +656,7 @@ Deno.serve(async (req) => {
             if (role && role !== 'aluno') _rolesGrantedRec.push(role);
             await auditUserWrite(supabaseAdmin, 'user_update', callerUserId, foundId, {
               email, id_ies, roles_granted: _rolesGrantedRec, recovered: true, ip: getClientIp(req),
+              ...(acesso_expira_em !== undefined ? { acesso_expira_em } : {}),
             });
             return successResponse('updated', foundId, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
           } catch (recoveryErr) {
@@ -649,6 +697,13 @@ Deno.serve(async (req) => {
 
       await grantRoleIfNeeded(supabaseAdmin, userId, role, callerUserId, email);
 
+      // Validade opcional do acesso: aplicada antes do e-mail para que um
+      // acesso temporário nunca fique permanente por falha silenciosa.
+      const expErrNew = await applyAccessExpiration(supabaseAdmin, userId, acesso_expira_em, callerUserId);
+      if (expErrNew) {
+        return errorResponse('EXPIRATION_FAILED', 'Usuário criado, mas falhou ao gravar a validade do acesso. Defina a validade pela edição na lista e reenvie o convite.', expErrNew);
+      }
+
       // Fix #4: Await welcome email for accurate status reporting
       let emailSent = false;
       try {
@@ -664,6 +719,7 @@ Deno.serve(async (req) => {
       if (role && role !== 'aluno') _rolesGrantedNew.push(role);
       await auditUserWrite(supabaseAdmin, 'user_create', callerUserId, userId, {
         email, id_ies, roles_granted: _rolesGrantedNew, ip: getClientIp(req),
+        ...(acesso_expira_em !== undefined ? { acesso_expira_em } : {}),
       });
 
       return successResponse(
