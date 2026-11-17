@@ -1,6 +1,8 @@
 /** Fatia C2 — sub-aba Liberações (finalizações, saídas de aba/tela, liberar tentativa). */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { FileDown, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { exportLiberacoesPdf } from '@/utils/liberacoesPdf';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -173,6 +175,8 @@ export default function LiberacoesTab() {
                 simuladoFilter={simuladoFilter}
                 onSimuladoFilterChange={setSimuladoFilter}
                 simuladoOptions={simuladoOptions}
+              exportRows={filteredRows}
+              exportDisabled={loading}
               />
             </div>
           )}
@@ -190,6 +194,7 @@ export default function LiberacoesTab() {
             simuladoFilter={simuladoFilter}
             onSimuladoFilterChange={setSimuladoFilter}
             simuladoOptions={simuladoOptions}
+            exportRows={filteredRows}
           />
           <AdminEmpty title="Nenhum resultado" description="Tente ajustar a busca ou o filtro de simulado." />
         </div>
@@ -204,6 +209,8 @@ export default function LiberacoesTab() {
               simuladoFilter={simuladoFilter}
               onSimuladoFilterChange={setSimuladoFilter}
               simuladoOptions={simuladoOptions}
+              exportRows={filteredRows}
+              exportDisabled={loading}
             />
           }
         />
@@ -220,9 +227,12 @@ interface ToolbarProps {
   simuladoFilter: string;
   onSimuladoFilterChange: (value: string) => void;
   simuladoOptions: SimuladoOption[];
+  exportRows?: FinalizacaoRow[];
+  exportDisabled?: boolean;
 }
 
-function Toolbar({ searchTerm, onSearchTermChange, simuladoFilter, onSimuladoFilterChange, simuladoOptions }: ToolbarProps) {
+export function Toolbar({ searchTerm, onSearchTermChange, simuladoFilter, onSimuladoFilterChange, simuladoOptions, exportRows = [], exportDisabled }: ToolbarProps) {
+  const selected = simuladoFilter !== SIMULADO_FILTER_ALL ? simuladoOptions.find((s) => s.id === simuladoFilter) : undefined;
   return (
     <>
       <div className="relative flex-1 min-w-[220px]">
@@ -247,6 +257,16 @@ function Toolbar({ searchTerm, onSearchTermChange, simuladoFilter, onSimuladoFil
           ))}
         </SelectContent>
       </Select>
+      {selected && (
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={exportDisabled || exportRows.length === 0}
+          onClick={() => exportLiberacoesPdf(exportRows, selected.nome)}
+        >
+          <FileDown className="h-4 w-4" /> Exportar PDF
+        </Button>
+      )}
     </>
   );
 }

@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { AdminTable, adminTableCellClass, adminTableHeadClass, MonoValue, StatusPill } from '@/experiences/admin/ui';
 import { toBrazilDate } from '@/utils/timezone';
 import type { FinalizacaoRow } from './liberacoes-types';
+import { formatTempo } from './liberacoes-format';
 
 /** Máximo de saídas listadas no tooltip antes de resumir em "+N saídas". */
 const MAX_SAIDAS_NO_TOOLTIP = 10;
@@ -16,13 +17,6 @@ export interface LiberacoesTableProps {
   rows: FinalizacaoRow[];
   toolbar?: React.ReactNode;
   onLiberar: (row: FinalizacaoRow) => void;
-}
-
-function formatTempo(segundos: number): string {
-  const horas = Math.floor(segundos / 3600);
-  const minutos = Math.floor((segundos % 3600) / 60);
-  if (horas === 0) return `${minutos}m`;
-  return `${horas}h ${minutos}m`;
 }
 
 /** Duração de uma saída: "Xs" abaixo de 1min, "Xmin Ys" a partir daí. */
