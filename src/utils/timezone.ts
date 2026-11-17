@@ -86,3 +86,46 @@ export const brazilISOToDatetimeLocal = (isoString: string): string => {
 
   return `${year}-${month}-${day}T${hour}:${minute}`;
 };
+
+/**
+ * Validade de acesso (acessos temporários).
+ *
+ * O admin escolhe um DIA ("válido até 30/11"); o acesso vale até o fim desse dia
+ * no horário de Brasília. O instante gravado em `user_access_expirations.expira_em`
+ * é, portanto, 00:00 (-03:00) do dia seguinte — o momento em que o acesso acaba.
+ * Mesmo racional do offset fixo -03:00 dos helpers acima.
+ */
+
+/** "YYYY-MM-DD" (último dia de acesso) → ISO do instante em que o acesso termina. */
+export const dateToExpiraEmISO = (dateValue: string): string => {
+  if (!dateValue) return '';
+  const end = new Date(`${dateValue}T00:00:00-03:00`);
+  end.setUTCDate(end.getUTCDate() + 1);
+  return end.toISOString();
+};
+
+/** ISO de `expira_em` → "YYYY-MM-DD" do último dia de acesso (valor de <input type="date">). */
+export const expiraEmISOToDate = (isoString: string): string => {
+  if (!isoString) return '';
+  // -3h leva ao relógio de Brasília; -1ms volta ao último instante do dia de acesso.
+  const lastMoment = new Date(new Date(isoString).getTime() - 3 * 60 * 60 * 1000 - 1);
+  const year = lastMoment.getUTCFullYear();
+  const month = String(lastMoment.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(lastMoment.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/** Hoje em Brasília como "YYYY-MM-DD" (menor data aceita como validade). */
+export const todayBrazilDateString = (now: Date = new Date()): string => {
+  const shifted = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const year = shifted.getUTCFullYear();
+  const month = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/** ISO de `expira_em` → "dd/MM/yyyy" do último dia de acesso. */
+export const formatExpiraEm = (isoString: string): string => {
+  const [y, m, d] = expiraEmISOToDate(isoString).split('-');
+  return y ? `${d}/${m}/${y}` : '';
+};

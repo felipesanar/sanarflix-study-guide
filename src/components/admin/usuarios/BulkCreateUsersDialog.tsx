@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
-import { Building2, Download, Upload } from 'lucide-react';
+import { Building2, CalendarClock, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ import { usersService } from '@/services/usersService';
 import type { Ies } from '@/services/iesService';
 import { BatchProcessingReport, type BatchReport, type BatchResult } from '../BatchProcessingReport';
 import { normalizeRoleInput, roleLabel, ROLE_VALUES_HINT, type AppUserRole } from './roles';
+import { dateToExpiraEmISO, todayBrazilDateString } from '@/utils/timezone';
 
 const MAX_BATCH_ROWS = 1000;
 const CHUNK_SIZE = 3;
@@ -221,6 +222,9 @@ export interface BulkCreateUsersDialogProps {
 /** Diálogo de cadastro/atualização em lote (XLSX/CSV) via `useBulkRunner`. */
 export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, canManageRoles = false }: BulkCreateUsersDialogProps) {
   const [batchIesId, setBatchIesId] = useState('');
+  // Validade opcional do lote (vazio = acesso permanente). Vale para todas as linhas.
+  const [batchExpiraEm, setBatchExpiraEm] = useState('');
+  const batchExpiraEmInvalida = !!batchExpiraEm && batchExpiraEm < todayBrazilDateString();
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const richResultsRef = useRef<BatchResult[]>([]);
@@ -307,6 +311,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, can
             id_ies: batchIesId,
             semestre: row.semestre,
             ...(row.matricula_ra ? { matricula_ra: row.matricula_ra } : {}),
+            ...(batchExpiraEm ? { acesso_expira_em: dateToExpiraEmISO(batchExpiraEm) } : {}),
             ...(row.role !== 'aluno' ? { role: row.role } : {}),
           });
           while (!data.success && (data.code === 'RATE_LIMITED' || data.code === 'rate_limited') && attempt < RATE_LIMIT_RETRY_MAX) {
@@ -324,6 +329,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, can
             id_ies: batchIesId,
             semestre: row.semestre,
             ...(row.matricula_ra ? { matricula_ra: row.matricula_ra } : {}),
+            ...(batchExpiraEm ? { acesso_expira_em: dateToExpiraEmISO(batchExpiraEm) } : {}),
             ...(row.role !== 'aluno' ? { role: row.role } : {}),
           });
           }
@@ -416,6 +422,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, can
       const hadResults = richResultsRef.current.length > 0;
       actions.reset();
       setBatchIesId('');
+      setBatchExpiraEm('');
       setFileName(null);
       setReport(null);
       richResultsRef.current = [];
@@ -456,6 +463,26 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, can
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="bulk-expira-em" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5" /> Acesso válido até (opcional)
+              </Label>
+              <Input
+                id="bulk-expira-em"
+                type="date"
+                min={todayBrazilDateString()}
+                value={batchExpiraEm}
+                onChange={(e) => setBatchExpiraEm(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Deixe em branco para acesso permanente. Com data, vale para todas as linhas da planilha (inclusive
+                quem já está cadastrado) e o acesso expira automaticamente ao fim desse dia.
+              </p>
+              {batchExpiraEmInvalida && (
+                <p className="text-xs text-destructive">A validade não pode ser uma data passada.</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Upload className="h-3.5 w-3.5" /> Arquivo XLSX/CSV
               </Label>
@@ -489,7 +516,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone, can
               )}
             </div>
 
-            <Button onClick={() => actions.runDryRun()} disabled={!batchIesId || rows.length === 0}>
+            <Button onClick={() => actions.runDryRun()} disabled={!batchIesId || rows.length === 0 || batchExpiraEmInvalida}>
               Pré-visualizar
             </Button>
           </div>

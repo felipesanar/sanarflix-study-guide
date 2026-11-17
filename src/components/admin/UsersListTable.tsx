@@ -48,6 +48,7 @@ import {
   ShieldOff,
   RefreshCw,
   Mail,
+  CalendarClock,
   Download,
   ChevronLeft,
   ChevronRight,
@@ -75,6 +76,7 @@ import { UpdateUserEmailDialog } from './usuarios/UpdateUserEmailDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
+import { dateToExpiraEmISO, expiraEmISOToDate, formatExpiraEm, todayBrazilDateString } from '@/utils/timezone';
 
 interface IES {
   id: string;
@@ -90,6 +92,10 @@ interface UserRow {
   matricula_ra: string | null;
   semestre: number | null;
   roles: string[];
+  /** Validade opcional do acesso (ISO). null = acesso permanente. */
+  acesso_expira_em: string | null;
+  /** true quando o job já bloqueou o acesso por expiração. */
+  acesso_expirado: boolean;
 }
 
 type AppRole = 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento';
@@ -101,6 +107,10 @@ interface EditingState {
   matricula_ra: string;
   semestre: string;
   roles: AppRole[]; // papéis privilegiados marcados (aditivo — pode acumular vários)
+  /** Último dia de acesso (YYYY-MM-DD); '' = permanente. */
+  expira_em: string;
+  /** Valor ao abrir a edição — só envia à edge se o admin mudou. */
+  expira_em_original: string;
 }
 
 const EDITABLE_ROLES: { value: AppRole; label: string }[] = [
@@ -192,6 +202,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     matricula_ra: '',
     semestre: '',
     roles: [],
+    expira_em: '',
+    expira_em_original: '',
   });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -337,6 +349,15 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         rolesMap.set(r.user_id, [...existing, r.role]);
       });
 
+      // Validades em consulta separada (mesmo padrão dos papéis): falha aqui nunca
+      // derruba a lista — sem dado, o usuário aparece como permanente.
+      const { data: expData } = await supabase
+        .from('user_access_expirations')
+        .select('user_id, expira_em, expirado_em')
+        .in('user_id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
+      const expMap = new Map<string, { expira_em: string; expirado_em: string | null }>();
+      expData?.forEach(e => expMap.set(e.user_id, { expira_em: e.expira_em, expirado_em: e.expirado_em }));
+
       const mappedUsers: UserRow[] = (usersData || []).map(u => ({
         id: u.id,
         nome: u.nome,
@@ -346,6 +367,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         matricula_ra: u.matricula_ra ?? null,
         semestre: u.semestre,
         roles: rolesMap.get(u.id) || [],
+        acesso_expira_em: expMap.get(u.id)?.expira_em ?? null,
+        acesso_expirado: !!expMap.get(u.id)?.expirado_em,
       }));
 
       // Repete a checagem: a query de roles acima é assíncrona, então uma
@@ -410,6 +433,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           matricula_ra: u.matricula_ra ?? null,
           semestre: u.semestre,
           roles: rolesMap.get(u.id) || [],
+          // O export não usa a validade; a lista (fetchUsers) é quem a carrega.
+          acesso_expira_em: null,
+          acesso_expirado: false,
         }));
         setExportProgress(rows.length);
 
@@ -550,11 +576,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       matricula_ra: user.matricula_ra || '',
       semestre: user.semestre?.toString() || '',
       roles: deriveEditableRoles(user.roles),
+      expira_em: user.acesso_expira_em ? expiraEmISOToDate(user.acesso_expira_em) : '',
+      expira_em_original: user.acesso_expira_em ? expiraEmISOToDate(user.acesso_expira_em) : '',
     });
   };
 
   const cancelEditing = () => {
-    setEditing({ userId: null, nome: '', id_ies: '', matricula_ra: '', semestre: '', roles: [] });
+    setEditing({ userId: null, nome: '', id_ies: '', matricula_ra: '', semestre: '', roles: [], expira_em: '', expira_em_original: '' });
   };
 
   const toggleEditingRole = (role: AppRole, checked: boolean) => {
@@ -583,6 +611,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       return;
     }
 
+    // Validade: só vai à edge se o admin mudou. '' = remover o prazo (null).
+    const expiraEmChanged = editing.expira_em !== editing.expira_em_original;
+    if (expiraEmChanged && editing.expira_em && editing.expira_em < todayBrazilDateString()) {
+      toast.error('A validade do acesso não pode ser uma data passada');
+      return;
+    }
+
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke('b2b-create-user', {
@@ -592,6 +627,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           id_ies: editing.id_ies,
           semestre,
           matricula_ra: editing.matricula_ra.trim(),
+          ...(expiraEmChanged
+            ? { acesso_expira_em: editing.expira_em ? dateToExpiraEmISO(editing.expira_em) : null }
+            : {}),
         },
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
@@ -869,11 +907,35 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                           </Button>
                         )}
                       </div>
+                      <div className="flex items-center gap-2">
+                        <CalendarClock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <Input
+                          type="date"
+                          value={editing.expira_em}
+                          onChange={(e) => setEditing({ ...editing, expira_em: e.target.value })}
+                          className="h-8 w-40"
+                          aria-label="Acesso válido até (em branco = permanente)"
+                        />
+                        {editing.expira_em && (
+                          <Button type="button" size="sm" variant="link" className="h-auto p-0 text-xs" onClick={() => setEditing({ ...editing, expira_em: '' })}>
+                            Remover prazo
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div>
                       <div className="font-medium">{user.nome}</div>
                       <MonoValue className="text-xs" muted>{user.email}</MonoValue>
+                      {user.acesso_expira_em && (
+                        <div className="mt-1">
+                          {user.acesso_expirado ? (
+                            <Badge variant="destructive" className="text-[10px]">Acesso expirado</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">Expira {formatExpiraEm(user.acesso_expira_em)}</Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </TableCell>

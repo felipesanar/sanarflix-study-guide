@@ -3499,6 +3499,41 @@ export type Database = {
           },
         ]
       }
+      user_access_expirations: {
+        Row: {
+          created_at: string
+          definido_por: string | null
+          expira_em: string
+          expirado_em: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          definido_por?: string | null
+          expira_em: string
+          expirado_em?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          definido_por?: string | null
+          expira_em?: string
+          expirado_em?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_access_expirations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_exams: {
         Row: {
           created_at: string | null
@@ -4158,6 +4193,10 @@ export type Database = {
         Returns: undefined
       }
       eng_versao_dados: { Args: never; Returns: string }
+      expire_temporary_accesses: {
+        Args: { p_user_id?: string }
+        Returns: number
+      }
       gestor_pode_acessar_ies: { Args: { p_ies_id: string }; Returns: boolean }
       get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
@@ -4749,6 +4788,10 @@ export type Database = {
         Returns: Json
       }
       set_my_phone: { Args: { p_telefone: string }; Returns: undefined }
+      set_user_access_expiration: {
+        Args: { p_actor?: string; p_expira_em: string; p_user_id: string }
+        Returns: undefined
+      }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
