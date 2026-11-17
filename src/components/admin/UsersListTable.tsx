@@ -578,8 +578,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       return;
     }
     const semestre = parseInt(editing.semestre, 10);
-    if (Number.isNaN(semestre) || semestre < 1 || semestre > 12) {
-      toast.error('Semestre deve ser um número entre 1 e 12');
+    if (Number.isNaN(semestre) || semestre < 0 || semestre > 12) {
+      toast.error('Semestre deve ser um número entre 0 e 12');
       return;
     }
 
@@ -909,13 +909,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                 <TableCell className={adminTableCellClass}>
                   {isEditing ? (
                     <Input
-                      type="number" min={1} max={12}
+                      type="number" min={0} max={12}
                       value={editing.semestre}
                       onChange={(e) => setEditing({ ...editing, semestre: e.target.value })}
                       className="h-8 w-16"
                     />
                   ) : (
-                    <MonoValue muted={!user.semestre}>{user.semestre ?? '—'}</MonoValue>
+                    <MonoValue muted={user.semestre == null}>{user.semestre ?? '—'}</MonoValue>
                   )}
                 </TableCell>
 

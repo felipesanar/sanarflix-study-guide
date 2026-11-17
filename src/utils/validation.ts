@@ -16,7 +16,7 @@ export const userSchema = z.object({
   ies_nome: z.string().min(1, 'Nome da IES é obrigatório'),
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
-    .min(1, 'Semestre deve ser pelo menos 1')
+    .min(0, 'Semestre deve ser pelo menos 0')
     .max(12, 'Semestre deve ser no máximo 12')
     .optional(),
 });
@@ -73,7 +73,7 @@ export const createUserSchema = z.object({
   id_ies: z.string().uuid('ID da IES deve ser um UUID válido'),
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
-    .min(1, 'Semestre deve ser pelo menos 1')
+    .min(0, 'Semestre deve ser pelo menos 0')
     .max(12, 'Semestre deve ser no máximo 12'),
 });
 

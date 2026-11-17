@@ -51,8 +51,8 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
     }
     if (form.semestre) {
       const sem = parseInt(form.semestre, 10);
-      if (Number.isNaN(sem) || sem < 1 || sem > 12) {
-        toast.error('Semestre deve ser entre 1 e 12');
+      if (Number.isNaN(sem) || sem < 0 || sem > 12) {
+        toast.error('Semestre deve ser entre 0 e 12');
         return;
       }
     }
@@ -146,7 +146,7 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
             <Input
               id="cu-semestre"
               type="number"
-              min={1}
+              min={0}
               max={12}
               value={form.semestre}
               onChange={(e) => setForm({ ...form, semestre: e.target.value })}

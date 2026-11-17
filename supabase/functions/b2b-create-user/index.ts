@@ -48,7 +48,7 @@ const createUserSchema = z.object({
   // nenhum papel, incluindo staff) — não há obrigatoriedade em runtime.
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
-    .min(1, 'Semestre mínimo: 1')
+    .min(0, 'Semestre mínimo: 0')
     .max(12, 'Semestre máximo: 12')
     .nullable()
     .optional(),
