@@ -262,7 +262,7 @@ export function Toolbar({ searchTerm, onSearchTermChange, simuladoFilter, onSimu
           variant="outline"
           className="gap-2"
           disabled={exportDisabled || exportRows.length === 0}
-          onClick={() => exportLiberacoesPdf(exportRows, selected.nome)}
+          onClick={() => { void exportLiberacoesPdf(exportRows, selected.nome); }}
         >
           <FileDown className="h-4 w-4" /> Exportar PDF
         </Button>
