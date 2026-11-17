@@ -26,7 +26,7 @@ const WINE_LIGHTER: [number, number, number] = [248, 226, 226];
 
 async function loadLogo(): Promise<string | null> {
   try {
-    const res = await fetch('/sanarflix-academy-lockup.png');
+    const res = await fetch('/sanarflix-academy-lockup-red.png');
     if (!res.ok) return null;
     const blob = await res.blob();
     return await new Promise((resolve) => {
@@ -65,23 +65,11 @@ export async function exportLiberacoesPdf(rows: FinalizacaoRow[], simuladoNome: 
   doc.text('Relatório de Liberações', W - M, 13, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
   doc.text(`Exportado em ${formatFinalizado(new Date().toISOString())}`, W - M, 19.5, { align: 'right' });
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${rows.length} registro(s)`, W - M, 24.5, { align: 'right' });
   doc.setFillColor(...WINE_LIGHTER); doc.rect(0, HB, W, 1.2, 'F');
-  y = HB + 9;
+  y = HB + 8;
 
-  // Cartão do simulado
-  doc.setFillColor(...WINE_LIGHTEST); doc.setDrawColor(...WINE_LIGHTER);
-  doc.roundedRect(M, y - 4, W - 2 * M, 15, 2, 2, 'FD');
-  doc.setFillColor(...WINE); doc.rect(M, y - 4, 1.5, 15, 'F');
-  doc.setTextColor(120); doc.setFontSize(7.5); doc.setFont('helvetica', 'bold');
-  doc.text('SIMULADO', M + 5, y + 0.5);
-  doc.setTextColor(...WINE_DARK); doc.setFontSize(12);
-  doc.text(doc.splitTextToSize(sanitize(simuladoNome), W - 2 * M - 60)[0] as string, M + 5, y + 6.5);
-  doc.setTextColor(120); doc.setFontSize(7.5);
-  doc.text('REGISTROS', W - M - 5, y + 0.5, { align: 'right' });
-  doc.setTextColor(...WINE); doc.setFontSize(14);
-  doc.text(String(rows.length), W - M - 5, y + 7, { align: 'right' });
-  doc.setTextColor(20); doc.setFont('helvetica', 'normal');
-  y += 16;
 
   const header = () => {
     doc.setFillColor(...WINE); doc.rect(M, y, W - 2 * M, 7, 'F');
