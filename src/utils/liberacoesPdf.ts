@@ -54,7 +54,7 @@ export async function exportLiberacoesPdf(rows: FinalizacaoRow[], simuladoNome: 
   doc.setFillColor(...WINE); doc.rect(0, 0, W * 0.62, HB, 'F');
   doc.triangle(W * 0.62, 0, W * 0.62 + 18, 0, W * 0.62, HB, 'F');
   if (logo) {
-    doc.setFillColor(255); doc.roundedRect(M - 3, 6, 62, 18, 3, 3, 'F');
+    doc.setFillColor(255, 255, 255); doc.roundedRect(M - 3, 6, 62, 18, 3, 3, 'F');
     try { doc.addImage(logo, 'PNG', M, 8, 54, 14); } catch { /* fallback abaixo */ }
   } else {
     doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
