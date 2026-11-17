@@ -66,7 +66,7 @@ export async function exportLiberacoesPdf(rows: FinalizacaoRow[], simuladoNome: 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
   doc.text(`Exportado em ${formatFinalizado(new Date().toISOString())}`, W - M, 19.5, { align: 'right' });
   doc.setFont('helvetica', 'bold');
-  doc.text(`${rows.length} registro(s)`, W - M, 24.5, { align: 'right' });
+  doc.text(`${rows.length} ${rows.length === 1 ? "registro" : "registros"}`, W - M, 24.5, { align: 'right' });
   doc.setFillColor(...WINE_LIGHTER); doc.rect(0, HB, W, 1.2, 'F');
   y = HB + 8;
 
