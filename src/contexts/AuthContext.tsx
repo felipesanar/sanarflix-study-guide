@@ -1,3 +1,4 @@
+import { readEdgeError, ACCESS_EXPIRED_CODE, ACCESS_EXPIRED_MESSAGE } from '@/utils/readEdgeError';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
@@ -316,20 +317,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Extract error message from edge function response body (even on non-2xx)
       let edgeErrorMessage: string | undefined;
+      let edgeErrorCode: string | undefined;
       if (error) {
-        const maybeBody = (error as any)?.context?.body;
-        if (typeof maybeBody === 'string') {
-          try {
-            const parsed = JSON.parse(maybeBody);
-            if (parsed?.error) edgeErrorMessage = String(parsed.error);
-          } catch {
-            // not JSON
-          }
-        }
-        // Also check if data was returned alongside the error (some SDK versions)
-        if (!edgeErrorMessage && data?.error) {
-          edgeErrorMessage = String(data.error);
-        }
+        const parsed = await readEdgeError(error, data);
+        edgeErrorMessage = parsed.message;
+        edgeErrorCode = parsed.code;
+      }
+
+      if (edgeErrorCode === ACCESS_EXPIRED_CODE || data?.code === ACCESS_EXPIRED_CODE) {
+        Logger.warn('Login blocked: access expired');
+        toast({ title: 'Acesso expirado', description: ACCESS_EXPIRED_MESSAGE, variant: 'destructive', duration: 7000 });
+        setIsLoading(false);
+        return false;
       }
 
       const errorMessage = data?.error || edgeErrorMessage;

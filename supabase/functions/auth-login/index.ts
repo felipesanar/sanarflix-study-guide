@@ -25,7 +25,7 @@ const buildCorsHeaders = (origin?: string | null): Record<string, string> | null
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 };
-const ACCESS_EXPIRED_MESSAGE = 'Seu acesso expirou. Procure sua instituição.';
+const ACCESS_EXPIRED_MESSAGE = 'Seu período de acesso expirou. Entre em contato com sua IES.';
 
 // Linha em user_access_expirations: usuário sem linha é permanente e nunca expira.
 const isExpired = (row: { expira_em: string; expirado_em: string | null } | null): boolean =>
