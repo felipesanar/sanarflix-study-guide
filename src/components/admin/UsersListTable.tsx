@@ -929,9 +929,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                         <span className="font-medium">{user.nome}</span>
                         {user.acesso_expira_em && (
                           user.acesso_expirado ? (
-                            <Badge className="text-[10px] border-transparent bg-primary-dark text-primary-foreground hover:bg-primary-dark">Acesso expirado</Badge>
+                            <Badge className="h-4 rounded px-1.5 py-0 text-[9px] font-medium leading-none border-transparent bg-primary-dark text-primary-foreground hover:bg-primary-dark">Acesso expirado</Badge>
                           ) : (
-                            <Badge variant="outline" className="text-[10px]">Expira {formatExpiraEm(user.acesso_expira_em)}</Badge>
+                            <Badge variant="outline" className="h-4 rounded px-1.5 py-0 text-[9px] font-medium leading-none text-muted-foreground">Expira {formatExpiraEm(user.acesso_expira_em)}</Badge>
                           )
                         )}
                       </div>
