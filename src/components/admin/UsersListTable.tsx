@@ -925,17 +925,17 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                     </div>
                   ) : (
                     <div>
-                      <div className="font-medium">{user.nome}</div>
-                      <MonoValue className="text-xs" muted>{user.email}</MonoValue>
-                      {user.acesso_expira_em && (
-                        <div className="mt-1">
-                          {user.acesso_expirado ? (
-                            <Badge variant="destructive" className="text-[10px]">Acesso expirado</Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{user.nome}</span>
+                        {user.acesso_expira_em && (
+                          user.acesso_expirado ? (
+                            <Badge className="text-[10px] border-transparent bg-primary-dark text-primary-foreground hover:bg-primary-dark">Acesso expirado</Badge>
                           ) : (
                             <Badge variant="outline" className="text-[10px]">Expira {formatExpiraEm(user.acesso_expira_em)}</Badge>
-                          )}
-                        </div>
-                      )}
+                          )
+                        )}
+                      </div>
+                      <MonoValue className="text-xs" muted>{user.email}</MonoValue>
                     </div>
                   )}
                 </TableCell>
