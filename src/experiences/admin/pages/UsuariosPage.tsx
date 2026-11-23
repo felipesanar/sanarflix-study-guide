@@ -15,9 +15,7 @@ import { Button } from '@/components/ui/button';
 import { AdminSectionHeader, MonoValue, StatCard } from '@/experiences/admin/ui';
 import { useAuth } from '@/contexts/AuthContext';
 import { can } from '@/experiences/access';
-import { supabase } from '@/integrations/supabase/client';
 import { iesService, type Ies } from '@/services/iesService';
-import { Logger } from '@/utils/logger';
 import { UsersListTable } from '@/components/admin/UsersListTable';
 import { CreateUserDialog } from '@/components/admin/usuarios/CreateUserDialog';
 import { BulkCreateUsersDialog } from '@/components/admin/usuarios/BulkCreateUsersDialog';
@@ -44,26 +42,6 @@ const UsuariosPage: React.FC = () => {
   const [bulkEmailOpen, setBulkEmailOpen] = useState(false);
 
   const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const [{ count: totalUsers }, { count: totalAdmins }] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }),
-        supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
-      ]);
-      setStats({ totalUsers: totalUsers ?? 0, totalAdmins: totalAdmins ?? 0 });
-    } catch (err) {
-      Logger.error('[UsuariosPage] falha ao carregar stats:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    iesService.list().then(setIesList);
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats, refreshKey]);
 
   // Abre "Novo usuário" automaticamente quando a URL tem ?new=1 (deep-link
   // do Command Center). O parâmetro é limpo ao fechar o diálogo — isso evita
@@ -120,6 +98,7 @@ const UsuariosPage: React.FC = () => {
         canSupport={can(access, 'users.support')}
         refreshKey={refreshKey}
         onOpenBulkEmail={() => setBulkEmailOpen(true)}
+        onFilteredStats={setStats}
       />
 
       <div className={`rounded-xl border p-4 flex flex-wrap items-center justify-between gap-4 ${canManage ? '' : 'border-dashed'}`}>

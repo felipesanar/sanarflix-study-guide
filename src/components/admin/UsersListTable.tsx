@@ -152,6 +152,8 @@ export interface UsersListTableProps {
   refreshKey?: number;
   /** Abre o fluxo de "Trocar e-mail em massa" (diálogo controlado pela página). */
   onOpenBulkEmail: () => void;
+  /** Totais do recorte filtrado atual (alimenta os indicadores do topo). */
+  onFilteredStats?: (stats: { totalUsers: number; totalAdmins: number }) => void;
 }
 
 interface FailedUser {
@@ -174,7 +176,7 @@ const BATCH_CHUNK_SIZE = 3; // Deve casar com MAX_BATCH_SIZE da edge function
 
 const EMPTY_DELETE_PROGRESS: DeleteProgress = { total: 0, done: 0, ok: 0, failed: [], active: false };
 
-export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, canEdit, canSupport, refreshKey, onOpenBulkEmail }) => {
+export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, canEdit, canSupport, refreshKey, onOpenBulkEmail, onFilteredStats }) => {
   const { startImpersonation, access, user: authUser } = useAuth();
   const [emailTarget, setEmailTarget] = useState<UserRow | null>(null);
   const navigate = useNavigate();
@@ -194,6 +196,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const fetchIdRef = useRef(0);
+  const onFilteredStatsRef = useRef(onFilteredStats);
+  onFilteredStatsRef.current = onFilteredStats;
 
   // Debounce search input → searchTerm (400ms)
   useEffect(() => {
@@ -366,15 +370,30 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       // busca mais nova pode ter chegado enquanto ela estava em voo.
       if (currentFetchId !== fetchIdRef.current) return;
 
+      // Administradores dentro do mesmo recorte (IES, semestre, busca, papel).
+      let totalAdmins = 0;
+      if (filterRole === 'admin') totalAdmins = count || 0;
+      else if (filterRole === 'all') {
+        const adminFilter: RoleFilter = { mode: 'role', role: 'admin' };
+        const { count: c, error: aErr } = await applyListFilters(
+          supabase.from('users').select(USERS_SELECT + roleEmbed(adminFilter) as typeof USERS_SELECT, { count: 'exact', head: true }),
+          adminFilter,
+        );
+        if (aErr) Logger.error('Error counting admins:', aErr);
+        totalAdmins = c || 0;
+      }
+      if (currentFetchId !== fetchIdRef.current) return;
+
       setUsers(mappedUsers);
       setTotalCount(count || 0);
+      onFilteredStatsRef.current?.({ totalUsers: count || 0, totalAdmins });
     } catch (err) {
       Logger.error('Error fetching users:', err);
       setFetchError(err instanceof Error ? err.message : 'Erro ao carregar usuários.');
     } finally {
       setLoading(false);
     }
-  }, [page, applyListFilters, resolveRoleFilterIds]);
+  }, [page, applyListFilters, resolveRoleFilterIds, filterRole]);
 
   /** Export XLSX do recorte atual (todos os filtros ativos, não só a página).
    * Pagina em blocos de 500; os papéis são lidos UMA vez (tabela pequena) para
