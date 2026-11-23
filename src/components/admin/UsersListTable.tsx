@@ -122,6 +122,11 @@ const EDITABLE_ROLES: { value: AppRole; label: string }[] = [
 ];
 const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value);
 
+type RoleFilter = { mode: 'aluno' } | { mode: 'role'; role: AppRole };
+/** Embed usado só para filtrar por papel (relacionamento computado public.user_roles(users)). */
+const roleEmbed = (f: RoleFilter | null) =>
+  !f ? '' : f.mode === 'aluno' ? ', rf:user_roles(role)' : ', rf:user_roles!inner(role)';
+
 const ROLE_BADGE: Record<string, { label: string; icon?: boolean }> = {
   admin: { label: 'Admin', icon: true },
   professor: { label: 'Professor' },
@@ -254,26 +259,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
 
   /** Resolve os ids envolvidos no filtro de papel (uma ida ao banco, feita
    * antes de montar a query de `users`). `null` = filtro inativo. */
-  const resolveRoleFilterIds = useCallback(async (): Promise<{ mode: 'aluno' | 'role'; ids: string[] } | null> => {
+  /** Filtro de papel resolvido no próprio banco via relacionamento computado
+   * `users -> user_roles` (antes mandávamos ~1000 ids na URL e a requisição
+   * estourava o limite de tamanho). `null` = filtro inativo. */
+  const resolveRoleFilterIds = useCallback(async (): Promise<RoleFilter | null> => {
     if (filterRole === 'all') return null;
-    // `aluno` = usuário sem nenhum papel privilegiado (não existe linha
-    // 'aluno' em user_roles); os demais papéis vêm de user_roles.
-    const { data: roleRows, error: roleErr } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .in('role', filterRole === 'aluno' ? PRIVILEGED_ROLES : [filterRole as AppRole]);
-    if (roleErr) throw roleErr;
-    return {
-      mode: filterRole === 'aluno' ? 'aluno' : 'role',
-      ids: Array.from(new Set((roleRows || []).map(r => r.user_id))),
-    };
+    return filterRole === 'aluno' ? { mode: 'aluno' } : { mode: 'role', role: filterRole as AppRole };
   }, [filterRole]);
 
   /** Aplica os filtros ativos (IES, semestre, papel, busca) numa query de
    * `users`. Compartilhado entre a lista paginada e o export XLSX para que os
    * dois recortes nunca divirjam. Síncrono de propósito: `await` num builder
    * do supabase-js já dispara a requisição. */
-  const applyListFilters = useCallback(<T,>(initialQuery: T, roleFilter: { mode: 'aluno' | 'role'; ids: string[] } | null): T => {
+  const applyListFilters = useCallback(<T,>(initialQuery: T, roleFilter: RoleFilter | null): T => {
     let query = initialQuery as never;
 
     if (filterIes !== 'all') {
@@ -284,11 +282,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     }
     if (roleFilter) {
       if (roleFilter.mode === 'aluno') {
-        if (roleFilter.ids.length > 0) {
-          query = (query as { not: (c: string, op: string, v: string) => never }).not('id', 'in', `(${roleFilter.ids.join(',')})`);
-        }
+        // anti-join: nenhuma linha privilegiada em user_roles
+        query = (query as { in: (c: string, v: string[]) => never }).in('rf.role', PRIVILEGED_ROLES);
+        query = (query as { is: (c: string, v: null) => never }).is('rf', null);
       } else {
-        query = (query as { in: (c: string, v: string[]) => never }).in('id', roleFilter.ids.length > 0 ? roleFilter.ids : ['00000000-0000-0000-0000-000000000000']);
+        query = (query as { eq: (c: string, v: unknown) => never }).eq('rf.role', roleFilter.role);
       }
     }
 
@@ -321,7 +319,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
             id_ies,
             matricula_ra,
             semestre,
-            ies:ies!fk_ies(nome)
+            ies:ies!fk_ies(nome)${roleEmbed(roleFilter)}
           `, { count: 'exact' }),
         roleFilter,
       );
@@ -416,7 +414,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         const query = applyListFilters(
           supabase
             .from('users')
-            .select('id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)'),
+            .select(`id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)${roleEmbed(roleFilter)}`),
           roleFilter,
         );
         const { data, error } = await query.order('nome').order('id').range(offset, offset + PAGE - 1);

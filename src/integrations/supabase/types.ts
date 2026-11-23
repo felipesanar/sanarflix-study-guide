@@ -3832,6 +3832,13 @@ export type Database = {
           semestre_updated_at: string | null
           telefone: string | null
           telefone_updated_at: string | null
+          user_roles: {
+            granted_at: string | null
+            granted_by: string | null
+            id: string
+            role: Database["public"]["Enums"]["app_role"]
+            user_id: string
+          } | null
         }
         Insert: {
           email: string
@@ -4801,6 +4808,22 @@ export type Database = {
         Returns: boolean
       }
       user_has_feature: { Args: { p_feature: string }; Returns: boolean }
+      user_roles: {
+        Args: { "": Database["public"]["Tables"]["users"]["Row"] }
+        Returns: {
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "users"
+          to: "user_roles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       app_role:
