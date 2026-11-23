@@ -122,6 +122,7 @@ const EDITABLE_ROLES: { value: AppRole; label: string }[] = [
 ];
 const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value);
 
+const USERS_SELECT = 'id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)' as const;
 type RoleFilter = { mode: 'aluno' } | { mode: 'role'; role: AppRole };
 /** Embed usado só para filtrar por papel (relacionamento computado public.user_roles(users)). */
 const roleEmbed = (f: RoleFilter | null) =>
@@ -312,15 +313,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
       const query = applyListFilters(
         supabase
           .from('users')
-          .select(`
-            id,
-            nome,
-            email,
-            id_ies,
-            matricula_ra,
-            semestre,
-            ies:ies!fk_ies(nome)${roleEmbed(roleFilter)}
-          `, { count: 'exact' }),
+          .select(USERS_SELECT + roleEmbed(roleFilter) as typeof USERS_SELECT, { count: 'exact' }),
         roleFilter,
       );
 
@@ -414,7 +407,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         const query = applyListFilters(
           supabase
             .from('users')
-            .select(`id, nome, email, id_ies, matricula_ra, semestre, ies:ies!fk_ies(nome)${roleEmbed(roleFilter)}`),
+            .select(USERS_SELECT + roleEmbed(roleFilter) as typeof USERS_SELECT),
           roleFilter,
         );
         const { data, error } = await query.order('nome').order('id').range(offset, offset + PAGE - 1);
