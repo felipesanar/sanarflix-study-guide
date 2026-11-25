@@ -8,14 +8,16 @@ const ProvasTab = lazy(() => import('@/components/admin/simulados/ProvasTab'));
 const LiberacoesTab = lazy(() => import('@/components/admin/simulados/LiberacoesTab'));
 const ImportarRespostasTab = lazy(() => import('@/components/admin/simulados/ImportarRespostasTab'));
 const CartoesTab = lazy(() => import('@/components/admin/simulados/CartoesTab'));
+const LeituraCartoesTab = lazy(() => import('@/components/admin/simulados/LeituraCartoesTab'));
 
-type SimTab = 'provas' | 'liberacoes' | 'importar' | 'cartoes';
+type SimTab = 'provas' | 'liberacoes' | 'importar' | 'cartoes' | 'leitura';
 
 const TABS: Array<{ id: SimTab; label: string }> = [
   { id: 'provas', label: 'Provas' },
   { id: 'liberacoes', label: 'Liberações' },
   { id: 'importar', label: 'Importar respostas' },
   { id: 'cartoes', label: 'Cartões-resposta' },
+  { id: 'leitura', label: 'Leitura de cartões' },
 ];
 
 /**
@@ -28,13 +30,15 @@ const SimuladosPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const tab: SimTab =
-    tabParam === 'liberacoes' || tabParam === 'importar' || tabParam === 'cartoes' ? tabParam : 'provas';
+    tabParam === 'liberacoes' || tabParam === 'importar' || tabParam === 'cartoes' || tabParam === 'leitura'
+      ? tabParam
+      : 'provas';
 
   return (
     <div className="space-y-6">
       <AdminSectionHeader
         title="Simulados"
-        subtitle="Criar e manter provas, liberar tentativas, importar respostas de turmas inteiras e emitir os cartões-resposta."
+        subtitle="Criar e manter provas, liberar tentativas, importar respostas de turmas inteiras, emitir e ler os cartões-resposta."
       />
       <div className="flex gap-1 border-b" role="tablist" aria-label="Sub-seções de Simulados">
         {TABS.map((t) => (
@@ -59,6 +63,7 @@ const SimuladosPage: React.FC = () => {
         {tab === 'liberacoes' && <LiberacoesTab />}
         {tab === 'importar' && <ImportarRespostasTab />}
         {tab === 'cartoes' && <CartoesTab />}
+        {tab === 'leitura' && <LeituraCartoesTab />}
       </Suspense>
     </div>
   );

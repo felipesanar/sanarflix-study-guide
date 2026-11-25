@@ -11,9 +11,8 @@ import { ImportarPlanilhaStep } from './ImportarPlanilhaStep';
 import { ImportarDryRunStep } from './ImportarDryRunStep';
 import { ImportarConcluidoStep } from './ImportarConcluidoStep';
 import { ImportarHistoricoLotes } from './ImportarHistoricoLotes';
+import { executarImportacao, previewImportacao, rotuloDoLote } from './importar-respostas-api';
 import {
-  CHUNK_SIZE,
-  DRY_RUN_CHUNK_SIZE,
   normRa,
   isEmail,
   parseMatrizRespostas,
@@ -207,58 +206,18 @@ export default function ImportarRespostasTab() {
   const runPreview = async () => {
     if (!selectedSimulado || parsedRows.length === 0) return;
     setPreviewing(true);
-    // Fallback do rótulo calculado uma única vez (fora do loop de chunks) — evita
-    // rótulos diferentes por lote (achado P3, mesmo racional do `runImport` abaixo).
-    const resolvedSourceLabel = sourceLabel || `Importação ${new Date().toISOString()}`;
     try {
-      // A edge limita 200 linhas por chamada — INCLUSIVE no dry-run — então uma
-      // planilha de turma inteira precisa ser chunkada aqui também (achado P1: antes
-      // enviava tudo de uma vez e travava o wizard entre os passos 2 e 3 para
-      // planilhas grandes). Os summaries/resultados de cada lote são agregados no
-      // client antes de exibir o passo 3.
-      const aggregatedResults: PreviewResult[] = [];
-      const aggregatedSummary: PreviewSummary = { total: 0, ok: 0, warning: 0, error: 0, already_finalized: 0, multi_marked_cells: 0, multi_marked_rows: 0, text_as_blank_cells: textAsBlankCount };
-
-      for (let i = 0; i < parsedRows.length; i += DRY_RUN_CHUNK_SIZE) {
-        const chunk = parsedRows.slice(i, i + DRY_RUN_CHUNK_SIZE);
-        const { data, error } = await supabase.functions.invoke('admin-import-simulado-responses', {
-          body: {
-            simulado_id: selectedSimulado,
-            conflict_mode: conflictMode,
-            source_label: resolvedSourceLabel,
-            dry_run: true,
-            rows: chunk.map((r) => ({ matricula_ra: r.matricula_ra, answers: r.answers })),
-          },
-        });
-        if (error) {
-          let detail = error.message ?? 'Falha desconhecida';
-          try {
-            const ctx = (error as { context?: Response }).context;
-            if (ctx && typeof ctx.text === 'function') {
-              const body = await ctx.text();
-              if (body) detail = body.length > 500 ? `${body.slice(0, 500)}…` : body;
-            }
-          } catch {
-            /* ignore */
-          }
-          Logger.error('[import-preview] edge function error', error, detail);
-          throw new Error(detail);
-        }
-        const d = data as { results: PreviewResult[]; summary: PreviewSummary };
-        aggregatedResults.push(...d.results);
-        aggregatedSummary.total += d.summary.total;
-        aggregatedSummary.ok += d.summary.ok;
-        aggregatedSummary.warning += d.summary.warning;
-        aggregatedSummary.error += d.summary.error;
-        aggregatedSummary.multi_marked_cells = (aggregatedSummary.multi_marked_cells ?? 0) + (d.summary.multi_marked_cells ?? 0);
-        aggregatedSummary.multi_marked_rows = (aggregatedSummary.multi_marked_rows ?? 0) + (d.summary.multi_marked_rows ?? 0);
-        aggregatedSummary.already_finalized += d.summary.already_finalized;
-      }
-
-      setPreviewResults(aggregatedResults);
-      setPreviewSummary(aggregatedSummary);
+      const { results, summary } = await previewImportacao({
+        simuladoId: selectedSimulado,
+        conflictMode,
+        sourceLabel: rotuloDoLote(sourceLabel),
+        rows: parsedRows,
+        textAsBlank: textAsBlankCount,
+      });
+      setPreviewResults(results);
+      setPreviewSummary(summary);
       toast.success('Pré-visualização gerada', {
-        description: `${aggregatedSummary.ok} prontos · ${aggregatedSummary.warning} avisos · ${aggregatedSummary.error} erros`,
+        description: `${summary.ok} prontos · ${summary.warning} avisos · ${summary.error} erros`,
       });
     } catch (err) {
       toast.error('Erro na pré-visualização', { description: err instanceof Error ? err.message : String(err) });
@@ -286,53 +245,19 @@ export default function ImportarRespostasTab() {
     );
     const rowsToSend = parsedRows.filter((r) => validRas.has(normRa(r.matricula_ra)));
 
-    const batchId = crypto.randomUUID();
-    const allResults: PreviewResult[] = [];
-    let imported = 0, skipped = 0, replaced = 0, failed = 0;
-
-    const totalChunks = Math.ceil(rowsToSend.length / CHUNK_SIZE) || 1;
-    setChunkInfo({ current: 0, total: totalChunks, processed: 0, totalRows: rowsToSend.length });
-
-    // Calculado uma única vez fora do loop — antes era reavaliado a cada chunk,
-    // gerando um `source_label` (com timestamp) diferente por lote (achado P3).
-    const resolvedSourceLabel = sourceLabel || `Importação ${new Date().toISOString()}`;
-
-    let cancelled = false;
     try {
-      for (let i = 0; i < rowsToSend.length; i += CHUNK_SIZE) {
-        if (cancelRequestedRef.current) {
-          cancelled = true;
-          break;
-        }
-        const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
-        const chunk = rowsToSend.slice(i, i + CHUNK_SIZE);
-        setChunkInfo({ current: chunkIndex, total: totalChunks, processed: i, totalRows: rowsToSend.length });
-
-        const { data, error } = await supabase.functions.invoke('admin-import-simulado-responses', {
-          body: {
-            simulado_id: selectedSimulado,
-            conflict_mode: conflictMode,
-            source_label: resolvedSourceLabel,
-            batch_id: batchId,
-            default_finalizado_em: defaultDate || undefined,
-            // Contrato com a edge `admin-import-simulado-responses`: com `chunk_meta`,
-            // os contadores do batch são acumulados entre chunks (total_rows vem daqui)
-            // e o audit log só é gravado no chunk com is_last=true.
-            chunk_meta: { total_rows: rowsToSend.length, is_last: chunkIndex === totalChunks },
-            rows: chunk.map((r) => ({ matricula_ra: r.matricula_ra, answers: r.answers })),
-          },
-        });
-        if (error) throw error;
-        const d = data as { results: PreviewResult[]; summary: { imported: number; skipped: number; replaced: number; failed: number } };
-        allResults.push(...d.results);
-        imported += d.summary.imported;
-        skipped += d.summary.skipped;
-        replaced += d.summary.replaced;
-        failed += d.summary.failed;
-        setProgress(Math.round(((i + chunk.length) / rowsToSend.length) * 100));
-      }
-
-      setFinalReport({ batch_id: batchId, summary: { total: rowsToSend.length, imported, skipped, replaced, failed }, results: allResults });
+      const { report, cancelled } = await executarImportacao({
+        simuladoId: selectedSimulado,
+        conflictMode,
+        sourceLabel: rotuloDoLote(sourceLabel),
+        defaultDate,
+        rows: rowsToSend,
+        onChunk: setChunkInfo,
+        onProgress: setProgress,
+        deveCancelar: () => cancelRequestedRef.current,
+      });
+      const { imported, skipped, replaced, failed } = report.summary;
+      setFinalReport(report);
       setCancelledLast(cancelled);
       toast.success(cancelled ? 'Importação interrompida' : 'Importação concluída', {
         description: cancelled
