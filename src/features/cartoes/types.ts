@@ -1,7 +1,10 @@
 /** Tipos do emissor de cartões-resposta (espelham `services/cartao-omr`). */
 
-export type ModeloCartao = 'personalizado' | 'uniatenas';
+export type ModeloCartao = 'personalizado' | 'uniatenas' | 'generico';
 export type LayoutCartao = 'sfa' | 'uniatenas';
+/** Template de cada página: o do layout, ou o do cartão genérico (mesma geometria do sfa). */
+export type ChaveTemplate = LayoutCartao | 'generico';
+export type TemplatesCartao = Record<ChaveTemplate, CardTemplate>;
 
 /** Conteúdo variável de um cartão; a geometria vem do template. */
 export interface CardSpec {
@@ -11,7 +14,7 @@ export interface CardSpec {
   ies?: string;
   /** Data da prova já formatada, ex.: `25/10/2026`. */
   data?: string;
-  /** Só no personalizado. */
+  /** Só no personalizado (no genérico o aluno escreve à mão). */
   alunoNome?: string;
   /** Só no personalizado; normalizada (`trim` + maiúsculas) ao montar o QR. */
   matricula?: string;
@@ -22,7 +25,7 @@ export interface CardSpec {
 }
 
 export interface QrData {
-  kind: 'M' | 'E' | 'A';
+  kind: 'M' | 'E' | 'A' | 'G';
   sim8: string;
   matricula: string | null;
   email: string | null;

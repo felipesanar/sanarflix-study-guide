@@ -5,10 +5,9 @@
  */
 import { gerarPdf } from './emitir.ts';
 import { TEMPLATES } from './templates.ts';
-import type { CardSpec, LayoutCartao } from './types.ts';
+import type { CardSpec } from './types.ts';
 
 export interface PedidoWorker {
-  layout: LayoutCartao;
   specs: CardSpec[];
   titulo: string;
 }
@@ -21,10 +20,10 @@ export type RespostaWorker =
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
 ctx.onmessage = async (ev: MessageEvent<PedidoWorker>) => {
-  const { layout, specs, titulo } = ev.data;
+  const { specs, titulo } = ev.data;
   try {
     const buffer = await gerarPdf(
-      TEMPLATES[layout],
+      TEMPLATES,
       specs,
       { ceder: 0, onProgress: (p) => ctx.postMessage({ tipo: 'progresso', ...p } satisfies RespostaWorker) },
       titulo,

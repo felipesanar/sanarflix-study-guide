@@ -3,12 +3,14 @@
  * `cartao-omr modelo`). O Academy os importa direto de lá: não há cópia para dessincronizar.
  */
 import sfa from '../../../services/cartao-omr/templates/sfa_v4.json';
+import generico from '../../../services/cartao-omr/templates/sfa_generico_v1.json';
 import uniatenas from '../../../services/cartao-omr/templates/uniatenas_v1.json';
-import type { CardTemplate, LayoutCartao } from './types.ts';
+import type { CardTemplate, TemplatesCartao } from './types.ts';
 
-export const TEMPLATES: Record<LayoutCartao, CardTemplate> = {
+export const TEMPLATES: TemplatesCartao = {
   sfa: sfa as unknown as CardTemplate,
   uniatenas: uniatenas as unknown as CardTemplate,
+  generico: generico as unknown as CardTemplate,
 };
 
 /**

@@ -19,7 +19,7 @@ import pymupdf
 import pytest
 import zxingcpp
 
-from cartao_omr.card import build_template, specs_personalizados, specs_uniatenas, write_cards_pdf
+from cartao_omr.card import build_template, specs_genericos, specs_personalizados, specs_uniatenas, write_cards_pdf
 from cartao_omr.models import RosterEntry, parse_qr
 from cartao_omr.pipeline import omr
 from cartao_omr.pipeline.page import OK, read_page
@@ -79,7 +79,9 @@ def _sfa_entrada(alunos=ALUNOS):
 def _sfa_py(alunos=ALUNOS):
     ordenados = sorted(alunos, key=lambda a: (_sort_key(a["nome"]), (a.get("matricula") or a.get("email", "")).strip().upper()))
     roster = [RosterEntry(a.get("matricula", ""), a["nome"], email=a.get("email", "")) for a in ordenados]
-    return specs_personalizados(roster, SIM, "SIMULADO ENAMED 2026", "Faculdade Exemplo", "25/10/2026")
+    # o Academy acrescenta o cartão genérico na última página, como o `gerar-cartoes`
+    return (specs_personalizados(roster, SIM, "SIMULADO ENAMED 2026", "Faculdade Exemplo", "25/10/2026")
+            + specs_genericos(1, SIM, "SIMULADO ENAMED 2026", "Faculdade Exemplo", "25/10/2026"))
 
 
 @pytest.fixture(scope="module")
@@ -100,7 +102,7 @@ def uni(tmp_path_factory):
 def test_uma_pagina_a4_por_cartao_na_mesma_ordem_do_python(sfa):
     pdf, stats, specs = sfa
     doc = pymupdf.open(stream=pdf, filetype="pdf")
-    assert len(doc) == stats["paginas"] == len(specs) == 5
+    assert len(doc) == stats["paginas"] == len(specs) == 5 + 1  # 5 alunos e o genérico
     for page in doc:
         assert round(page.rect.width / 72 * 25.4) == 210 and round(page.rect.height / 72 * 25.4) == 297
 
@@ -110,7 +112,7 @@ def test_qr_de_cada_pagina_e_o_payload_do_python(sfa):
     for i, spec in enumerate(specs):
         lidos = zxingcpp.read_barcodes(render_gray(pdf, i, 200))
         assert [r.text for r in lidos] == [spec.qr_payload], i
-        assert parse_qr(lidos[0].text).identificacao == (spec.matricula_normalizada or spec.email_normalizado)
+        assert parse_qr(lidos[0].text).identificacao == (spec.matricula_normalizada or spec.email_normalizado or None)
 
 
 def test_qr_do_typescript_e_igual_ao_do_python_pixel_a_pixel(sfa):
@@ -189,7 +191,7 @@ def test_leitor_da_fase_1_le_o_cartao_gerado_no_typescript(sfa, tmp_path):
     for i, spec in enumerate(specs):
         res = read_page(render_page(doc, i))
         assert res.status == OK, res.reason
-        chave = spec.matricula_normalizada or spec.email_normalizado
+        chave = spec.matricula_normalizada or spec.email_normalizado or None  # genérico: sem chave no QR
         assert res.identificacao == chave and not res.qr_ilegivel
         assert (res.email_qr is not None) == spec.por_email
         assert res.alignment.rms_mm < 0.3
@@ -229,7 +231,7 @@ def test_gerar_700_cartoes_em_tempo_razoavel(tmp_path):
     """Uma turma grande (UNIFIP tem ~700 matrículas) precisa gerar sem travar."""
     alunos = [{"matricula": f"20230{i:05d}", "nome": f"Aluno Sintético {i:04d}"} for i in range(700)]
     pdf, stats = run_ts(tmp_path, _sfa_entrada(alunos))
-    assert stats["paginas"] == 700
+    assert stats["paginas"] == 700 + 1
     assert stats["ms"] < 120_000, stats  # medida em 16/10/2026 no Windows: ver o handoff da Fase E
-    assert len(pymupdf.open(stream=pdf, filetype="pdf")) == 700
+    assert len(pymupdf.open(stream=pdf, filetype="pdf")) == 700 + 1
     assert re.match(rb"%PDF-", pdf[:8])

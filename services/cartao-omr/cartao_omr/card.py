@@ -20,9 +20,10 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 from . import layout as L
-from .drawlist import DRAW_VERSION, build_draw
+from .drawlist import DRAW_VERSION, DRAW_VERSION_GENERICO, build_draw
 from .models import (
     EMAIL_MAX,
+    MODEL_GENERICO,
     MODEL_PERSONALIZADO,
     MODEL_UNIATENAS,
     CardSpec,
@@ -58,9 +59,15 @@ PAYLOAD_FORMAT = {
                    "SFA2:E:<SIM8>:<EMAIL> (plano B, minúsculas, até 58 caracteres)"),
     L.LAYOUT_UNIATENAS: "SFA2:A:<SIM8>; maiúsculas, hex sem hífens",
 }
+PAYLOAD_FORMAT_GENERICO = "SFA2:G:<SIM8>; maiúsculas, hex sem hífens (nome e matrícula escritos à mão)"
 
 
-def build_template(layout: str) -> dict:
+def build_template(layout: str, generico: bool = False) -> dict:
+    """Template do layout. `generico=True` (só sfa): o cartão em branco, com a mesma geometria do sfa."""
+    if generico:
+        if layout != L.LAYOUT_SFA:
+            raise ValueError("o cartão genérico usa o layout sfa")
+        return _template_generico()
     geo = L.build_geometry(layout)
     fid = {k: [L._r(x), L._r(y), L._r(w)] for k, (x, y, w) in geo.fiducials.items()}
     questions = {
@@ -130,6 +137,40 @@ def build_template(layout: str) -> dict:
     }
 
 
+def _template_generico() -> dict:
+    """Mesma geometria do sfa (o leitor alinha e lê pelo sfa_v4); muda a versão, o QR e a lista de desenho."""
+    base = build_template(L.LAYOUT_SFA)
+    exemplo = CardSpec(model=MODEL_GENERICO, simulado_id=_UUID_EXEMPLO).qr_payload
+    return {
+        **base,
+        "template_version": L.TEMPLATE_GENERICO,
+        "qr": {
+            "error_level": L.QR_ERROR.upper(),
+            "quiet_modules": L.QR_QUIET_MODULES,
+            "payload_format": PAYLOAD_FORMAT_GENERICO,
+            "example": exemplo,
+            "worst_case": qr_info(exemplo, L.LAYOUT_SFA),
+        },
+        "draw_version": DRAW_VERSION_GENERICO,
+        "draw": build_draw(L.LAYOUT_SFA, generico=True),
+    }
+
+
+def template_do_cartao(spec: CardSpec) -> dict:
+    """Template que desenha o cartão: o genérico tem o seu; os demais, o do layout."""
+    return _template_cache(spec.layout, spec.model == MODEL_GENERICO)
+
+
+_TEMPLATES: dict[tuple[str, bool], dict] = {}
+
+
+def _template_cache(layout: str, generico: bool) -> dict:
+    chave = (layout, generico)
+    if chave not in _TEMPLATES:
+        _TEMPLATES[chave] = build_template(layout, generico)
+    return _TEMPLATES[chave]
+
+
 _DRAW_MARK = "__DRAW__"
 
 
@@ -154,9 +195,9 @@ def template_json(template: dict) -> str:
     return text + "\n"
 
 
-def write_template(layout: str, path: Path) -> Path:
+def write_template(layout: str, path: Path, generico: bool = False) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(template_json(build_template(layout)), encoding="utf-8")
+    path.write_text(template_json(build_template(layout, generico)), encoding="utf-8")
     return path
 
 
@@ -296,6 +337,8 @@ def draw_card(canvas: Canvas, template: dict, spec: CardSpec) -> None:
     """Desenha um cartão interpretando `template["draw"]`."""
     if spec.layout != template["layout"]:
         raise ValueError(f"cartão {spec.model} não combina com o layout {template['layout']}")
+    if (spec.model == MODEL_GENERICO) != (template["template_version"] == L.TEMPLATE_GENERICO):
+        raise ValueError(f"cartão {spec.model} não combina com o template {template['template_version']}")
     p = _Page(canvas)
     slots = slot_values(spec)
     for op in template["draw"]:
@@ -343,14 +386,13 @@ def write_cards_pdf(
     layouts = {s.layout for s in specs}
     if len(layouts) != 1:
         raise ValueError("todos os cartões de um PDF precisam ter o mesmo layout")
-    template = build_template(layouts.pop())
     target = str(dest) if isinstance(dest, Path) else dest
     c = Canvas(target, pagesize=(L.PAGE_W * mm, L.PAGE_H * mm), invariant=1, pageCompression=1)
     c.setTitle(title)
     c.setAuthor("SanarFlix Academy")
     c.setCreator("cartao-omr")
     for spec in specs:
-        draw_card(c, template, spec)
+        draw_card(c, template_do_cartao(spec), spec)
         c.showPage()
     c.save()
     return len(specs)
@@ -397,10 +439,29 @@ def specs_uniatenas(
     ]
 
 
-def build_example_pdf(layout: str, dest: Path) -> int:
+ROTULO_GENERICO = "GENÉRICO"
+
+
+def specs_genericos(
+    copias: int, simulado_id: str, nome_simulado: str = "", ies: str = "", data: str = ""
+) -> list[CardSpec]:
+    """Cartões em branco (o aluno escreve nome e matrícula), para quem não estava na lista da emissão."""
+    if copias < 1:
+        raise ValueError("copias precisa ser um inteiro maior que zero")
+    return [
+        CardSpec(model=MODEL_GENERICO, simulado_id=simulado_id, nome_simulado=nome_simulado,
+                 ies=ies, data=data, label=ROTULO_GENERICO)
+        for _ in range(copias)
+    ]
+
+
+def build_example_pdf(layout: str, dest: Path, generico: bool = False) -> int:
     """PDF de exemplo (dados fictícios) usado na conferência visual."""
     sim = "9d6c1f0e-0a5b-4c3a-8d2e-123456789abc"
     nome = "SIMULADO ENAMED 2026"
+    if generico:
+        specs = specs_genericos(1, sim, nome, "Faculdade Exemplo", "25/10/2026")
+        return write_cards_pdf(dest, specs, title="Exemplo — cartão genérico")
     if layout == L.LAYOUT_SFA:
         specs = specs_personalizados(
             [RosterEntry("2023001234", "Maria Exemplo da Silva")],

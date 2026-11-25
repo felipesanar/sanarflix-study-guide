@@ -81,9 +81,10 @@ def test_simulado_que_nao_e_uuid_e_recusado(sim):
         CardSpec(model="personalizado", simulado_id=sim, matricula=MAT).qr_payload
 
 
-def test_modelo_generico_nao_existe_mais():
+def test_modelo_generico_leva_so_o_simulado_no_qr():
+    assert CardSpec(model="generico", simulado_id=SIM).qr_payload == f"SFA2:G:{sim8(SIM)}"
     with pytest.raises(ValueError):
-        CardSpec(model="generico", simulado_id=SIM).qr_payload
+        CardSpec(model="outro", simulado_id=SIM).qr_payload
 
 
 # ------------------------------------------------------------------ plano B: e-mail

@@ -6,7 +6,7 @@ import { EmissaoCancelada, gerarPdf } from './emitir.ts';
 import type { ProgressoEmissao } from './emitir.ts';
 import type { RespostaWorker } from './emitir.worker.ts';
 import { TEMPLATES } from './templates.ts';
-import type { CardSpec, LayoutCartao } from './types.ts';
+import type { CardSpec } from './types.ts';
 
 export interface OpcoesGeracao {
   onProgress?: (p: ProgressoEmissao) => void;
@@ -14,14 +14,13 @@ export interface OpcoesGeracao {
 }
 
 export function gerarPdfSegundoPlano(
-  layout: LayoutCartao,
   specs: CardSpec[],
   opcoes: OpcoesGeracao = {},
   titulo = 'Cartões-resposta SFA',
 ): Promise<ArrayBuffer> {
   if (typeof Worker === 'undefined') {
     const opts = { ceder: 4, shouldCancel: () => opcoes.signal?.aborted === true };
-    return gerarPdf(TEMPLATES[layout], specs, { ...opts, ...(opcoes.onProgress ? { onProgress: opcoes.onProgress } : {}) }, titulo);
+    return gerarPdf(TEMPLATES, specs, { ...opts, ...(opcoes.onProgress ? { onProgress: opcoes.onProgress } : {}) }, titulo);
   }
   return new Promise<ArrayBuffer>((resolve, reject) => {
     if (opcoes.signal?.aborted) return reject(new EmissaoCancelada());
@@ -51,6 +50,6 @@ export function gerarPdfSegundoPlano(
       encerrar();
       reject(new Error(ev.message || 'falha no worker de emissão'));
     };
-    worker.postMessage({ layout, specs, titulo });
+    worker.postMessage({ specs, titulo });
   });
 }

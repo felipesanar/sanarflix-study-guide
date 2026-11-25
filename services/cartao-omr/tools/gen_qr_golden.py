@@ -71,6 +71,14 @@ def build() -> dict:
     # byte (minúsculas) de vários tamanhos (versões 1 a 9)
     for n in (1, 5, 9, 14, 20, 32, 46, 60, 74, 80, 90, 110, 128):
         textos.append("".join(rnd.choice("abcdefghijklmnopqrstuvwxyz,;_") for _ in range(n)))
+    # cartão genérico (SFA2:G:<SIM8>); gerador à parte para não mudar os vetores anteriores
+    rnd_g = random.Random(20261125)
+    for _ in range(5):
+        sim = str(uuid.UUID(int=rnd_g.getrandbits(128), version=4))
+        s = CardSpec(model="generico", simulado_id=sim)
+        textos.append(s.qr_payload)
+        payloads.append({"model": "generico", "simulado_id": sim, "matricula": None, "email": None,
+                         "sim8": sim8(sim), "payload": s.qr_payload})
     casos = []
     for t in textos:
         version, rows = matrix(t)

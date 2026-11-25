@@ -4,6 +4,7 @@
  *   personalizado, com matrícula  SFA2:M:<SIM8>:<MATRICULA>   maiúsculas, modo alfanumérico (compacto)
  *   personalizado, plano B        SFA2:E:<SIM8>:<EMAIL>       minúsculas, modo byte (maior)
  *   UniAtenas                     SFA2:A:<SIM8>
+ *   genérico (escrito à mão)      SFA2:G:<SIM8>
  *
  * SIM8 = 8 primeiros hex do simulado_id. O cartão não leva o `user_id`: o aluno é identificado pela matrícula
  * (a mesma que a importação do Academy aceita na 1ª coluna) ou, quando o cadastro não tem matrícula utilizável,
@@ -24,7 +25,7 @@ const EMAIL_RE = new RegExp(`^${EMAIL_PARTES}$`);
 
 const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 const QR_RE = new RegExp(
-  `^SFA2:(?:M:([0-9A-F]{8}):([A-Z0-9./-]{1,24})|E:([0-9A-F]{8}):(${EMAIL_PARTES})|A:([0-9A-F]{8}))$`,
+  `^SFA2:(?:M:([0-9A-F]{8}):([A-Z0-9./-]{1,24})|E:([0-9A-F]{8}):(${EMAIL_PARTES})|A:([0-9A-F]{8})|G:([0-9A-F]{8}))$`,
 );
 
 export type ProblemaMatricula = 'sem_matricula' | 'formato_nao_suportado';
@@ -96,6 +97,7 @@ export function buildPayload(spec: Pick<CardSpec, 'model' | 'simuladoId' | 'matr
     return `${QR_PREFIX}:M:${ref}:${normalizarMatricula(spec.matricula)}`;
   }
   if (spec.model === 'uniatenas') return `${QR_PREFIX}:A:${ref}`;
+  if (spec.model === 'generico') return `${QR_PREFIX}:G:${ref}`;
   throw new Error(`modelo desconhecido: ${JSON.stringify(spec.model)}`);
 }
 
@@ -108,12 +110,16 @@ export function parseQr(texto: string): QrData | null {
     if (m[4].length > EMAIL_MAX) return null;
     return { kind: 'E', sim8: m[3], matricula: null, email: m[4] };
   }
-  return { kind: 'A', sim8: m[5]!, matricula: null, email: null };
+  if (m[5]) return { kind: 'A', sim8: m[5], matricula: null, email: null };
+  return { kind: 'G', sim8: m[6]!, matricula: null, email: null };
 }
 
-/** Código legível sob o QR: a matrícula ou o e-mail (personalizado) ou `UNIATENAS`. */
+export const ROTULO_GENERICO = 'GENÉRICO';
+
+/** Código legível sob o QR: a matrícula ou o e-mail (personalizado), `UNIATENAS` ou `GENÉRICO`. */
 export function rotuloDoCartao(model: CardSpec['model'], matricula?: string, email?: string): string {
   if (model === 'uniatenas') return 'UNIATENAS';
+  if (model === 'generico') return ROTULO_GENERICO;
   if (cartaoPorEmail({ model, matricula, email })) {
     const problema = problemaDoEmail(email);
     if (problema) throw new Error(`e-mail não pode ir no QR (${problema})`);
