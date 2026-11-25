@@ -12,7 +12,14 @@ import { Label } from '@/components/ui/label';
 import { AdminError, AdminLoading, StatCard, StatusPill } from '@/experiences/admin/ui';
 import { cn } from '@/lib/utils';
 import { brazilISOToDatetimeLocal, datetimeLocalToBrazilISO } from '@/utils/timezone';
-import { listarPaginas, marcarImportada, obterLeitura, revisarPagina, urlsAssinadas } from '@/features/cartoes/leitura/api';
+import {
+  apagarArquivos,
+  listarPaginas,
+  marcarImportada,
+  obterLeitura,
+  revisarPagina,
+  urlsAssinadas,
+} from '@/features/cartoes/leitura/api';
 import { montarLinhas, situacoes, type Situacao } from '@/features/cartoes/leitura/linhas';
 import type { Leitura, PaginaLeitura, RevisaoPatch } from '@/features/cartoes/leitura/types';
 import { executarImportacao, previewImportacao, rotuloDoLote, type ChunkInfo } from './importar-respostas-api';
@@ -69,7 +76,8 @@ export function RevisaoLeitura({ leituraId, simuladoNome, onVoltar }: RevisaoLei
       setPaginas(pgs);
       setSourceLabel((s) => s || `Leitura de cartões: ${l.arquivo_nome}`);
       const caminhos = pgs.flatMap((p) => [p.imagem, ...p.pendencias.map((x) => x.recorte)]).filter((c): c is string => Boolean(c));
-      setUrls(await urlsAssinadas(caminhos));
+      // depois da importação os arquivos são apagados: não há imagem para assinar
+      setUrls(l.arquivos_apagados_em ? {} : await urlsAssinadas(caminhos));
       setErro(null);
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e));
@@ -139,6 +147,15 @@ export function RevisaoLeitura({ leituraId, simuladoNome, onVoltar }: RevisaoLei
       if (!c) {
         await marcarImportada(leitura.id, report.batch_id);
         setLeitura({ ...leitura, status: 'importado', import_batch_id: report.batch_id });
+        // o PDF e as imagens só serviam até aqui; o resultado fica no banco
+        try {
+          await apagarArquivos(leitura.id);
+          setLeitura((l) => (l ? { ...l, arquivos_apagados_em: new Date().toISOString() } : l));
+        } catch (e) {
+          toast.warning('Importado, mas não consegui apagar o PDF', {
+            description: `${e instanceof Error ? e.message : String(e)}. Apague depois pelo botão "Apagar arquivos" na lista.`,
+          });
+        }
       }
       const s = report.summary;
       toast.success(c ? 'Importação interrompida' : 'Importação concluída', {
@@ -186,6 +203,12 @@ export function RevisaoLeitura({ leituraId, simuladoNome, onVoltar }: RevisaoLei
         <span className="text-sm text-muted-foreground">{simuladoNome(leitura.simulado_id)}</span>
         <StatusPill variant={STATUS[leitura.status].variant}>{STATUS[leitura.status].rotulo}</StatusPill>
       </div>
+
+      {leitura.arquivos_apagados_em && (
+        <p className="text-sm text-muted-foreground">
+          O PDF e as imagens desta leitura foram apagados depois da importação; o resultado continua aqui.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatCard label="Prontas" value={c.pronta} accent="emerald" />

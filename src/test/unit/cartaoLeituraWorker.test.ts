@@ -48,7 +48,8 @@ describe('cartao-leitura-worker/logica', () => {
     expect(caminhosDeRecorte(L, ['recortes/pagina_0001_x.png', 'recortes/pagina_0001_x.png'])).toEqual([
       `${L}/recortes/pagina_0001_x.png`,
     ]);
-    for (const ruim of ['../scan.pdf', 'recortes/../../x.png', 'recortes/a.pdf', 'outra/a.png', 'recortes/sub/a.png']) {
+    expect(caminhosDeRecorte(L, ['recortes/pagina_0001_pagina.jpg'])).toEqual([`${L}/recortes/pagina_0001_pagina.jpg`]);
+    for (const ruim of ['../scan.pdf', 'recortes/../../x.png', 'recortes/a.pdf', 'outra/a.png', 'recortes/sub/a.png', 'recortes/a.jpeg']) {
       expect(caminhosDeRecorte(L, [ruim])).toHaveProperty('erro');
     }
     expect(caminhosDeRecorte(L, [])).toHaveProperty('erro');
@@ -129,5 +130,21 @@ describe('migration cartao_leituras', () => {
   it('bucket privado, só PDF e PNG', () => {
     expect(sql).toMatch(/VALUES \('cartoes-leitura', 'cartoes-leitura', false,/);
     expect(sql).toContain("ARRAY['application/pdf', 'image/png']");
+  });
+});
+
+describe('migration cartao_leituras_limpeza', () => {
+  const sql = readFileSync(join(process.cwd(), 'supabase/migrations/20261125150000_cartao_leituras_limpeza.sql'), 'utf-8');
+
+  it('excluir só para admin e nunca durante a leitura', () => {
+    expect(sql).toMatch(/FOR DELETE TO authenticated\s+USING \(public\.has_role\(auth\.uid\(\), 'admin'::app_role\) AND status <> 'processando'\)/);
+  });
+
+  it('apagar no bucket só para admin e só no cartoes-leitura', () => {
+    expect(sql).toMatch(/ON storage\.objects\s+FOR DELETE TO authenticated\s+USING \(bucket_id = 'cartoes-leitura' AND public\.has_role/);
+  });
+
+  it('bucket aceita JPEG e continua sem outros tipos', () => {
+    expect(sql).toContain("ARRAY['application/pdf', 'image/png', 'image/jpeg']");
   });
 });

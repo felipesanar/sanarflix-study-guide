@@ -47,6 +47,7 @@ Em **Admin → Simulados → Leitura de cartões**:
    - cada ação grava na hora: dá para parar e continuar depois.
 3. Com tudo resolvido, **Pré-visualizar importação** roda o mesmo dry-run da aba Importar respostas; confirme e a leitura fica **Importado**.
 4. **Falhou**: veja o motivo na lista (e o link do run no GitHub) e use **Ler de novo**.
+5. **Armazenamento:** o PDF e as imagens da revisão (página inteira em JPEG, só nas páginas com pendência) ficam no bucket só até a importação; depois dela são **apagados automaticamente**, e a linha da leitura fica como histórico. Leitura enviada por engano ou abandonada: botão da lixeira na lista (**Excluir**). Uma leitura importada sem conseguir apagar mostra **Apagar arquivos**. Depois de apagados, a leitura não pode ser relida: para refazer, envie o PDF de novo.
 
 A CLI abaixo (passos 4b e 5) continua valendo como plano B, por exemplo se o GitHub Actions estiver fora.
 

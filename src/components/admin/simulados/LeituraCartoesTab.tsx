@@ -3,15 +3,27 @@
  * e abre a revisão, de onde as respostas são importadas pelo caminho de sempre.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, FileUp, Loader2, RotateCcw, ScanLine } from 'lucide-react';
+import { ExternalLink, FileUp, Loader2, RotateCcw, ScanLine, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AdminEmpty, AdminError, AdminLoading, AdminSectionHeader, StatusPill } from '@/experiences/admin/ui';
 import {
+  apagarArquivos,
   enviarLeitura,
+  excluirLeitura,
   iniciarLeitura,
   listarLeituras,
   listarSimulados,
@@ -24,6 +36,7 @@ import { RevisaoLeitura } from './RevisaoLeitura';
 
 const POLLING_MS = 10_000;
 
+type Confirmacao = { leitura: Leitura; tipo: 'excluir' | 'arquivos' };
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 const mb = (b: number | null) => (b == null ? '' : `${(b / 1024 / 1024).toFixed(1)} MB`);
@@ -36,6 +49,8 @@ export default function LeituraCartoesTab() {
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [aberta, setAberta] = useState<string | null>(null);
+  const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+  const [apagando, setApagando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const nomeSimulado = useMemo(() => new Map(simulados.map((s) => [s.id, s.nome])), [simulados]);
@@ -114,6 +129,27 @@ export default function LeituraCartoesTab() {
     } catch (e) {
       toast.error('Não consegui disparar', { description: e instanceof Error ? e.message : String(e) });
     } finally {
+      void recarregar();
+    }
+  };
+
+  const confirmarApagar = async () => {
+    if (!confirmacao) return;
+    const { leitura, tipo } = confirmacao;
+    setApagando(true);
+    try {
+      if (tipo === 'excluir') {
+        await excluirLeitura(leitura.id);
+        toast.success('Leitura excluída', { description: `${leitura.arquivo_nome} e as imagens foram apagados.` });
+      } else {
+        const n = await apagarArquivos(leitura.id);
+        toast.success('Arquivos apagados', { description: `${n} arquivo(s). O resultado da leitura continua na lista.` });
+      }
+    } catch (e) {
+      toast.error('Não consegui apagar', { description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setApagando(false);
+      setConfirmacao(null);
       void recarregar();
     }
   };
@@ -208,7 +244,9 @@ export default function LeituraCartoesTab() {
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {l.resumo
-                      ? `${l.resumo.paginas} pág. · ${l.resumo.identificadas} identificadas · ${l.resumo.nao_identificadas} não identificadas`
+                      ? `${l.resumo.paginas} pág. · ${l.resumo.identificadas} identificadas · ${l.resumo.nao_identificadas} não identificadas${
+                          l.arquivos_apagados_em ? ' · arquivos apagados' : ` · ${mb(l.arquivo_bytes)}`
+                        }`
                       : l.status === 'falhou'
                         ? <span className="text-red-600 dark:text-red-400" title={l.erro ?? ''}>{(l.erro ?? '').slice(0, 120)}</span>
                         : '—'}
@@ -229,6 +267,21 @@ export default function LeituraCartoesTab() {
                         {l.status === 'importado' ? 'Ver' : 'Revisar'}
                       </Button>
                     )}
+                    {l.status === 'importado' && !l.arquivos_apagados_em && (
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmacao({ leitura: l, tipo: 'arquivos' })}>
+                        <Trash2 className="mr-1 h-4 w-4" /> Apagar arquivos
+                      </Button>
+                    )}
+                    {l.status !== 'processando' && l.status !== 'importado' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Excluir a leitura ${l.arquivo_nome}`}
+                        onClick={() => setConfirmacao({ leitura: l, tipo: 'excluir' })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -236,6 +289,33 @@ export default function LeituraCartoesTab() {
           </Table>
         </div>
       )}
+
+      <AlertDialog open={confirmacao !== null} onOpenChange={(aberto) => !aberto && !apagando && setConfirmacao(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmacao?.tipo === 'excluir' ? 'Excluir esta leitura?' : 'Apagar o PDF e as imagens?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmacao?.tipo === 'excluir'
+                ? `${confirmacao.leitura.arquivo_nome}: o PDF, as imagens e a revisão feita até aqui serão apagados. Nenhuma resposta foi importada desta leitura. Não dá para desfazer.`
+                : `${confirmacao?.leitura.arquivo_nome}: as respostas já foram importadas e o resultado da leitura continua na lista, mas o PDF e as imagens da revisão somem. Não dá para desfazer.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={apagando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={apagando}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmarApagar();
+              }}
+            >
+              {apagando ? 'Apagando…' : confirmacao?.tipo === 'excluir' ? 'Excluir' : 'Apagar arquivos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

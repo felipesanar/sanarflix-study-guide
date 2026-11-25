@@ -76,6 +76,7 @@ class _Edge:
         self.pdf, self.token, self.falhar_em = pdf, token, falhar_em
         self.chamadas: list[dict] = []
         self.uploads: dict[str, bytes] = {}
+        self.tipos: dict[str, str] = {}
         edge = self
 
         class H(BaseHTTPRequestHandler):
@@ -95,6 +96,7 @@ class _Edge:
             def do_PUT(self):
                 n = int(self.headers["Content-Length"])
                 edge.uploads[self.path.removeprefix("/upload/")] = self.rfile.read(n)
+                edge.tipos[self.path.removeprefix("/upload/")] = self.headers["Content-Type"]
                 self._responder(200, {})
 
             def do_POST(self):
@@ -146,9 +148,14 @@ def test_worker_caminho_feliz(edge, monkeypatch):
     generico = dados["paginas"][2]
     assert generico["destino"] == NAO_IDENTIFICADOS and generico["motivo"] == CARTAO_GENERICO
     # o recorte do nome/matrícula e a página inteira foram enviados
-    assert generico["imagem"] == "recortes/pagina_0003_pagina.png"
+    assert generico["imagem"] == "recortes/pagina_0003_pagina.jpg"
     assert set(edge.uploads) == set(recortes_do_resultado(dados))
-    assert all(b[:8] == b"\x89PNG\r\n\x1a\n" for b in edge.uploads.values())
+    # página inteira em JPEG (menor), recortes em PNG; o Content-Type acompanha
+    for caminho, b in edge.uploads.items():
+        if caminho.endswith(".jpg"):
+            assert b[:3] == b"\xff\xd8\xff" and edge.tipos[caminho] == "image/jpeg"
+        else:
+            assert b[:8] == b"\x89PNG\r\n\x1a\n" and edge.tipos[caminho] == "image/png"
     # páginas identificadas sem dúvida não ganham imagem
     assert "imagem" not in dados["paginas"][0]
 

@@ -31,6 +31,8 @@ export interface Leitura {
   resumo: ResumoLeitura | null;
   import_batch_id: string | null;
   importado_em: string | null;
+  /** PDF e imagens apagados do bucket (depois da importação). */
+  arquivos_apagados_em: string | null;
 }
 
 export interface PendenciaLida {

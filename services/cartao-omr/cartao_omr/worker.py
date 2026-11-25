@@ -32,6 +32,8 @@ from .serializar import recortes_do_resultado, resultado_para_json
 
 FUNCAO = "cartao-leitura-worker"
 ALTURA_IMAGEM = 1600  # px da imagem de página inteira mostrada na revisão (~5,4 px/mm)
+QUALIDADE_JPEG = 70   # JPEG: ~3,5x menor que PNG num scan realista; bolhas e escrita continuam legíveis
+TIPOS = {".png": "image/png", ".jpg": "image/jpeg"}
 TIMEOUT = 120
 
 
@@ -65,7 +67,8 @@ class Cliente:
                 f.write(bloco)
 
     @staticmethod
-    def enviar(url: str, arquivo: Path, tipo: str = "image/png") -> None:
+    def enviar(url: str, arquivo: Path) -> None:
+        tipo = TIPOS.get(arquivo.suffix.lower(), "application/octet-stream")
         req = urllib.request.Request(url, data=arquivo.read_bytes(), method="PUT",
                                      headers={"Content-Type": tipo, "x-upsert": "true"})
         try:
@@ -81,7 +84,7 @@ def precisa_de_imagem(pg: dict) -> bool:
 
 
 def gerar_imagens(pdf: Path, dados: dict, saida: Path) -> None:
-    """Imagem de página inteira (`recortes/pagina_NNNN_pagina.png`) para as páginas que vão à revisão."""
+    """Imagem de página inteira (`recortes/pagina_NNNN_pagina.jpg`) para as páginas que vão à revisão."""
     alvo = [pg for pg in dados["paginas"] if precisa_de_imagem(pg)]
     if not alvo:
         return
@@ -92,8 +95,8 @@ def gerar_imagens(pdf: Path, dados: dict, saida: Path) -> None:
         gray = render_page(doc, pg["pagina"] - 1)
         esc = ALTURA_IMAGEM / gray.shape[0]
         img = cv2.resize(gray, None, fx=esc, fy=esc, interpolation=cv2.INTER_AREA)
-        nome = f"pagina_{pg['pagina']:04d}_pagina.png"
-        cv2.imwrite(str(pasta / nome), img)
+        nome = f"pagina_{pg['pagina']:04d}_pagina.jpg"
+        cv2.imwrite(str(pasta / nome), img, [cv2.IMWRITE_JPEG_QUALITY, QUALIDADE_JPEG])
         pg["imagem"] = f"recortes/{nome}"
 
 

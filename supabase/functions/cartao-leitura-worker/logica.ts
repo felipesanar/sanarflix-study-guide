@@ -5,7 +5,7 @@ export const ACOES = ['obter', 'urls_recortes', 'concluir', 'falhar'] as const;
 export type Acao = (typeof ACOES)[number];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const RECORTE_RE = /^recortes\/[A-Za-z0-9_.-]{1,120}\.png$/;
+const RECORTE_RE = /^recortes\/[A-Za-z0-9_.-]{1,120}\.(png|jpg)$/;
 const DESTINOS = new Set(['respostas', 'nao_identificados', 'ignorada']);
 const LETRAS = new Set(['A', 'B', 'C', 'D', 'E']);
 const MAX_PAGINAS = 5000;

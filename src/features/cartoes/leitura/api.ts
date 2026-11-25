@@ -117,3 +117,49 @@ export async function urlsAssinadas(caminhos: string[]): Promise<Record<string, 
   for (const d of data ?? []) if (d.path && d.signedUrl) out[d.path] = d.signedUrl;
   return out;
 }
+
+/** Caminhos de todos os arquivos da leitura no bucket (PDF e imagens da revisão). */
+async function arquivosDaLeitura(leituraId: string): Promise<string[]> {
+  const out: string[] = [];
+  for (const pasta of [leituraId, `${leituraId}/recortes`]) {
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.storage.from(BUCKET).list(pasta, { limit: 1000, offset });
+      if (error) falha(error, 'listar arquivos');
+      // itens sem id são pastas (ex.: `recortes`)
+      const arquivos = (data ?? []).filter((o) => o.id);
+      out.push(...arquivos.map((o) => `${pasta}/${o.name}`));
+      if ((data ?? []).length < 1000) break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Apaga o PDF e as imagens da leitura (as páginas e o resultado ficam no banco) e marca `arquivos_apagados_em`.
+ * Devolve quantos arquivos foram apagados.
+ */
+export async function apagarArquivos(leituraId: string): Promise<number> {
+  const caminhos = await arquivosDaLeitura(leituraId);
+  for (let i = 0; i < caminhos.length; i += 500) {
+    const { error } = await supabase.storage.from(BUCKET).remove(caminhos.slice(i, i + 500));
+    if (error) falha(error, 'apagar arquivos');
+  }
+  const { error } = await db
+    .from('cartao_leituras')
+    .update({ arquivos_apagados_em: new Date().toISOString() })
+    .eq('id', leituraId);
+  if (error) falha(error, 'marcar arquivos apagados');
+  return caminhos.length;
+}
+
+/** Exclui a leitura inteira: arquivos no bucket, a linha e as páginas (cascade). Não vale durante a leitura. */
+export async function excluirLeitura(leituraId: string): Promise<void> {
+  const caminhos = await arquivosDaLeitura(leituraId);
+  for (let i = 0; i < caminhos.length; i += 500) {
+    const { error } = await supabase.storage.from(BUCKET).remove(caminhos.slice(i, i + 500));
+    if (error) falha(error, 'apagar arquivos');
+  }
+  const { data, error } = await db.from('cartao_leituras').delete().eq('id', leituraId).select('id');
+  if (error) falha(error, 'excluir leitura');
+  if (!data?.length) throw new Error('excluir leitura: a leitura não existe ou está sendo lida agora');
+}

@@ -13,9 +13,11 @@ const api = vi.hoisted(() => ({
   revisarPagina: vi.fn(),
   marcarImportada: vi.fn(),
   urlsAssinadas: vi.fn(),
+  apagarArquivos: vi.fn(),
+  excluirLeitura: vi.fn(),
 }));
 const imp = vi.hoisted(() => ({ previewImportacao: vi.fn(), executarImportacao: vi.fn() }));
-const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
 vi.mock('@/features/cartoes/leitura/api', async (original) => ({
@@ -34,7 +36,7 @@ const SIM = '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc';
 const leitura = (extra: Partial<Leitura> = {}): Leitura => ({
   id: 'L1', simulado_id: SIM, arquivo_nome: 'turma-a.pdf', arquivo_bytes: 1024, total_questoes: 3,
   status: 'concluido', criado_por: 'u', created_at: '2026-11-25T12:00:00Z', disparado_em: null, iniciado_em: null,
-  concluido_em: null, github_run_url: null, erro: null, import_batch_id: null, importado_em: null,
+  concluido_em: null, github_run_url: null, erro: null, import_batch_id: null, importado_em: null, arquivos_apagados_em: null,
   resumo: { paginas: 2, identificadas: 1, nao_identificadas: 1, em_branco: 0, ilegiveis: 0, simulado_divergente: 0, pendencias: 1 },
   ...extra,
 });
@@ -69,6 +71,31 @@ describe('Leitura de cartões: lista', () => {
     fireEvent.click(within(linhas[2]).getByRole('button', { name: /Ler de novo/ }));
     await waitFor(() => expect(api.iniciarLeitura).toHaveBeenCalledWith('L2'));
     expect(within(linhas[3]).getByText('Lendo…')).toBeInTheDocument();
+  });
+
+  it('excluir pede confirmação e apaga a leitura; importada só oferece apagar os arquivos', async () => {
+    api.listarLeituras.mockResolvedValue([
+      leitura({ id: 'L1', arquivo_nome: 'errado.pdf', status: 'concluido' }),
+      leitura({ id: 'L2', arquivo_nome: 'ok.pdf', status: 'importado', import_batch_id: 'B' }),
+      leitura({ id: 'L3', arquivo_nome: 'lendo.pdf', status: 'processando', resumo: null }),
+    ]);
+    api.excluirLeitura.mockResolvedValue(undefined);
+    api.apagarArquivos.mockResolvedValue(4);
+    render(<LeituraCartoesTab />);
+    const linhas = await screen.findAllByRole('row');
+    expect(within(linhas[2]).queryByRole('button', { name: /Excluir a leitura/ })).toBeNull();
+    expect(within(linhas[3]).queryByRole('button', { name: /Excluir a leitura|Apagar arquivos/ })).toBeNull();
+
+    fireEvent.click(within(linhas[1]).getByRole('button', { name: 'Excluir a leitura errado.pdf' }));
+    expect(await screen.findByText('Excluir esta leitura?')).toBeInTheDocument();
+    expect(api.excluirLeitura).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir' }));
+    await waitFor(() => expect(api.excluirLeitura).toHaveBeenCalledWith('L1'));
+
+    fireEvent.click(within((await screen.findAllByRole('row'))[2]).getByRole('button', { name: /Apagar arquivos/ }));
+    expect(await screen.findByText('Apagar o PDF e as imagens?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apagar arquivos' }));
+    await waitFor(() => expect(api.apagarArquivos).toHaveBeenCalledWith('L2'));
   });
 
   it('só envia com simulado e PDF', async () => {
@@ -143,6 +170,19 @@ describe('Leitura de cartões: revisão', () => {
       simuladoId: SIM,
       rows: [{ pagina: pg.pagina, matricula_ra: '2023001', answers: { '1': 'A', '2': 'D', '3': 'C' } }],
     });
+
+    imp.executarImportacao.mockResolvedValue({
+      report: { batch_id: 'B9', summary: { total: 1, imported: 1, skipped: 0, replaced: 0, failed: 0 }, results: [] },
+      cancelled: false,
+    });
+    api.marcarImportada.mockResolvedValue(undefined);
+    api.apagarArquivos.mockResolvedValue(3);
+    fireEvent.click(await screen.findByRole('button', { name: /Confirmar importação/ }));
+    const confirmar = await screen.findByRole('textbox');
+    fireEvent.change(confirmar, { target: { value: 'IMPORTAR' } });
+    fireEvent.click(screen.getAllByRole('button', { name: /Importar|Confirmar/ }).at(-1)!);
+    await waitFor(() => expect(api.marcarImportada).toHaveBeenCalledWith('L1', 'B9'));
+    await waitFor(() => expect(api.apagarArquivos).toHaveBeenCalledWith('L1'));
   });
 
   it('leitura já importada fica só para consulta', async () => {
