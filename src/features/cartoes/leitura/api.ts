@@ -46,8 +46,8 @@ export async function obterLeitura(id: string): Promise<Leitura> {
 }
 
 /**
- * Sobe o PDF (`<id>/scan.pdf`), cria a leitura em `enviado` e dispara o worker.
- * Se o disparo falhar, a leitura fica criada e pode ser disparada de novo pela lista.
+ * Sobe o PDF (`<id>/scan.pdf`) e cria a leitura em `enviado`. Quem chama dispara o worker com `iniciarLeitura`;
+ * se o disparo falhar, a leitura fica criada e pode ser disparada de novo pela lista.
  */
 export async function enviarLeitura(opts: { simuladoId: string; totalQuestoes: number; arquivo: File }): Promise<string> {
   const id = crypto.randomUUID();
@@ -66,7 +66,6 @@ export async function enviarLeitura(opts: { simuladoId: string; totalQuestoes: n
     total_questoes: opts.totalQuestoes, // criado_por: default auth.uid() (a policy confere)
   });
   if (error) falha(error, 'registro da leitura');
-  await iniciarLeitura(id);
   return id;
 }
 

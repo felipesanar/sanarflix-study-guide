@@ -39,6 +39,11 @@ const leitura = (extra: Partial<Leitura> = {}): Leitura => ({
   ...extra,
 });
 
+// Radix Select no jsdom
+Element.prototype.scrollIntoView ??= vi.fn();
+Element.prototype.hasPointerCapture ??= vi.fn(() => false);
+Element.prototype.releasePointerCapture ??= vi.fn();
+
 beforeEach(() => {
   vi.clearAllMocks();
   api.listarSimulados.mockResolvedValue([{ id: SIM, nome: 'SIMULADO ENAMED', total_questoes: 3 }]);
@@ -75,6 +80,22 @@ describe('Leitura de cartões: lista', () => {
     const input = screen.getByLabelText('PDF escaneado');
     fireEvent.change(input, { target: { files: [new File(['x'], 'notas.xlsx', { type: 'application/vnd.ms-excel' })] } });
     expect(toast.error).toHaveBeenCalledWith('Envie o PDF escaneado dos cartões');
+  });
+
+  it('PDF enviado mas o disparo falhou: avisa que a leitura não começou', async () => {
+    api.listarLeituras.mockResolvedValue([]);
+    api.enviarLeitura.mockResolvedValue('L9');
+    api.iniciarLeitura.mockRejectedValue(new Error('não consegui iniciar a leitura: GITHUB_DISPATCH_TOKEN ausente'));
+    render(<LeituraCartoesTab />);
+    await screen.findByText('Nenhuma leitura ainda');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Simulado' }));
+    fireEvent.click(await screen.findByRole('option', { name: /SIMULADO ENAMED/ }));
+    fireEvent.change(screen.getByLabelText('PDF escaneado'), {
+      target: { files: [new File(['%PDF'], 'scan.pdf', { type: 'application/pdf' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Enviar e ler/ }));
+    await waitFor(() => expect(api.iniciarLeitura).toHaveBeenCalledWith('L9'));
+    expect(toast.error).toHaveBeenCalledWith('PDF enviado, mas a leitura não começou', expect.anything());
   });
 });
 

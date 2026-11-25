@@ -84,12 +84,23 @@ export default function LeituraCartoesTab() {
     }
     setEnviando(true);
     try {
-      await enviarLeitura({ simuladoId: simulado.id, totalQuestoes: Math.min(simulado.total_questoes, 100), arquivo });
-      toast.success('PDF enviado', { description: 'A leitura leva alguns minutos. Esta lista se atualiza sozinha.' });
+      let id: string;
+      try {
+        id = await enviarLeitura({ simuladoId: simulado.id, totalQuestoes: Math.min(simulado.total_questoes, 100), arquivo });
+      } catch (e) {
+        toast.error('Não consegui enviar o PDF', { description: e instanceof Error ? e.message : String(e) });
+        return;
+      }
       setArquivo(null);
       if (inputRef.current) inputRef.current.value = '';
-    } catch (e) {
-      toast.error('Não consegui enviar', { description: e instanceof Error ? e.message : String(e) });
+      try {
+        await iniciarLeitura(id);
+        toast.success('PDF enviado', { description: 'A leitura leva alguns minutos. Esta lista se atualiza sozinha.' });
+      } catch (e) {
+        toast.error('PDF enviado, mas a leitura não começou', {
+          description: `${e instanceof Error ? e.message : String(e)}. Tente "Ler de novo" na lista.`,
+        });
+      }
     } finally {
       setEnviando(false);
       void recarregar();
