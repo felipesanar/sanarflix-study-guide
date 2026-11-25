@@ -14,14 +14,14 @@ afterEach(() => vi.unstubAllGlobals());
 describe('gerarPdfSegundoPlano sem Worker (fallback na thread principal)', () => {
   it('gera o PDF e informa o progresso', async () => {
     const progresso = vi.fn();
-    const buf = await gerarPdfSegundoPlano('sfa', specs(), { onProgress: progresso });
+    const buf = await gerarPdfSegundoPlano(specs(), { onProgress: progresso });
     expect(new TextDecoder('latin1').decode(new Uint8Array(buf).slice(0, 5))).toBe('%PDF-');
-    expect(progresso).toHaveBeenLastCalledWith({ feitas: 2, total: 2 });
+    expect(progresso).toHaveBeenLastCalledWith({ feitas: 3, total: 3 }); // 2 alunos e o genérico
   });
 
   it('cancela com AbortController', async () => {
     const controle = new AbortController();
-    const promessa = gerarPdfSegundoPlano('sfa', specs(), { signal: controle.signal, onProgress: () => controle.abort() });
+    const promessa = gerarPdfSegundoPlano(specs(), { signal: controle.signal, onProgress: () => controle.abort() });
     await expect(promessa).rejects.toBeInstanceOf(EmissaoCancelada);
   });
 });
@@ -54,11 +54,11 @@ describe('gerarPdfSegundoPlano com Worker', () => {
     vi.stubGlobal('Worker', FakeWorker);
     const progresso = vi.fn();
     const s = specs();
-    const promessa = gerarPdfSegundoPlano('sfa', s, { onProgress: progresso }, 'Título');
+    const promessa = gerarPdfSegundoPlano(s, { onProgress: progresso }, 'Título');
     const w = FakeWorker.ultimo!;
     expect(w.url.pathname.endsWith('emitir.worker.ts')).toBe(true);
     expect(w.opcoes).toEqual({ type: 'module' });
-    expect(w.enviadas).toEqual([{ layout: 'sfa', specs: s, titulo: 'Título' }]);
+    expect(w.enviadas).toEqual([{ specs: s, titulo: 'Título' }]);
     w.responder({ tipo: 'progresso', feitas: 1, total: 2 });
     const buffer = new ArrayBuffer(8);
     w.responder({ tipo: 'pronto', buffer });
@@ -69,7 +69,7 @@ describe('gerarPdfSegundoPlano com Worker', () => {
 
   it('rejeita com a mensagem de erro do worker', async () => {
     vi.stubGlobal('Worker', FakeWorker);
-    const promessa = gerarPdfSegundoPlano('sfa', specs());
+    const promessa = gerarPdfSegundoPlano(specs());
     FakeWorker.ultimo!.responder({ tipo: 'erro', mensagem: 'sem memória' });
     await expect(promessa).rejects.toThrow('sem memória');
     expect(FakeWorker.ultimo!.terminado).toBe(true);
@@ -77,7 +77,7 @@ describe('gerarPdfSegundoPlano com Worker', () => {
 
   it('rejeita se o worker falhar ao carregar', async () => {
     vi.stubGlobal('Worker', FakeWorker);
-    const promessa = gerarPdfSegundoPlano('sfa', specs());
+    const promessa = gerarPdfSegundoPlano(specs());
     FakeWorker.ultimo!.onerror?.({ message: 'módulo não encontrado' } as ErrorEvent);
     await expect(promessa).rejects.toThrow('módulo não encontrado');
   });
@@ -85,7 +85,7 @@ describe('gerarPdfSegundoPlano com Worker', () => {
   it('abortar encerra o worker na hora e rejeita como cancelamento', async () => {
     vi.stubGlobal('Worker', FakeWorker);
     const controle = new AbortController();
-    const promessa = gerarPdfSegundoPlano('sfa', specs(), { signal: controle.signal });
+    const promessa = gerarPdfSegundoPlano(specs(), { signal: controle.signal });
     controle.abort();
     await expect(promessa).rejects.toBeInstanceOf(EmissaoCancelada);
     expect(FakeWorker.ultimo!.terminado).toBe(true);
@@ -96,7 +96,7 @@ describe('gerarPdfSegundoPlano com Worker', () => {
     FakeWorker.ultimo = null;
     const controle = new AbortController();
     controle.abort();
-    await expect(gerarPdfSegundoPlano('sfa', specs(), { signal: controle.signal })).rejects.toBeInstanceOf(EmissaoCancelada);
+    await expect(gerarPdfSegundoPlano(specs(), { signal: controle.signal })).rejects.toBeInstanceOf(EmissaoCancelada);
     expect(FakeWorker.ultimo).toBeNull();
   });
 });

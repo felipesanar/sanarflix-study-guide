@@ -28,6 +28,15 @@ function paginas(buf: ArrayBuffer): number {
 }
 
 describe('templates', () => {
+  it('o genérico tem a geometria do sfa e não desenha nome nem matrícula', () => {
+    const g = TEMPLATES.generico;
+    expect(g.template_version).toBe('sfa_generico_v1');
+    expect(g.layout).toBe('sfa');
+    expect(g.questions).toEqual(TEMPLATES.sfa.questions);
+    const slots = new Set(g.draw.flatMap((op) => (op.op === 'text' && op.slot ? [op.slot] : [])));
+    expect([...slots].sort()).toEqual(['label', 'subtitulo', 'titulo']);
+  });
+
   it('os dois layouts trazem a lista de desenho', () => {
     for (const layout of ['sfa', 'uniatenas'] as const) {
       const t = TEMPLATES[layout];
@@ -86,12 +95,27 @@ describe('ordem e formatação', () => {
 
 describe('montarSpecs', () => {
   it('um cartão pessoal por aluno, ordenado, com rótulo e IES do cabeçalho', () => {
-    const specs = montarSpecs({ layout: 'sfa', simuladoId: SIM, nomeSimulado: 'S', ies: 'IES X', data: '01/01/2026', alunos: ALUNOS });
+    const specs = montarSpecs({ layout: 'sfa', simuladoId: SIM, nomeSimulado: 'S', ies: 'IES X', data: '01/01/2026', alunos: ALUNOS, semGenerico: true });
     expect(specs.map((s) => s.alunoNome)).toEqual(['Álvaro Falso', 'Çãtia Ñandú Öztürk', 'Maria Exemplo da Silva']);
     expect(specs.every((s) => s.model === 'personalizado' && s.ies === 'IES X')).toBe(true);
     expect(specs[0]!.label).toBe('99-G-12345');
     // a matrícula é normalizada (trim e maiúsculas) e é a mesma do QR
     expect(specs.map((s) => s.matricula)).toEqual(['99-G-12345', 'AB-12.3/X', '2023001234']);
+  });
+
+  it('o PDF pessoal termina com um cartão genérico (com o cabeçalho do simulado)', () => {
+    const specs = montarSpecs({ layout: 'sfa', simuladoId: SIM, nomeSimulado: 'S', ies: 'IES X', data: '01/01/2026', alunos: ALUNOS });
+    expect(specs).toHaveLength(ALUNOS.length + 1);
+    expect(specs.slice(0, -1).every((s) => s.model === 'personalizado')).toBe(true);
+    expect(specs.at(-1)).toEqual({
+      model: 'generico', simuladoId: SIM, nomeSimulado: 'S', ies: 'IES X', data: '01/01/2026', label: 'GENÉRICO',
+    });
+  });
+
+  it('modo genérico: só cartões genéricos, `copias` vezes', () => {
+    const specs = montarSpecs({ layout: 'generico', simuladoId: SIM, ies: 'IES X', copias: 2 });
+    expect(specs.map((s) => s.model)).toEqual(['generico', 'generico']);
+    expect(montarSpecs({ layout: 'generico', simuladoId: SIM })).toHaveLength(1);
   });
 
   it('a IES do aluno vale mais que a do cabeçalho', () => {
@@ -115,6 +139,9 @@ describe('montarSpecs', () => {
     [{ layout: 'sfa', simuladoId: SIM, alunos: [{ matricula: '1', nome: 'X' }, { matricula: ' 1 ', nome: 'Y' }] }, /repetida/],
     [{ layout: 'uniatenas', simuladoId: SIM, alunos: ALUNOS }, /não é personalizado/],
     [{ layout: 'uniatenas', simuladoId: SIM, copias: 0 }, /copias/],
+    [{ layout: 'generico', simuladoId: SIM, alunos: ALUNOS }, /genérico não é personalizado/],
+    [{ layout: 'generico', simuladoId: SIM, copias: 0 }, /copias/],
+    [{ layout: 'generico', simuladoId: 'sim-1' }, /UUID/],
   ] as const)('recusa entrada inválida %#', (entrada, erro) => {
     expect(() => montarSpecs(entrada as Parameters<typeof montarSpecs>[0])).toThrow(erro);
   });
@@ -188,6 +215,7 @@ describe('plano B em montarSpecs e nos CSVs', () => {
       layout: 'sfa',
       simuladoId: SIM,
       alunos: [{ nome: 'Bia Sem RA', email: ' Bia@X.com ' }, { nome: 'Ana', matricula: '2023001' }],
+      semGenerico: true,
     });
     expect(specs.map((s) => [s.alunoNome, s.matricula ?? null, s.email ?? null, s.label])).toEqual([
       ['Ana', '2023001', null, '2023001'],
@@ -257,34 +285,42 @@ describe('render', () => {
     const doc = new jsPDF({ unit: 'mm', format: [210, 297] });
     expect(() => drawCard(doc, TEMPLATES.sfa, { model: 'uniatenas', simuladoId: SIM })).toThrow(/não combina/);
   });
+
+  it('o genérico só é desenhado no template dele, e vice-versa', () => {
+    const doc = new jsPDF({ unit: 'mm', format: [210, 297] });
+    expect(() => drawCard(doc, TEMPLATES.sfa, { model: 'generico', simuladoId: SIM })).toThrow(/template/);
+    expect(() => drawCard(doc, TEMPLATES.generico, { model: 'personalizado', simuladoId: SIM, matricula: '1' })).toThrow(/template/);
+    expect(() => drawCard(doc, TEMPLATES.generico, { model: 'generico', simuladoId: SIM })).not.toThrow();
+  });
 });
 
 describe('gerarPdf', () => {
   it('uma página A4 por cartão, com progresso', async () => {
     const specs = montarSpecs({ layout: 'sfa', simuladoId: SIM, nomeSimulado: 'S', ies: 'I', data: '01/01/2026', alunos: ALUNOS });
     const progresso = vi.fn();
-    const buf = await gerarPdf(TEMPLATES.sfa, specs, { onProgress: progresso, ceder: 1 });
+    const buf = await gerarPdf(TEMPLATES, specs, { onProgress: progresso, ceder: 1 });
     expect(new TextDecoder('latin1').decode(new Uint8Array(buf).slice(0, 5))).toBe('%PDF-');
-    expect(paginas(buf)).toBe(3);
+    expect(paginas(buf)).toBe(4); // 3 alunos e o genérico, cada página no seu template
     expect(progresso.mock.calls.map((c) => c[0])).toEqual([
-      { feitas: 1, total: 3 },
-      { feitas: 2, total: 3 },
-      { feitas: 3, total: 3 },
+      { feitas: 1, total: 4 },
+      { feitas: 2, total: 4 },
+      { feitas: 3, total: 4 },
+      { feitas: 4, total: 4 },
     ]);
   });
 
   it('gera o cartão UniAtenas', async () => {
-    const buf = await gerarPdf(TEMPLATES.uniatenas, montarSpecs({ layout: 'uniatenas', simuladoId: SIM, copias: 2 }));
+    const buf = await gerarPdf(TEMPLATES, montarSpecs({ layout: 'uniatenas', simuladoId: SIM, copias: 2 }));
     expect(paginas(buf)).toBe(2);
   });
 
   it('pode ser cancelada', async () => {
     const specs = montarSpecs({ layout: 'sfa', simuladoId: SIM, alunos: ALUNOS });
     let chamadas = 0;
-    await expect(gerarPdf(TEMPLATES.sfa, specs, { shouldCancel: () => ++chamadas > 1 })).rejects.toBeInstanceOf(EmissaoCancelada);
+    await expect(gerarPdf(TEMPLATES, specs, { shouldCancel: () => ++chamadas > 1 })).rejects.toBeInstanceOf(EmissaoCancelada);
   });
 
   it('recusa lista vazia', async () => {
-    await expect(gerarPdf(TEMPLATES.sfa, [])).rejects.toThrow(/nenhum cartão/);
+    await expect(gerarPdf(TEMPLATES, [])).rejects.toThrow(/nenhum cartão/);
   });
 });

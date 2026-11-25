@@ -49,7 +49,7 @@ describe('encodeQr (referência: segno, nível Q)', () => {
 
 describe('payload SFA2 (referência: models.py)', () => {
   const payloads = golden.payloads as Array<{
-    model: 'personalizado' | 'uniatenas';
+    model: 'personalizado' | 'uniatenas' | 'generico';
     simulado_id: string;
     matricula: string | null;
     email: string | null;
@@ -74,6 +74,15 @@ describe('payload SFA2 (referência: models.py)', () => {
     expect(texto).toBe('SFA2:M:9D6C1F0E:99-G-12345');
     expect(parseQr(texto)).toEqual({ kind: 'M', sim8: '9D6C1F0E', matricula: '99-G-12345', email: null });
     expect(parseQr('SFA2:A:9D6C1F0E')).toEqual({ kind: 'A', sim8: '9D6C1F0E', matricula: null, email: null });
+  });
+
+  it('cartão genérico: o QR leva só o simulado', () => {
+    const texto = buildPayload({ model: 'generico', simuladoId: '9d6c1f0e-0a5b-4c3a-8d2e-123456789abc' });
+    expect(texto).toBe('SFA2:G:9D6C1F0E');
+    expect(parseQr(texto)).toEqual({ kind: 'G', sim8: '9D6C1F0E', matricula: null, email: null });
+    expect(parseQr('SFA2:G:9D6C1F0E:2023001')).toBeNull();
+    expect(parseQr('SFA2:G:9d6c1f0e')).toBeNull();
+    expect(rotuloDoCartao('generico')).toBe('GENÉRICO');
   });
 
   it.each([

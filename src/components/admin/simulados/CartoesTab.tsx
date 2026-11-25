@@ -6,6 +6,8 @@
  * aluno impressos (a matrícula também no QR): o leitor devolve as respostas pela matrícula, a mesma da importação.
  * Plano B: quem não tem matrícula utilizável (vazia, fora do formato ou repetida) é identificado pelo e-mail no QR, e o
  * campo da matrícula sai em branco para o aluno escrever. Só fica sem cartão quem também não tem e-mail utilizável.
+ * Cartão genérico: nome e matrícula em branco, escritos pelo aluno que aparecer sem cartão. Vai sempre na última
+ * página do PDF pessoal e pode ser emitido sozinho (modo "Genérico"); o leitor o manda para "Não identificados".
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Loader2, Printer, Search, TriangleAlert } from 'lucide-react';
@@ -38,6 +40,7 @@ import {
   montarSpecs,
   nomeDoArquivo,
   type Identificacao,
+  type ModoEmissao,
   type MotivoExclusao,
   type MotivoSemMatricula,
   type ProgressoEmissao,
@@ -50,7 +53,6 @@ import {
   sufixoDeSemestres,
 } from '@/features/cartoes/semestre';
 import { ehIesUniatenas } from '@/features/cartoes/templates';
-import type { LayoutCartao } from '@/features/cartoes/types';
 
 const SELECT_CLASS =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background ' +
@@ -77,8 +79,11 @@ interface AlunoExcluido {
 interface Resultado {
   url: string;
   arquivo: string;
+  /** Cartões no PDF, sem contar o genérico do fim (ver `comGenerico`). */
   paginas: number;
-  /** CSV (matrícula;nome) do que foi emitido; só no cartão pessoal. É a `--lista` do script de leitura. */
+  /** O PDF pessoal termina com um cartão genérico. */
+  comGenerico: boolean;
+  /** CSV (matrícula;nome) do que foi emitido; só no cartão pessoal (sem o genérico). É a `--lista` do script de leitura. */
   lista: string | null;
 }
 
@@ -90,7 +95,7 @@ export default function CartoesTab() {
 
   const [iesLista, setIesLista] = useState<IesOpt[]>([]);
   const [iesId, setIesId] = useState('');
-  const [layout, setLayout] = useState<LayoutCartao>('sfa');
+  const [layout, setLayout] = useState<ModoEmissao>('sfa');
   const [copias, setCopias] = useState(1);
   const [data, setData] = useState('');
 
@@ -183,7 +188,7 @@ export default function CartoesTab() {
     if (!grupo) void carregarAlunos(ies.id);
   }, [ies, carregarAlunos]);
 
-  const aoTrocarLayout = (novo: LayoutCartao) => {
+  const aoTrocarLayout = (novo: ModoEmissao) => {
     setLayout(novo);
     setResultado(null);
     if (novo === 'sfa' && ies && !alunos.length && !excluidos.length && !carregandoAlunos) void carregarAlunos(ies.id);
@@ -252,8 +257,9 @@ export default function CartoesTab() {
     });
 
   // ---------------------------------------------------------------- geração
+  // cartões contados no botão; no pessoal, o PDF ainda leva um genérico na última página (para quem aparecer sem cartão)
   const total = layout === 'sfa' ? aEmitir.length : copias;
-  const podeGerar = !!simulado && !!ies && total > 0 && !gerando && (layout === 'uniatenas' || !carregandoAlunos);
+  const podeGerar = !!simulado && !!ies && total > 0 && !gerando && (layout !== 'sfa' || !carregandoAlunos);
 
   const gerar = async () => {
     if (!simulado || !ies) return;
@@ -279,20 +285,28 @@ export default function CartoesTab() {
           : { copias }),
       });
       const pdf = await gerarPdfSegundoPlano(
-        layout,
         specs,
         { onProgress: setProgresso, signal: controle.signal },
         `Cartões — ${simulado.nome}`,
       );
       const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
-      const arquivo = nomeDoArquivo(ies.nome, simulado.nome, layout === 'sfa' ? sufixoDeSemestres(semestres) : '');
+      const sufixo = layout === 'sfa' ? sufixoDeSemestres(semestres) : layout === 'generico' ? 'generico' : '';
+      const arquivo = nomeDoArquivo(ies.nome, simulado.nome, sufixo);
       const lista =
         layout === 'sfa'
-          ? csvDaEmissao(specs.map((s) => ({ nome: s.alunoNome ?? '', matricula: s.matricula ?? '', email: s.email ?? '' })))
+          ? csvDaEmissao(
+              specs
+                .filter((s) => s.model === 'personalizado')
+                .map((s) => ({ nome: s.alunoNome ?? '', matricula: s.matricula ?? '', email: s.email ?? '' })),
+            )
           : null;
-      setResultado({ url, arquivo, paginas: specs.length, lista });
+      const pessoais = specs.filter((s) => s.model !== 'generico').length;
+      const comGenerico = layout === 'sfa';
+      setResultado({ url, arquivo, paginas: comGenerico ? pessoais : specs.length, comGenerico, lista });
       baixar(url, arquivo);
-      toast.success('Cartões gerados', { description: `${specs.length} cartão(ões) em ${arquivo}` });
+      toast.success('Cartões gerados', {
+        description: `${comGenerico ? pessoais : specs.length} cartão(ões)${comGenerico ? ' e 1 genérico' : ''} em ${arquivo}`,
+      });
     } catch (err) {
       if (err instanceof EmissaoCancelada) {
         toast.info('Geração cancelada');
@@ -327,8 +341,9 @@ export default function CartoesTab() {
           Gera os cartões-resposta em PDF para imprimir. Cada cartão traz o nome e a matrícula do aluno (a matrícula
           também vai num QR), para o script de leitura devolver as respostas já identificadas e prontas para a
           importação. Quem não tem matrícula utilizável no cadastro recebe um cartão identificado pelo e-mail, com o
-          campo da matrícula em branco para escrever. O PDF é montado neste navegador: nenhum dado dos alunos é
-          enviado para fora.
+          campo da matrícula em branco para escrever. A última página é sempre um cartão genérico, em branco, para o
+          aluno que aparecer sem cartão; ele também pode ser emitido sozinho. O PDF é montado neste navegador: nenhum
+          dado dos alunos é enviado para fora.
         </p>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="space-y-1.5">
@@ -390,6 +405,15 @@ export default function CartoesTab() {
                 />
                 UniAtenas: cartão único, o aluno marca a matrícula
               </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="cartoes-layout"
+                  checked={layout === 'generico'}
+                  onChange={() => aoTrocarLayout('generico')}
+                />
+                Genérico: em branco, o aluno escreve nome e matrícula
+              </label>
             </div>
             {ehIesUniatenas(ies.nome) && (
               <p className="text-xs text-muted-foreground">
@@ -400,7 +424,7 @@ export default function CartoesTab() {
         )}
       </div>
 
-      {ies && layout === 'uniatenas' && (
+      {ies && layout !== 'sfa' && (
         <div className="space-y-3 rounded-xl border bg-card p-4">
           <div className="max-w-xs space-y-1.5">
             <Label htmlFor="cartoes-copias">Quantidade de cartões no PDF</Label>
@@ -415,8 +439,9 @@ export default function CartoesTab() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            O cartão UniAtenas não tem nome nem número de série: a IES pode imprimir ou fotocopiar o mesmo PDF para
-            todos os alunos.
+            {layout === 'uniatenas'
+              ? 'O cartão UniAtenas não tem nome nem número de série: a IES pode imprimir ou fotocopiar o mesmo PDF para todos os alunos.'
+              : 'O cartão genérico é para quem não estava na lista: o aluno escreve o nome e a matrícula à mão. Ele vale só para este simulado (o QR leva o simulado), e a IES pode fotocopiar o mesmo PDF. Na leitura, a página vai para "Não identificados", com o recorte do que o aluno escreveu, para alguém digitar a matrícula.'}
           </p>
         </div>
       )}
@@ -576,7 +601,7 @@ export default function CartoesTab() {
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => void gerar()} disabled={!podeGerar}>
               {gerando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
-              {`Gerar PDF (${total} ${total === 1 ? 'cartão' : 'cartões'})`}
+              {`Gerar PDF (${total} ${total === 1 ? 'cartão' : 'cartões'}${layout === 'sfa' && total > 0 ? ' + genérico' : ''})`}
             </Button>
             {gerando && (
               <Button variant="outline" onClick={() => cancelarRef.current?.abort()}>
@@ -586,7 +611,7 @@ export default function CartoesTab() {
             {resultado && !gerando && (
               <Button variant="secondary" onClick={() => baixar(resultado.url, resultado.arquivo)}>
                 <Download className="mr-2 h-4 w-4" />
-                {`Baixar de novo (${resultado.paginas} cartões)`}
+                {`Baixar de novo (${resultado.paginas} cartões${resultado.comGenerico ? ' + genérico' : ''})`}
               </Button>
             )}
             {resultado && !gerando && resultado.lista && (
@@ -596,6 +621,11 @@ export default function CartoesTab() {
               </Button>
             )}
           </div>
+          {layout === 'sfa' && total > 0 && (
+            <p className="text-xs text-muted-foreground" data-testid="aviso-generico">
+              A última página do PDF é um cartão genérico, em branco: imprima cópias dela para quem aparecer sem cartão.
+            </p>
+          )}
           {gerando && progresso && (
             <div className="space-y-1" role="status" aria-live="polite">
               <Progress value={(progresso.feitas / progresso.total) * 100} />
@@ -607,8 +637,8 @@ export default function CartoesTab() {
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Imprima só na frente, em A4, na escala 100% (sem “ajustar à página”), papel de 75 a 90 g/m². Entregue
-            cada cartão ao aluno cujo nome e matrícula estão impressos nele.
+            Imprima só na frente, em A4, na escala 100% (sem “ajustar à página”), papel de 75 a 90 g/m².
+            {layout === 'sfa' && ' Entregue cada cartão ao aluno cujo nome e matrícula estão impressos nele.'}
           </p>
         </div>
       )}

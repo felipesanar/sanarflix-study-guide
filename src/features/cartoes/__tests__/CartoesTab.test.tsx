@@ -60,7 +60,7 @@ describe('CartoesTab', () => {
     expect(await screen.findByText('Maria Exemplo da Silva')).toBeInTheDocument();
     expect(screen.getByText('3 de 3 selecionados')).toBeInTheDocument();
     expect(screen.getByLabelText('Data da prova (no cabeçalho)')).toHaveValue('2026-10-25');
-    expect(screen.getByRole('button', { name: /Gerar PDF \(3 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(3 cartões \+ genérico\)/ })).toBeEnabled();
   });
 
   it('busca por nome ignorando acento e marca só os listados', async () => {
@@ -84,7 +84,7 @@ describe('CartoesTab', () => {
     await escolherSimulado();
     await screen.findByText('Maria Exemplo da Silva');
     fireEvent.click(screen.getByLabelText('Cartão para Maria Exemplo da Silva'));
-    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões \+ genérico\)/ })).toBeEnabled();
   });
 
   it('gera o PDF só com os alunos marcados e baixa o arquivo', async () => {
@@ -101,7 +101,7 @@ describe('CartoesTab', () => {
     expect(blob.type).toBe('application/pdf');
     expect(blob.size).toBeGreaterThan(10_000);
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
-    expect(await screen.findByRole('button', { name: /Baixar de novo \(2 cartões\)/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Baixar de novo \(2 cartões \+ genérico\)/ })).toBeInTheDocument();
   });
 
   it('IES do grupo UniAtenas: modelo único pré-selecionado, sem lista de alunos', async () => {
@@ -171,7 +171,7 @@ describe('CartoesTab', () => {
     await escolherSimulado();
     await screen.findByText('Maria Exemplo da Silva');
     expect(screen.getByText('7 de 7 selecionados')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Gerar PDF \(7 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(7 cartões \+ genérico\)/ })).toBeEnabled();
     expect(screen.getByText(/4 usuários não têm matrícula utilizável no cadastro e serão identificados pelo e-mail/)).toBeInTheDocument();
     expect(screen.getAllByText('por e-mail')).toHaveLength(4);
     expect(screen.getByText('beltrano@x.com', { exact: false })).toBeInTheDocument();
@@ -223,7 +223,7 @@ describe('CartoesTab', () => {
     render(<CartoesTab />);
     await escolherSimulado();
     await screen.findByText('Beltrano Sem RA');
-    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(2 cartões \+ genérico\)/ }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(toast.error).not.toHaveBeenCalled();
   });
@@ -276,6 +276,56 @@ const POR_SEMESTRE = [
   { userId: 'a1000000-0000-4000-8000-000000000007', nome: 'Gil Oitavo Sem RA', matricula: null, semestre: 8 },
 ];
 
+describe('CartoesTab: cartão genérico', () => {
+  it('o PDF pessoal termina com o genérico, avisa na tela e a lista da emissão não o inclui', async () => {
+    prepararSimulado([IES_A]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Maria Exemplo da Silva');
+    expect(screen.getByTestId('aviso-generico')).toHaveTextContent(/última página do PDF é um cartão genérico/);
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(3 cartões \+ genérico\)/ }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.success.mock.calls[0]![1]).toMatchObject({ description: expect.stringContaining('3 cartão(ões) e 1 genérico') });
+    const pdf = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Blob;
+    const bruto = new TextDecoder('latin1').decode(new Uint8Array(await pdf.arrayBuffer()));
+    expect((bruto.match(/\/Type\s*\/Page(?!s)/g) ?? []).length).toBe(4);
+    fireEvent.click(await screen.findByRole('button', { name: /Baixar lista da emissão/ }));
+    const lista = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+    const texto = new TextDecoder().decode((await lista.arrayBuffer()).slice(3));
+    expect(texto.trim().split(/\r?\n/)).toHaveLength(1 + 3); // cabeçalho e os 3 alunos, sem o genérico
+  });
+
+  it('modo Genérico: sem lista de alunos, com quantidade, e o arquivo diz que é genérico', async () => {
+    prepararSimulado([IES_A]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await screen.findByText('Maria Exemplo da Silva');
+    fireEvent.click(screen.getByLabelText(/Genérico: em branco/));
+    expect(screen.queryByText('Maria Exemplo da Silva')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('aviso-generico')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Quantidade de cartões no PDF')).toHaveValue(1);
+    expect(screen.getByText(/vai para "Não identificados"/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(1 cartão\)/ }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(toast.success.mock.calls[0]![1]).toMatchObject({
+      description: expect.stringContaining('1 cartão(ões) em cartoes_faculdade-exemplo_simulado-enamed-2026_generico.pdf'),
+    });
+    expect(screen.queryByRole('button', { name: /Baixar lista da emissão/ })).not.toBeInTheDocument();
+  });
+
+  it('IES do grupo UniAtenas também pode emitir o genérico', async () => {
+    prepararSimulado([IES_UA]);
+    render(<CartoesTab />);
+    await escolherSimulado();
+    await waitFor(() => expect(screen.getByLabelText(/UniAtenas: cartão único/)).toBeChecked());
+    fireEvent.click(screen.getByLabelText(/Genérico: em branco/));
+    fireEvent.change(screen.getByLabelText('Quantidade de cartões no PDF'), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    expect(api.listarAlunosDaIes).not.toHaveBeenCalled();
+  });
+});
+
 describe('CartoesTab: filtro de semestre', () => {
   async function abrir() {
     prepararSimulado([IES_A], POR_SEMESTRE);
@@ -290,7 +340,7 @@ describe('CartoesTab: filtro de semestre', () => {
     const botoes = within(grupo).getAllByRole('button').map((b) => b.textContent);
     expect(botoes).toEqual(['6º (1)', '7º (3)', '8º (2)', 'Sem semestre (1)']);
     expect(screen.getByText('5 de 5 selecionados')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Gerar PDF \(5 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(5 cartões \+ genérico\)/ })).toBeEnabled();
   });
 
   it('escolher um semestre deixa só ele na lista, na conta e no painel de excluídos', async () => {
@@ -301,7 +351,7 @@ describe('CartoesTab: filtro de semestre', () => {
     expect(screen.queryByText('Ana Sexto')).not.toBeInTheDocument();
     expect(screen.queryByText('Davi Oitavo')).not.toBeInTheDocument();
     expect(screen.getByText('2 de 2 selecionados')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões \+ genérico\)/ })).toBeEnabled();
     const fora = within(screen.getByLabelText('Alunos fora do PDF'));
     expect(fora.getByText('Fabio Sétimo Sem RA')).toBeInTheDocument();
     expect(fora.queryByText('Gil Oitavo Sem RA')).not.toBeInTheDocument();
@@ -330,10 +380,10 @@ describe('CartoesTab: filtro de semestre', () => {
     const grupo = await abrir();
     fireEvent.click(within(grupo).getByRole('button', { name: '6º (1)' }));
     fireEvent.click(within(grupo).getByRole('button', { name: '7º (3)' }));
-    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(3 cartões\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Gerar PDF \(3 cartões \+ genérico\)/ }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(toast.success.mock.calls[0]![1]).toMatchObject({
-      description: expect.stringContaining('3 cartão(ões) em cartoes_faculdade-exemplo_simulado-enamed-2026_sem-6-7.pdf'),
+      description: expect.stringContaining('3 cartão(ões) e 1 genérico em cartoes_faculdade-exemplo_simulado-enamed-2026_sem-6-7.pdf'),
     });
     // a lista da emissão acompanha: só quem recebeu cartão
     fireEvent.click(await screen.findByRole('button', { name: /Baixar lista da emissão/ }));
@@ -419,7 +469,7 @@ describe('CartoesTab: todos os usuários da IES (inclui a equipe)', () => {
   it('a equipe vem com selo e desmarcada: só os alunos entram no PDF por padrão', async () => {
     await abrir();
     expect(screen.getByText('2 de 5 selecionados')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(2 cartões \+ genérico\)/ })).toBeEnabled();
     expect(within(screen.getByLabelText('Alunos da IES')).getAllByText('equipe: professor')).toHaveLength(2);
     expect(screen.getByText('equipe: gestor, professor')).toBeInTheDocument();
     expect(screen.getByLabelText('Cartão para Ana Professora')).not.toBeChecked();
@@ -430,7 +480,7 @@ describe('CartoesTab: todos os usuários da IES (inclui a equipe)', () => {
     await abrir();
     fireEvent.click(screen.getByLabelText('Cartão para Ana Professora'));
     fireEvent.click(screen.getByLabelText('Cartão para Alberto Professor'));
-    expect(screen.getByRole('button', { name: /Gerar PDF \(4 cartões\)/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Gerar PDF \(4 cartões \+ genérico\)/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /Gerar PDF/ }));
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     expect(toast.error).not.toHaveBeenCalled();

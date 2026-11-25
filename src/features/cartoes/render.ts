@@ -8,7 +8,18 @@
 import type { jsPDF } from 'jspdf';
 import { buildPayload, cartaoPorEmail, normalizarMatricula } from './payload.ts';
 import { encodeQr } from './qr.ts';
-import type { CardSpec, CardTemplate, DrawOp } from './types.ts';
+import type { CardSpec, CardTemplate, ChaveTemplate, DrawOp, TemplatesCartao } from './types.ts';
+
+export const TEMPLATE_GENERICO = 'sfa_generico_v1';
+
+/** Qual template desenha o cartão: o genérico tem o seu; os demais, o do layout. */
+export function chaveDoTemplate(spec: Pick<CardSpec, 'model'>): ChaveTemplate {
+  return spec.model === 'generico' ? 'generico' : spec.model === 'uniatenas' ? 'uniatenas' : 'sfa';
+}
+
+export function templateDoCartao(templates: TemplatesCartao, spec: Pick<CardSpec, 'model'>): CardTemplate {
+  return templates[chaveDoTemplate(spec)];
+}
 
 const PT_MM = 25.4 / 72;
 
@@ -135,6 +146,9 @@ export function drawCard(doc: jsPDF, template: CardTemplate, spec: CardSpec): vo
   const layoutDoCartao = spec.model === 'uniatenas' ? 'uniatenas' : 'sfa';
   if (layoutDoCartao !== template.layout) {
     throw new Error(`cartão ${spec.model} não combina com o layout ${template.layout}`);
+  }
+  if ((spec.model === 'generico') !== (template.template_version === TEMPLATE_GENERICO)) {
+    throw new Error(`cartão ${spec.model} não combina com o template ${template.template_version}`);
   }
   const slots = slotValues(spec);
   for (const op of template.draw) {

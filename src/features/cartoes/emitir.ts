@@ -4,7 +4,9 @@
  *
  * Mesmas regras do `cartao-omr gerar-cartoes`: um cartão personalizado por aluno (nome e matrícula impressos,
  * matrícula também no QR; sem matrícula utilizável, o plano B: o QR leva o e-mail e o campo da matrícula fica em
- * branco para o aluno escrever), ordenado por nome sem considerar acentos; o cartão UniAtenas é um só, sem nome, repetido `copias` vezes.
+ * branco para o aluno escrever), ordenado por nome sem considerar acentos, e **um cartão genérico na última página**
+ * (nome e matrícula em branco, para o aluno que aparecer sem cartão); o cartão UniAtenas é um só, sem nome, repetido
+ * `copias` vezes; o modo `generico` gera só cartões genéricos (`copias`).
  */
 import {
   buildPayload,
@@ -15,8 +17,11 @@ import {
   rotuloDoCartao,
 } from './payload.ts';
 import type { ProblemaEmail, ProblemaMatricula } from './payload.ts';
-import { drawCard } from './render.ts';
-import type { CardSpec, CardTemplate, LayoutCartao } from './types.ts';
+import { drawCard, templateDoCartao } from './render.ts';
+import type { CardSpec, LayoutCartao, TemplatesCartao } from './types.ts';
+
+/** O que a tela emite: o layout pessoal (sfa), o UniAtenas ou só cartões genéricos. */
+export type ModoEmissao = LayoutCartao | 'generico';
 
 export interface AlunoEmissao {
   nome: string;
@@ -29,7 +34,7 @@ export interface AlunoEmissao {
 }
 
 export interface OpcoesEmissao {
-  layout: LayoutCartao;
+  layout: ModoEmissao;
   simuladoId: string;
   nomeSimulado?: string;
   ies?: string;
@@ -37,8 +42,10 @@ export interface OpcoesEmissao {
   data?: string;
   /** Obrigatório no layout `sfa`. */
   alunos?: AlunoEmissao[];
-  /** Cópias do cartão UniAtenas (padrão 1). */
+  /** Cópias do cartão UniAtenas ou do genérico (padrão 1). */
   copias?: number;
+  /** No `sfa`: não acrescenta o cartão genérico na última página. */
+  semGenerico?: boolean;
 }
 
 export interface ProgressoEmissao {
@@ -97,17 +104,25 @@ export function formatarDataBR(data: string | Date | null | undefined): string {
 /** Monta o conteúdo variável de cada cartão (e valida a matrícula ou o e-mail, que vira o QR). */
 export function montarSpecs(op: OpcoesEmissao): CardSpec[] {
   const base = { simuladoId: op.simuladoId, nomeSimulado: op.nomeSimulado ?? '', data: op.data ?? '' };
-  if (op.layout === 'uniatenas') {
-    if (op.alunos?.length) throw new Error('o cartão UniAtenas não é personalizado');
-    const copias = op.copias ?? 1;
+  const copias = op.copias ?? 1;
+  const genericos = (n: number): CardSpec[] => {
+    const spec: CardSpec = { model: 'generico', ...base, ies: op.ies ?? '', label: rotuloDoCartao('generico') };
+    buildPayload(spec); // valida o simulado_id
+    return Array.from({ length: n }, () => ({ ...spec }));
+  };
+  if (op.layout !== 'sfa') {
+    if (op.alunos?.length) throw new Error(`o cartão ${op.layout === 'generico' ? 'genérico' : 'UniAtenas'} não é personalizado`);
     if (!Number.isInteger(copias) || copias < 1) throw new Error('copias precisa ser um inteiro maior que zero');
+  }
+  if (op.layout === 'generico') return genericos(copias);
+  if (op.layout === 'uniatenas') {
     const spec: CardSpec = { model: 'uniatenas', ...base, ies: op.ies || 'UniAtenas', label: rotuloDoCartao('uniatenas') };
     buildPayload(spec); // valida o simulado_id
     return Array.from({ length: copias }, () => ({ ...spec }));
   }
   if (!op.alunos?.length) throw new Error('o cartão sfa é pessoal: informe os alunos');
   const vistas = new Set<string>();
-  return ordenarAlunos(op.alunos).map((a) => {
+  const pessoais = ordenarAlunos(op.alunos).map((a) => {
     const mat = normalizarMatricula(a.matricula);
     const email = normalizarEmail(a.email);
     if (mat && email) throw new Error(`informe a matrícula ou o e-mail de ${a.nome}, não os dois`);
@@ -125,6 +140,8 @@ export function montarSpecs(op: OpcoesEmissao): CardSpec[] {
     buildPayload(spec); // falha cedo se a matrícula ou o e-mail não puder ir no cartão
     return spec;
   });
+  // sempre à mão para o aluno que aparecer sem cartão: a IES imprime a última página quando precisar
+  return op.semGenerico ? pessoais : [...pessoais, ...genericos(1)];
 }
 
 /** Por que a matrícula não serve para o cartão (e o aluno cai no plano B, ou fora do PDF). */
@@ -236,23 +253,23 @@ export function csvDaEmissao(alunos: Array<{ nome: string; matricula?: string | 
 
 const cederFio = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-/** Gera o PDF (uma página por cartão). Todos os cartões precisam ser do mesmo layout do template. */
+/** Gera o PDF (uma página por cartão; cada página usa o template do seu cartão, ver `templateDoCartao`). */
 export async function gerarPdf(
-  template: CardTemplate,
+  templates: TemplatesCartao,
   specs: CardSpec[],
   opcoes: OpcoesPdf = {},
   titulo = 'Cartões-resposta SFA',
 ): Promise<ArrayBuffer> {
   if (!specs.length) throw new Error('nenhum cartão para gerar');
   const { jsPDF } = await import('jspdf'); // carregado só quando alguém emite cartões
-  const [largura, altura] = template.page_mm;
+  const [largura, altura] = templateDoCartao(templates, specs[0]!).page_mm;
   const doc = new jsPDF({ unit: 'mm', format: [largura, altura], orientation: 'portrait', compress: true });
   doc.setProperties({ title: titulo, author: 'SanarFlix Academy', creator: 'cartao-omr (Academy)' });
   const ceder = opcoes.ceder ?? 4;
   for (let i = 0; i < specs.length; i++) {
     if (opcoes.shouldCancel?.()) throw new EmissaoCancelada();
     if (i > 0) doc.addPage([largura, altura], 'portrait');
-    drawCard(doc, template, specs[i]!);
+    drawCard(doc, templateDoCartao(templates, specs[i]!), specs[i]!);
     opcoes.onProgress?.({ feitas: i + 1, total: specs.length });
     if (ceder > 0 && (i + 1) % ceder === 0) await cederFio();
   }
