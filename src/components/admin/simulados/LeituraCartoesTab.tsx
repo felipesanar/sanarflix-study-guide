@@ -246,7 +246,7 @@ export default function LeituraCartoesTab() {
                     {l.resumo
                       ? `${l.resumo.paginas} pág. · ${l.resumo.identificadas} identificadas · ${l.resumo.nao_identificadas} não identificadas${
                           l.arquivos_apagados_em ? ' · arquivos apagados' : ` · ${mb(l.arquivo_bytes)}`
-                        }`
+                        }${l.resumo.simulado_divergente ? ` · ${l.resumo.simulado_divergente} de outro simulado` : ''}`
                       : l.status === 'falhou'
                         ? <span className="text-red-600 dark:text-red-400" title={l.erro ?? ''}>{(l.erro ?? '').slice(0, 120)}</span>
                         : '—'}

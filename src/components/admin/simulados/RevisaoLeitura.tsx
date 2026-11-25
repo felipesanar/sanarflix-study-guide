@@ -189,6 +189,7 @@ export function RevisaoLeitura({ leituraId, simuladoNome, onVoltar }: RevisaoLei
 
   const visiveis = paginas.filter((p) => FILTROS.find((f) => f.id === filtro)!.situacoes.includes(sit.get(p.id)!));
   const c = montagem.contagem;
+  const divergentes = paginas.filter((p) => p.status === 'simulado_divergente').length;
   const naoEncontrados = preview
     ? buildNaoEncontrados(preview.results, montagem.linhas.map((l) => ({ rowIndex: l.pagina, matricula_ra: l.matricula_ra, answers: l.answers })))
     : [];
@@ -203,6 +204,14 @@ export function RevisaoLeitura({ leituraId, simuladoNome, onVoltar }: RevisaoLei
         <span className="text-sm text-muted-foreground">{simuladoNome(leitura.simulado_id)}</span>
         <StatusPill variant={STATUS[leitura.status].variant}>{STATUS[leitura.status].rotulo}</StatusPill>
       </div>
+
+      {divergentes > 0 && (
+        <p className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300" role="alert">
+          {divergentes === paginas.length
+            ? 'Nenhuma página é deste simulado: os cartões são de outro simulado. Confira se escolheu o simulado certo; se não, exclua esta leitura e envie o PDF de novo com o simulado correto.'
+            : `${divergentes} página(s) são de outro simulado e ficaram de fora (filtro "Ignoradas e descartadas").`}
+        </p>
+      )}
 
       {leitura.arquivos_apagados_em && (
         <p className="text-sm text-muted-foreground">

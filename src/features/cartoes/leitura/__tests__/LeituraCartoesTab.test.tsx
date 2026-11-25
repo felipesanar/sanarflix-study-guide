@@ -185,6 +185,12 @@ describe('Leitura de cartões: revisão', () => {
     await waitFor(() => expect(api.apagarArquivos).toHaveBeenCalledWith('L1'));
   });
 
+  it('cartões de outro simulado: aviso em destaque', async () => {
+    const outra = { destino: 'ignorada' as const, status: 'simulado_divergente', identificacao: null, motivo: 'QR do simulado 00000000' };
+    await abrir([pagina(outra), pagina(outra)]);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Nenhuma página é deste simulado/);
+  });
+
   it('leitura já importada fica só para consulta', async () => {
     const gen = pagina({ destino: 'nao_identificados', identificacao: null, motivo: 'cartao_generico', identificacao_manual: '1' });
     await abrir([gen], leitura({ status: 'importado', import_batch_id: 'B1' }));
