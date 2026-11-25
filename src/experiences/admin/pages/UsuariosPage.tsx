@@ -43,6 +43,11 @@ const UsuariosPage: React.FC = () => {
 
   const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
+  // Lista de IES usada pelo filtro da tabela e pelos diálogos de cadastro.
+  useEffect(() => {
+    iesService.list().then(setIesList);
+  }, []);
+
   // Abre "Novo usuário" automaticamente quando a URL tem ?new=1 (deep-link
   // do Command Center). O parâmetro é limpo ao fechar o diálogo — isso evita
   // loop mesmo com `searchParams` nas deps (precisa estar aqui: sem ele, o
