@@ -20,6 +20,7 @@ from . import __version__
 from .models import sim8
 from .processar import (
     ALUNO_DUPLICADO,
+    CARTAO_GENERICO,
     IGNORADA,
     NAO_IDENTIFICADOS,
     RESPOSTAS,
@@ -92,6 +93,7 @@ def resumo(res: Resultado) -> dict:
         "identificadas": destinos.get(RESPOSTAS, 0),
         "identificadas_por_email": sum(1 for pg in res.paginas if pg.destino == RESPOSTAS and pg.via == "email"),
         "nao_identificadas": destinos.get(NAO_IDENTIFICADOS, 0),
+        "genericos": sum(1 for pg in res.paginas if pg.motivo == CARTAO_GENERICO),
         "duplicadas": sum(1 for pg in res.paginas if pg.motivo == ALUNO_DUPLICADO),
         "repetidas_ignoradas": cont.get("pagina_repetida", 0),
         "questoes": dict(celulas),

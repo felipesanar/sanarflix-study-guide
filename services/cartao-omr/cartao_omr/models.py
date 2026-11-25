@@ -4,6 +4,8 @@ Formato do QR (revisão 9 do PRD):
     personalizado, com matrícula (sfa)  SFA2:M:<SIM8>:<MATRICULA>   maiúsculas, modo alfanumérico (compacto)
     personalizado, plano B por e-mail   SFA2:E:<SIM8>:<EMAIL>       minúsculas, modo byte (maior)
     UniAtenas                           SFA2:A:<SIM8>
+    genérico (sfa, nome e matrícula     SFA2:G:<SIM8>
+    escritos à mão)
 SIM8 = 8 primeiros hex do simulado_id. O cartão não leva o `user_id`: o aluno é identificado pela matrícula
 (a mesma 1ª coluna da importação) ou, quando o cadastro não tem matrícula utilizável, pelo e-mail.
 """
@@ -19,10 +21,12 @@ QR_PREFIX = "SFA2"
 QR_KIND_PERSONALIZADO = "M"      # matrícula
 QR_KIND_EMAIL = "E"              # plano B: e-mail
 QR_KIND_UNIATENAS = "A"
+QR_KIND_GENERICO = "G"           # cartão em branco: o aluno escreve nome e matrícula
 
 MODEL_PERSONALIZADO = "personalizado"
 MODEL_UNIATENAS = "uniatenas"
-MODELS = (MODEL_PERSONALIZADO, MODEL_UNIATENAS)
+MODEL_GENERICO = "generico"
+MODELS = (MODEL_PERSONALIZADO, MODEL_UNIATENAS, MODEL_GENERICO)
 
 # Matrícula impressa e no QR: só caracteres do modo alfanumérico do QR (sem espaço), até 24.
 MATRICULA_MAX = 24
@@ -36,7 +40,8 @@ _EMAIL_RE = re.compile(rf"^{_EMAIL_PARTES}$")
 _QR_RE = re.compile(
     rf"^{QR_PREFIX}:(?:{QR_KIND_PERSONALIZADO}:([0-9A-F]{{8}}):([A-Z0-9./-]{{1,{MATRICULA_MAX}}})"
     rf"|{QR_KIND_EMAIL}:([0-9A-F]{{8}}):({_EMAIL_PARTES})"
-    rf"|{QR_KIND_UNIATENAS}:([0-9A-F]{{8}}))$"
+    rf"|{QR_KIND_UNIATENAS}:([0-9A-F]{{8}})"
+    rf"|{QR_KIND_GENERICO}:([0-9A-F]{{8}}))$"
 )
 
 
@@ -90,7 +95,7 @@ class RosterEntry:
 
 @dataclass(frozen=True)
 class QrData:
-    kind: str                # "M" matrícula | "E" e-mail | "A" uniatenas
+    kind: str                # "M" matrícula | "E" e-mail | "A" uniatenas | "G" genérico
     sim8: str
     matricula: str | None    # maiúsculas (só no tipo M)
     email: str | None = None  # minúsculas (só no tipo E)
@@ -101,7 +106,7 @@ class QrData:
 
     @property
     def identificacao(self) -> str | None:
-        """O que vai na coluna 1 da planilha: a matrícula ou o e-mail (None no UniAtenas)."""
+        """O que vai na coluna 1 da planilha: a matrícula ou o e-mail (None no UniAtenas e no genérico)."""
         return self.matricula or self.email
 
 
@@ -121,7 +126,9 @@ def parse_qr(text: str) -> QrData | None:
         if len(m.group(4)) > EMAIL_MAX:
             return None
         return QrData(QR_KIND_EMAIL, m.group(3), None, m.group(4))
-    return QrData(QR_KIND_UNIATENAS, m.group(5), None)
+    if m.group(5):
+        return QrData(QR_KIND_UNIATENAS, m.group(5), None)
+    return QrData(QR_KIND_GENERICO, m.group(6), None)
 
 
 @dataclass(frozen=True)
@@ -133,7 +140,7 @@ class CardSpec:
     nome_simulado: str = ""
     ies: str = ""
     data: str = ""
-    aluno_nome: str = ""  # só no personalizado
+    aluno_nome: str = ""  # só no personalizado (no genérico o aluno escreve à mão)
     matricula: str = ""   # só no personalizado, quando identificado pela matrícula
     email: str = ""       # só no personalizado, plano B: sem matrícula, o QR leva o e-mail
     label: str = ""       # código legível sob o QR
@@ -171,6 +178,8 @@ class CardSpec:
             return f"{QR_PREFIX}:{QR_KIND_PERSONALIZADO}:{ref}:{self.matricula_normalizada}"
         if self.model == MODEL_UNIATENAS:
             return f"{QR_PREFIX}:{QR_KIND_UNIATENAS}:{ref}"
+        if self.model == MODEL_GENERICO:
+            return f"{QR_PREFIX}:{QR_KIND_GENERICO}:{ref}"
         raise ValueError(f"modelo desconhecido: {self.model!r}")
 
 

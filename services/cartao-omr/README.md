@@ -10,11 +10,13 @@ Correção automática de cartões-resposta do SanarFlix Academy (PDF digitaliza
 ## Como a operação funciona
 
 1. Uma tela do Academy (Admin → Simulados → Cartões-resposta) emite os cartões: o time seleciona o simulado, a IES e os alunos. O PDF sai pronto para imprimir.
-2. **Cada cartão é pessoal**: traz o **nome e a matrícula** do aluno impressos e a matrícula também num QR. Não há cartão genérico. **Plano B:** aluno sem matrícula utilizável no cadastro (vazia, fora do formato ou repetida) recebe um cartão identificado pelo **e-mail** (QR `SFA2:E`), com o campo MATRÍCULA em branco para escrever. Só fica sem cartão quem também não tem e-mail utilizável: a tela lista e baixa um CSV.
+2. **Cada cartão é pessoal**: traz o **nome e a matrícula** do aluno impressos e a matrícula também num QR. **Plano B:** aluno sem matrícula utilizável no cadastro (vazia, fora do formato ou repetida) recebe um cartão identificado pelo **e-mail** (QR `SFA2:E`), com o campo MATRÍCULA em branco para escrever. Só fica sem cartão quem também não tem e-mail utilizável: a tela lista e baixa um CSV.
 3. A IES aplica a prova, escaneia os cartões preenchidos num PDF e devolve.
 4. O script (`cartao-omr processar`) lê o PDF localmente, **sem banco**, e gera a planilha de respostas com a matrícula (ou, no plano B, o e-mail) na coluna 1: a chave que a importação do Academy casa com o cadastro.
 
 Exceção: o grupo **UniAtenas** usa um cartão único, sem personalização, em que o aluno marca a matrícula em bolhas (`NN-X-NNNNN`).
+
+**Cartão genérico** (para o aluno que aparece sem estar na lista): nome e matrícula em branco, escritos à mão pelo aluno; QR `SFA2:G:<SIM8>`, só com o simulado. Vai **sempre na última página** do PDF pessoal (a IES imprime cópias dela quando precisar) e também pode ser emitido sozinho, no modelo **Genérico** da tela. Na leitura, a página vai para **Não identificados** com a pendência `cartao_generico` e o recorte do que o aluno escreveu: alguém digita a matrícula e move a linha para `Respostas`.
 
 ## Runbook: do cartão à importação
 
@@ -28,7 +30,7 @@ Passo a passo da operação. O que a IES precisa fazer está em `docs/prd/cartoe
    - quem não tem nem matrícula nem e-mail utilizável fica no painel **"fora do PDF"**: baixe o **CSV** e peça ao Relacionamento para corrigir o cadastro (depois gere de novo).
 3. **Gerar PDF**. Baixe também **"Baixar lista da emissão (CSV)"** e guarde: é a `--lista` do passo 4.
 4. **Grupo UniAtenas:** a tela pré-seleciona o modelo único (sem nome, o aluno escreve o nome e marca a matrícula). Para alunos do grupo sem matrícula, escolha o modelo **Pessoal** e emita só para eles.
-5. Aluno que chegou depois ou perdeu o cartão: emita um cartão só dele pela mesma tela (marque só ele).
+5. Aluno que chegou depois ou perdeu o cartão: use uma cópia da **última página** do PDF (o cartão genérico), ou emita só o genérico no modelo **Genérico** (escolha a quantidade). Se der tempo, também dá para emitir um cartão pessoal só dele (marque só ele).
 
 ### 2. Imprimir e aplicar
 Envie o PDF e o `docs/prd/cartoes-resposta-guia-ies.md` à IES: A4, 100%, só frente, 75 a 90 g/m². Entrega em ordem alfabética, cada cartão ao aluno do nome impresso.
@@ -54,6 +56,7 @@ Abas: **Respostas** (a que a importação lê), **Pendências**, **Não identifi
 | `multipla`, `ambigua` | Duas marcas, ou marca fraca/X/✓/ponto: a célula fica **em branco e amarela**, com comentário | Olhe o cartão; preencha a letra na célula se for o caso, ou deixe em branco |
 | `qr_ilegivel` | QR não lido; a página vai para **Não identificados**, com as respostas e o recorte do nome/matrícula em `recortes/` | Identifique o aluno pelo recorte e pela lista da emissão, escreva a matrícula (ou e-mail) na coluna 1 e **mova a linha** (da coluna 3 em diante) para `Respostas` |
 | `matricula_invalida` | UniAtenas: coluna da matrícula em branco ou com duas marcas | Mesma coisa: leia a matrícula no recorte e mova a linha |
+| `cartao_generico` | Cartão genérico: o aluno escreveu nome e matrícula à mão; a página vai para **Não identificados**, com as respostas lidas e o recorte em `recortes/` | Leia a matrícula no recorte, escreva na coluna 1 e **mova a linha** para `Respostas` |
 | `aluno_duplicado` | A mesma matrícula/e-mail em 2+ páginas com **respostas diferentes** (nenhuma vai para `Respostas`) | Veja quais páginas, escolha a correta, mova a linha |
 | `pagina_repetida` | Aviso: a mesma folha escaneada duas vezes (respostas idênticas); só a primeira foi mantida | Nada a fazer |
 | `pagina_ilegivel` | Marcadores de canto não achados (página cortada, dobrada, foto) | Reescaneie a página e processe de novo |
@@ -97,16 +100,19 @@ Teste:
 ## Comandos
 
 ```bash
-# Template JSON + PDF de exemplo dos dois layouts (padrão: templates/)
+# Template JSON + PDF de exemplo dos layouts, e do cartão genérico (padrão: templates/)
 cartao-omr modelo
 cartao-omr modelo --layout uniatenas
 
-# Um cartão por aluno do roster (ordenado por nome)
+# Um cartão por aluno do roster (ordenado por nome) e um genérico na última página (--sem-generico tira)
 cartao-omr gerar-cartoes --simulado <uuid-do-simulado> --roster roster.csv \
     --nome-simulado "SIMULADO ENAMED 2026" --ies "Faculdade X" --data 25/10/2026
 
 # Cartão UniAtenas (o mesmo PDF serve para todos os alunos)
 cartao-omr gerar-cartoes --simulado <uuid-do-simulado> --modelo uniatenas --copias 1
+
+# Só cartões genéricos (nome e matrícula escritos à mão)
+cartao-omr gerar-cartoes --simulado <uuid-do-simulado> --modelo generico --copias 1 --ies "Faculdade X"
 
 # PDF escaneado -> respostas_<simulado>.xlsx (+ recortes/ e relatorio.json), sem banco
 cartao-omr processar scan.pdf --simulado <uuid-do-simulado> --questoes 100 \
@@ -161,7 +167,7 @@ O avaliador imprime a matriz de confusão, os critérios de aceite e exemplos do
 ## Como o cartão é definido
 
 `cartao_omr/layout.py` guarda todas as medidas (mm). `card.py` desenha o PDF e escreve
-`templates/sfa_v4.json` e `templates/uniatenas_v1.json` **a partir da mesma geometria**, então PDF e template não divergem.
+`templates/sfa_v4.json`, `templates/sfa_generico_v1.json` e `templates/uniatenas_v1.json` **a partir da mesma geometria**, então PDF e template não divergem.
 O template é a única fonte de coordenadas do leitor. Se mudar o `layout.py`, rode `cartao-omr modelo` e commite os templates
 (um teste falha se o JSON do disco estiver desatualizado).
 
@@ -175,6 +181,7 @@ bolhas `[cx, cy, d]` (centro e diâmetro). No `sfa_v4`, `matricula` (bolhas) é 
 | personalizado (`sfa`) | `SFA2:M:<SIM8>:<MATRICULA>` | 3 / 0,97 mm |
 | personalizado, plano B (`sfa`) | `SFA2:E:<SIM8>:<EMAIL>` (minúsculas, até 58 caracteres, modo byte) | 6 / 0,73 mm (caixa do QR de 36 mm) |
 | UniAtenas | `SFA2:A:<SIM8>` | 1 / 1,03 mm |
+| genérico (`sfa_generico_v1`, geometria do `sfa`) | `SFA2:G:<SIM8>` | 1 / 1,24 mm |
 
 `SIM8` são os 8 primeiros hex do `simulado_id`; `MATRICULA` é a `matricula_ra` normalizada (`trim`, maiúsculas), o último campo. O tipo antigo `SFA2:S` (com `user_id`) não existe mais. Abas do xlsx: a coluna 1 chama-se `matricula_ra_ou_email`. `cartao_omr.models.parse_qr` faz a leitura inversa.
 

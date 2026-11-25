@@ -6,14 +6,14 @@
  *   node services/cartao-omr/tools/emitir_ts.mts <entrada.json> <saida.pdf>
  *
  * Requer Node 22.18+ (executa TypeScript sem compilar) e `node_modules` instalado na raiz do repositório.
- * `entrada.json` segue `OpcoesEmissao`: { layout, simuladoId, nomeSimulado?, ies?, data?, alunos?, copias? }.
+ * `entrada.json` segue `OpcoesEmissao`: { layout, simuladoId, nomeSimulado?, ies?, data?, alunos?, copias?, semGenerico? }.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gerarPdf, montarSpecs } from '../../../src/features/cartoes/emitir.ts';
 import type { OpcoesEmissao } from '../../../src/features/cartoes/emitir.ts';
-import type { CardTemplate } from '../../../src/features/cartoes/types.ts';
+import type { CardTemplate, TemplatesCartao } from '../../../src/features/cartoes/types.ts';
 
 const [entrada, saida] = process.argv.slice(2);
 if (!entrada || !saida) {
@@ -23,11 +23,16 @@ if (!entrada || !saida) {
 
 const aqui = dirname(fileURLToPath(import.meta.url));
 const opcoes = JSON.parse(readFileSync(entrada, 'utf8')) as OpcoesEmissao;
-const arquivo = opcoes.layout === 'sfa' ? 'sfa_v4.json' : 'uniatenas_v1.json';
-const template = JSON.parse(readFileSync(join(aqui, '..', 'templates', arquivo), 'utf8')) as CardTemplate;
+const ler = (arquivo: string): CardTemplate =>
+  JSON.parse(readFileSync(join(aqui, '..', 'templates', arquivo), 'utf8')) as CardTemplate;
+const templates: TemplatesCartao = {
+  sfa: ler('sfa_v4.json'),
+  uniatenas: ler('uniatenas_v1.json'),
+  generico: ler('sfa_generico_v1.json'),
+};
 
 const inicio = performance.now();
 const specs = montarSpecs(opcoes);
-const pdf = await gerarPdf(template, specs, { ceder: 0 });
+const pdf = await gerarPdf(templates, specs, { ceder: 0 });
 writeFileSync(saida, Buffer.from(pdf));
 console.log(JSON.stringify({ paginas: specs.length, ms: Math.round(performance.now() - inicio), bytes: pdf.byteLength }));

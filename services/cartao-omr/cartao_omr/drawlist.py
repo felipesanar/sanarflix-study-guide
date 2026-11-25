@@ -37,6 +37,7 @@ GRAY_LABEL = "#404040"
 # Por layout: o sfa usa o slot `matricula` e a fonte Courier-Bold (versão 2) e, no sfa_v4, a dica do plano B por
 # e-mail e o rótulo que encolhe (versão 3); o UniAtenas segue na 1.
 DRAW_VERSION = {"sfa": 3, "uniatenas": 1}
+DRAW_VERSION_GENERICO = 1
 
 SLOTS = ("titulo", "subtitulo", "aluno", "matricula", "dica_matricula", "label")
 
@@ -146,6 +147,32 @@ def _pessoal() -> list[dict]:
     return ops
 
 
+def _pessoal_generico() -> list[dict]:
+    """Bloco do cartão genérico: o aluno escreve a matrícula na linha; os avisos explicam para que serve o cartão."""
+    f = L.PESSOAL_FRAME
+    ops = [
+        _rect(f, stroke=GRAY_STROKE, lw=0.5),
+        _text(f[0] + 3, L.MAT_TITLE_BASELINE, "MATRÍCULA", "Helvetica-Bold", 10.0),
+        _text(f[2] - 3, L.MAT_TITLE_BASELINE, "escreva em letra de forma", "Helvetica", 6.5, GRAY_LABEL, align="right"),
+        _line(f[0] + 3, L.GENERICO_MATRICULA_LINE_Y, f[2] - 3, L.GENERICO_MATRICULA_LINE_Y, BLACK, 0.5),
+    ]
+    avisos = [
+        "Cartão genérico: para quem não recebeu o cartão com o próprio nome.",
+        "Escreva o nome completo (ALUNO) e a matrícula com letra legível.",
+        "Vale só para o simulado e a instituição do cabeçalho.",
+        "Não escreva nem cole nada sobre o código QR.",
+    ]
+    y = L.PESSOAL_AVISOS_Y0
+    for texto in avisos:
+        linhas = _wrap(texto, f[2] - f[0] - 9.0, "Helvetica", 7.5)
+        ops.append(_text(f[0] + 3, y, "•", "Helvetica", 7.5))
+        for ln in linhas:
+            ops.append(_text(f[0] + 6, y, ln, "Helvetica", 7.5))
+            y += 3.7
+        y += 2.2
+    return ops
+
+
 def _matricula(geo: L.Geometry) -> list[dict]:
     f = L.MATRICULA_FRAME
     ops = [
@@ -203,12 +230,19 @@ def _instrucoes() -> list[dict]:
     return ops
 
 
-def build_draw(layout: str) -> list[dict]:
+def build_draw(layout: str, generico: bool = False) -> list[dict]:
+    """Lista de desenho do layout. `generico=True` (só sfa): nome e matrícula em branco, escritos pelo aluno."""
+    if generico and layout != L.LAYOUT_SFA:
+        raise ValueError("o cartão genérico usa o layout sfa")
     geo = L.build_geometry(layout)
     ops: list[dict] = []
     for x, y, w in geo.fiducials.values():
         ops.append(_rect((x, y, x + w, y + w), fill=BLACK))
-    ops += _header()
+    # genérico: sem o slot do nome (o aluno escreve na linha ALUNO)
+    ops += [op for op in _header() if not (generico and op.get("slot") == "aluno")]
+    if generico:
+        ops.append(_text(L.ALUNO_BOX[2], L.GENERICO_DICA_NOME_Y, "escreva seu nome completo, em letra de forma",
+                         "Helvetica", 6.5, GRAY_LABEL, align="right"))
     box = L.QR_BOXES[layout]
     ops.append({"op": "qr", "box": [_r(v) for v in box], "quiet": L.QR_QUIET_MODULES,
                 "ec": L.QR_ERROR.upper(), "color": BLACK})
@@ -218,7 +252,10 @@ def build_draw(layout: str) -> list[dict]:
     else:  # UniAtenas: igual ao de sempre
         ops.append(_slot("label", (box[0] + box[2]) / 2, L.QR_LABELS_Y[layout], "Helvetica", 6.0, GRAY_LABEL,
                          align="center"))
-    ops += _matricula(geo) if geo.matricula_columns else _pessoal()
+    if generico:
+        ops += _pessoal_generico()
+    else:
+        ops += _matricula(geo) if geo.matricula_columns else _pessoal()
     ops += _instrucoes()
     off = baseline_offset(L.NUMBER_PT)
     ops.append({

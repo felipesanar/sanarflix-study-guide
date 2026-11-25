@@ -13,6 +13,9 @@ LAYOUT_UNIATENAS = "uniatenas"
 LAYOUTS = (LAYOUT_SFA, LAYOUT_UNIATENAS)
 
 TEMPLATE_VERSION = {LAYOUT_SFA: "sfa_v4", LAYOUT_UNIATENAS: "uniatenas_v1"}
+# Cartão genérico: mesma geometria do sfa (o leitor usa o sfa_v4 para alinhar e ler); só o bloco pessoal e os avisos
+# mudam, porque o aluno escreve o nome e a matrícula à mão.
+TEMPLATE_GENERICO = "sfa_generico_v1"
 
 # ---------------------------------------------------------------- página
 PAGE_W = 210.0
@@ -54,6 +57,9 @@ PESSOAL_DICA_MAX_W = 38.0     # dica "escreva sua matrícula" (plano B), à dire
 PESSOAL_AVISOS_Y0 = 67.0
 # recorte da matrícula impressa (Pendências do leitor)
 PESSOAL_MATRICULA_CROP = (20.0, 50.0, 92.0, 61.0)
+# genérico: linha onde o aluno escreve a matrícula (na altura da matrícula impressa do pessoal) e dica do nome
+GENERICO_MATRICULA_LINE_Y = 58.6
+GENERICO_DICA_NOME_Y = 42.6
 INSTRUCOES_FRAME = (98.0, 44.0, 150.0, 108.0)
 
 # ---------------------------------------------------------------- matrícula (só uniatenas)

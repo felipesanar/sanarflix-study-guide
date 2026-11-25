@@ -37,8 +37,9 @@ def test_gerar_cartoes_um_por_aluno(tmp_path, fake_roster_csv):
                             "--saida", str(out)])
     assert r.exit_code == 0, r.output
     doc = pymupdf.open(out)
-    assert len(doc) == 3
+    assert len(doc) == 3 + 1  # um por aluno e o genérico na última página
     assert "Álvaro Falso" in doc[0].get_text()  # ordenado por nome
+    assert "GENÉRICO" in doc[3].get_text()
 
 
 def test_gerar_cartoes_sfa_exige_roster(tmp_path):
@@ -46,7 +47,7 @@ def test_gerar_cartoes_sfa_exige_roster(tmp_path):
     assert r.exit_code != 0 and not (tmp_path / "x.pdf").exists()
 
 
-def test_gerar_cartoes_nao_tem_mais_cartao_generico(tmp_path, fake_roster_csv):
+def test_gerar_cartoes_nao_aceita_a_opcao_antiga_de_genericos(tmp_path, fake_roster_csv):
     r = runner.invoke(app, ["gerar-cartoes", "--simulado", SIM, "--roster", str(fake_roster_csv),
                             "--genericos", "5", "--saida", str(tmp_path / "x.pdf")])
     assert r.exit_code != 0

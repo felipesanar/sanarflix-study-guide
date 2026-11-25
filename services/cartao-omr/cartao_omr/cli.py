@@ -11,6 +11,7 @@ from . import __version__
 from . import layout as L
 from .card import (
     build_example_pdf,
+    specs_genericos,
     specs_personalizados,
     specs_uniatenas,
     write_cards_pdf,
@@ -61,26 +62,39 @@ def modelo(
         pdf = saida / f"exemplo_{lay}.pdf"
         pages = build_example_pdf(lay, pdf)
         typer.echo(f"{lay}: {tpl}  |  {pdf} ({pages} pág.)")
+        if lay == L.LAYOUT_SFA:  # o genérico tem a geometria do sfa
+            tpl = write_template(lay, saida / f"{L.TEMPLATE_GENERICO}.json", generico=True)
+            pdf = saida / "exemplo_generico.pdf"
+            pages = build_example_pdf(lay, pdf, generico=True)
+            typer.echo(f"generico: {tpl}  |  {pdf} ({pages} pág.)")
 
 
 @app.command("gerar-cartoes")
 def gerar_cartoes(
     simulado: str = typer.Option(..., "--simulado", help="ID (UUID) do simulado; vai no QR."),
-    modelo_cartao: str = typer.Option("sfa", "--modelo", help="sfa (padrão) ou uniatenas."),
+    modelo_cartao: str = typer.Option(
+        "sfa", "--modelo", help="sfa (padrão), uniatenas ou generico (em branco: o aluno escreve nome e matrícula)."),
     roster: Optional[Path] = typer.Option(
         None, "--roster",
         help="CSV matricula,nome[,ies] com os alunos que farão a prova (sfa). Na emissão pelo Academy vem da tela."),
-    copias: int = typer.Option(1, "--copias", min=1, help="Cópias do cartão UniAtenas."),
+    copias: int = typer.Option(1, "--copias", min=1, help="Cópias do cartão UniAtenas ou do genérico."),
+    sem_generico: bool = typer.Option(
+        False, "--sem-generico", help="sfa: não acrescenta o cartão genérico na última página."),
     nome_simulado: str = typer.Option("", "--nome-simulado", help="Texto do título."),
     ies: str = typer.Option("", "--ies", help="Nome da IES no cabeçalho."),
     data: str = typer.Option("", "--data", help="Data da prova, ex.: 25/10/2026."),
     saida: Optional[Path] = typer.Option(None, "--saida", help="PDF de saída (padrão: runs/cartoes_<simulado>/)."),
 ) -> None:
-    """Gera o PDF para impressão: um cartão por aluno do roster (sfa) ou o cartão UniAtenas."""
-    if modelo_cartao not in (L.LAYOUT_SFA, L.LAYOUT_UNIATENAS):
-        raise typer.BadParameter("use sfa ou uniatenas", param_hint="--modelo")
+    """Gera o PDF para impressão: um cartão por aluno do roster (sfa, com um genérico na última página),
+    o cartão UniAtenas ou só cartões genéricos."""
+    if modelo_cartao not in (L.LAYOUT_SFA, L.LAYOUT_UNIATENAS, "generico"):
+        raise typer.BadParameter("use sfa, uniatenas ou generico", param_hint="--modelo")
     try:
-        if modelo_cartao == L.LAYOUT_UNIATENAS:
+        if modelo_cartao == "generico":
+            if roster:
+                raise typer.BadParameter("o cartão genérico não é personalizado", param_hint="--roster")
+            specs = specs_genericos(copias, simulado, nome_simulado, ies, data)
+        elif modelo_cartao == L.LAYOUT_UNIATENAS:
             if roster:
                 raise typer.BadParameter("o cartão UniAtenas não é personalizado", param_hint="--roster")
             specs = specs_uniatenas(copias, simulado, nome_simulado, ies or "UniAtenas", data)
@@ -88,8 +102,10 @@ def gerar_cartoes(
             if not roster:
                 raise typer.BadParameter("o cartão sfa é pessoal: informe os alunos com --roster", param_hint="--roster")
             specs = specs_personalizados(load_roster_csv(roster), simulado, nome_simulado, ies, data)
-        if not specs:
-            raise typer.BadParameter("o roster está vazio", param_hint="--roster")
+            if not specs:
+                raise typer.BadParameter("o roster está vazio", param_hint="--roster")
+            if not sem_generico:  # sempre à mão para o aluno que aparecer sem cartão
+                specs += specs_genericos(1, simulado, nome_simulado, ies, data)
         dest = saida or RUNS_DIR / f"cartoes_{simulado}" / f"cartoes_{modelo_cartao}_{simulado}.pdf"
         dest.parent.mkdir(parents=True, exist_ok=True)
         pages = write_cards_pdf(dest, specs, title=f"Cartões — simulado {simulado}")
@@ -136,7 +152,8 @@ def processar(
                    "(ou use --saida para outra pasta).", err=True)
         raise typer.Exit(2) from exc
     r = resumo(res)
-    typer.echo(f"{r['paginas']} página(s): {r['identificadas']} identificada(s), {r['nao_identificadas']} não identificada(s), "
+    typer.echo(f"{r['paginas']} página(s): {r['identificadas']} identificada(s), {r['nao_identificadas']} não identificada(s) "
+               f"({r['genericos']} de cartão genérico), "
                f"{r['em_branco']} em branco, {r['ilegiveis']} ilegível(is), {r['simulado_divergente']} de outro simulado; "
                f"{r['pendencias']} pendência(s).")
     typer.echo(f"Planilha: {xlsx}")

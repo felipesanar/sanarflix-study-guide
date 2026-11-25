@@ -1,7 +1,8 @@
 """Leitura de um PDF inteiro de cartões: página a página, identificação pela matrícula e pendências.
 
 Sem banco e sem rede (decisão de 20/10/2026): o aluno é identificado só pelo que está no cartão
-(matrícula do QR no cartão pessoal; matrícula em bolhas no UniAtenas). A coluna 1 da planilha é essa
+(matrícula do QR no cartão pessoal; matrícula em bolhas no UniAtenas). O cartão genérico (nome e matrícula
+escritos à mão) é lido, mas vai para "Não identificados" com o recorte, para alguém digitar a matrícula. A coluna 1 da planilha é essa
 matrícula (ou, no plano B, pelo e-mail), a chave que a importação do Academy casa com o cadastro. Quem confere se a
 matrícula existe nas IES do simulado é o dry-run da importação.
 """
@@ -17,7 +18,7 @@ import numpy as np
 
 from .config import DEFAULT_CONFIG, ReadConfig
 from .layout import LAYOUT_UNIATENAS, N_QUESTIONS
-from .models import normalize_identificacao, normalize_matricula, sim8
+from .models import QR_KIND_GENERICO, normalize_identificacao, normalize_matricula, sim8
 from .pipeline import omr
 from .pipeline.page import EM_BRANCO, ILEGIVEL, OK, PageResult, load_template, read_page
 from .pipeline.render import open_pdf, render_page
@@ -33,6 +34,7 @@ MULTIPLA = "multipla"
 AMBIGUA = "ambigua"
 RESPOSTA_ALEM_DO_SIMULADO = "resposta_alem_do_simulado"
 FORA_DA_LISTA = "fora_da_lista"
+CARTAO_GENERICO = "cartao_generico"  # o aluno escreveu nome e matrícula à mão: alguém digita a matrícula
 
 # destino de cada página
 RESPOSTAS = "respostas"
@@ -159,6 +161,12 @@ def ler_pagina(gray: np.ndarray, pagina: int, simulado_id: str, total_questoes: 
             pg.pendencias.append(Pendencia(
                 pagina, MATRICULA_INVALIDA, m.reason if m else "matrícula não lida",
                 recorte=_recorte(res, tpl, pagina, MATRICULA_INVALIDA, saida)))
+    elif data is not None and data.kind == QR_KIND_GENERICO:
+        pg.destino, pg.motivo = NAO_IDENTIFICADOS, CARTAO_GENERICO
+        pg.pendencias.append(Pendencia(
+            pagina, CARTAO_GENERICO,
+            "cartão genérico: digite a matrícula escrita pelo aluno (ver recorte) e mova a linha para Respostas",
+            recorte=_recorte(res, tpl, pagina, CARTAO_GENERICO, saida)))
     else:
         pg.identificacao = res.identificacao
         pg.via = "email" if res.email_qr else ("matricula" if res.matricula_qr else None)
