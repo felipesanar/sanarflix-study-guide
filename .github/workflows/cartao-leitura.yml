@@ -1,0 +1,64 @@
+# Leitura de cartões-resposta enviados pelo Academy (Admin → Simulados → Leitura de cartões).
+#
+# Disparado pela edge function `cartao-leitura-iniciar` (workflow_dispatch com o id da leitura).
+# Roda o pacote services/cartao-omr, que fala só com a edge function `cartao-leitura-worker`:
+# este job NÃO recebe a service role do Supabase.
+#
+# Segredos do repositório: SUPABASE_URL e CARTAO_WORKER_TOKEN (o mesmo valor configurado na edge function).
+name: Leitura de cartões-resposta
+
+on:
+  workflow_dispatch:
+    inputs:
+      leitura_id:
+        description: ID da leitura (tabela cartao_leituras)
+        required: true
+        type: string
+
+concurrency:
+  group: cartao-leitura-${{ inputs.leitura_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      CARTAO_WORKER_TOKEN: ${{ secrets.CARTAO_WORKER_TOKEN }}
+      CARTAO_WORKER_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      LEITURA_ID: ${{ inputs.leitura_id }}
+    steps:
+      - name: Confere o id da leitura
+        run: |
+          if ! [[ "$LEITURA_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "leitura_id inválido" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: services/cartao-omr
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/cartao-omr/pyproject.toml
+
+      - name: Instala o cartao-omr
+        run: pip install ./services/cartao-omr
+
+      - name: Lê o PDF
+        run: python -m cartao_omr.worker --leitura "$LEITURA_ID"
+
+      # o worker já avisa a edge function quando falha por conta própria; isto cobre falhas antes dele
+      # (instalação, timeout, cancelamento), para a leitura não ficar presa em "processando"
+      - name: Marca a leitura como falha
+        if: failure() || cancelled()
+        run: |
+          pip show cartao-omr >/dev/null 2>&1 || pip install ./services/cartao-omr
+          python -m cartao_omr.worker --leitura "$LEITURA_ID" --falhar "o job do GitHub Actions falhou ou foi cancelado: $CARTAO_WORKER_RUN_URL"

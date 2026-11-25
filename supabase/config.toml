@@ -19,3 +19,10 @@ verify_jwt = false
 
 [functions.mentor-ai-insights]
 verify_jwt = true
+
+[functions.cartao-leitura-worker]
+# Auth propria: Bearer CARTAO_WORKER_TOKEN comparado em tempo constante no codigo (worker do GitHub Actions).
+verify_jwt = false
+
+[functions.cartao-leitura-iniciar]
+verify_jwt = true
