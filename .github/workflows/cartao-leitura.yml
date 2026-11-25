@@ -4,7 +4,8 @@
 # Roda o pacote services/cartao-omr, que fala só com a edge function `cartao-leitura-worker`:
 # este job NÃO recebe a service role do Supabase.
 #
-# Segredos do repositório: SUPABASE_URL e CARTAO_WORKER_TOKEN (o mesmo valor configurado na edge function).
+# Segredo do repositório: CARTAO_WORKER_TOKEN (o mesmo valor configurado nas edge functions do Supabase).
+# A URL do projeto não é segredo (já vai no bundle do front).
 name: Leitura de cartões-resposta
 
 on:
@@ -27,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_URL: https://gvqvrmkizemwsasmupmo.supabase.co
       CARTAO_WORKER_TOKEN: ${{ secrets.CARTAO_WORKER_TOKEN }}
       CARTAO_WORKER_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       LEITURA_ID: ${{ inputs.leitura_id }}

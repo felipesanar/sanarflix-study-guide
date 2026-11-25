@@ -243,9 +243,11 @@ O worker da leitura pelo Academy (`python -m cartao_omr.worker --leitura <id>`) 
 
 | Onde | Segredo | Para quê |
 |---|---|---|
-| GitHub (Actions do repositório) | `SUPABASE_URL` | Endereço das edge functions |
-| GitHub e edge functions do Supabase (mesmo valor) | `CARTAO_WORKER_TOKEN` | O worker se autentica na `cartao-leitura-worker` (aleatório, 32+ caracteres) |
+| GitHub (Actions do repositório) e edge functions do Supabase (mesmo valor) | `CARTAO_WORKER_TOKEN` | O worker se autentica na `cartao-leitura-worker` (aleatório, 32+ caracteres) |
 | Edge functions do Supabase | `GITHUB_DISPATCH_TOKEN` | A `cartao-leitura-iniciar` dispara o workflow: fine-grained PAT só deste repositório, permissão **Actions: read and write** |
+
+O repositório é de uma conta pessoal (`felipesanar`): só o dono cadastra segredos do Actions e cria um fine-grained PAT
+para ele. A URL do Supabase vai fixa no workflow (não é segredo).
 
 Opcionais na `cartao-leitura-iniciar`: `CARTAO_LEITURA_GITHUB_REPO`, `CARTAO_LEITURA_GITHUB_REF` (padrão `main`) e
 `CARTAO_LEITURA_WORKFLOW`. O workflow só pode ser disparado depois de estar na branch indicada em `..._REF`.
