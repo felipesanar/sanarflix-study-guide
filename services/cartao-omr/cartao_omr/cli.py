@@ -19,6 +19,7 @@ from .card import (
 )
 from .config import RUNS_DIR, TEMPLATES_DIR
 from .export_xlsx import escrever_planilha, escrever_relatorio, resumo
+from .serializar import escrever_json
 from .layout import N_QUESTIONS
 from .processar import ler_lista_emissao, processar_pdf
 from .roster import load_roster_csv
@@ -132,6 +133,8 @@ def processar(
     layout: Optional[str] = typer.Option(
         None, "--layout", help="Layout a assumir quando o QR não for lido (uniatenas lê a matrícula em bolhas)."),
     saida: Optional[Path] = typer.Option(None, "--saida", help="Pasta de saída (padrão: runs/<data>_<hora>_<simulado>/, uma por execução)."),
+    como_json: bool = typer.Option(
+        False, "--json", help="Também grava resultado.json, com as respostas de cada página (o formato do worker)."),
 ) -> None:
     """Lê o PDF e gera respostas_<simulado>.xlsx, recortes das dúvidas e relatorio.json. Só lê arquivos: sem banco."""
     if layout is not None:
@@ -144,6 +147,8 @@ def processar(
                             progresso=_progresso)
         xlsx = escrever_planilha(res, dest / f"respostas_{simulado}.xlsx")
         escrever_relatorio(res, dest / "relatorio.json")
+        if como_json:
+            escrever_json(res, dest / "resultado.json")
     except ValueError as exc:
         typer.echo(f"Erro: {exc}", err=True)
         raise typer.Exit(2) from exc
