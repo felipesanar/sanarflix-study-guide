@@ -90,8 +90,8 @@ function notaComparativa(
 }
 
 /**
- * Os 5 KPIs do topo da Visão geral (spec §12.2). Sem aluno: Base ativa, Alunos
- * engajados, Sem retorno há 30+ dias, Questões resolvidas e Acerto médio. Com
+ * KPIs do topo da Visão geral. Sem aluno (4): Base ativa, Alunos
+ * engajados, Questões resolvidas e Acerto médio. Com
  * aluno filtrado (`dados.aluno`): Semestre, Situação, Dias ativos, Questões
  * resolvidas e Acerto, com as médias do semestre dele.
  *
@@ -163,7 +163,7 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
   }
 
   return (
-    <div data-testid="kpis-engajamento" data-modo="geral" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-5">
+    <div data-testid="kpis-engajamento" data-modo="geral" className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
       <KpiCard
         {...comum}
         testId="kpi-base-ativa"
@@ -190,21 +190,6 @@ export function KpisEngajamento({ dados, meta, periodo, estado = 'ok', onTentarN
               : notaComparativa(k.engajadosPct, k.engajadosPctAnterior, anterior?.comparavelConteudos ?? false, rotuloAnterior)
             : undefined
         }
-      />
-      <KpiCard
-        {...comum}
-        testId="kpi-sem-retorno"
-        criterio={CRITERIO.semRetorno}
-        titulo="Sem retorno há 30+ dias"
-        valor={formatNumero(k?.semRetorno30 ?? null)}
-        corpo={
-          <CorpoTexto
-            texto={formatNumero(k?.semRetorno30 ?? null)}
-            sufixo={k ? `${formatPct(k.semRetorno30Pct)} da base` : undefined}
-            perigo
-          />
-        }
-        rodape="usaram e pararam"
       />
       <KpiCard
         {...comum}

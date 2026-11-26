@@ -53,12 +53,11 @@ const titulos = () => screen.getAllByTestId('kpi-titulo').map((t) => t.textConte
 const consulta = (data: Dados | undefined, extra: Record<string, unknown> = {}) => resultadoGestor(data, extra);
 
 describe('KpisEngajamento — sem aluno (§12.2)', () => {
-  it('5 KPIs na ordem da spec', () => {
+  it('4 KPIs, sem "Sem retorno há 30+ dias"', () => {
     envolver(<KpisEngajamento dados={visaoGeralParacatu()} meta={META_ENGAJAMENTO} periodo="6m" />);
     expect(titulos()).toEqual([
       'Base ativa',
       'Alunos engajados',
-      'Sem retorno há 30+ dias',
       'Questões resolvidas',
       'Acerto médio',
     ]);
@@ -74,9 +73,7 @@ describe('KpisEngajamento — sem aluno (§12.2)', () => {
     expect(sufixo('kpi-engajados')).toBe('330 de 521');
     expect(nota('kpi-engajados')).toBe('sem comparativo para este período');
 
-    expect(valor('kpi-sem-retorno')).toBe('133');
-    expect(sufixo('kpi-sem-retorno')).toBe('26% da base');
-    expect(nota('kpi-sem-retorno')).toBe('usaram e pararam');
+    expect(screen.queryByTestId('kpi-sem-retorno')).toBeNull();
 
     expect(valor('kpi-questoes')).toBe('145.873');
     expect(nota('kpi-questoes')).toBe('442 por aluno engajado');
@@ -84,12 +81,6 @@ describe('KpisEngajamento — sem aluno (§12.2)', () => {
     expect(valor('kpi-acerto')).toBe('66%');
     // comparável (questões), mas sem denominador anterior (PARACATU não tem nada antes de 05/2026)
     expect(nota('kpi-acerto')).toBe('sem comparativo para este período');
-  });
-
-  it('"Sem retorno há 30+ dias" usa --gp-danger-on', () => {
-    envolver(<KpisEngajamento dados={visaoGeralParacatu()} meta={META_ENGAJAMENTO} periodo="6m" />);
-    expect(within(kpi('kpi-sem-retorno')).getByTestId('kpi-valor').style.color).toContain('--gp-danger-on');
-    expect(within(kpi('kpi-questoes')).getByTestId('kpi-valor').style.color).not.toContain('--gp-danger-on');
   });
 
   it('comparável: "▲ X p.p. vs. 6 meses anteriores" (engajamento e acerto)', () => {
@@ -191,7 +182,7 @@ describe('KpisEngajamento — com aluno (§12.2)', () => {
 describe('KpisEngajamento — estados (§11)', () => {
   it('carregando: os rótulos aparecem e nenhum número é afirmado', () => {
     envolver(<KpisEngajamento dados={undefined} periodo="6m" estado="loading" />);
-    expect(titulos()).toHaveLength(5);
+    expect(titulos()).toHaveLength(4);
     expect(screen.queryAllByTestId('kpi-valor')).toHaveLength(0);
   });
 
@@ -199,7 +190,7 @@ describe('KpisEngajamento — estados (§11)', () => {
     const refazer = vi.fn();
     envolver(<KpisEngajamento dados={undefined} periodo="6m" estado="error" onTentarNovamente={refazer} />);
     const botoes = screen.getAllByRole('button', { name: /Tentar novamente/ });
-    expect(botoes).toHaveLength(5);
+    expect(botoes).toHaveLength(4);
     fireEvent.click(botoes[0]);
     expect(refazer).toHaveBeenCalledTimes(1);
   });
