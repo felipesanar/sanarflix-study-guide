@@ -877,6 +877,161 @@ export type Database = {
         }
         Relationships: []
       }
+      cartao_leitura_paginas: {
+        Row: {
+          created_at: string
+          descartada: boolean
+          destino: string
+          duvidas: Json
+          id: string
+          identificacao: string | null
+          identificacao_manual: string | null
+          imagem: string | null
+          layout: string | null
+          leitura_id: string
+          motivo: string
+          pagina: number
+          pendencias: Json
+          respostas: Json
+          respostas_manual: Json
+          revisado_em: string | null
+          revisado_por: string | null
+          status: string
+          via: string | null
+        }
+        Insert: {
+          created_at?: string
+          descartada?: boolean
+          destino: string
+          duvidas?: Json
+          id?: string
+          identificacao?: string | null
+          identificacao_manual?: string | null
+          imagem?: string | null
+          layout?: string | null
+          leitura_id: string
+          motivo?: string
+          pagina: number
+          pendencias?: Json
+          respostas?: Json
+          respostas_manual?: Json
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status: string
+          via?: string | null
+        }
+        Update: {
+          created_at?: string
+          descartada?: boolean
+          destino?: string
+          duvidas?: Json
+          id?: string
+          identificacao?: string | null
+          identificacao_manual?: string | null
+          imagem?: string | null
+          layout?: string | null
+          leitura_id?: string
+          motivo?: string
+          pagina?: number
+          pendencias?: Json
+          respostas?: Json
+          respostas_manual?: Json
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status?: string
+          via?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartao_leitura_paginas_leitura_id_fkey"
+            columns: ["leitura_id"]
+            isOneToOne: false
+            referencedRelation: "cartao_leituras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cartao_leituras: {
+        Row: {
+          arquivo_bytes: number | null
+          arquivo_nome: string
+          arquivo_path: string
+          arquivos_apagados_em: string | null
+          concluido_em: string | null
+          created_at: string
+          criado_por: string
+          disparado_em: string | null
+          erro: string | null
+          github_run_url: string | null
+          id: string
+          import_batch_id: string | null
+          importado_em: string | null
+          iniciado_em: string | null
+          resumo: Json | null
+          simulado_id: string
+          status: string
+          total_questoes: number
+          updated_at: string
+        }
+        Insert: {
+          arquivo_bytes?: number | null
+          arquivo_nome: string
+          arquivo_path: string
+          arquivos_apagados_em?: string | null
+          concluido_em?: string | null
+          created_at?: string
+          criado_por?: string
+          disparado_em?: string | null
+          erro?: string | null
+          github_run_url?: string | null
+          id?: string
+          import_batch_id?: string | null
+          importado_em?: string | null
+          iniciado_em?: string | null
+          resumo?: Json | null
+          simulado_id: string
+          status?: string
+          total_questoes: number
+          updated_at?: string
+        }
+        Update: {
+          arquivo_bytes?: number | null
+          arquivo_nome?: string
+          arquivo_path?: string
+          arquivos_apagados_em?: string | null
+          concluido_em?: string | null
+          created_at?: string
+          criado_por?: string
+          disparado_em?: string | null
+          erro?: string | null
+          github_run_url?: string | null
+          id?: string
+          import_batch_id?: string | null
+          importado_em?: string | null
+          iniciado_em?: string | null
+          resumo?: Json | null
+          simulado_id?: string
+          status?: string
+          total_questoes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartao_leituras_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "admin_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartao_leituras_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consumo_metabase: {
         Row: {
           documentos_lidos: number | null
