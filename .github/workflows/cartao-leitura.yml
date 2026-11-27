@@ -51,7 +51,7 @@ jobs:
           cache-dependency-path: services/cartao-omr/pyproject.toml
 
       - name: Instala o cartao-omr
-        run: pip install ./services/cartao-omr
+        run: pip install -e ./services/cartao-omr
 
       - name: Lê o PDF
         run: python -m cartao_omr.worker --leitura "$LEITURA_ID"
@@ -61,5 +61,5 @@ jobs:
       - name: Marca a leitura como falha
         if: failure() || cancelled()
         run: |
-          pip show cartao-omr >/dev/null 2>&1 || pip install ./services/cartao-omr
+          pip show cartao-omr >/dev/null 2>&1 || pip install -e ./services/cartao-omr
           python -m cartao_omr.worker --leitura "$LEITURA_ID" --falhar "o job do GitHub Actions falhou ou foi cancelado: $CARTAO_WORKER_RUN_URL"
