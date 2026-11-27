@@ -35,12 +35,12 @@ const SimuladosPage: React.FC = () => {
       : 'provas';
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminSectionHeader
         title="Simulados"
         subtitle="Criar e manter provas, liberar tentativas, importar respostas de turmas inteiras, emitir e ler os cartões-resposta."
       />
-      <div className="flex gap-1 border-b" role="tablist" aria-label="Sub-seções de Simulados">
+      <div className="flex gap-1 overflow-x-auto border-b" role="tablist" aria-label="Sub-seções de Simulados">
         {TABS.map((t) => (
           <button
             key={t.id}

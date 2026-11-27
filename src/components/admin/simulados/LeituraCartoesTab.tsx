@@ -168,7 +168,7 @@ export default function LeituraCartoesTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <AdminSectionHeader
         title="Leitura de cartões"
         subtitle="Envie o PDF escaneado dos cartões-resposta preenchidos. A leitura roda sozinha; depois, revise as pendências e importe as respostas."
@@ -219,7 +219,7 @@ export default function LeituraCartoesTab() {
         <AdminEmpty icon={<ScanLine className="h-6 w-6" />} title="Nenhuma leitura ainda" description="Os PDFs enviados aparecem aqui." />
       )}
       {!erro && leituras && leituras.length > 0 && (
-        <div className="rounded-xl border bg-card">
+        <div className="max-w-full overflow-x-auto rounded-xl border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -242,7 +242,7 @@ export default function LeituraCartoesTab() {
                       {STATUS[l.status].rotulo}
                     </StatusPill>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="max-w-[22rem] whitespace-normal break-all text-xs text-muted-foreground">
                     {l.resumo
                       ? `${l.resumo.paginas} pág. · ${l.resumo.identificadas} identificadas · ${l.resumo.nao_identificadas} não identificadas${
                           l.arquivos_apagados_em ? ' · arquivos apagados' : ` · ${mb(l.arquivo_bytes)}`
