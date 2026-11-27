@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.user_has_caderno(uuid, smallint) FROM PUBLIC, anon;

@@ -4962,6 +4962,10 @@ export type Database = {
         Args: { _ies: string; _user: string }
         Returns: boolean
       }
+      user_has_caderno: {
+        Args: { _caderno: number; _simulado_id: string }
+        Returns: boolean
+      }
       user_has_feature: { Args: { p_feature: string }; Returns: boolean }
       user_roles: {
         Args: { "": Database["public"]["Tables"]["users"]["Row"] }
