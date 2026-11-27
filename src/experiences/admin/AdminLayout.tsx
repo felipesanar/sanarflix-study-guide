@@ -193,13 +193,13 @@ export const ConsoleShell: React.FC<{ portal: ConsolePortal }> = ({ portal }) =>
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4 md:hidden">
           <SidebarTrigger />
           <span className="text-sm font-semibold">Sanar Academy</span>
         </div>
 
-        <div className="flex-1 p-4 md:p-8">
+        <div className="min-w-0 flex-1 p-4 md:p-8">
           <Suspense fallback={<div className="min-h-[40vh]" aria-busy="true" />}>
             <Outlet />
           </Suspense>
