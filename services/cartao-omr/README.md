@@ -38,7 +38,20 @@ Envie o PDF e o `docs/prd/cartoes-resposta-guia-ies.md` à IES: A4, 100%, só fr
 ### 3. Receber o scan
 PDF único, 200 a 300 dpi. **PDFs, imagens e planilhas com dados de alunos nunca entram no Git** (`runs/` e `*.pdf` fora de `templates/` e `tests/fixtures/` já são ignorados).
 
-### 4. Processar
+### 4. Ler pelo Academy (caminho principal)
+Em **Admin → Simulados → Leitura de cartões**:
+1. Escolha o simulado, envie o PDF escaneado e clique em **Enviar e ler**. O PDF vai para o bucket privado `cartoes-leitura`; um worker (GitHub Actions, workflow `cartao-leitura.yml`) roda este pacote e devolve o resultado. Leva alguns minutos; a lista se atualiza sozinha.
+2. Quando a leitura aparecer como **Para revisar**, clique em **Revisar**:
+   - **Não identificada** (cartão genérico, QR ilegível, matrícula em bolhas inválida, aluno repetido): veja o recorte, digite a matrícula ou o e-mail e **Confirmar**, ou **Descartar página**;
+   - **Com dúvida** (`multipla`/`ambigua`): veja a página inteira e escolha a letra ou "Em branco" (sem decisão, entra em branco);
+   - cada ação grava na hora: dá para parar e continuar depois.
+3. Com tudo resolvido, **Pré-visualizar importação** roda o mesmo dry-run da aba Importar respostas; confirme e a leitura fica **Importado**.
+4. **Falhou**: veja o motivo na lista (e o link do run no GitHub) e use **Ler de novo**.
+5. **Armazenamento:** o PDF e as imagens da revisão (página inteira em JPEG, só nas páginas com pendência) ficam no bucket só até a importação; depois dela são **apagados automaticamente**, e a linha da leitura fica como histórico. Leitura enviada por engano ou abandonada: botão da lixeira na lista (**Excluir**). Uma leitura importada sem conseguir apagar mostra **Apagar arquivos**. Depois de apagados, a leitura não pode ser relida: para refazer, envie o PDF de novo.
+
+A CLI abaixo (passos 4b e 5) continua valendo como plano B, por exemplo se o GitHub Actions estiver fora.
+
+### 4b. Processar pela CLI (plano B)
 ```bash
 cd services/cartao-omr
 .venv/Scripts/python.exe -m cartao_omr processar "C:/caminho/scan.pdf" --simulado <id-do-simulado> --questoes 100 --lista "C:/caminho/lista_da_emissao.csv"
@@ -47,6 +60,7 @@ cd services/cartao-omr
 - `--simulado`: o ID aparece embaixo do nome do simulado em Admin → Simulados → Provas (clique para selecionar). `--questoes`: quantas questões o simulado tem (a planilha precisa ter exatamente `1 + N` colunas). `--lista` é opcional, mas aponta quem estava na lista e não devolveu o cartão. `--layout uniatenas` só se o QR do UniAtenas não for lido.
 - A saída vai para `runs/<data>_<hora>_<simulado>/`: `respostas_<simulado>.xlsx`, `relatorio.json` e `recortes/` (imagens das páginas com problema). Uma pasta por execução; abra o xlsx à vontade.
 - Tempo: cerca de 0,1 s por página (500 cartões ≈ 1 minuto).
+- `--json` também grava `resultado.json`, com as respostas de cada página (o formato que o worker envia ao Academy).
 
 ### 5. Revisar o xlsx
 Abas: **Respostas** (a que a importação lê), **Pendências**, **Não identificados**, **Resumo** (contagens, limiares usados e quem estava na lista e não devolveu).
@@ -224,3 +238,17 @@ Tudo é fictício: nomes e matrículas falsos e UUIDs de simulado derivados da s
 ## Segredos
 
 Este serviço **não acessa o banco** (rev. 8): não há `.env`, papel de leitura nem credencial. A service role key é proibida.
+
+O worker da leitura pelo Academy (`python -m cartao_omr.worker --leitura <id>`) também não: fala só com a edge function
+`cartao-leitura-worker`, que grava no banco e assina as URLs do Storage. Segredos envolvidos:
+
+| Onde | Segredo | Para quê |
+|---|---|---|
+| GitHub (Actions do repositório) e edge functions do Supabase (mesmo valor) | `CARTAO_WORKER_TOKEN` | O worker se autentica na `cartao-leitura-worker` (aleatório, 32+ caracteres) |
+| Edge functions do Supabase | `GITHUB_DISPATCH_TOKEN` | A `cartao-leitura-iniciar` dispara o workflow: fine-grained PAT só deste repositório, permissão **Actions: read and write** |
+
+O repositório é de uma conta pessoal (`felipesanar`): só o dono cadastra segredos do Actions e cria um fine-grained PAT
+para ele. A URL do Supabase vai fixa no workflow (não é segredo).
+
+Opcionais na `cartao-leitura-iniciar`: `CARTAO_LEITURA_GITHUB_REPO`, `CARTAO_LEITURA_GITHUB_REF` (padrão `main`) e
+`CARTAO_LEITURA_WORKFLOW`. O workflow só pode ser disparado depois de estar na branch indicada em `..._REF`.
